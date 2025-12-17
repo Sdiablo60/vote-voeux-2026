@@ -66,17 +66,21 @@ with tab_vote:
             choix = []
             
             for i in range(3):
-                sel = st.selectbox(
-                    f"Choix n°{i+1}", 
-                    [v for v in vids if v not in choix], 
-                    index=None, 
-                    placeholder="Sélectionnez une vidéo...", 
-                    key=f"sel_v_{i}"
-                )
-                if sel:
-                    choix.append(sel)
+                sel = st.selectbox(f"Choix n°{i+1}", [v for v in vids if v not in choix], index=None, placeholder="Sélectionnez une vidéo...", key=f"sel_v_{i}")
+                if sel: choix.append(sel)
             
             if st.form_submit_button("Valider mon vote 🚀"):
                 if p1 and p2 and len(choix) == 3:
                     fn = os.path.join(VOTES_DIR, "votes_principale.csv")
-                    df = pd.read_csv(fn) if os.path.exists(fn) else
+                    # LIGNE CORRIGÉE ICI
+                    df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
+                    
+                    if p2.lower() in df['Pseudo'].str.lower().values:
+                        st.warning("❌ Ce pseudo a déjà été utilisé.")
+                    else:
+                        new_row = pd.DataFrame([[p1, p2] + choix], columns=df.columns)
+                        new_row.to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
+                        st.session_state["voted"] = True
+                        st.balloons()
+                        st.rerun()
+                else:
