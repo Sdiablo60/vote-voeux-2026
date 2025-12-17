@@ -13,6 +13,7 @@ VOTES_DIR = "sessions_votes"
 GALLERY_DIR = "galerie_images"
 SOUNDS_DIR = "sons_admin"
 CONFIG_FILE = "config_videos.csv"
+TITRE_FILE = "titre_config.txt"
 LOCK_FILE = "vote_lock.txt"
 LOGO_FILE = "logo_entreprise.png"
 
@@ -21,22 +22,30 @@ for d in [VOTES_DIR, GALLERY_DIR, SOUNDS_DIR]:
 
 st.set_page_config(page_title="Régie Vote 2026", layout="wide")
 
-# --- 2. INITIALISATION ET FONCTIONS ---
+# --- 2. FONCTIONS DE CHARGEMENT ---
 if "voted" not in st.session_state: st.session_state["voted"] = False
+
+def load_videos():
+    if os.path.exists(CONFIG_FILE): 
+        return pd.read_csv(CONFIG_FILE)['Video'].tolist()
+    return ["BU PAX", "BU FRET", "BU BTOB", "DPMI", "RH", "Finances", "AO", "QSSE", "IT", "Direction"]
+
+def save_videos(liste):
+    pd.DataFrame(liste, columns=['Video']).to_csv(CONFIG_FILE, index=False)
+
+def get_admin_title():
+    if os.path.exists(TITRE_FILE):
+        with open(TITRE_FILE, "r", encoding="utf-8") as f: return f.read()
+    return "Gestion des Services"
+
+def save_admin_title(nouveau_titre):
+    with open(TITRE_FILE, "w", encoding="utf-8") as f: f.write(nouveau_titre)
 
 def generer_qr(url):
     qr = qrcode.make(url)
     buf = BytesIO()
     qr.save(buf, format="PNG")
     return buf.getvalue()
-
-def load_videos():
-    if os.path.exists(CONFIG_FILE): 
-        return pd.read_csv(CONFIG_FILE)['Video'].tolist()
-    return ["BU PAX", "BU FRET", "BU BTOB", "DPMI (ateliers)", "Service RH", "Service Finances", "Service AO", "Service QSSE", "Service IT", "Direction Pôle"]
-
-def save_videos(liste):
-    pd.DataFrame(liste, columns=['Video']).to_csv(CONFIG_FILE, index=False)
 
 # --- 3. LOGIQUE AFFICHAGE ---
 est_admin = st.query_params.get("admin") == "true"
@@ -50,7 +59,7 @@ if est_admin:
 else:
     tab_vote = st.container()
 
-# --- 4. ONGLET VOTE (STABILISÉ MOBILE) ---
+# --- 4. ONGLET VOTE ---
 with tab_vote:
     if est_admin:
         c1, c2 = st.columns([2, 1])
@@ -88,8 +97,7 @@ with tab_vote:
                     new_v = pd.DataFrame([[p1, p2, s1, s2, s3]], columns=df.columns)
                     new_v.to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
                     st.session_state["voted"] = True
-                    st.balloons()
-                    st.rerun()
+                    st.balloons(); st.rerun()
 
 # --- 5. ONGLET RÉSULTATS ---
 if est_admin:
@@ -119,36 +127,39 @@ if est_admin:
                 if u_gal:
                     for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
                     st.rerun()
-                if st.button("🗑️ Vider la Galerie"):
-                    for f in os.listdir(GALLERY_DIR): os.remove(os.path.join(GALLERY_DIR, f))
-                    st.rerun()
                 
                 st.divider()
-                st.subheader("⚙️ Contrôle des Votes")
+                st.subheader("⚙️ Contrôle")
                 if st.button("🔒 Clôturer / 🔓 Ouvrir"):
                     if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
                     else: open(LOCK_FILE, "w").write("L")
                     st.rerun()
-                if st.button("🗑️ Réinitialiser tous les votes"):
+                if st.button("🗑️ Vider les votes"):
                     fn = os.path.join(VOTES_DIR, "votes_principale.csv")
                     if os.path.exists(fn): os.remove(fn)
                     st.session_state["voted"] = False; st.rerun()
 
             with c2:
-                st.subheader("📝 Gestion des Services")
+                # --- MODIFICATION DU TITRE ---
+                current_title = get_admin_title()
+                st.subheader(f"📝 {current_title}")
+                
+                with st.expander("✏️ Modifier le nom de cette section"):
+                    nouveau_nom = st.text_input("Nouveau nom", value=current_title)
+                    if st.button("Enregistrer le nom"):
+                        save_admin_title(nouveau_nom)
+                        st.rerun()
+
                 vids = load_videos()
                 for v in vids:
                     col_v, col_del = st.columns([3, 1])
                     col_v.write(f"• {v}")
                     if col_del.button("❌", key=f"del_{v}"):
                         vids.remove(v)
-                        save_videos(vids)
-                        st.rerun()
+                        save_videos(vids); st.rerun()
                 
                 st.write("---")
-                new_s = st.text_input("Ajouter un nouveau service")
+                new_s = st.text_input("Ajouter un nouvel élément")
                 if st.button("➕ Ajouter"):
                     if new_s:
-                        vids.append(new_s)
-                        save_videos(vids)
-                        st.rerun()
+                        vids.append(new_s); save_videos(vids); st.rerun()
