@@ -24,7 +24,7 @@ for d in [VOTES_DIR, GALLERY_DIR]:
 
 st.set_page_config(page_title="Régie Master 2026", layout="wide")
 
-# --- 2. FONCTIONS DE GESTION ---
+# --- 2. FONCTIONS DE GESTION (INCLUANT CELLE QUI MANQUAIT) ---
 def get_admin_password():
     if os.path.exists(PASS_FILE):
         with open(PASS_FILE, "r", encoding="utf-8") as f: return f.read().strip()
@@ -37,6 +37,10 @@ def get_current_session():
     if os.path.exists(SESSION_CONFIG):
         with open(SESSION_CONFIG, "r", encoding="utf-8") as f: return f.read().strip()
     return "session_1"
+
+# CETTE FONCTION MANQUAIT SUREMENT :
+def set_current_session(name):
+    with open(SESSION_CONFIG, "w", encoding="utf-8") as f: f.write(name)
 
 def load_videos():
     if os.path.exists(CONFIG_FILE): 
@@ -53,14 +57,15 @@ est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 current_session = get_current_session()
 
+if "auth_ok" not in st.session_state: st.session_state["auth_ok"] = False
+if "voted" not in st.session_state: st.session_state["voted"] = False
+
 # --- 4. INTERFACE ADMIN (RÉGIE) ---
 if est_admin:
     st.title("🛠️ Console de Régie")
     
     with st.sidebar:
         st.header("🔑 Authentification")
-        if "auth_ok" not in st.session_state: st.session_state["auth_ok"] = False
-
         if not st.session_state["auth_ok"]:
             pwd_input = st.text_input("Saisir le code", type="password")
             if pwd_input == admin_pass:
@@ -75,8 +80,6 @@ if est_admin:
                 st.rerun()
             
             st.divider()
-            
-            # --- MENU DÉROULANT SÉCURITÉ ---
             with st.expander("**SECURITE**"):
                 new_p = st.text_input("Nouveau code admin", type="password")
                 if st.button("Mettre à jour le code"):
@@ -85,12 +88,9 @@ if est_admin:
                         st.success("Code modifié !")
                     else: st.error("Trop court")
             
-            # --- MENU DÉROULANT RÉINITIALISATION ---
             with st.expander("**REINITIALISATION**"):
                 st.warning("⚠️ Action critique")
-                st.write("Ceci réinitialisera le mot de passe d'usine et effacera toutes les données.")
-                st.info("Mémoire : ADMIN_***_**26")
-                
+                st.info("Indication mémoire : ADMIN_***_**26")
                 check_confirm = st.checkbox("Confirmer la suppression totale")
                 if st.button("RESET DU MOT DE PASSE D'USINE"):
                     if check_confirm:
@@ -99,14 +99,9 @@ if est_admin:
                         if os.path.exists(PRESENCE_FILE): os.remove(PRESENCE_FILE)
                         for f in glob.glob(os.path.join(VOTES_DIR, "*.csv")): os.remove(f)
                         st.session_state["auth_ok"] = False
-                        st.success("Système réinitialisé !")
-                        time.sleep(2)
                         st.rerun()
-                    else:
-                        st.error("Cochez la case de confirmation.")
 
-    # --- CONTENU RÉGIE (Si authentifié) ---
-    if st.session_state.get("auth_ok"):
+    if st.session_state["auth_ok"]:
         tab_res, tab_admin = st.tabs(["📊 Résultats", "⚙️ Configuration"])
         
         with tab_res:
@@ -129,7 +124,9 @@ if est_admin:
                 st.subheader("📡 Sessions & Médias")
                 ns = st.text_input("Nom de la nouvelle session")
                 if st.button("Lancer la session"):
-                    if ns: set_current_session(ns); st.rerun()
+                    if ns: 
+                        set_current_session(ns) # <--- La fonction est maintenant définie !
+                        st.rerun()
                 st.write(f"Session actuelle : **{current_session}**")
                 st.divider()
                 u_logo = st.file_uploader("Modifier le Logo", type=['png', 'jpg'])
@@ -161,5 +158,27 @@ if est_admin:
     else:
         st.warning("🔒 Authentifiez-vous dans la barre latérale.")
 
-# --- 5. SOCIAL WALL / VOTE (Participants) ---
-# [Reste du code identique]
+# --- 5. SOCIAL WALL / VOTE PARTICIPANTS ---
+elif mode_vote:
+    st.title("🗳️ Vote Vœux 2026")
+    if st.session_state["voted"]:
+        st.success("✅ Vote enregistré !")
+    else:
+        pseudo = st.text_input("Pseudo")
+        vids = load_videos()
+        s1 = st.segmented_control("Choix 1", vids, key="mv1")
+        s2 = st.segmented_control("Choix 2", [v for v in vids if v != s1], key="mv2")
+        s3 = st.segmented_control("Choix 3", [v for v in vids if v not in [s1, s2]], key="mv3")
+        if st.button("Valider"):
+            fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
+            df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
+            pd.DataFrame([["", pseudo, s1, s2, s3]], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
+            st.session_state["voted"] = True; st.rerun()
+
+else:
+    # SOCIAL WALL
+    st.title("✨ Social Wall")
+    if os.path.exists(PRESENCE_FILE):
+        noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
+        st.write(", ".join(noms))
+    time.sleep(5); st.rerun()
