@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import base64
 from PIL import Image
 import altair as alt
 from io import BytesIO
@@ -27,11 +28,11 @@ st.set_page_config(page_title="Régie Master 2026", layout="wide")
 # --- 2. FONCTIONS ---
 def get_current_session():
     if os.path.exists(SESSION_CONFIG):
-        with open(SESSION_CONFIG, "r") as f: return f.read().strip()
+        with open(SESSION_CONFIG, "r", encoding="utf-8") as f: return f.read().strip()
     return "session_1"
 
 def set_current_session(name):
-    with open(SESSION_CONFIG, "w") as f: f.write(name)
+    with open(SESSION_CONFIG, "w", encoding="utf-8") as f: f.write(name)
 
 def load_videos():
     if os.path.exists(CONFIG_FILE): 
@@ -41,17 +42,28 @@ def load_videos():
 def save_videos(liste):
     pd.DataFrame(liste, columns=['Video']).to_csv(CONFIG_FILE, index=False)
 
+def get_admin_title():
+    if os.path.exists(TITRE_FILE):
+        with open(TITRE_FILE, "r", encoding="utf-8") as f: return f.read()
+    return "Gestion des Services"
+
+def ajouter_service_callback():
+    nouveau = st.session_state.get("widget_ajout", "").strip()
+    if nouveau:
+        vids = load_videos()
+        if nouveau not in vids:
+            vids.append(nouveau); save_videos(vids)
+            st.toast(f"✅ {nouveau} ajouté !")
+        st.session_state["widget_ajout"] = ""
+
 # --- 3. LOGIQUE INITIALISATION ---
 params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 current_session = get_current_session()
 
-# Initialisation du verrou de vote dans le navigateur (Session State)
-if "voted" not in st.session_state: 
-    st.session_state["voted"] = False
-if "editing_service" not in st.session_state: 
-    st.session_state["editing_service"] = None
+if "voted" not in st.session_state: st.session_state["voted"] = False
+if "editing_service" not in st.session_state: st.session_state["editing_service"] = None
 
 # --- 4. INTERFACE PUBLIC : SOCIAL WALL ---
 if not est_admin and not mode_vote:
@@ -59,7 +71,7 @@ if not est_admin and not mode_vote:
     with col_l:
         if os.path.exists(LOGO_FILE): st.image(Image.open(LOGO_FILE), width=200)
         st.write("## 📲 Scannez pour participer")
-        qr_url = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/?mode=vote"
+        qr_url = f"https://{st.get_option('server.address')}/?mode=vote" if st.get_option('server.address') else "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/?mode=vote"
         qr_buf = BytesIO()
         qrcode.make(qr_url).save(qr_buf, format="PNG")
         st.image(qr_buf.getvalue(), use_container_width=True)
@@ -76,50 +88,80 @@ if not est_admin and not mode_vote:
         for i, img in enumerate(imgs): cols[i%6].image(img, use_container_width=True)
     time.sleep(5); st.rerun()
 
-# --- 5. INTERFACE MOBILE : MODE VOTE (AVEC ANTI-TRICHE) ---
+# --- 5. INTERFACE MOBILE : MODE VOTE ---
 elif mode_vote:
     st.title("🗳️ Vote Vœux 2026")
-    
-    # Vérification si le pseudo a déjà voté dans CETTE session précise
-    fn_check = os.path.join(VOTES_DIR, f"{current_session}.csv")
-    
     if st.session_state["voted"]:
-        st.success(f"✅ Merci ! Votre vote pour la session '{current_session}' est bien enregistré.")
-        st.info("Un seul vote autorisé par session.")
+        st.success("✅ Vote enregistré !")
     else:
-        pseudo = st.text_input("Votre Pseudo / Trigramme").strip()
-        
+        pseudo = st.text_input("Votre Pseudo / Trigramme")
         if pseudo and st.button("🚀 Rejoindre l'écran"):
             df_p = pd.read_csv(PRESENCE_FILE) if os.path.exists(PRESENCE_FILE) else pd.DataFrame(columns=["Pseudo"])
             if pseudo not in df_p['Pseudo'].values:
                 pd.DataFrame([[pseudo]], columns=["Pseudo"]).to_csv(PRESENCE_FILE, mode='a', header=not os.path.exists(PRESENCE_FILE), index=False)
             st.toast("Regardez le grand écran !")
-
         st.write("---")
         vids = load_videos()
         s1 = st.segmented_control("Top 1 (5 pts)", vids, key="mv1")
         s2 = st.segmented_control("Top 2 (3 pts)", [v for v in vids if v != s1], key="mv2")
         s3 = st.segmented_control("Top 3 (1 pt)", [v for v in vids if v not in [s1, s2]], key="mv3")
-        
         if st.button("Valider mon vote 🗳️", use_container_width=True):
-            if not pseudo or not s1 or not s2 or not s3:
-                st.error("⚠️ Pseudo + 3 choix requis")
-            else:
-                # Vérification croisée dans le fichier CSV de la session
-                df_v = pd.read_csv(fn_check) if os.path.exists(fn_check) else pd.DataFrame(columns=["Pseudo"])
-                
-                if pseudo.lower() in df_v['Pseudo'].str.lower().values:
-                    st.error(f"❌ Désolé, le pseudo '{pseudo}' a déjà voté pour cette session.")
-                    st.session_state["voted"] = True # Verrouille l'interface
-                else:
-                    # Enregistrement du vote
-                    new_v = pd.DataFrame([["", pseudo, s1, s2, s3]], columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
-                    new_v.to_csv(fn_check, mode='a', header=not os.path.exists(fn_check), index=False)
-                    st.session_state["voted"] = True
-                    st.balloons(); time.sleep(1); st.rerun()
+            if pseudo and s1 and s2 and s3:
+                fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
+                df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
+                pd.DataFrame([["", pseudo, s1, s2, s3]], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
+                st.session_state["voted"] = True; st.balloons(); time.sleep(1); st.rerun()
 
 # --- 6. INTERFACE ADMIN ---
 elif est_admin:
-    # (Le reste du code admin reste inchangé pour garder toutes les fonctions)
-    tab_res, tab_admin = st.tabs(["📊 Résultats", "🛠️ Configuration"])
-    # ... (Code admin précédent)
+    tab_res, tab_admin = st.tabs(["📊 Résultats & Exports", "🛠️ Configuration Régie"])
+    
+    with tab_res:
+        if st.text_input("Code Résultats", type="password", key="pwd_res") == ADMIN_PASSWORD:
+            mode = st.radio("Affichage", ["Session en cours", "Cumul général"], horizontal=True)
+            all_f = glob.glob(os.path.join(VOTES_DIR, "*.csv"))
+            df_res = pd.concat([pd.read_csv(f) for f in all_f]) if mode == "Cumul général" and all_f else (pd.read_csv(os.path.join(VOTES_DIR, f"{current_session}.csv")) if os.path.exists(os.path.join(VOTES_DIR, f"{current_session}.csv")) else pd.DataFrame())
+            if not df_res.empty:
+                scores = {v: 0 for v in load_videos()}
+                for _, r in df_res.iterrows():
+                    for i, p in enumerate([5, 3, 1]):
+                        if r[f'Top{i+1}'] in scores: scores[r[f'Top{i+1}']] += p
+                df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
+                st.altair_chart(alt.Chart(df_p).mark_bar(color='#FF4B4B').encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
+                st.download_button("📥 Télécharger CSV", df_res.to_csv(index=False), "export.csv", "text/csv")
+            else: st.info("Aucun vote enregistré.")
+
+    with tab_admin:
+        if st.text_input("Code Configuration", type="password", key="pwd_conf") == ADMIN_PASSWORD:
+            c1, c2 = st.columns(2)
+            with c1:
+                st.subheader("📡 Sessions")
+                ns = st.text_input("Nouvelle session")
+                if st.button("Lancer"): set_current_session(ns); st.rerun()
+                st.write(f"Session actuelle : **{current_session}**")
+                st.divider()
+                st.subheader("📁 Médias")
+                u_logo = st.file_uploader("Logo", type=['png', 'jpg'])
+                if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
+                u_gal = st.file_uploader("Photos", type=['png', 'jpg'], accept_multiple_files=True)
+                if u_gal:
+                    for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
+                    st.rerun()
+                if st.button("🗑️ Vider Galerie"):
+                    for f in os.listdir(GALLERY_DIR): os.remove(os.path.join(GALLERY_DIR, f)); st.rerun()
+            with c2:
+                st.subheader("📝 Liste des choix")
+                st.text_input("Ajouter", key="widget_ajout", on_change=ajouter_service_callback)
+                st.button("➕", on_click=ajouter_service_callback)
+                vids = load_videos()
+                for i, v in enumerate(vids):
+                    cv, cb = st.columns([0.7, 0.3])
+                    if st.session_state["editing_service"] == v:
+                        nv = cv.text_input("Edit", value=v, key=f"edit_{i}")
+                        if cb.button("💾", key=f"save_{i}"):
+                            vids[i] = nv; save_videos(vids); st.session_state["editing_service"] = None; st.rerun()
+                    else:
+                        cv.write(f"• {v}")
+                        be, bd = cb.columns(2)
+                        if be.button("✏️", key=f"e_{i}"): st.session_state["editing_service"] = v; st.rerun()
+                        if bd.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
