@@ -6,6 +6,7 @@ from PIL import Image
 import altair as alt
 from io import BytesIO
 import qrcode
+import shutil
 
 # --- 1. CONFIGURATION ---
 ADMIN_PASSWORD = "ADMIN_VOEUX_2026"
@@ -22,7 +23,7 @@ for d in [VOTES_DIR, GALLERY_DIR, SOUNDS_DIR]:
 
 st.set_page_config(page_title="Régie Vote 2026", layout="wide")
 
-# --- 2. FONCTIONS DE CHARGEMENT ---
+# --- 2. FONCTIONS ---
 if "voted" not in st.session_state: st.session_state["voted"] = False
 if "edit_mode_title" not in st.session_state: st.session_state["edit_mode_title"] = False
 if "editing_service" not in st.session_state: st.session_state["editing_service"] = None
@@ -69,10 +70,12 @@ with tab_vote:
             st.write("📲 **Scannez pour voter**")
             st.image(generer_qr("https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"), width=180)
     
-    imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg'))]
+    # Affichage de la Galerie
+    imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
     if imgs:
-        cols_gal = st.columns(len(imgs))
-        for i, img in enumerate(imgs): cols_gal[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
+        cols_gal = st.columns(min(len(imgs), 5)) # Affiche max 5 images par ligne
+        for i, img_name in enumerate(imgs):
+            cols_gal[i % 5].image(os.path.join(GALLERY_DIR, img_name), use_container_width=True)
 
     st.divider()
     if os.path.exists(LOCK_FILE):
@@ -125,13 +128,23 @@ if est_admin:
                 st.subheader("📁 Médias & Galerie")
                 u_logo = st.file_uploader("Logo", type=['png', 'jpg'])
                 if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
-                u_gal = st.file_uploader("Photos", type=['png', 'jpg'], accept_multiple_files=True)
+                
+                u_gal = st.file_uploader("Ajouter Photos", type=['png', 'jpg'], accept_multiple_files=True)
                 if u_gal:
                     for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
-                    st.rerun()
+                    st.success(f"{len(u_gal)} photo(s) ajoutée(s) !"); st.rerun()
+                
+                # --- FONCTION VIDER LA GALERIE CORRIGÉE ---
                 if st.button("🗑️ Vider la Galerie"):
-                    for f in os.listdir(GALLERY_DIR): os.remove(os.path.join(GALLERY_DIR, f))
-                    st.rerun()
+                    for f in os.listdir(GALLERY_DIR):
+                        file_path = os.path.join(GALLERY_DIR, f)
+                        try:
+                            if os.path.isfile(file_path):
+                                os.unlink(file_path)
+                        except Exception as e:
+                            st.error(f"Erreur : {e}")
+                    st.success("Galerie vidée !"); st.rerun()
+
                 st.divider()
                 st.subheader("⚙️ Contrôle")
                 if st.button("🔒 Verrouiller/Déverrouiller"):
@@ -144,48 +157,33 @@ if est_admin:
                     st.session_state["voted"] = False; st.rerun()
 
             with c2:
-                # TITRE SECTION
+                # GESTION DES SERVICES
                 current_title = get_admin_title()
                 h_c1, h_c2 = st.columns([0.8, 0.2])
                 h_c1.subheader(f"📝 {current_title}")
                 if h_c2.button("✏️", key="edit_title"):
                     st.session_state["edit_mode_title"] = not st.session_state["edit_mode_title"]
                     st.rerun()
-                
                 if st.session_state["edit_mode_title"]:
-                    nt = st.text_input("Nouveau nom section :", value=current_title)
+                    nt = st.text_input("Nouveau nom :", value=current_title)
                     if st.button("OK"): save_admin_title(nt); st.session_state["edit_mode_title"]=False; st.rerun()
                 
                 st.divider()
-
-                # --- NOUVEAUTÉ : AJOUT EN HAUT ---
-                new_s = st.text_input("Ajouter un nouvel élément (ex: Service RH)")
-                if st.button("➕ Ajouter à la liste"):
+                new_s = st.text_input("Ajouter un nouvel élément")
+                if st.button("➕ Ajouter"):
                     if new_s:
-                        vids = load_videos()
-                        vids.append(new_s)
-                        save_videos(vids)
-                        st.rerun()
-                
+                        vids = load_videos(); vids.append(new_s); save_videos(vids); st.rerun()
                 st.write("---")
-                
-                # LISTE DES SERVICES EXISTANTS
                 vids = load_videos()
                 for i, v in enumerate(vids):
                     col_v, col_btn = st.columns([0.7, 0.3])
-                    
                     if st.session_state["editing_service"] == v:
-                        new_val = col_v.text_input(f"Modifier", value=v, key=f"inp_{i}")
+                        new_val = col_v.text_input(f"Modif", value=v, key=f"inp_{i}")
                         if col_btn.button("💾", key=f"save_{i}"):
-                            vids[i] = new_val
-                            save_videos(vids)
-                            st.session_state["editing_service"] = None
-                            st.rerun()
+                            vids[i] = new_val; save_videos(vids)
+                            st.session_state["editing_service"] = None; st.rerun()
                     else:
                         col_v.write(f"• {v}")
-                        b_edit, b_del = col_btn.columns(2)
-                        if b_edit.button("✏️", key=f"edit_s_{i}"):
-                            st.session_state["editing_service"] = v
-                            st.rerun()
-                        if b_del.button("❌", key=f"del_s_{i}"):
-                            vids.remove(v); save_videos(vids); st.rerun()
+                        b_e, b_d = col_btn.columns(2)
+                        if b_e.button("✏️", key=f"e_{i}"): st.session_state["editing_service"] = v; st.rerun()
+                        if b_d.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
