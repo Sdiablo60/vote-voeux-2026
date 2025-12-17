@@ -25,6 +25,7 @@ st.set_page_config(page_title="Régie Vote 2026", layout="wide")
 # --- 2. FONCTIONS DE CHARGEMENT ---
 if "voted" not in st.session_state: st.session_state["voted"] = False
 if "edit_mode_title" not in st.session_state: st.session_state["edit_mode_title"] = False
+if "editing_service" not in st.session_state: st.session_state["editing_service"] = None
 
 def load_videos():
     if os.path.exists(CONFIG_FILE): 
@@ -122,54 +123,69 @@ if est_admin:
             c1, c2 = st.columns(2)
             with c1:
                 st.subheader("📁 Médias & Galerie")
-                u_logo = st.file_uploader("Modifier le Logo", type=['png', 'jpg'])
+                u_logo = st.file_uploader("Logo", type=['png', 'jpg'])
                 if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
-                u_gal = st.file_uploader("Ajouter Photos", type=['png', 'jpg'], accept_multiple_files=True)
+                u_gal = st.file_uploader("Photos", type=['png', 'jpg'], accept_multiple_files=True)
                 if u_gal:
                     for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
                     st.rerun()
-                
+                if st.button("🗑️ Vider la Galerie"):
+                    for f in os.listdir(GALLERY_DIR): os.remove(os.path.join(GALLERY_DIR, f))
+                    st.rerun()
                 st.divider()
                 st.subheader("⚙️ Contrôle")
-                if st.button("🔒 Clôturer / 🔓 Ouvrir"):
+                if st.button("🔒 Verrouiller/Déverrouiller"):
                     if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
                     else: open(LOCK_FILE, "w").write("L")
                     st.rerun()
-                if st.button("🗑️ Vider les votes"):
+                if st.button("🗑️ Reset Votes"):
                     fn = os.path.join(VOTES_DIR, "votes_principale.csv")
                     if os.path.exists(fn): os.remove(fn)
                     st.session_state["voted"] = False; st.rerun()
 
             with c2:
-                # --- AFFICHAGE TITRE DYNAMIQUE AVEC ICONE MODIF ---
+                # TITRE SECTION
                 current_title = get_admin_title()
-                header_col1, header_col2 = st.columns([0.85, 0.15])
-                header_col1.subheader(f"📝 {current_title}")
-                
-                # Le bouton icône
-                if header_col2.button("✏️", help="Modifier le titre"):
+                h_c1, h_c2 = st.columns([0.8, 0.2])
+                h_c1.subheader(f"📝 {current_title}")
+                if h_c2.button("✏️", key="edit_title"):
                     st.session_state["edit_mode_title"] = not st.session_state["edit_mode_title"]
                     st.rerun()
-
-                # Champ de saisie n'apparaissant que si on a cliqué sur l'icône
+                
                 if st.session_state["edit_mode_title"]:
-                    nouveau_nom = st.text_input("Nouveau titre :", value=current_title)
-                    if st.button("💾 Enregistrer"):
-                        save_admin_title(nouveau_nom)
-                        st.session_state["edit_mode_title"] = False
-                        st.rerun()
+                    nt = st.text_input("Nouveau nom section :", value=current_title)
+                    if st.button("OK"): save_admin_title(nt); st.session_state["edit_mode_title"]=False; st.rerun()
                 
                 st.divider()
-                
-                vids = load_videos()
-                for v in vids:
-                    col_v, col_del = st.columns([3, 1])
-                    col_v.write(f"• {v}")
-                    if col_del.button("❌", key=f"del_{v}"):
-                        vids.remove(v); save_videos(vids); st.rerun()
+
+                # --- NOUVEAUTÉ : AJOUT EN HAUT ---
+                new_s = st.text_input("Ajouter un nouvel élément (ex: Service RH)")
+                if st.button("➕ Ajouter à la liste"):
+                    if new_s:
+                        vids = load_videos()
+                        vids.append(new_s)
+                        save_videos(vids)
+                        st.rerun()
                 
                 st.write("---")
-                new_s = st.text_input("Ajouter un nouvel élément")
-                if st.button("➕ Ajouter"):
-                    if new_s:
-                        vids.append(new_s); save_videos(vids); st.rerun()
+                
+                # LISTE DES SERVICES EXISTANTS
+                vids = load_videos()
+                for i, v in enumerate(vids):
+                    col_v, col_btn = st.columns([0.7, 0.3])
+                    
+                    if st.session_state["editing_service"] == v:
+                        new_val = col_v.text_input(f"Modifier", value=v, key=f"inp_{i}")
+                        if col_btn.button("💾", key=f"save_{i}"):
+                            vids[i] = new_val
+                            save_videos(vids)
+                            st.session_state["editing_service"] = None
+                            st.rerun()
+                    else:
+                        col_v.write(f"• {v}")
+                        b_edit, b_del = col_btn.columns(2)
+                        if b_edit.button("✏️", key=f"edit_s_{i}"):
+                            st.session_state["editing_service"] = v
+                            st.rerun()
+                        if b_del.button("❌", key=f"del_s_{i}"):
+                            vids.remove(v); save_videos(vids); st.rerun()
