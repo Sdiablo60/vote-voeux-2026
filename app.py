@@ -35,7 +35,8 @@ def set_current_session(name):
 def load_videos():
     if os.path.exists(CONFIG_FILE): 
         return pd.read_csv(CONFIG_FILE)['Video'].tolist()
-    return ["BU PAX", "BU FRET", "BU BTOB", "DPMI", "RH", "Finances", "IT", "Direction"]
+    # Retour à vos 10 services originaux
+    return ["BU PAX", "BU FRET", "BU BTOB", "DPMI (ateliers)", "Service RH", "Service Finances", "Service AO", "Service QSSE", "Service IT", "Direction Pôle"]
 
 def save_videos(liste):
     pd.DataFrame(liste, columns=['Video']).to_csv(CONFIG_FILE, index=False)
@@ -82,7 +83,6 @@ with tab_vote:
             qrcode.make("https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/").save(qr_buf, format="PNG")
             st.image(qr_buf.getvalue(), width=150)
     
-    # Galerie
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     if imgs:
         cols = st.columns(5)
@@ -99,6 +99,7 @@ with tab_vote:
         p2 = st.text_input("Pseudo / Trigramme")
         vids = load_videos()
         
+        # Affichage optimisé mobile
         s1 = st.segmented_control("1er choix (5 pts)", vids, key="v1")
         s2 = st.segmented_control("2ème choix (3 pts)", [v for v in vids if v != s1], key="v2")
         s3 = st.segmented_control("3ème choix (1 pt)", [v for v in vids if v not in [s1, s2]], key="v3")
@@ -140,7 +141,7 @@ if est_admin:
             c1, c2 = st.columns(2)
             with c1:
                 st.subheader("⚙️ Contrôle")
-                u_logo = st.file_uploader("Logo", type=['png', 'jpg'])
+                u_logo = st.file_uploader("Modifier le Logo", type=['png', 'jpg'])
                 if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
                 if st.button("🔒 Clôturer / Ouvrir"):
                     if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
@@ -151,12 +152,23 @@ if est_admin:
                     if os.path.exists(fn): os.remove(fn)
                     st.rerun()
             with c2:
-                st.subheader("📝 Services")
-                ns = st.text_input("Ajouter service")
-                if st.button("➕"):
-                    vids = load_videos(); vids.append(ns); save_videos(vids); st.rerun()
+                st.subheader(f"📝 {get_admin_title()}")
+                # AJOUT
+                ns = st.text_input("Ajouter un service")
+                if st.button("➕ Ajouter"):
+                    if ns: vids = load_videos(); vids.append(ns); save_videos(vids); st.rerun()
+                st.divider()
+                # LISTE AVEC MODIFICATION & SUPPRESSION
                 vids = load_videos()
                 for i, v in enumerate(vids):
-                    col_v, col_d = st.columns([0.8, 0.2])
-                    col_v.write(f"• {v}")
-                    if col_d.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
+                    col_v, col_btn = st.columns([0.7, 0.3])
+                    if st.session_state["editing_service"] == v:
+                        new_val = col_v.text_input(f"Modif", value=v, key=f"inp_{i}")
+                        if col_btn.button("💾", key=f"save_{i}"):
+                            vids[i] = new_val; save_videos(vids)
+                            st.session_state["editing_service"] = None; st.rerun()
+                    else:
+                        col_v.write(f"• {v}")
+                        b_e, b_d = col_btn.columns(2)
+                        if b_e.button("✏️", key=f"e_{i}"): st.session_state["editing_service"] = v; st.rerun()
+                        if b_d.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
