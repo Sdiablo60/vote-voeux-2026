@@ -68,39 +68,48 @@ if "gal_key" not in st.session_state: st.session_state["gal_key"] = 0
 
 # --- 4. INTERFACE ADMIN ---
 if est_admin:
-    # CSS CIBLÉ POUR NETTOYER L'UPLOADER DU LOGO
+    # CSS CIBLÉ POUR RENDRE L'UPLOADER IDENTIQUE À UN BOUTON
     st.markdown("""
         <style>
-        /* 1. Suppression de l'encadrement et fond du logo en sidebar */
+        /* Nettoyage de l'uploader en sidebar pour ressembler à un bouton */
         section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
             background-color: transparent !important;
             border: none !important;
             padding: 0 !important;
         }
         
-        /* 2. Suppression des textes par défaut (Browse files, etc.) */
-        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] div div span {
+        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
+            border: 1px solid rgba(250, 250, 250, 0.2) !important;
+            border-radius: 4px !important;
+            padding: 4px 10px !important;
+            background-color: transparent !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: center !important;
+            height: 38px !important; /* Même hauteur qu'un bouton Streamlit standard */
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        
+        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover {
+            border-color: #58A6FF !important;
+            color: #58A6FF !important;
+        }
+
+        /* Masquage des éléments internes */
+        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] div div {
             display: none !important;
         }
         
-        /* 3. Ajout du + et du texte personnalisé */
-        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]::before {
-            content: "＋";
-            font-size: 1.8rem;
-            color: #58A6FF;
-            display: block;
-            text-align: center;
-        }
+        /* Texte du bouton "Ajouter" */
         section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]::after {
-            content: "Ajouter un Logo";
-            font-size: 0.9rem;
-            color: #c9d1d9;
-            display: block;
-            text-align: center;
-            margin-top: -5px;
+            content: "➕ Ajouter un Logo";
+            font-size: 0.85rem;
+            color: inherit;
+            font-weight: 400;
         }
         
-        /* 4. Style de la zone de dépôt pour la galerie (Main) - On garde un léger encadrement ici */
+        /* On garde le style standard pour la galerie principale */
         .main [data-testid="stFileUploader"] {
             background-color: #1c1e26;
             border: 1px solid #3d444d;
@@ -117,11 +126,11 @@ if est_admin:
         st.subheader("🖼️ Logo")
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
-            if st.button("🗑️ Supprimer", key="del_logo", use_container_width=True):
+            if st.button("🗑️ Supprimer le Logo", key="del_logo", use_container_width=True):
                 os.remove(LOGO_FILE)
                 st.rerun()
         else:
-            # L'uploader n'apparaît que s'il n'y a pas de logo
+            # L'uploader ressemble maintenant à un bouton
             u_logo = st.file_uploader("", type=['png', 'jpg', 'jpeg'], key="sidebar_logo")
             if u_logo:
                 Image.open(u_logo).save(LOGO_FILE)
