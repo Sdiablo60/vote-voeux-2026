@@ -24,6 +24,7 @@ st.set_page_config(page_title="Régie Vote 2026", layout="wide")
 
 # --- 2. FONCTIONS DE CHARGEMENT ---
 if "voted" not in st.session_state: st.session_state["voted"] = False
+if "edit_mode_title" not in st.session_state: st.session_state["edit_mode_title"] = False
 
 def load_videos():
     if os.path.exists(CONFIG_FILE): 
@@ -140,23 +141,32 @@ if est_admin:
                     st.session_state["voted"] = False; st.rerun()
 
             with c2:
-                # --- MODIFICATION DU TITRE ---
+                # --- AFFICHAGE TITRE DYNAMIQUE AVEC ICONE MODIF ---
                 current_title = get_admin_title()
-                st.subheader(f"📝 {current_title}")
+                header_col1, header_col2 = st.columns([0.85, 0.15])
+                header_col1.subheader(f"📝 {current_title}")
                 
-                with st.expander("✏️ Modifier le nom de cette section"):
-                    nouveau_nom = st.text_input("Nouveau nom", value=current_title)
-                    if st.button("Enregistrer le nom"):
-                        save_admin_title(nouveau_nom)
-                        st.rerun()
+                # Le bouton icône
+                if header_col2.button("✏️", help="Modifier le titre"):
+                    st.session_state["edit_mode_title"] = not st.session_state["edit_mode_title"]
+                    st.rerun()
 
+                # Champ de saisie n'apparaissant que si on a cliqué sur l'icône
+                if st.session_state["edit_mode_title"]:
+                    nouveau_nom = st.text_input("Nouveau titre :", value=current_title)
+                    if st.button("💾 Enregistrer"):
+                        save_admin_title(nouveau_nom)
+                        st.session_state["edit_mode_title"] = False
+                        st.rerun()
+                
+                st.divider()
+                
                 vids = load_videos()
                 for v in vids:
                     col_v, col_del = st.columns([3, 1])
                     col_v.write(f"• {v}")
                     if col_del.button("❌", key=f"del_{v}"):
-                        vids.remove(v)
-                        save_videos(vids); st.rerun()
+                        vids.remove(v); save_videos(vids); st.rerun()
                 
                 st.write("---")
                 new_s = st.text_input("Ajouter un nouvel élément")
