@@ -9,7 +9,7 @@ import glob
 import random
 import time
 
-# --- 1. CONFIGURATION ---
+# --- 1. CONFIGURATION & RÉPERTOIRES ---
 DEFAULT_PASSWORD = "ADMIN_VOEUX_2026"
 PASS_FILE = "pass_config.txt"
 VOTES_DIR = "sessions_votes"
@@ -19,12 +19,14 @@ LOGO_FILE = "logo_entreprise.png"
 SESSION_CONFIG = "current_session.txt"
 PRESENCE_FILE = "presence_live.csv"
 
+# Création des dossiers si inexistants
 for d in [VOTES_DIR, GALLERY_DIR]:
-    if not os.path.exists(d): os.makedirs(d)
+    if not os.path.exists(d): 
+        os.makedirs(d)
 
 st.set_page_config(page_title="Régie Master 2026", layout="wide")
 
-# --- 2. FONCTIONS DE GESTION (INCLUANT CELLE QUI MANQUAIT) ---
+# --- 2. TOUTES LES FONCTIONS DE GESTION ---
 def get_admin_password():
     if os.path.exists(PASS_FILE):
         with open(PASS_FILE, "r", encoding="utf-8") as f: return f.read().strip()
@@ -38,7 +40,6 @@ def get_current_session():
         with open(SESSION_CONFIG, "r", encoding="utf-8") as f: return f.read().strip()
     return "session_1"
 
-# CETTE FONCTION MANQUAIT SUREMENT :
 def set_current_session(name):
     with open(SESSION_CONFIG, "w", encoding="utf-8") as f: f.write(name)
 
@@ -50,6 +51,16 @@ def load_videos():
 def save_videos(liste):
     pd.DataFrame(liste, columns=['Video']).to_csv(CONFIG_FILE, index=False)
 
+def add_service_callback():
+    nouveau = st.session_state.get("widget_ajout", "").strip()
+    if nouveau:
+        vids = load_videos()
+        if nouveau not in vids:
+            vids.append(nouveau)
+            save_videos(vids)
+            st.toast(f"✅ {nouveau} ajouté !")
+        st.session_state["widget_ajout"] = ""
+
 # --- 3. LOGIQUE INITIALISATION ---
 admin_pass = get_admin_password()
 params = st.query_params
@@ -59,6 +70,7 @@ current_session = get_current_session()
 
 if "auth_ok" not in st.session_state: st.session_state["auth_ok"] = False
 if "voted" not in st.session_state: st.session_state["voted"] = False
+if "editing_service" not in st.session_state: st.session_state["editing_service"] = None
 
 # --- 4. INTERFACE ADMIN (RÉGIE) ---
 if est_admin:
@@ -82,7 +94,7 @@ if est_admin:
             st.divider()
             with st.expander("**SECURITE**"):
                 new_p = st.text_input("Nouveau code admin", type="password")
-                if st.button("Mettre à jour le code"):
+                if st.button("Enregistrer"):
                     if len(new_p) > 2:
                         set_admin_password(new_p)
                         st.success("Code modifié !")
@@ -90,7 +102,7 @@ if est_admin:
             
             with st.expander("**REINITIALISATION**"):
                 st.warning("⚠️ Action critique")
-                st.info("Indication mémoire : ADMIN_***_**26")
+                st.info("Mémoire : ADMIN_***_**26")
                 check_confirm = st.checkbox("Confirmer la suppression totale")
                 if st.button("RESET DU MOT DE PASSE D'USINE"):
                     if check_confirm:
@@ -107,7 +119,8 @@ if est_admin:
         with tab_res:
             mode = st.radio("Affichage", ["Session en cours", "Cumul général"], horizontal=True)
             all_f = glob.glob(os.path.join(VOTES_DIR, "*.csv"))
-            df_res = pd.concat([pd.read_csv(f) for f in all_f]) if mode == "Cumul général" and all_f else (pd.read_csv(os.path.join(VOTES_DIR, f"{current_session}.csv")) if os.path.exists(os.path.join(VOTES_DIR, f"{current_session}.csv")) else pd.DataFrame())
+            path_curr = os.path.join(VOTES_DIR, f"{current_session}.csv")
+            df_res = pd.concat([pd.read_csv(f) for f in all_f]) if mode == "Cumul général" and all_f else (pd.read_csv(path_curr) if os.path.exists(path_curr) else pd.DataFrame())
             
             if not df_res.empty:
                 scores = {v: 0 for v in load_videos()}
@@ -117,17 +130,21 @@ if est_admin:
                 df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
                 st.altair_chart(alt.Chart(df_p).mark_bar(color='#FF4B4B').encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
                 st.download_button("📥 Export CSV", df_res.to_csv(index=False), "export.csv", "text/csv")
+            else: st.info("Aucun vote enregistré.")
 
         with tab_admin:
             c1, c2 = st.columns(2)
             with c1:
                 st.subheader("📡 Sessions & Médias")
-                ns = st.text_input("Nom de la nouvelle session")
-                if st.button("Lancer la session"):
-                    if ns: 
-                        set_current_session(ns) # <--- La fonction est maintenant définie !
+                st.success(f"Session actuelle : **{current_session}**")
+                ns = st.text_input("Nom de la nouvelle session", key="input_new_session")
+                if st.button("🚀 Lancer la session"):
+                    if ns:
+                        set_current_session(ns)
+                        fn = os.path.join(VOTES_DIR, f"{ns}.csv")
+                        if not os.path.exists(fn):
+                            pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"]).to_csv(fn, index=False)
                         st.rerun()
-                st.write(f"Session actuelle : **{current_session}**")
                 st.divider()
                 u_logo = st.file_uploader("Modifier le Logo", type=['png', 'jpg'])
                 if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
@@ -139,46 +156,67 @@ if est_admin:
 
             with c2:
                 st.subheader("📝 Liste des Services")
-                if "widget_ajout" not in st.session_state: st.session_state.widget_ajout = ""
-                def add_cb():
-                    v = st.session_state.widget_ajout
-                    if v:
-                        vids = load_videos(); vids.append(v); save_videos(vids)
-                        st.session_state.widget_ajout = ""; st.toast("Ajouté !")
-
-                st.text_input("Ajouter un service", key="widget_ajout", on_change=add_cb)
-                st.button("➕ Ajouter", on_click=add_cb)
+                st.text_input("Ajouter un service", key="widget_ajout", on_change=add_service_callback)
+                st.button("➕ Ajouter", on_click=add_service_callback)
                 st.divider()
                 vids = load_videos()
                 for i, v in enumerate(vids):
                     col_v, col_b = st.columns([0.7, 0.3])
-                    col_v.write(f"• {v}")
-                    if col_b.button("❌", key=f"del_{i}"):
-                        vids.remove(v); save_videos(vids); st.rerun()
+                    if st.session_state["editing_service"] == v:
+                        nv = col_v.text_input("Editer", value=v, key=f"edit_{i}")
+                        if col_b.button("💾", key=f"s_{i}"):
+                            vids[i] = nv; save_videos(vids); st.session_state["editing_service"] = None; st.rerun()
+                    else:
+                        col_v.write(f"• {v}")
+                        be, bd = col_b.columns(2)
+                        if be.button("✏️", key=f"e_{i}"): st.session_state["editing_service"] = v; st.rerun()
+                        if bd.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
     else:
         st.warning("🔒 Authentifiez-vous dans la barre latérale.")
 
-# --- 5. SOCIAL WALL / VOTE PARTICIPANTS ---
+# --- 5. INTERFACE MOBILE (MODE VOTE) ---
 elif mode_vote:
     st.title("🗳️ Vote Vœux 2026")
     if st.session_state["voted"]:
         st.success("✅ Vote enregistré !")
     else:
-        pseudo = st.text_input("Pseudo")
+        pseudo = st.text_input("Pseudo / Trigramme")
+        if pseudo and st.button("🚀 Apparaître sur l'écran"):
+            df_p = pd.read_csv(PRESENCE_FILE) if os.path.exists(PRESENCE_FILE) else pd.DataFrame(columns=["Pseudo"])
+            if pseudo not in df_p['Pseudo'].values:
+                pd.DataFrame([[pseudo]], columns=["Pseudo"]).to_csv(PRESENCE_FILE, mode='a', header=not os.path.exists(PRESENCE_FILE), index=False)
+            st.toast("Regardez le grand écran !")
+        st.divider()
         vids = load_videos()
-        s1 = st.segmented_control("Choix 1", vids, key="mv1")
-        s2 = st.segmented_control("Choix 2", [v for v in vids if v != s1], key="mv2")
-        s3 = st.segmented_control("Choix 3", [v for v in vids if v not in [s1, s2]], key="mv3")
-        if st.button("Valider"):
-            fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
-            df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
-            pd.DataFrame([["", pseudo, s1, s2, s3]], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
-            st.session_state["voted"] = True; st.rerun()
+        s1 = st.segmented_control("Choix 1 (5pts)", vids, key="v1")
+        s2 = st.segmented_control("Choix 2 (3pts)", [v for v in vids if v != s1], key="v2")
+        s3 = st.segmented_control("Choix 3 (1pt)", [v for v in vids if v not in [s1, s2]], key="v3")
+        if st.button("Valider le vote", use_container_width=True):
+            if pseudo and s1 and s2 and s3:
+                fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
+                df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
+                pd.DataFrame([["", pseudo, s1, s2, s3]], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
+                st.session_state["voted"] = True; st.balloons(); time.sleep(1); st.rerun()
 
+# --- 6. INTERFACE PUBLIC (SOCIAL WALL) ---
 else:
-    # SOCIAL WALL
-    st.title("✨ Social Wall")
-    if os.path.exists(PRESENCE_FILE):
-        noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
-        st.write(", ".join(noms))
+    col_l, col_r = st.columns([1, 2])
+    with col_l:
+        if os.path.exists(LOGO_FILE): st.image(Image.open(LOGO_FILE), width=200)
+        st.write("## 📲 Scannez pour participer")
+        qr_url = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/?mode=vote"
+        qr_buf = BytesIO()
+        qrcode.make(qr_url).save(qr_buf, format="PNG")
+        st.image(qr_buf.getvalue(), use_container_width=True)
+    with col_r:
+        st.markdown("<h1 style='text-align:center; color:#FF4B4B;'>Bienvenue ! 👋</h1>", unsafe_allow_html=True)
+        if os.path.exists(PRESENCE_FILE):
+            noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
+            nuage = "".join([f'<span style="font-size:{random.randint(20,50)}px; color:{random.choice(["#FF4B4B","#1f77b4","#2ca02c","#ff7f0e"])}; margin:15px; font-weight:bold; display:inline-block;">{n}</span>' for n in noms])
+            st.markdown(f'<div style="background:rgba(255,255,255,0.05); padding:40px; border-radius:30px; text-align:center; min-height:400px;">{nuage}</div>', unsafe_allow_html=True)
+    st.divider()
+    imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+    if imgs:
+        cols = st.columns(6)
+        for i, img in enumerate(imgs): cols[i%6].image(img, use_container_width=True)
     time.sleep(5); st.rerun()
