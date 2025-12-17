@@ -53,17 +53,13 @@ est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 current_session = get_current_session()
 
-if "voted" not in st.session_state: st.session_state["voted"] = False
-
 # --- 4. INTERFACE ADMIN (RÉGIE) ---
 if est_admin:
     st.title("🛠️ Console de Régie")
     
     with st.sidebar:
         st.header("🔑 Authentification")
-        # Si le mot de passe n'est pas encore correct dans le state
-        if "auth_ok" not in st.session_state:
-            st.session_state["auth_ok"] = False
+        if "auth_ok" not in st.session_state: st.session_state["auth_ok"] = False
 
         if not st.session_state["auth_ok"]:
             pwd_input = st.text_input("Saisir le code", type="password")
@@ -73,31 +69,41 @@ if est_admin:
             elif pwd_input != "":
                 st.error("Code incorrect")
         else:
-            # --- CE QUI S'AFFICHE UNE FOIS CONNECTÉ ---
             st.success("✅ Accès Autorisé")
             if st.button("Déconnexion"):
                 st.session_state["auth_ok"] = False
                 st.rerun()
             
             st.divider()
-            st.subheader("🔒 Sécurité & Reset")
-            new_p = st.text_input("Changer le mot de passe", type="password")
-            if st.button("Enregistrer nouveau code"):
+            st.subheader("🔒 Sécurité")
+            new_p = st.text_input("Changer le code", type="password")
+            if st.button("Enregistrer"):
                 if len(new_p) > 2:
                     set_admin_password(new_p)
-                    st.toast("Mot de passe mis à jour !")
+                    st.toast("Code mis à jour !")
                 else: st.error("Trop court")
             
             st.divider()
-            if st.button("🚨 RESET D'USINE", help="Efface TOUT (votes, médias, services)"):
-                if os.path.exists(PASS_FILE): os.remove(PASS_FILE)
-                if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
-                if os.path.exists(PRESENCE_FILE): os.remove(PRESENCE_FILE)
-                for f in glob.glob(os.path.join(VOTES_DIR, "*.csv")): os.remove(f)
-                st.session_state["auth_ok"] = False
-                st.rerun()
+            # --- BLOC RESET AVEC CONFIRMATION ---
+            with st.expander("🚨 RÉINITIALISATION DU MOT DE PASSE D'USINE"):
+                st.warning("Attention : Cela réinitialisera le code et effacera toutes les données (votes, services, médias).")
+                st.info("Indication mémoire : ADMIN_***_**26")
+                
+                check_confirm = st.checkbox("Je confirme vouloir tout effacer")
+                if st.button("VALIDER LE RESET COMPLET"):
+                    if check_confirm:
+                        if os.path.exists(PASS_FILE): os.remove(PASS_FILE)
+                        if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
+                        if os.path.exists(PRESENCE_FILE): os.remove(PRESENCE_FILE)
+                        for f in glob.glob(os.path.join(VOTES_DIR, "*.csv")): os.remove(f)
+                        st.session_state["auth_ok"] = False
+                        st.success("Réinitialisation réussie !")
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        st.error("Cochez la case de confirmation.")
 
-    # --- AFFICHAGE DU CONTENU SI AUTHENTIFIÉ ---
+    # --- CONTENU RÉGIE (Si authentifié) ---
     if st.session_state["auth_ok"]:
         tab_res, tab_admin = st.tabs(["📊 Résultats", "⚙️ Configuration"])
         
@@ -154,5 +160,5 @@ if est_admin:
     else:
         st.warning("🔒 Veuillez saisir le mot de passe dans la barre latérale pour accéder à la régie.")
 
-# --- 5. LOGIQUE SOCIAL WALL & VOTE (Identique) ---
-# ... [Le reste du code pour les participants]
+# --- 5. LOGIQUE SOCIAL WALL & VOTE (Participant) ---
+# ... (Code inchangé pour les autres interfaces)
