@@ -75,36 +75,38 @@ if est_admin:
                 st.rerun()
             
             st.divider()
-            st.subheader("🔒 Sécurité")
-            new_p = st.text_input("Changer le code", type="password")
-            if st.button("Enregistrer"):
-                if len(new_p) > 2:
-                    set_admin_password(new_p)
-                    st.toast("Code mis à jour !")
-                else: st.error("Trop court")
             
-            st.divider()
-            # --- BLOC RESET AVEC CONFIRMATION ---
-            with st.expander("🚨 RÉINITIALISATION DU MOT DE PASSE D'USINE"):
-                st.warning("Attention : Cela réinitialisera le code et effacera toutes les données (votes, services, médias).")
-                st.info("Indication mémoire : ADMIN_***_**26")
+            # --- MENU DÉROULANT SÉCURITÉ ---
+            with st.expander("**SECURITE**"):
+                new_p = st.text_input("Nouveau code admin", type="password")
+                if st.button("Mettre à jour le code"):
+                    if len(new_p) > 2:
+                        set_admin_password(new_p)
+                        st.success("Code modifié !")
+                    else: st.error("Trop court")
+            
+            # --- MENU DÉROULANT RÉINITIALISATION ---
+            with st.expander("**REINITIALISATION**"):
+                st.warning("⚠️ Action critique")
+                st.write("Ceci réinitialisera le mot de passe d'usine et effacera toutes les données.")
+                st.info("Mémoire : ADMIN_***_**26")
                 
-                check_confirm = st.checkbox("Je confirme vouloir tout effacer")
-                if st.button("VALIDER LE RESET COMPLET"):
+                check_confirm = st.checkbox("Confirmer la suppression totale")
+                if st.button("RESET DU MOT DE PASSE D'USINE"):
                     if check_confirm:
                         if os.path.exists(PASS_FILE): os.remove(PASS_FILE)
                         if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
                         if os.path.exists(PRESENCE_FILE): os.remove(PRESENCE_FILE)
                         for f in glob.glob(os.path.join(VOTES_DIR, "*.csv")): os.remove(f)
                         st.session_state["auth_ok"] = False
-                        st.success("Réinitialisation réussie !")
+                        st.success("Système réinitialisé !")
                         time.sleep(2)
                         st.rerun()
                     else:
                         st.error("Cochez la case de confirmation.")
 
     # --- CONTENU RÉGIE (Si authentifié) ---
-    if st.session_state["auth_ok"]:
+    if st.session_state.get("auth_ok"):
         tab_res, tab_admin = st.tabs(["📊 Résultats", "⚙️ Configuration"])
         
         with tab_res:
@@ -120,7 +122,6 @@ if est_admin:
                 df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
                 st.altair_chart(alt.Chart(df_p).mark_bar(color='#FF4B4B').encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
                 st.download_button("📥 Export CSV", df_res.to_csv(index=False), "export.csv", "text/csv")
-            else: st.info("Aucun vote enregistré.")
 
         with tab_admin:
             c1, c2 = st.columns(2)
@@ -158,7 +159,7 @@ if est_admin:
                     if col_b.button("❌", key=f"del_{i}"):
                         vids.remove(v); save_videos(vids); st.rerun()
     else:
-        st.warning("🔒 Veuillez saisir le mot de passe dans la barre latérale pour accéder à la régie.")
+        st.warning("🔒 Authentifiez-vous dans la barre latérale.")
 
-# --- 5. LOGIQUE SOCIAL WALL & VOTE (Participant) ---
-# ... (Code inchangé pour les autres interfaces)
+# --- 5. SOCIAL WALL / VOTE (Participants) ---
+# [Reste du code identique]
