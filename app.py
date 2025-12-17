@@ -31,8 +31,12 @@ def generer_qr(url):
     return buf.getvalue()
 
 def load_videos():
-    if os.path.exists(CONFIG_FILE): return pd.read_csv(CONFIG_FILE)['Video'].tolist()
+    if os.path.exists(CONFIG_FILE): 
+        return pd.read_csv(CONFIG_FILE)['Video'].tolist()
     return ["BU PAX", "BU FRET", "BU BTOB", "DPMI (ateliers)", "Service RH", "Service Finances", "Service AO", "Service QSSE", "Service IT", "Direction Pôle"]
+
+def save_videos(liste):
+    pd.DataFrame(liste, columns=['Video']).to_csv(CONFIG_FILE, index=False)
 
 # --- 3. LOGIQUE AFFICHAGE ---
 est_admin = st.query_params.get("admin") == "true"
@@ -54,7 +58,6 @@ with tab_vote:
             st.write("📲 **Scannez pour voter**")
             st.image(generer_qr("https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"), width=180)
     
-    # Galerie Photos
     imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg'))]
     if imgs:
         cols_gal = st.columns(len(imgs))
@@ -109,7 +112,7 @@ if est_admin:
         if st.text_input("Code Admin", type="password", key="adm_pwd") == ADMIN_PASSWORD:
             c1, c2 = st.columns(2)
             with c1:
-                st.subheader("📁 Médias")
+                st.subheader("📁 Médias & Galerie")
                 u_logo = st.file_uploader("Modifier le Logo", type=['png', 'jpg'])
                 if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
                 u_gal = st.file_uploader("Ajouter Photos", type=['png', 'jpg'], accept_multiple_files=True)
@@ -119,18 +122,33 @@ if est_admin:
                 if st.button("🗑️ Vider la Galerie"):
                     for f in os.listdir(GALLERY_DIR): os.remove(os.path.join(GALLERY_DIR, f))
                     st.rerun()
-            with c2:
-                st.subheader("⚙️ Configuration")
+                
+                st.divider()
+                st.subheader("⚙️ Contrôle des Votes")
                 if st.button("🔒 Clôturer / 🔓 Ouvrir"):
                     if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
                     else: open(LOCK_FILE, "w").write("L")
                     st.rerun()
-                if st.button("🗑️ Vider les votes"):
+                if st.button("🗑️ Réinitialiser tous les votes"):
                     fn = os.path.join(VOTES_DIR, "votes_principale.csv")
                     if os.path.exists(fn): os.remove(fn)
-                    st.session_state["voted"] = False
-                    st.rerun()
-                new_s = st.text_input("Nouveau service")
-                if st.button("Ajouter"):
-                    l = load_videos(); l.append(new_s)
-                    pd.DataFrame(l, columns=['Video']).to_csv(CONFIG_FILE, index=False); st.rerun()
+                    st.session_state["voted"] = False; st.rerun()
+
+            with c2:
+                st.subheader("📝 Gestion des Services")
+                vids = load_videos()
+                for v in vids:
+                    col_v, col_del = st.columns([3, 1])
+                    col_v.write(f"• {v}")
+                    if col_del.button("❌", key=f"del_{v}"):
+                        vids.remove(v)
+                        save_videos(vids)
+                        st.rerun()
+                
+                st.write("---")
+                new_s = st.text_input("Ajouter un nouveau service")
+                if st.button("➕ Ajouter"):
+                    if new_s:
+                        vids.append(new_s)
+                        save_videos(vids)
+                        st.rerun()
