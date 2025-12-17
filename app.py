@@ -65,12 +65,13 @@ with tab_vote:
         c_i, c_q = st.columns([2, 1])
         with c_q:
             st.write("📲 **Scannez pour voter**")
-            st.image(generer_qr("https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"), width=180)
+            url_fixe = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"
+            st.image(generer_qr(url_fixe), width=180)
     
     if os.path.exists(LOCK_FILE):
-        st.warning("🔒 Votes clos.")
+        st.warning("🔒 Les votes sont clos. Merci !")
     elif st.session_state.get("voted", False):
-        st.success("✅ Vote enregistré !")
+        st.success("✅ Votre vote a été enregistré !")
     else:
         with st.form("vote_form"):
             p1 = st.text_input("Prénom", key="p1")
@@ -80,25 +81,28 @@ with tab_vote:
             for i in range(nb_requis):
                 sel = st.selectbox(f"Choix n°{i+1}", [v for v in vids if v not in choix], key=f"s{i}")
                 choix.append(sel)
-            if st.form_submit_button("Voter"):
+            if st.form_submit_button("Valider mon vote 🚀"):
                 if p1 and p2:
                     fn = os.path.join(VOTES_DIR, "votes_principale.csv")
                     df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo"] + [f"Top{j+1}" for j in range(nb_requis)])
                     pd.DataFrame([[p1, p2] + choix], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
                     st.session_state["voted"] = True
+                    st.balloons()
                     st.rerun()
+                else:
+                    st.error("Veuillez remplir votre profil.")
 
 if est_admin:
     with tab_res:
         pwd_res = st.text_input("Mot de passe Résultats", type="password", key="pwd_res")
         if pwd_res == ADMIN_PASSWORD:
-            st.subheader("Résultats en direct")
+            st.subheader("🏆 Résultats")
             fn = os.path.join(VOTES_DIR, "votes_principale.csv")
             if os.path.exists(fn):
                 df_r = pd.read_csv(fn)
                 st.write(f"Nombre de votes : {len(df_r)}")
-                if st.button("📣 Célébrer"): st.balloons()
-            else: st.info("Aucun vote.")
+                if st.button("📣 Lancer la célébration"): st.balloons()
+            else: st.info("Aucun vote enregistré.")
 
     with tab_admin:
         pwd_admin = st.text_input("Mot de passe Console Admin", type="password", key="pwd_admin")
@@ -106,4 +110,20 @@ if est_admin:
             col1, col2 = st.columns(2)
             with col1:
                 st.subheader("📁 Médias")
-                u_logo = st.file_uploader("Logo
+                u_logo = st.file_uploader("Modifier le Logo", type=['png', 'jpg'], key="u_logo")
+                if u_logo: 
+                    Image.open(u_logo).save(LOGO_FILE)
+                    st.success("Logo mis à jour !")
+                    st.rerun()
+                
+                u_gal = st.file_uploader("Ajouter Photos Galerie", type=['png', 'jpg'], accept_multiple_files=True, key="u_gal")
+                if u_gal:
+                    for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
+                    st.success("Photos ajoutées !")
+                    st.rerun()
+            
+            with col2:
+                st.subheader("⚙️ Configuration")
+                if st.button("🔒 Clôturer / 🔓 Ouvrir les votes"):
+                    if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
+                    else:
