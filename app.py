@@ -80,7 +80,7 @@ else:
     # Mode Public : Pas d'onglets, on affiche directement le vote
     tab_vote = st.container()
 
-# --- CONTENU : ESPACE VOTE ---
+# --- CONTENU : ESPACE VOTE (Version Ultra-Stable) ---
 with tab_vote:
     if est_admin:
         col_info, col_qr = st.columns([2, 1])
@@ -95,7 +95,6 @@ with tab_vote:
                 for i, img in enumerate(imgs): 
                     cols_img[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
     else:
-        # Mode Public : On affiche juste la galerie (optionnel) et le vote
         imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg'))]
         if imgs:
             cols_img = st.columns(len(imgs))
@@ -109,31 +108,50 @@ with tab_vote:
     elif st.session_state.get("voted", False):
         st.success("✅ Votre vote a été enregistré !")
     else:
-        with st.form("form_vote"):
-            p1 = st.text_input("Votre Prénom")
-            p2 = st.text_input("Votre Pseudo")
+        # Création du formulaire avec une clé unique pour éviter les bugs
+        with st.form("formulaire_vote_final", clear_on_submit=False):
+            p1 = st.text_input("Votre Prénom", key="prenom_input")
+            p2 = st.text_input("Votre Pseudo", key="pseudo_input")
             st.divider()
-            vids_list = load_videos()
-            choix_faits = []
-            for i in range(nb_requis):
-                options = [v for v in vids_list if v not in choix_faits]
-                sel = st.selectbox(f"Votre choix n°{i+1}", options, index=None, key=f"vote_{i}")
-                if sel: choix_faits.append(sel)
             
-            if st.form_submit_button("Valider mon vote 🚀"):
-                if p1 and p2 and len(choix_faits) == nb_requis:
+            vids_list = load_videos()
+            choix_utilisateurs = []
+            
+            # Affichage des menus déroulants
+            for i in range(nb_requis):
+                # On filtre les vidéos pour ne pas proposer deux fois la même
+                options_dispo = [v for v in vids_list if v not in choix_utilisateurs]
+                label = f"Votre choix n°{i+1}"
+                
+                # IMPORTANT : On ne définit pas de "index=None" ici pour forcer la stabilité
+                sel = st.selectbox(label, options_dispo, key=f"select_video_{i}")
+                choix_utilisateurs.append(sel)
+            
+            submit = st.form_submit_button("Valider mon vote 🚀")
+            
+            if submit:
+                # Vérification stricte
+                if not p1 or not p2:
+                    st.error("⚠️ Veuillez renseigner votre prénom et votre pseudo.")
+                elif len(set(choix_utilisateurs)) < nb_requis:
+                    st.error(f"⚠️ Veuillez faire {nb_requis} choix différents.")
+                else:
                     fname = get_session_file()
+                    # Vérification si fichier existe
                     df_v = pd.read_csv(fname) if os.path.exists(fname) else pd.DataFrame(columns=["Prenom", "Pseudo"] + [f"Top{j+1}" for j in range(nb_requis)])
+                    
+                    # Vérification doublon pseudo
                     if p2.lower() in df_v['Pseudo'].str.lower().values:
-                        st.error("❌ Déjà voté avec ce pseudo.")
+                        st.warning("❌ Ce pseudo a déjà été utilisé pour voter.")
                     else:
-                        new_row = pd.DataFrame([[p1, p2] + choix_faits], columns=df_v.columns)
+                        # Enregistrement
+                        new_data = [p1, p2] + choix_utilisateurs
+                        new_row = pd.DataFrame([new_data], columns=df_v.columns)
                         new_row.to_csv(fname, mode='a', header=not os.path.exists(fname), index=False)
+                        
                         st.session_state["voted"] = True
                         st.balloons()
                         st.rerun()
-                else:
-                    st.error(f"Veuillez remplir votre profil et faire vos {nb_requis} choix.")
 
 # --- CONTENU : RÉSULTATS (UNIQUEMENT SI ADMIN) ---
 if est_admin:
@@ -168,5 +186,6 @@ if est_admin:
             col_m, col_c = st.columns(2)
             with col_m:
                 st.subheader("🖼️ Médias")
+
 
 
