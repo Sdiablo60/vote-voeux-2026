@@ -19,10 +19,8 @@ LOGO_FILE = "logo_entreprise.png"
 SESSION_CONFIG = "current_session.txt"
 PRESENCE_FILE = "presence_live.csv"
 
-# Création des répertoires de stockage
 for d in [VOTES_DIR, GALLERY_DIR]:
-    if not os.path.exists(d): 
-        os.makedirs(d)
+    if not os.path.exists(d): os.makedirs(d)
 
 st.set_page_config(page_title="Régie Master 2026", layout="wide")
 
@@ -105,7 +103,8 @@ if est_admin:
             with st.expander("**SECURITE**"):
                 np = st.text_input("Nouveau code", type="password")
                 if st.button("Changer code"):
-                    set_admin_password(np); st.toast("Code modifié !"); st.rerun()
+                    if len(np) > 2:
+                        set_admin_password(np); st.toast("Code modifié !"); st.rerun()
             
             with st.expander("**REINITIALISATION**"):
                 st.warning("⚠️ Attention")
@@ -113,12 +112,16 @@ if est_admin:
                 confirm_reset = st.checkbox("Confirmer le reset total")
                 if st.button("RESET DU MOT DE PASSE D'USINE"):
                     if confirm_reset:
-                        if os.path.exists(PASS_FILE): os.remove(PASS_FILE)
-                        if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
-                        if os.path.exists(PRESENCE_FILE): os.remove(PRESENCE_FILE)
+                        for f in [PASS_FILE, CONFIG_FILE, PRESENCE_FILE, SESSION_CONFIG]:
+                            if os.path.exists(f): os.remove(f)
                         for f in glob.glob(os.path.join(VOTES_DIR, "*.csv")): os.remove(f)
                         st.session_state["auth_ok"] = False
                         st.rerun()
+            
+            st.divider()
+            if st.button("Déconnexion"):
+                st.session_state["auth_ok"] = False
+                st.rerun()
 
     if st.session_state["auth_ok"]:
         t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie"])
@@ -139,7 +142,7 @@ if est_admin:
                 df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
                 st.altair_chart(alt.Chart(df_p).mark_bar(color='#FF4B4B').encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
                 st.download_button("📥 Export CSV", df_res.to_csv(index=False), "export.csv", "text/csv")
-            else: st.info("Aucun vote.")
+            else: st.info("Aucun vote enregistré.")
 
         with t2:
             st.subheader("Gestion des Services")
@@ -162,23 +165,38 @@ if est_admin:
                     if bd.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
 
         with t3:
-            st.subheader("Galerie Social Wall")
+            st.subheader("🖼️ Galerie & Médias")
             u_logo = st.file_uploader("Modifier Logo Principal", type=['png', 'jpg'])
             if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
             
             st.divider()
-            u_gal = st.file_uploader("Ajouter Photos Galerie", type=['png', 'jpg'], accept_multiple_files=True)
+            st.write("### Ajouter des Photos")
+            u_gal = st.file_uploader("Sélectionnez vos images", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key="gal_up")
+            
             if u_gal:
-                for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
+                with st.spinner("Upload en cours..."):
+                    for f in u_gal:
+                        Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
+                st.success(f"✅ {len(u_gal)} photo(s) ajoutée(s) !")
+                time.sleep(1.5)
                 st.rerun()
             
+            st.divider()
+            col_t, col_r = st.columns([0.8, 0.2])
+            col_t.write("### Photos en ligne")
+            if col_r.button("🔄 Actualiser"): st.rerun()
+            
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-            cols = st.columns(4)
-            for i, img_p in enumerate(imgs):
-                with cols[i%4]:
-                    st.image(img_p, use_container_width=True)
-                    if st.button("Supprimer", key=f"del_img_{i}"):
-                        os.remove(img_p); st.rerun()
+            if imgs:
+                cols = st.columns(4)
+                for i, img_p in enumerate(imgs):
+                    with cols[i%4]:
+                        st.image(img_p, use_container_width=True)
+                        if st.button("Supprimer", key=f"del_img_{i}", use_container_width=True):
+                            os.remove(img_p); st.rerun()
+            else: st.info("Galerie vide.")
+    else:
+        st.warning("🔒 Authentifiez-vous dans la barre latérale.")
 
 # --- 5. MODE PARTICIPANT (VOTE MOBILE) ---
 elif mode_vote:
@@ -213,11 +231,11 @@ elif mode_vote:
 # --- 6. MODE SOCIAL WALL (LIVE PAR DÉFAUT) ---
 else:
     st.markdown("<style>[data-testid='stSidebar'] {display:none;}</style>", unsafe_allow_html=True)
-    col_l, col_r = st.columns([1, 2])
+    col_l, col_r = st.columns([1, 2.2])
     
     with col_l:
         if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=200)
-        st.write("### 📲 Scannez pour voter")
+        st.write("### 📲 Scannez pour participer")
         qr_url = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/?mode=vote"
         qr_buf = BytesIO()
         qrcode.make(qr_url).save(qr_buf, format="PNG")
@@ -229,14 +247,14 @@ else:
         st.markdown("<h1 style='text-align:center; color:#FF4B4B;'>Bienvenue ! 👋</h1>", unsafe_allow_html=True)
         if os.path.exists(PRESENCE_FILE):
             noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
-            nuage = " ".join([f"<span style='font-size:{random.randint(20,55)}px; color:{random.choice(['#FF4B4B','#1f77b4','#2ca02c','#ff7f0e'])}; margin:15px; font-weight:bold; display:inline-block;'>{n}</span>" for n in noms])
-            st.markdown(f"<div style='text-align:center; background:rgba(255,255,255,0.05); padding:30px; border-radius:20px;'>{nuage}</div>", unsafe_allow_html=True)
+            nuage = " ".join([f"<span style='font-size:{random.randint(22,58)}px; color:{random.choice(['#FF4B4B','#1f77b4','#2ca02c','#ff7f0e','#9467bd'])}; margin:15px; font-weight:bold; display:inline-block;'>{n}</span>" for n in noms])
+            st.markdown(f"<div style='text-align:center; background:rgba(255,255,255,0.05); padding:30px; border-radius:20px; min-height:300px;'>{nuage}</div>", unsafe_allow_html=True)
 
     st.divider()
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     if imgs:
         cols = st.columns(6)
-        for i, img in enumerate(imgs): cols[i%6].image(img, use_container_width=True)
+        for i, img_p in enumerate(imgs): cols[i%6].image(img_p, use_container_width=True)
     
     time.sleep(5)
     st.rerun()
