@@ -57,19 +57,26 @@ with tab_vote:
     
     if os.path.exists(LOCK_FILE):
         st.warning("🔒 Les votes sont clos.")
-    # Sécurité : Si la session indique déjà "voted", on bloque
     elif st.session_state.get("voted", False):
-        st.success("✅ Votre vote a bien été pris en compte sur cet appareil.")
+        st.success("✅ Votre vote a été enregistré sur cet appareil.")
     else:
-        with st.form("vote_form"):
+        with st.form("vote_form_final"):
             p1 = st.text_input("Prénom", key="p1")
             p2 = st.text_input("Pseudo", key="p2")
             vids = load_videos()
             choix = []
+            
+            # Utilisation de colonnes pour une meilleure tenue sur mobile
             for i in range(3):
-                # "index=None" permet de ne rien pré-sélectionner
-                sel = st.selectbox(f"Choix n°{i+1}", [v for v in vids if v not in choix], index=None, placeholder="Choisissez une vidéo...", key=f"s{i}")
-                if sel: choix.append(sel)
+                sel = st.selectbox(
+                    f"Choix n°{i+1}", 
+                    [v for v in vids if v not in choix], 
+                    index=None, 
+                    placeholder="Sélectionnez une vidéo...", 
+                    key=f"sel_v_{i}"
+                )
+                if sel:
+                    choix.append(sel)
             
             if st.form_submit_button("Valider mon vote 🚀"):
                 if p1 and p2 and len(choix) == 3:
@@ -77,40 +84,42 @@ with tab_vote:
                     df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
                     
                     if p2.lower() in df['Pseudo'].str.lower().values:
-                        st.error("❌ Ce pseudo a déjà été utilisé.")
+                        st.warning("❌ Ce pseudo a déjà été utilisé.")
                     else:
                         pd.DataFrame([[p1, p2] + choix], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
                         st.session_state["voted"] = True
                         st.balloons()
                         st.rerun()
                 else:
-                    st.error("Veuillez remplir votre profil et faire vos 3 choix.")
+                    st.error("⚠️ Veuillez renseigner votre profil et faire vos 3 choix.")
 
 if est_admin:
     with tab_res:
         pwd_res = st.text_input("Mot de passe Résultats", type="password", key="pwd_res")
         if pwd_res == ADMIN_PASSWORD:
-            st.subheader("📊 Graphique des scores")
+            st.subheader("📊 Résultats des Votes")
             fn = os.path.join(VOTES_DIR, "votes_principale.csv")
             if os.path.exists(fn):
                 df_r = pd.read_csv(fn)
-                st.write(f"Nombre total de votants : {len(df_r)}")
+                st.write(f"**Total des votants : {len(df_r)}**")
                 
-                # --- CALCUL DU GRAPHIQUE ---
-                scores = {v: 0 for v in load_videos()}
+                # --- CALCUL DES SCORES ---
+                video_list = load_videos()
+                scores = {v: 0 for v in video_list}
                 for _, row in df_r.iterrows():
                     if row['Top1'] in scores: scores[row['Top1']] += 5
                     if row['Top2'] in scores: scores[row['Top2']] += 3
                     if row['Top3'] in scores: scores[row['Top3']] += 1
                 
-                data_plot = pd.DataFrame(list(scores.items()), columns=['Service', 'Points']).sort_values('Points', ascending=False)
-                chart = alt.Chart(data_plot).mark_bar(color='#FF4B4B').encode(
+                # Création du graphique
+                df_plot = pd.DataFrame(list(scores.items()), columns=['Service', 'Points']).sort_values('Points', ascending=False)
+                chart = alt.Chart(df_plot).mark_bar(color='#FF4B4B').encode(
                     x='Points:Q',
                     y=alt.Y('Service:N', sort='-x')
                 )
                 st.altair_chart(chart, use_container_width=True)
             else:
-                st.info("En attente des premiers votes.")
+                st.info("Aucun vote enregistré pour le moment.")
 
     with tab_admin:
         pwd_admin = st.text_input("Mot de passe Console Admin", type="password", key="pwd_admin")
@@ -122,22 +131,6 @@ if est_admin:
                 if u_logo: 
                     Image.open(u_logo).save(LOGO_FILE)
                     st.rerun()
-                
-                u_gal = st.file_uploader("Ajouter Photos", type=['png', 'jpg'], accept_multiple_files=True, key="u_gal")
-                if u_gal:
-                    for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
-                    st.rerun()
             
             with col2:
-                st.subheader("⚙️ Configuration")
-                if st.button("🔒 Clôturer / 🔓 Ouvrir"):
-                    if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
-                    else: 
-                        with open(LOCK_FILE, "w") as f: f.write("L")
-                    st.rerun()
-                
-                if st.button("🗑️ Réinitialiser tous les votes"):
-                    fn = os.path.join(VOTES_DIR, "votes_principale.csv")
-                    if os.path.exists(fn): os.remove(fn)
-                    st.success("Votes effacés.")
-                    st.rerun()
+                st.subheader("⚙️ Configuration
