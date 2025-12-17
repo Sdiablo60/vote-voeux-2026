@@ -85,14 +85,14 @@ if est_admin:
                 st.rerun()
         else:
             st.success("✅ Accès Autorisé")
-            st.metric("👥 Participants Live", nb_p)
-            st.metric("📥 Votes Session", nb_v)
+            st.metric("👥 Participants", nb_p)
+            st.metric("📥 Votes", nb_v)
             
             st.divider()
             st.subheader("📡 Session Active")
             st.info(f"En cours : **{current_session}**")
             ns = st.text_input("Nom nouvelle session", key="side_ns")
-            if st.button("🚀 Lancer la session", use_container_width=True):
+            if st.button("🚀 Lancer", use_container_width=True):
                 if ns:
                     set_current_session(ns)
                     fn = os.path.join(VOTES_DIR, f"{ns}.csv")
@@ -103,7 +103,7 @@ if est_admin:
             st.divider()
             with st.expander("**SECURITE**"):
                 np = st.text_input("Nouveau code", type="password")
-                if st.button("Changer code"):
+                if st.button("Enregistrer code"):
                     if len(np) > 2:
                         set_admin_password(np); st.toast("Code modifié !"); st.rerun()
             
@@ -128,10 +128,10 @@ if est_admin:
         t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie"])
         
         with t1:
-            mode = st.radio("Périmètre", ["Session actuelle", "Total général"], horizontal=True)
+            mode = st.radio("Périmètre", ["Session actuelle", "Cumul général"], horizontal=True)
             all_f = glob.glob(os.path.join(VOTES_DIR, "*.csv"))
             path_curr = os.path.join(VOTES_DIR, f"{current_session}.csv")
-            df_res = pd.concat([pd.read_csv(f) for f in all_f]) if mode == "Total général" and all_f else (pd.read_csv(path_curr) if os.path.exists(path_curr) else pd.DataFrame())
+            df_res = pd.concat([pd.read_csv(f) for f in all_f]) if mode == "Cumul général" and all_f else (pd.read_csv(path_curr) if os.path.exists(path_curr) else pd.DataFrame())
             
             if not df_res.empty:
                 vids_list = load_videos()
@@ -167,26 +167,29 @@ if est_admin:
 
         with t3:
             st.subheader("🖼️ Galerie & Médias")
-            u_logo = st.file_uploader("Modifier Logo Principal", type=['png', 'jpg'], key="logo_up")
-            if u_logo: 
-                Image.open(u_logo).save(LOGO_FILE)
-                st.success("Logo mis à jour !")
-                st.rerun()
+            st.markdown("""
+                <style>
+                    [data-testid="stFileUploader"] { background-color: #1a1c24; border: 2px dashed #FF4B4B; border-radius: 15px; padding: 15px; }
+                    [data-testid="stFileUploaderDropzone"] div div::before { content: "➕"; font-size: 35px; display: block; margin-bottom: 5px; text-align: center; }
+                </style>
+            """, unsafe_allow_html=True)
+            
+            u_logo = st.file_uploader("Logo Principal", type=['png', 'jpg'], key="logo_up")
+            if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
             
             st.divider()
-            st.write("### Ajouter des Photos")
-            # Utilisation de la gal_key pour réinitialiser le widget après upload
-            u_gal = st.file_uploader("Sélectionnez vos images", 
+            st.write("### 📸 Importer des Photos")
+            u_gal = st.file_uploader("Cliquez pour ajouter des images", 
                                     type=['png', 'jpg', 'jpeg'], 
                                     accept_multiple_files=True, 
                                     key=f"gal_up_{st.session_state['gal_key']}")
             
             if u_gal:
-                with st.spinner("Upload en cours..."):
+                with st.spinner("Synchronisation..."):
                     for f in u_gal:
                         Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
-                st.session_state["gal_key"] += 1 # Change la clé pour vider l'uploader
-                st.success(f"✅ {len(u_gal)} photo(s) ajoutée(s) !")
+                st.session_state["gal_key"] += 1
+                st.toast(f"✅ {len(u_gal)} photos ajoutées !")
                 time.sleep(0.5)
                 st.rerun()
             
@@ -197,17 +200,14 @@ if est_admin:
             
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
             if imgs:
-                imgs.sort(key=os.path.getmtime, reverse=True) # Les plus récentes d'abord
+                imgs.sort(key=os.path.getmtime, reverse=True)
                 cols = st.columns(4)
                 for i, img_p in enumerate(imgs):
                     with cols[i%4]:
                         st.image(img_p, use_container_width=True)
-                        if st.button("Supprimer", key=f"del_img_{i}", use_container_width=True):
-                            os.remove(img_p)
-                            st.rerun()
+                        if st.button("❌ Supprimer", key=f"del_img_{i}", use_container_width=True):
+                            os.remove(img_p); st.rerun()
             else: st.info("Galerie vide.")
-    else:
-        st.warning("🔒 Authentifiez-vous dans la barre latérale.")
 
 # --- 5. MODE PARTICIPANT (VOTE MOBILE) ---
 elif mode_vote:
@@ -233,7 +233,7 @@ elif mode_vote:
                 fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
                 df_v = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Pseudo"])
                 if pseudo.lower() in df_v['Pseudo'].str.lower().values:
-                    st.error("Déjà voté pour cette session.")
+                    st.error("Déjà voté.")
                 else:
                     new_v = pd.DataFrame([["", pseudo, s1, s2, s3]], columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
                     new_v.to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
@@ -257,9 +257,11 @@ else:
     with col_r:
         st.markdown("<h1 style='text-align:center; color:#FF4B4B;'>Bienvenue ! 👋</h1>", unsafe_allow_html=True)
         if os.path.exists(PRESENCE_FILE):
-            noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
-            nuage = " ".join([f"<span style='font-size:{random.randint(22,58)}px; color:{random.choice(['#FF4B4B','#1f77b4','#2ca02c','#ff7f0e','#9467bd'])}; margin:15px; font-weight:bold; display:inline-block;'>{n}</span>" for n in noms])
-            st.markdown(f"<div style='text-align:center; background:rgba(255,255,255,0.05); padding:30px; border-radius:20px; min-height:300px;'>{nuage}</div>", unsafe_allow_html=True)
+            try:
+                noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
+                nuage = " ".join([f"<span style='font-size:{random.randint(22,58)}px; color:{random.choice(['#FF4B4B','#1f77b4','#2ca02c','#ff7f0e','#9467bd'])}; margin:15px; font-weight:bold; display:inline-block;'>{n}</span>" for n in noms])
+                st.markdown(f"<div style='text-align:center; background:rgba(255,255,255,0.05); padding:30px; border-radius:20px; min-height:300px;'>{nuage}</div>", unsafe_allow_html=True)
+            except: st.info("En attente de participants...")
 
     st.divider()
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
