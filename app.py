@@ -19,7 +19,7 @@ LOGO_FILE = "logo_entreprise.png"
 SESSION_CONFIG = "current_session.txt"
 PRESENCE_FILE = "presence_live.csv"
 
-# Création automatique des dossiers
+# Création des dossiers si inexistants
 for d in [VOTES_DIR, GALLERY_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
@@ -60,7 +60,7 @@ def get_stats():
     nb_v = len(pd.read_csv(path_v)) if os.path.exists(path_v) else 0
     return nb_p, nb_v
 
-# --- 3. INITIALISATION ---
+# --- 3. INITIALISATION DES VARIABLES ---
 admin_pass = get_admin_password()
 params = st.query_params
 est_admin = params.get("admin") == "true"
@@ -73,38 +73,39 @@ if "gal_key" not in st.session_state: st.session_state["gal_key"] = 0
 
 # --- 4. INTERFACE ADMIN (RÉGIE) ---
 if est_admin:
-    # DESIGN CSS : BOUTONS UNIFORMES & GALERIE ÉPURÉE
+    # CSS AVANCÉ POUR BOUTONS ET GALERIE
     st.markdown("""
         <style>
-        /* Sidebar : Bouton Ajouter Logo identique au bouton Supprimer */
-        section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
-            background-color: transparent !important;
+        /* Sidebar : Transformer l'uploader de logo en bouton pur */
+        [data-testid="stSidebar"] [data-testid="stFileUploader"] > section {
+            padding: 0 !important;
             border: none !important;
-            padding: 0 !important;
-        }
-        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
-            border: 1px solid rgba(250, 250, 250, 0.2) !important;
-            border-radius: 4px !important;
-            padding: 0 !important;
-            height: 38px !important;
             background-color: transparent !important;
+        }
+        [data-testid="stSidebar"] [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] {
+            border: 1px solid rgba(250, 250, 250, 0.2) !important;
+            background-color: transparent !important;
+            border-radius: 4px !important;
+            height: 38px !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
             cursor: pointer;
         }
-        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] div div { display: none !important; }
-        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]::after {
+        [data-testid="stSidebar"] [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"] > div {
+            display: none !important; /* Cache Browse Files, icônes, etc. */
+        }
+        [data-testid="stSidebar"] [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]::after {
             content: "Ajouter un Logo";
             font-size: 0.875rem;
             color: white;
         }
-        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover {
+        [data-testid="stSidebar"] [data-testid="stFileUploader"] [data-testid="stFileUploaderDropzone"]:hover {
             border-color: #FF4B4B !important;
             background-color: rgba(255, 75, 75, 0.05) !important;
         }
 
-        /* Galerie : Zone d'importation Sleek */
+        /* Main Galerie : Design épuré */
         .main [data-testid="stFileUploader"] {
             background-color: #1c1e26;
             border: 1px solid #3d444d;
@@ -115,7 +116,7 @@ if est_admin:
         }
         .main [data-testid="stFileUploaderDropzone"] div div span { display: none; }
         .main [data-testid="stFileUploaderDropzone"]::after {
-            content: "Importer une nouvelle photo"; font-size: 0.85rem; color: #c9d1d9;
+            content: "Importer des photos pour le Live"; font-size: 0.85rem; color: #c9d1d9;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -150,15 +151,6 @@ if est_admin:
             ns = st.text_input("Session active", value=current_session)
             if st.button("Enregistrer session", use_container_width=True):
                 set_current_session(ns); st.rerun()
-            
-            with st.expander("🔐 Sécurité"):
-                new_p = st.text_input("Nouveau code", type="password")
-                if st.button("Changer mot de passe"):
-                    set_admin_password(new_p); st.toast("Modifié !"); st.rerun()
-                if st.button("🚨 RESET D'USINE"):
-                    if os.path.exists(PASS_FILE): os.remove(PASS_FILE)
-                    st.rerun()
-            
             if st.button("Déconnexion", use_container_width=True): 
                 st.session_state["auth_ok"] = False; st.rerun()
 
@@ -177,12 +169,12 @@ if est_admin:
                         if c in scores: scores[c] += p
                 df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
                 st.altair_chart(alt.Chart(df_p).mark_bar(color='#58A6FF', cornerRadiusEnd=4).encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
-            else: st.info("Aucun vote enregistré.")
+            else: st.info("Aucun vote enregistré pour le moment.")
 
         with t2:
-            st.subheader("Services")
-            n_v = st.text_input("Nouveau nom")
-            if st.button("➕ Ajouter service"):
+            st.subheader("Gestion des Services")
+            n_v = st.text_input("Ajouter un service")
+            if st.button("➕ Valider"):
                 if n_v: v = load_videos(); v.append(n_v); save_videos(v); st.rerun()
             st.divider()
             vids = load_videos()
@@ -192,7 +184,7 @@ if est_admin:
                 if c2.button("🗑️", key=f"ds_{i}"): vids.remove(v); save_videos(vids); st.rerun()
 
         with t3:
-            st.subheader("Galerie")
+            st.subheader("Bibliothèque Photos")
             u_file = st.file_uploader("", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key=f"gal_up_{st.session_state['gal_key']}")
             if u_file:
                 for f in u_file: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
@@ -209,27 +201,27 @@ if est_admin:
                         if st.button("Retirer", key=f"del_{i}", use_container_width=True):
                             os.remove(img_p); st.rerun()
 
-# --- 5. MODE PARTICIPANT (VOTE) ---
+# --- 5. MODE PARTICIPANT (VOTE MOBILE) ---
 elif mode_vote:
     st.title("🗳️ Vote Vœux 2026")
-    if st.session_state["voted"]: st.success("✅ Vote enregistré !")
+    if st.session_state["voted"]: st.success("✅ Votre vote a été enregistré !")
     else:
-        pseudo = st.text_input("Pseudo / Trigramme").strip()
-        if pseudo and st.button("🚀 Rejoindre l'écran"):
+        pseudo = st.text_input("Votre Pseudo / Trigramme").strip()
+        if pseudo and st.button("🚀 Apparaître sur le Live"):
             df_p = pd.read_csv(PRESENCE_FILE) if os.path.exists(PRESENCE_FILE) else pd.DataFrame(columns=["Pseudo"])
             if pseudo not in df_p['Pseudo'].values:
                 pd.DataFrame([[pseudo]], columns=["Pseudo"]).to_csv(PRESENCE_FILE, mode='a', header=not os.path.exists(PRESENCE_FILE), index=False)
             st.toast("Regardez le grand écran !")
         st.divider()
         vids = load_videos()
-        s1 = st.segmented_control("Choix 1 (5 pts)", vids, key="s1")
+        s1 = st.segmented_control("Quel est votre service préféré ? (5 pts)", vids, key="s1")
         if st.button("Valider mon vote", use_container_width=True):
             if pseudo and s1:
                 fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
                 pd.DataFrame([[pseudo, s1]], columns=["Pseudo","Top1"]).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
                 st.session_state["voted"] = True; st.balloons(); time.sleep(1); st.rerun()
 
-# --- 6. MODE SOCIAL WALL (LIVE) ---
+# --- 6. MODE LIVE (SOCIAL WALL PAR DÉFAUT) ---
 else:
     st.markdown("<style>[data-testid='stSidebar'] {display:none;}</style>", unsafe_allow_html=True)
     c1, c2 = st.columns([1, 2.5])
@@ -244,6 +236,7 @@ else:
             noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
             nuage = " ".join([f"<span style='font-size:{random.randint(22,55)}px; color:{random.choice(['#58A6FF','#FF4B4B','#2ca02c','#ff7f0e'])}; margin:15px; font-weight:bold; display:inline-block;'>{n}</span>" for n in noms])
             st.markdown(f"<div style='text-align:center;'>{nuage}</div>", unsafe_allow_html=True)
+    st.divider()
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     if imgs:
         cols = st.columns(6)
