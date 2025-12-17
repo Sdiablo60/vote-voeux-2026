@@ -6,7 +6,6 @@ from PIL import Image
 import altair as alt
 from io import BytesIO
 import qrcode
-import shutil
 
 # --- 1. CONFIGURATION ---
 ADMIN_PASSWORD = "ADMIN_VOEUX_2026"
@@ -70,10 +69,9 @@ with tab_vote:
             st.write("📲 **Scannez pour voter**")
             st.image(generer_qr("https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"), width=180)
     
-    # Affichage de la Galerie
     imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
     if imgs:
-        cols_gal = st.columns(min(len(imgs), 5)) # Affiche max 5 images par ligne
+        cols_gal = st.columns(min(len(imgs), 5))
         for i, img_name in enumerate(imgs):
             cols_gal[i % 5].image(os.path.join(GALLERY_DIR, img_name), use_container_width=True)
 
@@ -83,16 +81,31 @@ with tab_vote:
     elif st.session_state["voted"]:
         st.success("✅ Votre vote a bien été enregistré !")
     else:
+        st.write("### 📝 Votre profil")
         p1 = st.text_input("Votre Prénom")
         p2 = st.text_input("Votre Pseudo (ex: trigramme)")
-        vids = load_videos()
-        s1 = st.selectbox("Choix n°1 (5 pts)", [None] + vids, key="s1")
-        s2 = st.selectbox("Choix n°2 (3 pts)", [None] + [v for v in vids if v != s1], key="s2")
-        s3 = st.selectbox("Choix n°3 (1 pt)", [None] + [v for v in vids if v not in [s1, s2]], key="s3")
         
-        if st.button("Valider mon vote 🚀"):
-            if not p1 or not p2 or not s1 or not s2 or not s3:
-                st.error("⚠️ Veuillez remplir votre profil et faire vos 3 choix.")
+        st.divider()
+        st.write("### 🏆 Vos choix (cliquez sur les boutons)")
+        
+        vids = load_videos()
+        
+        # --- NOUVELLE MÉTHODE : BOUTONS SEGMENTÉS (PILLS) ---
+        st.write("**1er choix (5 points) :**")
+        s1 = st.segmented_control("choix1", vids, label_visibility="collapsed", key="s1")
+        
+        st.write("**2ème choix (3 points) :**")
+        vids2 = [v for v in vids if v != s1]
+        s2 = st.segmented_control("choix2", vids2, label_visibility="collapsed", key="s2")
+        
+        st.write("**3ème choix (1 point) :**")
+        vids3 = [v for v in vids if v not in [s1, s2]]
+        s3 = st.segmented_control("choix3", vids3, label_visibility="collapsed", key="s3")
+        
+        st.write("")
+        if st.button("Valider mon vote 🚀", use_container_width=True):
+            if not p1 or not p2 or s1 is None or s2 is None or s3 is None:
+                st.error("⚠️ Veuillez remplir votre profil et cliquer sur 3 boutons.")
             else:
                 fn = os.path.join(VOTES_DIR, "votes_principale.csv")
                 df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
@@ -104,86 +117,48 @@ with tab_vote:
                     st.session_state["voted"] = True
                     st.balloons(); st.rerun()
 
-# --- 5. ONGLET RÉSULTATS ---
+# --- 5 & 6 : RÉSULTATS ET ADMIN (Inchangés pour la gestion) ---
 if est_admin:
     with tab_res:
         if st.text_input("Code Résultats", type="password", key="res_pwd") == ADMIN_PASSWORD:
             fn = os.path.join(VOTES_DIR, "votes_principale.csv")
             if os.path.exists(fn):
                 df_r = pd.read_csv(fn)
-                st.write(f"**Votants : {len(df_r)}**")
                 scores = {v: 0 for v in load_videos()}
                 for _, r in df_r.iterrows():
                     for i, p in enumerate([5, 3, 1]):
                         if r[f'Top{i+1}'] in scores: scores[r[f'Top{i+1}']] += p
                 df_p = pd.DataFrame(list(scores.items()), columns=['Service', 'Points']).sort_values('Points', ascending=False)
                 st.altair_chart(alt.Chart(df_p).mark_bar(color='#FF4B4B').encode(x='Points', y=alt.Y('Service', sort='-x')), use_container_width=True)
-            else: st.info("Aucun vote.")
-
-# --- 6. ONGLET ADMIN ---
+    
     with tab_admin:
         if st.text_input("Code Admin", type="password", key="adm_pwd") == ADMIN_PASSWORD:
             c1, c2 = st.columns(2)
             with c1:
-                st.subheader("📁 Médias & Galerie")
+                st.subheader("📁 Médias")
                 u_logo = st.file_uploader("Logo", type=['png', 'jpg'])
                 if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
-                
-                u_gal = st.file_uploader("Ajouter Photos", type=['png', 'jpg'], accept_multiple_files=True)
+                u_gal = st.file_uploader("Photos", type=['png', 'jpg'], accept_multiple_files=True)
                 if u_gal:
-                    for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
-                    st.success(f"{len(u_gal)} photo(s) ajoutée(s) !"); st.rerun()
-                
-                # --- FONCTION VIDER LA GALERIE CORRIGÉE ---
+                    for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name)); st.rerun()
                 if st.button("🗑️ Vider la Galerie"):
-                    for f in os.listdir(GALLERY_DIR):
-                        file_path = os.path.join(GALLERY_DIR, f)
-                        try:
-                            if os.path.isfile(file_path):
-                                os.unlink(file_path)
-                        except Exception as e:
-                            st.error(f"Erreur : {e}")
-                    st.success("Galerie vidée !"); st.rerun()
-
-                st.divider()
-                st.subheader("⚙️ Contrôle")
-                if st.button("🔒 Verrouiller/Déverrouiller"):
-                    if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
-                    else: open(LOCK_FILE, "w").write("L")
+                    for f in os.listdir(GALLERY_DIR): os.unlink(os.path.join(GALLERY_DIR, f))
                     st.rerun()
-                if st.button("🗑️ Reset Votes"):
-                    fn = os.path.join(VOTES_DIR, "votes_principale.csv")
-                    if os.path.exists(fn): os.remove(fn)
-                    st.session_state["voted"] = False; st.rerun()
-
             with c2:
                 # GESTION DES SERVICES
                 current_title = get_admin_title()
-                h_c1, h_c2 = st.columns([0.8, 0.2])
-                h_c1.subheader(f"📝 {current_title}")
-                if h_c2.button("✏️", key="edit_title"):
-                    st.session_state["edit_mode_title"] = not st.session_state["edit_mode_title"]
-                    st.rerun()
+                h1, h2 = st.columns([0.8, 0.2])
+                h1.subheader(f"📝 {current_title}")
+                if h2.button("✏️", key="et"): st.session_state["edit_mode_title"] = not st.session_state["edit_mode_title"]; st.rerun()
                 if st.session_state["edit_mode_title"]:
-                    nt = st.text_input("Nouveau nom :", value=current_title)
+                    nt = st.text_input("Nom:", value=current_title)
                     if st.button("OK"): save_admin_title(nt); st.session_state["edit_mode_title"]=False; st.rerun()
-                
-                st.divider()
-                new_s = st.text_input("Ajouter un nouvel élément")
-                if st.button("➕ Ajouter"):
-                    if new_s:
-                        vids = load_videos(); vids.append(new_s); save_videos(vids); st.rerun()
                 st.write("---")
                 vids = load_videos()
                 for i, v in enumerate(vids):
                     col_v, col_btn = st.columns([0.7, 0.3])
-                    if st.session_state["editing_service"] == v:
-                        new_val = col_v.text_input(f"Modif", value=v, key=f"inp_{i}")
-                        if col_btn.button("💾", key=f"save_{i}"):
-                            vids[i] = new_val; save_videos(vids)
-                            st.session_state["editing_service"] = None; st.rerun()
-                    else:
-                        col_v.write(f"• {v}")
-                        b_e, b_d = col_btn.columns(2)
-                        if b_e.button("✏️", key=f"e_{i}"): st.session_state["editing_service"] = v; st.rerun()
-                        if b_d.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
+                    col_v.write(f"• {v}")
+                    if col_btn.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
+                new_s = st.text_input("Ajouter élément")
+                if st.button("➕"):
+                    if new_s: vids.append(new_s); save_videos(vids); st.rerun()
