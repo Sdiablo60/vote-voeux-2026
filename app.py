@@ -69,6 +69,7 @@ current_session = get_current_session()
 if "auth_ok" not in st.session_state: st.session_state["auth_ok"] = False
 if "voted" not in st.session_state: st.session_state["voted"] = False
 if "editing_service" not in st.session_state: st.session_state["editing_service"] = None
+if "gal_key" not in st.session_state: st.session_state["gal_key"] = 0
 
 # --- 4. INTERFACE ADMIN (RÉGIE) ---
 if est_admin:
@@ -127,10 +128,10 @@ if est_admin:
         t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie"])
         
         with t1:
-            mode = st.radio("Périmètre", ["Session actuelle", "Cumul général"], horizontal=True)
+            mode = st.radio("Périmètre", ["Session actuelle", "Total général"], horizontal=True)
             all_f = glob.glob(os.path.join(VOTES_DIR, "*.csv"))
             path_curr = os.path.join(VOTES_DIR, f"{current_session}.csv")
-            df_res = pd.concat([pd.read_csv(f) for f in all_f]) if mode == "Cumul général" and all_f else (pd.read_csv(path_curr) if os.path.exists(path_curr) else pd.DataFrame())
+            df_res = pd.concat([pd.read_csv(f) for f in all_f]) if mode == "Total général" and all_f else (pd.read_csv(path_curr) if os.path.exists(path_curr) else pd.DataFrame())
             
             if not df_res.empty:
                 vids_list = load_videos()
@@ -166,19 +167,27 @@ if est_admin:
 
         with t3:
             st.subheader("🖼️ Galerie & Médias")
-            u_logo = st.file_uploader("Modifier Logo Principal", type=['png', 'jpg'])
-            if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
+            u_logo = st.file_uploader("Modifier Logo Principal", type=['png', 'jpg'], key="logo_up")
+            if u_logo: 
+                Image.open(u_logo).save(LOGO_FILE)
+                st.success("Logo mis à jour !")
+                st.rerun()
             
             st.divider()
             st.write("### Ajouter des Photos")
-            u_gal = st.file_uploader("Sélectionnez vos images", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key="gal_up")
+            # Utilisation de la gal_key pour réinitialiser le widget après upload
+            u_gal = st.file_uploader("Sélectionnez vos images", 
+                                    type=['png', 'jpg', 'jpeg'], 
+                                    accept_multiple_files=True, 
+                                    key=f"gal_up_{st.session_state['gal_key']}")
             
             if u_gal:
                 with st.spinner("Upload en cours..."):
                     for f in u_gal:
                         Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
+                st.session_state["gal_key"] += 1 # Change la clé pour vider l'uploader
                 st.success(f"✅ {len(u_gal)} photo(s) ajoutée(s) !")
-                time.sleep(1.5)
+                time.sleep(0.5)
                 st.rerun()
             
             st.divider()
@@ -188,12 +197,14 @@ if est_admin:
             
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
             if imgs:
+                imgs.sort(key=os.path.getmtime, reverse=True) # Les plus récentes d'abord
                 cols = st.columns(4)
                 for i, img_p in enumerate(imgs):
                     with cols[i%4]:
                         st.image(img_p, use_container_width=True)
                         if st.button("Supprimer", key=f"del_img_{i}", use_container_width=True):
-                            os.remove(img_p); st.rerun()
+                            os.remove(img_p)
+                            st.rerun()
             else: st.info("Galerie vide.")
     else:
         st.warning("🔒 Authentifiez-vous dans la barre latérale.")
