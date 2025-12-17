@@ -68,28 +68,44 @@ if "gal_key" not in st.session_state: st.session_state["gal_key"] = 0
 
 # --- 4. INTERFACE ADMIN ---
 if est_admin:
-    # CSS Custom pour les uploaders
+    # CSS CIBLÉ POUR NETTOYER L'UPLOADER DU LOGO
     st.markdown("""
         <style>
-        /* Style général Uploader */
-        [data-testid="stFileUploader"] { background-color: #1c1e26; border: 1px solid #3d444d; border-radius: 8px; }
-        [data-testid="stFileUploaderDropzone"] div div span { display: none; }
+        /* 1. Suppression de l'encadrement et fond du logo en sidebar */
+        section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
+            background-color: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+        }
         
-        /* Spécifique LOGO (Sidebar) */
-        [data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]::after {
+        /* 2. Suppression des textes par défaut (Browse files, etc.) */
+        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] div div span {
+            display: none !important;
+        }
+        
+        /* 3. Ajout du + et du texte personnalisé */
+        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]::before {
+            content: "＋";
+            font-size: 1.8rem;
+            color: #58A6FF;
+            display: block;
+            text-align: center;
+        }
+        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]::after {
             content: "Ajouter un Logo";
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             color: #c9d1d9;
+            display: block;
+            text-align: center;
+            margin-top: -5px;
         }
         
-        /* Spécifique GALERIE (Main) */
-        .main [data-testid="stFileUploaderDropzone"]::after {
-            content: "Importer des photos";
-            font-size: 0.85rem;
-            color: #c9d1d9;
+        /* 4. Style de la zone de dépôt pour la galerie (Main) - On garde un léger encadrement ici */
+        .main [data-testid="stFileUploader"] {
+            background-color: #1c1e26;
+            border: 1px solid #3d444d;
+            border-radius: 8px;
         }
-        
-        [data-testid="stFileUploaderDropzone"] div div::before { content: "＋"; font-size: 1.5rem; color: #58A6FF; display: block; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -97,18 +113,19 @@ if est_admin:
     nb_p, nb_v = get_stats()
     
     with st.sidebar:
-        # LOGO TOUT EN HAUT
+        # --- SECTION LOGO ---
         st.subheader("🖼️ Logo")
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
-            if st.button("🗑️ Supprimer", key="del_logo"):
+            if st.button("🗑️ Supprimer", key="del_logo", use_container_width=True):
                 os.remove(LOGO_FILE)
                 st.rerun()
-        
-        u_logo = st.file_uploader("", type=['png', 'jpg', 'jpeg'], key="sidebar_logo")
-        if u_logo:
-            Image.open(u_logo).save(LOGO_FILE)
-            st.rerun()
+        else:
+            # L'uploader n'apparaît que s'il n'y a pas de logo
+            u_logo = st.file_uploader("", type=['png', 'jpg', 'jpeg'], key="sidebar_logo")
+            if u_logo:
+                Image.open(u_logo).save(LOGO_FILE)
+                st.rerun()
         
         st.divider()
         st.header("🔑 Accès")
@@ -123,9 +140,9 @@ if est_admin:
             st.metric("📥 Votes", nb_v)
             st.divider()
             ns = st.text_input("Session active", value=current_session)
-            if st.button("Enregistrer session"):
+            if st.button("Enregistrer session", use_container_width=True):
                 set_current_session(ns); st.rerun()
-            if st.button("Déconnexion"): st.session_state["auth_ok"] = False; st.rerun()
+            if st.button("Déconnexion", use_container_width=True): st.session_state["auth_ok"] = False; st.rerun()
 
     if st.session_state["auth_ok"]:
         t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie Photos"])
@@ -142,23 +159,23 @@ if est_admin:
                         if c in scores: scores[c] += p
                 df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
                 st.altair_chart(alt.Chart(df_p).mark_bar(color='#58A6FF').encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
-            else: st.info("Aucun vote enregistré.")
+            else: st.info("En attente de votes...")
 
         with t2:
             n_v = st.text_input("Ajouter un service")
-            if st.button("➕ Valider"):
+            if st.button("➕ Ajouter"):
                 if n_v: 
                     v = load_videos(); v.append(n_v); save_videos(v); st.rerun()
             st.divider()
             vids = load_videos()
             for i, v in enumerate(vids):
-                c1, c2 = st.columns([0.8, 0.2])
+                c1, c2 = st.columns([0.85, 0.15])
                 c1.write(f"• {v}")
                 if c2.button("🗑️", key=f"ds_{i}"):
                     vids.remove(v); save_videos(vids); st.rerun()
 
         with t3:
-            st.write("### 📸 Gestion de la Galerie")
+            st.write("### 📸 Photos Social Wall")
             u_file = st.file_uploader("", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key=f"gal_up_{st.session_state['gal_key']}")
             if u_file:
                 for f in u_file: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
@@ -186,17 +203,18 @@ elif mode_vote:
         if pseudo and s1:
             fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
             pd.DataFrame([[pseudo, s1]], columns=["Pseudo","Top1"]).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
-            st.success("Vote envoyé !")
+            st.success("Voté !")
+
 else:
     st.markdown("<style>[data-testid='stSidebar'] {display:none;}</style>", unsafe_allow_html=True)
     c1, c2 = st.columns([1, 2.5])
     with c1:
-        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=180)
+        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=150)
         qr_url = f"https://{st.context.headers.get('Host', '')}/?mode=vote"
         qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
         st.image(qr_buf.getvalue(), use_container_width=True)
     with c2:
-        st.header("Social Wall")
+        st.header("Social Wall Live")
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     if imgs:
         cols = st.columns(6)
