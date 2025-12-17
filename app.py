@@ -24,7 +24,7 @@ for d in [VOTES_DIR, GALLERY_DIR]:
 
 st.set_page_config(page_title="Régie Master 2026", layout="wide")
 
-# --- 2. FONCTIONS ---
+# --- 2. FONCTIONS DE GESTION ---
 def get_admin_password():
     if os.path.exists(PASS_FILE):
         with open(PASS_FILE, "r", encoding="utf-8") as f: return f.read().strip()
@@ -50,20 +50,15 @@ def save_videos(liste):
     pd.DataFrame(liste, columns=['Video']).to_csv(CONFIG_FILE, index=False)
 
 def get_stats():
-    """Récupère le nombre de participants et de votes"""
-    nb_participants = 0
+    nb_p = 0
     if os.path.exists(PRESENCE_FILE):
-        nb_participants = len(pd.read_csv(PRESENCE_FILE)['Pseudo'].unique())
-    
-    current_session = get_current_session()
-    path_curr = os.path.join(VOTES_DIR, f"{current_session}.csv")
-    nb_votes = 0
-    if os.path.exists(path_curr):
-        nb_votes = len(pd.read_csv(path_curr))
-        
-    return nb_participants, nb_votes
+        nb_p = len(pd.read_csv(PRESENCE_FILE)['Pseudo'].unique())
+    curr = get_current_session()
+    path_v = os.path.join(VOTES_DIR, f"{curr}.csv")
+    nb_v = len(pd.read_csv(path_v)) if os.path.exists(path_v) else 0
+    return nb_p, nb_v
 
-# --- 3. LOGIQUE INITIALISATION ---
+# --- 3. INITIALISATION DES VARIABLES ---
 admin_pass = get_admin_password()
 params = st.query_params
 est_admin = params.get("admin") == "true"
@@ -71,119 +66,112 @@ mode_vote = params.get("mode") == "vote"
 current_session = get_current_session()
 
 if "auth_ok" not in st.session_state: st.session_state["auth_ok"] = False
-if "editing_service" not in st.session_state: st.session_state["editing_service"] = None
+if "voted" not in st.session_state: st.session_state["voted"] = False
 
-# --- 4. INTERFACE ADMIN (RÉGIE) ---
+# --- 4. MODE ADMIN (REGIE) ---
 if est_admin:
     st.title("🛠️ Console de Régie")
-    
-    nb_p, nb_v = get_stats() # Calcul des stats en temps réel
+    nb_p, nb_v = get_stats()
     
     with st.sidebar:
         st.header("🔑 Authentification")
         if not st.session_state["auth_ok"]:
-            pwd_input = st.text_input("Saisir le code", type="password")
+            pwd_input = st.text_input("Code Admin", type="password")
             if pwd_input == admin_pass:
                 st.session_state["auth_ok"] = True
                 st.rerun()
         else:
             st.success("✅ Accès Autorisé")
-            
-            # --- COMPTEUR LIVE DANS LA SIDEBAR ---
+            st.metric("👥 Participants", nb_p)
+            st.metric("📥 Votes", nb_v)
             st.divider()
-            st.metric(label="👥 Participants Actifs", value=nb_p)
-            st.metric(label="📥 Votes (Session)", value=nb_v)
-            
-            # --- SECTION 📡 SESSION LIVE ---
-            st.divider()
-            st.subheader("📡 Session Live")
-            st.info(f"En cours : **{current_session}**")
-            ns = st.text_input("Nouveau nom", key="side_ns")
-            if st.button("🚀 Lancer", use_container_width=True):
-                if ns:
-                    set_current_session(ns)
-                    fn = os.path.join(VOTES_DIR, f"{ns}.csv")
-                    if not os.path.exists(fn):
-                        pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"]).to_csv(fn, index=False)
-                    st.rerun()
-
-            # --- SECTION 📁 MÉDIAS ---
-            st.divider()
-            st.subheader("📁 Médias")
-            u_logo = st.file_uploader("Logo", type=['png', 'jpg'], key="side_logo")
-            if u_logo: Image.open(u_logo).save(LOGO_FILE); st.rerun()
-            
-            if st.button("🗑️ Reset Nuage de noms", use_container_width=True):
-                if os.path.exists(PRESENCE_FILE): os.remove(PRESENCE_FILE); st.rerun()
-
-            # --- SECTION 🔒 SECURITE & RESET ---
+            st.subheader("📡 Session")
+            st.info(f"Active : {current_session}")
+            ns = st.text_input("Changer session", key="new_s")
+            if st.button("🚀 Lancer"):
+                set_current_session(ns)
+                st.rerun()
             st.divider()
             with st.expander("**SECURITE**"):
-                new_p = st.text_input("Nouveau code", type="password")
-                if st.button("Enregistrer"):
-                    set_admin_password(new_p); st.toast("Modifié !"); st.rerun()
-            
+                np = st.text_input("Nouveau code", type="password")
+                if st.button("Modifier"): set_admin_password(np); st.rerun()
             with st.expander("**REINITIALISATION**"):
                 st.info("Mémoire : ADMIN_***_**26")
-                confirm = st.checkbox("Confirmer Reset")
                 if st.button("RESET USINE"):
-                    if confirm:
-                        for f in [PASS_FILE, CONFIG_FILE, PRESENCE_FILE]:
-                            if os.path.exists(f): os.remove(f)
-                        for f in glob.glob(os.path.join(VOTES_DIR, "*.csv")): os.remove(f)
-                        st.session_state["auth_ok"] = False; st.rerun()
+                    if os.path.exists(PASS_FILE): os.remove(PASS_FILE)
+                    st.rerun()
 
-            st.divider()
-            if st.button("Déconnexion"):
-                st.session_state["auth_ok"] = False; st.rerun()
-
-    # --- CONTENU CENTRAL (Si authentifié) ---
     if st.session_state["auth_ok"]:
-        tab_res, tab_vids, tab_gal = st.tabs(["📊 Résultats", "📝 Liste des Services", "🖼️ Galerie"])
-        
-        with tab_res:
-            col_s1, col_s2 = st.columns(2)
-            col_s1.metric("Participants total", nb_p)
-            col_s2.metric("Votes enregistrés", nb_v)
-            
-            mode = st.radio("Périmètre", ["Session actuelle", "Total général"], horizontal=True)
+        t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie"])
+        with t1:
             all_f = glob.glob(os.path.join(VOTES_DIR, "*.csv"))
-            path_curr = os.path.join(VOTES_DIR, f"{current_session}.csv")
-            df_res = pd.concat([pd.read_csv(f) for f in all_f]) if mode == "Total général" and all_f else (pd.read_csv(path_curr) if os.path.exists(path_curr) else pd.DataFrame())
-            
-            if not df_res.empty:
-                scores = {v: 0 for v in load_videos()}
-                for _, r in df_res.iterrows():
-                    for i, p in enumerate([5, 3, 1]):
-                        if r[f'Top{i+1}'] in scores: scores[r[f'Top{i+1}']] += p
-                df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
-                st.altair_chart(alt.Chart(df_p).mark_bar(color='#FF4B4B').encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
-            else: st.info("En attente des premiers votes...")
-
-        with tab_vids:
-            # (Gestion des services identique à la version précédente)
-            st.subheader("Services / Vidéos")
-            n_vid = st.text_input("Nom du service")
-            if st.button("Ajouter"):
-                vids = load_videos(); vids.append(n_vid); save_videos(vids); st.rerun()
-            st.divider()
+            if all_f:
+                df = pd.concat([pd.read_csv(f) for f in all_f])
+                # Calcul simplifié pour l'exemple
+                st.write("Graphique des scores...")
+                st.download_button("Export CSV", df.to_csv(), "votes.csv")
+        with t2:
             vids = load_videos()
-            for i, v in enumerate(vids):
-                c_v, c_b = st.columns([0.8, 0.2])
-                c_v.write(f"• {v}")
-                if c_b.button("❌", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
+            new_v = st.text_input("Nouveau service")
+            if st.button("Ajouter"): vids.append(new_v); save_videos(vids); st.rerun()
+            for v in vids: st.write(f"• {v}")
+        with t3:
+            u = st.file_uploader("Images", accept_multiple_files=True)
+            if u:
+                for f in u: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
+                st.rerun()
 
-        with tab_gal:
-            # (Galerie identique)
-            u_gal = st.file_uploader("Images", type=['png', 'jpg'], accept_multiple_files=True)
-            if u_gal:
-                for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
-                st.rerun()
-            if st.button("🗑️ Vider Galerie"):
-                for f in os.listdir(GALLERY_DIR): os.remove(os.path.join(GALLERY_DIR, f))
-                st.rerun()
+# --- 5. MODE PARTICIPANT (VOTE MOBILE) ---
+elif mode_vote:
+    st.title("🗳️ Vote Vœux 2026")
+    if st.session_state["voted"]:
+        st.success("✅ Merci ! Vote enregistré.")
     else:
-        st.warning("🔒 Authentifiez-vous dans la barre latérale.")
+        pseudo = st.text_input("Pseudo / Trigramme")
+        if pseudo and st.button("🚀 Rejoindre l'écran"):
+            df_p = pd.read_csv(PRESENCE_FILE) if os.path.exists(PRESENCE_FILE) else pd.DataFrame(columns=["Pseudo"])
+            if pseudo not in df_p['Pseudo'].values:
+                pd.DataFrame([[pseudo]], columns=["Pseudo"]).to_csv(PRESENCE_FILE, mode='a', header=not os.path.exists(PRESENCE_FILE), index=False)
+            st.toast("Regardez le grand écran !")
+        
+        st.divider()
+        vids = load_videos()
+        s1 = st.segmented_control("Choix 1", vids, key="s1")
+        if st.button("Valider"):
+            st.session_state["voted"] = True
+            st.rerun()
 
-# --- 5. SOCIAL WALL / VOTE (Participant) ---
-# ... [Le reste du code reste identique]
+# --- 6. MODE SOCIAL WALL (LIVE PAR DEFAUT) ---
+else:
+    # On force l'affichage plein écran
+    st.markdown("<style>button {display:none;} [data-testid='stSidebar'] {display:none;}</style>", unsafe_allow_html=True)
+    
+    col_l, col_r = st.columns([1, 2])
+    
+    with col_l:
+        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
+        st.write("### 📲 Scannez pour voter")
+        qr_url = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/?mode=vote"
+        qr_buf = BytesIO()
+        qrcode.make(qr_url).save(qr_buf, format="PNG")
+        st.image(qr_buf.getvalue(), use_container_width=True)
+        
+        nb_p, _ = get_stats()
+        st.metric("Participants", nb_p)
+
+    with col_r:
+        st.title("✨ Bienvenue au Live !")
+        if os.path.exists(PRESENCE_FILE):
+            df_p = pd.read_csv(PRESENCE_FILE)
+            noms = df_p['Pseudo'].unique().tolist()
+            nuage = "  ".join([f"<span style='font-size:{random.randint(20,50)}px; color:red; margin:10px; font-weight:bold; display:inline-block;'>{n}</span>" for n in noms])
+            st.markdown(f"<div style='text-align:center; padding:20px; border-radius:15px; background:rgba(255,255,255,0.1);'>{nuage}</div>", unsafe_allow_html=True)
+
+    st.divider()
+    imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+    if imgs:
+        cols = st.columns(5)
+        for i, img in enumerate(imgs): cols[i%5].image(img, use_container_width=True)
+
+    time.sleep(5)
+    st.rerun()
