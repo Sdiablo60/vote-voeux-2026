@@ -73,7 +73,7 @@ with tab1:
         st.write("📲 **Scannez pour voter**")
         # On essaie de récupérer l'URL actuelle, sinon on met un texte par défaut
         try:
-            current_url = https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/
+            current_url = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"
             st.image(generer_qr(current_url), width=200)
         except:
             st.write("Configurez l'URL dans l'onglet Admin")
@@ -129,4 +129,5 @@ with tab3:
                 if n_eff == "Ballons": st.balloons()
                 elif n_eff == "Pluie d'étoiles": st.snow()
                 elif n_eff == "Confettis": st.balloons()
+
 
