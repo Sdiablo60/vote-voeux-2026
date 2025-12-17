@@ -58,134 +58,141 @@ def save_videos(video_list):
 def get_session_file():
     return os.path.join(VOTES_DIR, "votes_principale.csv")
 
-# --- CHARGEMENT PARAMÈTRES ---
+# --- PARAMÈTRES ET MODE ---
 settings = load_settings()
 nb_requis, effet_final, son_final = int(settings["nb_choix"]), settings["effet"], settings["son"]
-
-# --- DÉTECTION DU MODE (ADMIN OU PUBLIC) ---
-# Si l'URL contient ?admin=true, on est en mode régie
 est_admin = st.query_params.get("admin") == "true"
 
-# --- AFFICHAGE LOGO ---
+# --- LOGO ---
 if os.path.exists(LOGO_FILE):
     st.image(Image.open(LOGO_FILE), width=150)
 
 st.title("🎬 Élection Vidéo Vœux 2026")
 
-# --- GESTION DES ONGLETS ---
+# --- STRUCTURE DES ONGLETS ---
 if est_admin:
     tabs = st.tabs(["🗳️ Espace Vote", "📊 Résultats & Podium", "🛠️ Console Admin"])
     tab_vote, tab_res, tab_admin = tabs[0], tabs[1], tabs[2]
 else:
-    # Mode Public : Pas d'onglets, on affiche directement le vote
     tab_vote = st.container()
 
-# --- CONTENU : ESPACE VOTE (Version Ultra-Stable) ---
+# --- 1. ONGLET VOTE ---
 with tab_vote:
     if est_admin:
         col_info, col_qr = st.columns([2, 1])
         with col_qr:
             st.write("📲 **Scannez pour voter**")
             url_app = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"
-            st.image(generer_qr(url_app), width=200)
+            st.image(generer_qr(url_app), width=180)
         with col_info:
             imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg'))]
             if imgs:
-                cols_img = st.columns(len(imgs))
-                for i, img in enumerate(imgs): 
-                    cols_img[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
+                cols = st.columns(len(imgs))
+                for i, img in enumerate(imgs): cols[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
     else:
         imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg'))]
         if imgs:
-            cols_img = st.columns(len(imgs))
-            for i, img in enumerate(imgs): 
-                cols_img[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
+            cols = st.columns(len(imgs))
+            for i, img in enumerate(imgs): cols[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
 
     st.divider()
-    
     if os.path.exists(LOCK_FILE):
-        st.warning("🔒 Les votes sont clos. Merci !")
+        st.warning("🔒 Les votes sont clos.")
     elif st.session_state.get("voted", False):
         st.success("✅ Votre vote a été enregistré !")
     else:
-        # Création du formulaire avec une clé unique pour éviter les bugs
-        with st.form("formulaire_vote_final", clear_on_submit=False):
-            p1 = st.text_input("Votre Prénom", key="prenom_input")
-            p2 = st.text_input("Votre Pseudo", key="pseudo_input")
-            st.divider()
-            
+        with st.form("form_vote_stable", clear_on_submit=False):
+            p1 = st.text_input("Prénom", key="f_prenom")
+            p2 = st.text_input("Pseudo", key="f_pseudo")
             vids_list = load_videos()
-            choix_utilisateurs = []
-            
-            # Affichage des menus déroulants
+            choix_faits = []
             for i in range(nb_requis):
-                # On filtre les vidéos pour ne pas proposer deux fois la même
-                options_dispo = [v for v in vids_list if v not in choix_utilisateurs]
-                label = f"Votre choix n°{i+1}"
-                
-                # IMPORTANT : On ne définit pas de "index=None" ici pour forcer la stabilité
-                sel = st.selectbox(label, options_dispo, key=f"select_video_{i}")
-                choix_utilisateurs.append(sel)
+                options = [v for v in vids_list if v not in choix_faits]
+                sel = st.selectbox(f"Choix n°{i+1}", options, key=f"f_sel_{i}")
+                choix_faits.append(sel)
             
-            submit = st.form_submit_button("Valider mon vote 🚀")
-            
-            if submit:
-                # Vérification stricte
+            if st.form_submit_button("Valider mon vote 🚀"):
                 if not p1 or not p2:
-                    st.error("⚠️ Veuillez renseigner votre prénom et votre pseudo.")
-                elif len(set(choix_utilisateurs)) < nb_requis:
-                    st.error(f"⚠️ Veuillez faire {nb_requis} choix différents.")
+                    st.error("Prénom et Pseudo obligatoires.")
                 else:
                     fname = get_session_file()
-                    # Vérification si fichier existe
                     df_v = pd.read_csv(fname) if os.path.exists(fname) else pd.DataFrame(columns=["Prenom", "Pseudo"] + [f"Top{j+1}" for j in range(nb_requis)])
-                    
-                    # Vérification doublon pseudo
                     if p2.lower() in df_v['Pseudo'].str.lower().values:
-                        st.warning("❌ Ce pseudo a déjà été utilisé pour voter.")
+                        st.warning("❌ Ce pseudo a déjà voté.")
                     else:
-                        # Enregistrement
-                        new_data = [p1, p2] + choix_utilisateurs
-                        new_row = pd.DataFrame([new_data], columns=df_v.columns)
+                        new_row = pd.DataFrame([[p1, p2] + choix_faits], columns=df_v.columns)
                         new_row.to_csv(fname, mode='a', header=not os.path.exists(fname), index=False)
-                        
                         st.session_state["voted"] = True
                         st.balloons()
                         st.rerun()
 
-# --- CONTENU : RÉSULTATS (UNIQUEMENT SI ADMIN) ---
+# --- 2. ONGLET RÉSULTATS (ADMIN SEULEMENT) ---
 if est_admin:
     with tab_res:
-        if st.text_input("Mot de passe Résultats", type="password", key="p_res") == ADMIN_PASSWORD:
+        if st.text_input("Code Résultats", type="password", key="p_res") == ADMIN_PASSWORD:
             fname = get_session_file()
             if os.path.exists(fname):
                 df_res = pd.read_csv(fname)
                 st.subheader(f"📊 Participation : {len(df_res)} votants")
                 scores = {v: 0 for v in load_videos()}
-                poids = [5, 3, 1, 1, 1]
-                for _, row in df_res.iterrows():
+                for _, r in df_res.iterrows():
                     for j in range(nb_requis):
-                        c = f"Top{j+1}"
-                        if c in row and row[c] in scores: scores[row[c]] += poids[j]
+                        if r[f"Top{j+1}"] in scores: scores[r[f"Top{j+1}"]] += [5,3,1,1,1][j]
                 
                 final_df = pd.DataFrame(list(scores.items()), columns=['Service', 'Points']).sort_values('Points', ascending=False)
-                chart = alt.Chart(final_df).mark_bar(color='#FF4B4B').encode(x='Points', y=alt.Y('Service', sort='-x'))
-                st.altair_chart(chart, use_container_width=True)
-
+                st.altair_chart(alt.Chart(final_df).mark_bar(color='#FF4B4B').encode(x='Points', y=alt.Y('Service', sort='-x')), use_container_width=True)
+                
                 if st.button("📣 PROCLAMER LE VAINQUEUR"):
                     if son_final != "Aucun": jouer_son(son_final)
                     if effet_final == "Ballons": st.balloons()
                     elif effet_final == "Pluie d'étoiles": st.snow()
-                    elif effet_final == "Confettis": st.balloons(); st.toast("BRAVO !")
-            else:
-                st.info("En attente des premiers votes...")
+                    else: st.balloons()
+            else: st.info("Aucun vote.")
 
-# --- CONTENU : CONSOLE ADMIN (UNIQUEMENT SI ADMIN) ---
+# --- 3. ONGLET ADMIN (TOUTE LA CONFIGURATION) ---
     with tab_admin:
-        if st.text_input("Accès Super Admin", type="password", key="p_adm") == ADMIN_PASSWORD:
-            col_m, col_c = st.columns(2)
-            with col_m:
+        if st.text_input("Code Super Admin", type="password", key="p_adm") == ADMIN_PASSWORD:
+            col1, col2 = st.columns(2)
+            with col1:
                 st.subheader("🖼️ Médias")
+                up_logo = st.file_uploader("Logo", type=['png', 'jpg'])
+                if up_logo: Image.open(up_logo).save(LOGO_FILE); st.rerun()
+                
+                up_gal = st.file_uploader("Galerie Photos", type=['png', 'jpg'], accept_multiple_files=True)
+                if up_gal:
+                    for f in up_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
+                    st.rerun()
+                
+                up_mp3 = st.file_uploader("Sons MP3", type=['mp3'])
+                if up_mp3:
+                    with open(os.path.join(SOUNDS_DIR, up_mp3.name), "wb") as f: f.write(up_mp3.getbuffer())
+                    st.success("Son ajouté !")
+                
+                if st.button("🗑️ Vider la Galerie"):
+                    for f in os.listdir(GALLERY_DIR): os.remove(os.path.join(GALLERY_DIR, f))
+                    st.rerun()
 
+            with col2:
+                st.subheader("⚙️ Paramètres")
+                n_nb = st.number_input("Nb choix requis", 1, 5, nb_requis)
+                n_eff = st.selectbox("Effet", ["Ballons", "Pluie d'étoiles"], index=0)
+                sons_list = ["Aucun"] + os.listdir(SOUNDS_DIR)
+                n_son = st.selectbox("Son victoire", sons_list, index=0)
+                if st.button("💾 Sauvegarder"): save_settings(n_nb, n_eff, n_son); st.rerun()
+                
+                st.divider()
+                st.subheader("📝 Services")
+                new_v = st.text_input("Nom du service")
+                if st.button("Ajouter Service"):
+                    l = load_videos(); l.append(new_v); save_videos(l); st.rerun()
+                
+                st.divider()
+                if st.button("🔒 Clôturer" if not os.path.exists(LOCK_FILE) else "🔓 Rouvrir"):
+                    if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
+                    else: open(LOCK_FILE, "w").write("L")
+                    st.rerun()
 
-
+                if os.path.exists(get_session_file()):
+                    out = BytesIO()
+                    pd.read_csv(get_session_file()).to_excel(out, index=False, engine='openpyxl')
+                    st.download_button("📥 Excel", out.getvalue(), "resultats.xlsx")
