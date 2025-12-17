@@ -20,9 +20,9 @@ LOGO_FILE = "logo_entreprise.png"
 for d in [VOTES_DIR, GALLERY_DIR, SOUNDS_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
-st.set_page_config(page_title="Régie Vote 2026", layout="wide", page_icon="🎬")
+st.set_page_config(page_title="Vote Vœux 2026", layout="wide", page_icon="🎬")
 
-# --- FONCTION AUDIO & QR ---
+# --- FONCTIONS TECHNIQUES ---
 def jouer_son(nom_fichier):
     path = os.path.join(SOUNDS_DIR, nom_fichier)
     if os.path.exists(path):
@@ -41,7 +41,6 @@ def generer_qr(url):
     img.save(buf, format="PNG")
     return buf.getvalue()
 
-# --- GESTION PARAMÈTRES ---
 def load_settings():
     if os.path.exists(SETTINGS_FILE): return pd.read_csv(SETTINGS_FILE).iloc[0].to_dict()
     return {"nb_choix": 3, "effet": "Ballons", "son": "Aucun"}
@@ -49,85 +48,125 @@ def load_settings():
 def save_settings(nb, effet, son):
     pd.DataFrame([{"nb_choix": nb, "effet": effet, "son": son}]).to_csv(SETTINGS_FILE, index=False)
 
-# --- INTERFACE ---
+def load_videos():
+    if os.path.exists(CONFIG_FILE): return pd.read_csv(CONFIG_FILE)['Video'].tolist()
+    return ["BU PAX", "BU FRET", "BU BTOB", "DPMI (ateliers)", "Service RH", "Service Finances", "Service AO", "Service QSSE", "Service IT", "Direction Pôle"]
+
+def save_videos(video_list):
+    pd.DataFrame(video_list, columns=['Video']).to_csv(CONFIG_FILE, index=False)
+
+def get_session_file():
+    return os.path.join(VOTES_DIR, "votes_principale.csv")
+
+# --- CHARGEMENT PARAMÈTRES ---
 settings = load_settings()
 nb_requis, effet_final, son_final = int(settings["nb_choix"]), settings["effet"], settings["son"]
 
-if os.path.exists(LOGO_FILE): st.image(Image.open(LOGO_FILE), width=150)
+# --- DÉTECTION DU MODE (ADMIN OU PUBLIC) ---
+# Si l'URL contient ?admin=true, on est en mode régie
+est_admin = st.query_params.get("admin") == "true"
+
+# --- AFFICHAGE LOGO ---
+if os.path.exists(LOGO_FILE):
+    st.image(Image.open(LOGO_FILE), width=150)
+
 st.title("🎬 Élection Vidéo Vœux 2026")
 
-tab1, tab2, tab3 = st.tabs(["🗳️ Espace Vote", "📊 Résultats & Podium", "🛠️ Console Admin"])
+# --- GESTION DES ONGLETS ---
+if est_admin:
+    tabs = st.tabs(["🗳️ Espace Vote", "📊 Résultats & Podium", "🛠️ Console Admin"])
+    tab_vote, tab_res, tab_admin = tabs[0], tabs[1], tabs[2]
+else:
+    # Mode Public : Pas d'onglets, on affiche directement le vote
+    tab_vote = st.container()
 
-# --- ONGLET 1 : ESPACE VOTE (Avec QR Code) ---
-with tab1:
-    col_info, col_qr = st.columns([2, 1])
-    
-    with col_info:
+# --- CONTENU : ESPACE VOTE ---
+with tab_vote:
+    if est_admin:
+        col_info, col_qr = st.columns([2, 1])
+        with col_qr:
+            st.write("📲 **Scannez pour voter**")
+            url_app = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"
+            st.image(generer_qr(url_app), width=200)
+        with col_info:
+            imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg'))]
+            if imgs:
+                cols_img = st.columns(len(imgs))
+                for i, img in enumerate(imgs): 
+                    cols_img[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
+    else:
+        # Mode Public : On affiche juste la galerie (optionnel) et le vote
         imgs = [f for f in os.listdir(GALLERY_DIR) if f.lower().endswith(('.png', '.jpg'))]
         if imgs:
             cols_img = st.columns(len(imgs))
-            for i, img in enumerate(imgs): cols_img[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
-    
-    with col_qr:
-        # Détection automatique de l'URL de l'app ou saisie manuelle en Admin
-        st.write("📲 **Scannez pour voter**")
-        # On essaie de récupérer l'URL actuelle, sinon on met un texte par défaut
-        try:
-            current_url = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/"
-            st.image(generer_qr(current_url), width=200)
-        except:
-            st.write("Configurez l'URL dans l'onglet Admin")
+            for i, img in enumerate(imgs): 
+                cols_img[i].image(os.path.join(GALLERY_DIR, img), use_container_width=True)
 
     st.divider()
-    if os.path.exists(LOCK_FILE): st.warning("🔒 Les votes sont clos.")
-    elif st.session_state.get("voted", False): st.success("✅ Vote enregistré !")
+    
+    if os.path.exists(LOCK_FILE):
+        st.warning("🔒 Les votes sont clos. Merci !")
+    elif st.session_state.get("voted", False):
+        st.success("✅ Votre vote a été enregistré !")
     else:
-        with st.form("vote"):
-            p1 = st.text_input("Prénom"); p2 = st.text_input("Pseudo")
-            vids = ["Vidéo 1", "Vidéo 2", "Vidéo 3"] # À lier à load_videos()
-            if st.form_submit_button("Voter"): st.session_state["voted"] = True; st.rerun()
-
-# --- ONGLET 2 : RÉSULTATS ---
-with tab2:
-    if st.text_input("Accès Podium", type="password", key="p_pod") == ADMIN_PASSWORD:
-        st.subheader("🏆 Podium")
-        if st.button("📣 LANCER LE FINAL"):
-            if son_final != "Aucun": jouer_son(son_final)
-            if effet_final == "Ballons": st.balloons()
-            elif effet_final == "Pluie d'étoiles": st.snow()
-            elif effet_final == "Confettis": st.balloons()
-
-# --- ONGLET 3 : CONSOLE ADMIN ---
-with tab3:
-    if st.text_input("Accès Admin", type="password", key="p_adm") == ADMIN_PASSWORD:
-        col1, col2 = st.columns(2)
-        with col1:
-            st.subheader("🖼️ Médias & Export")
-            up_logo = st.file_uploader("Logo", type=['png', 'jpg'])
-            if up_logo: Image.open(up_logo).save(LOGO_FILE); st.rerun()
-            
-            up_mp3 = st.file_uploader("Sons (MP3)", type=['mp3'])
-            if up_mp3: 
-                with open(os.path.join(SOUNDS_DIR, up_mp3.name), "wb") as f: f.write(up_mp3.getbuffer())
-                st.success("Son ajouté !")
-            
-            if st.button("📥 Exporter Excel"):
-                st.write("Génération du fichier...")
-
-        with col2:
-            st.subheader("⚙️ Config & Animations")
-            n_nb = st.number_input("Nombre de choix", 1, 5, nb_requis)
-            n_eff = st.selectbox("Effet", ["Ballons", "Pluie d'étoiles", "Confettis"], index=0)
-            sons_list = ["Aucun"] + os.listdir(SOUNDS_DIR)
-            n_son = st.selectbox("Son", sons_list, index=0)
-            
-            if st.button("💾 Sauvegarder"): save_settings(n_nb, n_eff, n_son); st.rerun()
-            
+        with st.form("form_vote"):
+            p1 = st.text_input("Votre Prénom")
+            p2 = st.text_input("Votre Pseudo")
             st.divider()
-            if st.button("▶️ TESTER L'ANIMATION"):
-                if n_son != "Aucun": jouer_son(n_son)
-                if n_eff == "Ballons": st.balloons()
-                elif n_eff == "Pluie d'étoiles": st.snow()
-                elif n_eff == "Confettis": st.balloons()
+            vids_list = load_videos()
+            choix_faits = []
+            for i in range(nb_requis):
+                options = [v for v in vids_list if v not in choix_faits]
+                sel = st.selectbox(f"Votre choix n°{i+1}", options, index=None, key=f"vote_{i}")
+                if sel: choix_faits.append(sel)
+            
+            if st.form_submit_button("Valider mon vote 🚀"):
+                if p1 and p2 and len(choix_faits) == nb_requis:
+                    fname = get_session_file()
+                    df_v = pd.read_csv(fname) if os.path.exists(fname) else pd.DataFrame(columns=["Prenom", "Pseudo"] + [f"Top{j+1}" for j in range(nb_requis)])
+                    if p2.lower() in df_v['Pseudo'].str.lower().values:
+                        st.error("❌ Déjà voté avec ce pseudo.")
+                    else:
+                        new_row = pd.DataFrame([[p1, p2] + choix_faits], columns=df_v.columns)
+                        new_row.to_csv(fname, mode='a', header=not os.path.exists(fname), index=False)
+                        st.session_state["voted"] = True
+                        st.balloons()
+                        st.rerun()
+                else:
+                    st.error(f"Veuillez remplir votre profil et faire vos {nb_requis} choix.")
+
+# --- CONTENU : RÉSULTATS (UNIQUEMENT SI ADMIN) ---
+if est_admin:
+    with tab_res:
+        if st.text_input("Mot de passe Résultats", type="password", key="p_res") == ADMIN_PASSWORD:
+            fname = get_session_file()
+            if os.path.exists(fname):
+                df_res = pd.read_csv(fname)
+                st.subheader(f"📊 Participation : {len(df_res)} votants")
+                scores = {v: 0 for v in load_videos()}
+                poids = [5, 3, 1, 1, 1]
+                for _, row in df_res.iterrows():
+                    for j in range(nb_requis):
+                        c = f"Top{j+1}"
+                        if c in row and row[c] in scores: scores[row[c]] += poids[j]
+                
+                final_df = pd.DataFrame(list(scores.items()), columns=['Service', 'Points']).sort_values('Points', ascending=False)
+                chart = alt.Chart(final_df).mark_bar(color='#FF4B4B').encode(x='Points', y=alt.Y('Service', sort='-x'))
+                st.altair_chart(chart, use_container_width=True)
+
+                if st.button("📣 PROCLAMER LE VAINQUEUR"):
+                    if son_final != "Aucun": jouer_son(son_final)
+                    if effet_final == "Ballons": st.balloons()
+                    elif effet_final == "Pluie d'étoiles": st.snow()
+                    elif effet_final == "Confettis": st.balloons(); st.toast("BRAVO !")
+            else:
+                st.info("En attente des premiers votes...")
+
+# --- CONTENU : CONSOLE ADMIN (UNIQUEMENT SI ADMIN) ---
+    with tab_admin:
+        if st.text_input("Accès Super Admin", type="password", key="p_adm") == ADMIN_PASSWORD:
+            col_m, col_c = st.columns(2)
+            with col_m:
+                st.subheader("🖼️ Médias")
 
 
