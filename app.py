@@ -9,7 +9,7 @@ import glob
 import random
 import time
 
-# --- 1. CONFIGURATION ---
+# --- 1. CONFIGURATION & RÉPERTOIRES ---
 DEFAULT_PASSWORD = "ADMIN_VOEUX_2026"
 PASS_FILE = "pass_config.txt"
 VOTES_DIR = "sessions_votes"
@@ -19,6 +19,7 @@ LOGO_FILE = "logo_entreprise.png"
 SESSION_CONFIG = "current_session.txt"
 PRESENCE_FILE = "presence_live.csv"
 
+# Création automatique des dossiers
 for d in [VOTES_DIR, GALLERY_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
@@ -30,13 +31,16 @@ def get_admin_password():
         with open(PASS_FILE, "r", encoding="utf-8") as f: return f.read().strip()
     return DEFAULT_PASSWORD
 
-def set_current_session(name):
-    with open(SESSION_CONFIG, "w", encoding="utf-8") as f: f.write(name)
+def set_admin_password(new_pass):
+    with open(PASS_FILE, "w", encoding="utf-8") as f: f.write(new_pass)
 
 def get_current_session():
     if os.path.exists(SESSION_CONFIG):
         with open(SESSION_CONFIG, "r", encoding="utf-8") as f: return f.read().strip()
     return "session_1"
+
+def set_current_session(name):
+    with open(SESSION_CONFIG, "w", encoding="utf-8") as f: f.write(name)
 
 def load_videos():
     if os.path.exists(CONFIG_FILE): 
@@ -64,56 +68,54 @@ mode_vote = params.get("mode") == "vote"
 current_session = get_current_session()
 
 if "auth_ok" not in st.session_state: st.session_state["auth_ok"] = False
+if "voted" not in st.session_state: st.session_state["voted"] = False
 if "gal_key" not in st.session_state: st.session_state["gal_key"] = 0
 
-# --- 4. INTERFACE ADMIN ---
+# --- 4. INTERFACE ADMIN (RÉGIE) ---
 if est_admin:
-    # CSS CIBLÉ POUR RENDRE L'UPLOADER IDENTIQUE À UN BOUTON
+    # DESIGN CSS : BOUTONS UNIFORMES & GALERIE ÉPURÉE
     st.markdown("""
         <style>
-        /* Nettoyage de l'uploader en sidebar pour ressembler à un bouton */
+        /* Sidebar : Bouton Ajouter Logo identique au bouton Supprimer */
         section[data-testid="stSidebar"] [data-testid="stFileUploader"] {
             background-color: transparent !important;
             border: none !important;
             padding: 0 !important;
         }
-        
         section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] {
             border: 1px solid rgba(250, 250, 250, 0.2) !important;
             border-radius: 4px !important;
-            padding: 4px 10px !important;
+            padding: 0 !important;
+            height: 38px !important;
             background-color: transparent !important;
             display: flex !important;
             justify-content: center !important;
             align-items: center !important;
-            height: 38px !important; /* Même hauteur qu'un bouton Streamlit standard */
             cursor: pointer;
-            transition: 0.2s;
         }
-        
+        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] div div { display: none !important; }
+        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]::after {
+            content: "Ajouter un Logo";
+            font-size: 0.875rem;
+            color: white;
+        }
         section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]:hover {
-            border-color: #58A6FF !important;
-            color: #58A6FF !important;
+            border-color: #FF4B4B !important;
+            background-color: rgba(255, 75, 75, 0.05) !important;
         }
 
-        /* Masquage des éléments internes */
-        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"] div div {
-            display: none !important;
-        }
-        
-        /* Texte du bouton "Ajouter" */
-        section[data-testid="stSidebar"] [data-testid="stFileUploaderDropzone"]::after {
-            content: "➕ Ajouter un Logo";
-            font-size: 0.85rem;
-            color: inherit;
-            font-weight: 400;
-        }
-        
-        /* On garde le style standard pour la galerie principale */
+        /* Galerie : Zone d'importation Sleek */
         .main [data-testid="stFileUploader"] {
             background-color: #1c1e26;
             border: 1px solid #3d444d;
             border-radius: 8px;
+        }
+        .main [data-testid="stFileUploaderDropzone"] div div::before {
+            content: "＋"; font-size: 1.8rem; color: #58A6FF; display: block; margin-bottom: -5px;
+        }
+        .main [data-testid="stFileUploaderDropzone"] div div span { display: none; }
+        .main [data-testid="stFileUploaderDropzone"]::after {
+            content: "Importer une nouvelle photo"; font-size: 0.85rem; color: #c9d1d9;
         }
         </style>
     """, unsafe_allow_html=True)
@@ -122,19 +124,16 @@ if est_admin:
     nb_p, nb_v = get_stats()
     
     with st.sidebar:
-        # --- SECTION LOGO ---
         st.subheader("🖼️ Logo")
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
-            if st.button("🗑️ Supprimer le Logo", key="del_logo", use_container_width=True):
+            if st.button("Supprimer le Logo", key="del_logo", use_container_width=True):
                 os.remove(LOGO_FILE)
                 st.rerun()
         else:
-            # L'uploader ressemble maintenant à un bouton
             u_logo = st.file_uploader("", type=['png', 'jpg', 'jpeg'], key="sidebar_logo")
             if u_logo:
-                Image.open(u_logo).save(LOGO_FILE)
-                st.rerun()
+                Image.open(u_logo).save(LOGO_FILE); st.rerun()
         
         st.divider()
         st.header("🔑 Accès")
@@ -151,10 +150,20 @@ if est_admin:
             ns = st.text_input("Session active", value=current_session)
             if st.button("Enregistrer session", use_container_width=True):
                 set_current_session(ns); st.rerun()
-            if st.button("Déconnexion", use_container_width=True): st.session_state["auth_ok"] = False; st.rerun()
+            
+            with st.expander("🔐 Sécurité"):
+                new_p = st.text_input("Nouveau code", type="password")
+                if st.button("Changer mot de passe"):
+                    set_admin_password(new_p); st.toast("Modifié !"); st.rerun()
+                if st.button("🚨 RESET D'USINE"):
+                    if os.path.exists(PASS_FILE): os.remove(PASS_FILE)
+                    st.rerun()
+            
+            if st.button("Déconnexion", use_container_width=True): 
+                st.session_state["auth_ok"] = False; st.rerun()
 
     if st.session_state["auth_ok"]:
-        t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie Photos"])
+        t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie"])
         
         with t1:
             path_curr = os.path.join(VOTES_DIR, f"{current_session}.csv")
@@ -167,30 +176,28 @@ if est_admin:
                         c = r.get(f'Top{i+1}')
                         if c in scores: scores[c] += p
                 df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
-                st.altair_chart(alt.Chart(df_p).mark_bar(color='#58A6FF').encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
-            else: st.info("En attente de votes...")
+                st.altair_chart(alt.Chart(df_p).mark_bar(color='#58A6FF', cornerRadiusEnd=4).encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
+            else: st.info("Aucun vote enregistré.")
 
         with t2:
-            n_v = st.text_input("Ajouter un service")
-            if st.button("➕ Ajouter"):
-                if n_v: 
-                    v = load_videos(); v.append(n_v); save_videos(v); st.rerun()
+            st.subheader("Services")
+            n_v = st.text_input("Nouveau nom")
+            if st.button("➕ Ajouter service"):
+                if n_v: v = load_videos(); v.append(n_v); save_videos(v); st.rerun()
             st.divider()
             vids = load_videos()
             for i, v in enumerate(vids):
                 c1, c2 = st.columns([0.85, 0.15])
                 c1.write(f"• {v}")
-                if c2.button("🗑️", key=f"ds_{i}"):
-                    vids.remove(v); save_videos(vids); st.rerun()
+                if c2.button("🗑️", key=f"ds_{i}"): vids.remove(v); save_videos(vids); st.rerun()
 
         with t3:
-            st.write("### 📸 Photos Social Wall")
+            st.subheader("Galerie")
             u_file = st.file_uploader("", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key=f"gal_up_{st.session_state['gal_key']}")
             if u_file:
                 for f in u_file: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
                 st.session_state["gal_key"] += 1
                 st.rerun()
-            
             st.divider()
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
             if imgs:
@@ -199,31 +206,44 @@ if est_admin:
                 for i, img_p in enumerate(imgs):
                     with cols[i%5]:
                         st.image(img_p, use_container_width=True)
-                        if st.button("Supprimer", key=f"del_{i}", use_container_width=True):
+                        if st.button("Retirer", key=f"del_{i}", use_container_width=True):
                             os.remove(img_p); st.rerun()
 
-# --- 5. MOBILE & LIVE ---
+# --- 5. MODE PARTICIPANT (VOTE) ---
 elif mode_vote:
-    st.title("🗳️ Vote 2026")
-    pseudo = st.text_input("Pseudo")
-    vids = load_videos()
-    s1 = st.segmented_control("Choix", vids)
-    if st.button("Voter"):
-        if pseudo and s1:
-            fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
-            pd.DataFrame([[pseudo, s1]], columns=["Pseudo","Top1"]).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
-            st.success("Voté !")
+    st.title("🗳️ Vote Vœux 2026")
+    if st.session_state["voted"]: st.success("✅ Vote enregistré !")
+    else:
+        pseudo = st.text_input("Pseudo / Trigramme").strip()
+        if pseudo and st.button("🚀 Rejoindre l'écran"):
+            df_p = pd.read_csv(PRESENCE_FILE) if os.path.exists(PRESENCE_FILE) else pd.DataFrame(columns=["Pseudo"])
+            if pseudo not in df_p['Pseudo'].values:
+                pd.DataFrame([[pseudo]], columns=["Pseudo"]).to_csv(PRESENCE_FILE, mode='a', header=not os.path.exists(PRESENCE_FILE), index=False)
+            st.toast("Regardez le grand écran !")
+        st.divider()
+        vids = load_videos()
+        s1 = st.segmented_control("Choix 1 (5 pts)", vids, key="s1")
+        if st.button("Valider mon vote", use_container_width=True):
+            if pseudo and s1:
+                fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
+                pd.DataFrame([[pseudo, s1]], columns=["Pseudo","Top1"]).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
+                st.session_state["voted"] = True; st.balloons(); time.sleep(1); st.rerun()
 
+# --- 6. MODE SOCIAL WALL (LIVE) ---
 else:
     st.markdown("<style>[data-testid='stSidebar'] {display:none;}</style>", unsafe_allow_html=True)
     c1, c2 = st.columns([1, 2.5])
     with c1:
-        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=150)
+        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=180)
         qr_url = f"https://{st.context.headers.get('Host', '')}/?mode=vote"
         qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
         st.image(qr_buf.getvalue(), use_container_width=True)
+        nb_p, _ = get_stats(); st.metric("Participants", nb_p)
     with c2:
-        st.header("Social Wall Live")
+        if os.path.exists(PRESENCE_FILE):
+            noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
+            nuage = " ".join([f"<span style='font-size:{random.randint(22,55)}px; color:{random.choice(['#58A6FF','#FF4B4B','#2ca02c','#ff7f0e'])}; margin:15px; font-weight:bold; display:inline-block;'>{n}</span>" for n in noms])
+            st.markdown(f"<div style='text-align:center;'>{nuage}</div>", unsafe_allow_html=True)
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     if imgs:
         cols = st.columns(6)
