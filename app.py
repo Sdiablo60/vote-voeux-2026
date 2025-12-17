@@ -24,23 +24,11 @@ for d in [VOTES_DIR, GALLERY_DIR, SOUNDS_DIR]:
 st.set_page_config(page_title="Régie Vote 2026", layout="wide")
 
 # --- FONCTIONS ---
-def jouer_son(nom_fichier):
-    path = os.path.join(SOUNDS_DIR, nom_fichier)
-    if os.path.exists(path):
-        with open(path, "rb") as f:
-            b64 = base64.b64encode(f.read()).decode()
-            st.components.v1.html(f'<audio autoplay="true"><source src="data:audio/mp3;base64,{b64}" type="audio/mp3"></audio>', height=0)
-
 def generer_qr(url):
     qr = qrcode.make(url)
     buf = BytesIO()
     qr.save(buf, format="PNG")
     return buf.getvalue()
-
-def load_settings():
-    if os.path.exists(SETTINGS_FILE): 
-        return pd.read_csv(SETTINGS_FILE).iloc[0].to_dict()
-    return {"nb_choix": 3, "effet": "Ballons", "son": "Aucun"}
 
 def load_videos():
     if os.path.exists(CONFIG_FILE): 
@@ -48,16 +36,12 @@ def load_videos():
     return ["BU PAX", "BU FRET", "BU BTOB", "DPMI (ateliers)", "Service RH", "Service Finances", "Service AO", "Service QSSE", "Service IT", "Direction Pôle"]
 
 # --- LOGIQUE ---
-settings = load_settings()
-nb_requis = int(settings["nb_choix"])
 est_admin = st.query_params.get("admin") == "true"
-
 if os.path.exists(LOGO_FILE):
     st.image(Image.open(LOGO_FILE), width=150)
 
 st.title("🎬 Élection Vidéo Vœux 2026")
 
-# --- AFFICHAGE ---
 if est_admin:
     tab_vote, tab_res, tab_admin = st.tabs(["🗳️ Espace Vote", "📊 Résultats", "🛠️ Console Admin"])
 else:
@@ -72,42 +56,61 @@ with tab_vote:
             st.image(generer_qr(url_fixe), width=180)
     
     if os.path.exists(LOCK_FILE):
-        st.warning("🔒 Les votes sont clos. Merci !")
+        st.warning("🔒 Les votes sont clos.")
+    # Sécurité : Si la session indique déjà "voted", on bloque
     elif st.session_state.get("voted", False):
-        st.success("✅ Votre vote a été enregistré !")
+        st.success("✅ Votre vote a bien été pris en compte sur cet appareil.")
     else:
         with st.form("vote_form"):
             p1 = st.text_input("Prénom", key="p1")
             p2 = st.text_input("Pseudo", key="p2")
             vids = load_videos()
             choix = []
-            for i in range(nb_requis):
-                sel = st.selectbox(f"Choix n°{i+1}", [v for v in vids if v not in choix], key=f"s{i}")
-                choix.append(sel)
+            for i in range(3):
+                # "index=None" permet de ne rien pré-sélectionner
+                sel = st.selectbox(f"Choix n°{i+1}", [v for v in vids if v not in choix], index=None, placeholder="Choisissez une vidéo...", key=f"s{i}")
+                if sel: choix.append(sel)
+            
             if st.form_submit_button("Valider mon vote 🚀"):
-                if p1 and p2:
+                if p1 and p2 and len(choix) == 3:
                     fn = os.path.join(VOTES_DIR, "votes_principale.csv")
-                    df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo"] + [f"Top{j+1}" for j in range(nb_requis)])
-                    pd.DataFrame([[p1, p2] + choix], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
-                    st.session_state["voted"] = True
-                    st.balloons()
-                    st.rerun()
+                    df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
+                    
+                    if p2.lower() in df['Pseudo'].str.lower().values:
+                        st.error("❌ Ce pseudo a déjà été utilisé.")
+                    else:
+                        pd.DataFrame([[p1, p2] + choix], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
+                        st.session_state["voted"] = True
+                        st.balloons()
+                        st.rerun()
                 else:
-                    st.error("Veuillez remplir votre profil.")
+                    st.error("Veuillez remplir votre profil et faire vos 3 choix.")
 
 if est_admin:
     with tab_res:
         pwd_res = st.text_input("Mot de passe Résultats", type="password", key="pwd_res")
         if pwd_res == ADMIN_PASSWORD:
-            st.subheader("🏆 Résultats")
+            st.subheader("📊 Graphique des scores")
             fn = os.path.join(VOTES_DIR, "votes_principale.csv")
             if os.path.exists(fn):
                 df_r = pd.read_csv(fn)
-                st.write(f"Nombre de votes : {len(df_r)}")
-                if st.button("📣 Lancer la célébration"):
-                    st.balloons()
+                st.write(f"Nombre total de votants : {len(df_r)}")
+                
+                # --- CALCUL DU GRAPHIQUE ---
+                scores = {v: 0 for v in load_videos()}
+                for _, row in df_r.iterrows():
+                    if row['Top1'] in scores: scores[row['Top1']] += 5
+                    if row['Top2'] in scores: scores[row['Top2']] += 3
+                    if row['Top3'] in scores: scores[row['Top3']] += 1
+                
+                data_plot = pd.DataFrame(list(scores.items()), columns=['Service', 'Points']).sort_values('Points', ascending=False)
+                chart = alt.Chart(data_plot).mark_bar(color='#FF4B4B').encode(
+                    x='Points:Q',
+                    y=alt.Y('Service:N', sort='-x')
+                )
+                st.altair_chart(chart, use_container_width=True)
             else:
-                st.info("Aucun vote enregistré.")
+                st.info("En attente des premiers votes.")
 
     with tab_admin:
         pwd_admin = st.text_input("Mot de passe Console Admin", type="password", key="pwd_admin")
@@ -118,28 +121,23 @@ if est_admin:
                 u_logo = st.file_uploader("Modifier le Logo", type=['png', 'jpg'], key="u_logo")
                 if u_logo: 
                     Image.open(u_logo).save(LOGO_FILE)
-                    st.success("Logo mis à jour !")
                     st.rerun()
                 
-                u_gal = st.file_uploader("Ajouter Photos Galerie", type=['png', 'jpg'], accept_multiple_files=True, key="u_gal")
+                u_gal = st.file_uploader("Ajouter Photos", type=['png', 'jpg'], accept_multiple_files=True, key="u_gal")
                 if u_gal:
-                    for f in u_gal: 
-                        Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
-                    st.success("Photos ajoutées !")
+                    for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
                     st.rerun()
             
             with col2:
                 st.subheader("⚙️ Configuration")
-                if st.button("🔒 Clôturer / 🔓 Ouvrir les votes"):
-                    if os.path.exists(LOCK_FILE): 
-                        os.remove(LOCK_FILE)
+                if st.button("🔒 Clôturer / 🔓 Ouvrir"):
+                    if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
                     else: 
-                        with open(LOCK_FILE, "w") as f:
-                            f.write("LOCKED")
+                        with open(LOCK_FILE, "w") as f: f.write("L")
                     st.rerun()
                 
-                if st.button("🗑️ Vider la Galerie"):
-                    for f in os.listdir(GALLERY_DIR): 
-                        os.remove(os.path.join(GALLERY_DIR, f))
-                    st.success("Galerie vidée")
+                if st.button("🗑️ Réinitialiser tous les votes"):
+                    fn = os.path.join(VOTES_DIR, "votes_principale.csv")
+                    if os.path.exists(fn): os.remove(fn)
+                    st.success("Votes effacés.")
                     st.rerun()
