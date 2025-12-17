@@ -13,7 +13,6 @@ VOTES_DIR = "sessions_votes"
 GALLERY_DIR = "galerie_images"
 SOUNDS_DIR = "sons_admin"
 CONFIG_FILE = "config_videos.csv"
-SETTINGS_FILE = "settings.csv"
 LOCK_FILE = "vote_lock.txt"
 LOGO_FILE = "logo_entreprise.png"
 
@@ -58,7 +57,7 @@ with tab_vote:
     if os.path.exists(LOCK_FILE):
         st.warning("🔒 Les votes sont clos.")
     elif st.session_state.get("voted", False):
-        st.success("✅ Votre vote a été enregistré sur cet appareil.")
+        st.success("✅ Votre vote a bien été enregistré sur cet appareil.")
     else:
         with st.form("vote_form_final"):
             p1 = st.text_input("Prénom", key="p1")
@@ -66,7 +65,6 @@ with tab_vote:
             vids = load_videos()
             choix = []
             
-            # Utilisation de colonnes pour une meilleure tenue sur mobile
             for i in range(3):
                 sel = st.selectbox(
                     f"Choix n°{i+1}", 
@@ -81,56 +79,4 @@ with tab_vote:
             if st.form_submit_button("Valider mon vote 🚀"):
                 if p1 and p2 and len(choix) == 3:
                     fn = os.path.join(VOTES_DIR, "votes_principale.csv")
-                    df = pd.read_csv(fn) if os.path.exists(fn) else pd.DataFrame(columns=["Prenom", "Pseudo", "Top1", "Top2", "Top3"])
-                    
-                    if p2.lower() in df['Pseudo'].str.lower().values:
-                        st.warning("❌ Ce pseudo a déjà été utilisé.")
-                    else:
-                        pd.DataFrame([[p1, p2] + choix], columns=df.columns).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
-                        st.session_state["voted"] = True
-                        st.balloons()
-                        st.rerun()
-                else:
-                    st.error("⚠️ Veuillez renseigner votre profil et faire vos 3 choix.")
-
-if est_admin:
-    with tab_res:
-        pwd_res = st.text_input("Mot de passe Résultats", type="password", key="pwd_res")
-        if pwd_res == ADMIN_PASSWORD:
-            st.subheader("📊 Résultats des Votes")
-            fn = os.path.join(VOTES_DIR, "votes_principale.csv")
-            if os.path.exists(fn):
-                df_r = pd.read_csv(fn)
-                st.write(f"**Total des votants : {len(df_r)}**")
-                
-                # --- CALCUL DES SCORES ---
-                video_list = load_videos()
-                scores = {v: 0 for v in video_list}
-                for _, row in df_r.iterrows():
-                    if row['Top1'] in scores: scores[row['Top1']] += 5
-                    if row['Top2'] in scores: scores[row['Top2']] += 3
-                    if row['Top3'] in scores: scores[row['Top3']] += 1
-                
-                # Création du graphique
-                df_plot = pd.DataFrame(list(scores.items()), columns=['Service', 'Points']).sort_values('Points', ascending=False)
-                chart = alt.Chart(df_plot).mark_bar(color='#FF4B4B').encode(
-                    x='Points:Q',
-                    y=alt.Y('Service:N', sort='-x')
-                )
-                st.altair_chart(chart, use_container_width=True)
-            else:
-                st.info("Aucun vote enregistré pour le moment.")
-
-    with tab_admin:
-        pwd_admin = st.text_input("Mot de passe Console Admin", type="password", key="pwd_admin")
-        if pwd_admin == ADMIN_PASSWORD:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.subheader("📁 Médias")
-                u_logo = st.file_uploader("Modifier le Logo", type=['png', 'jpg'], key="u_logo")
-                if u_logo: 
-                    Image.open(u_logo).save(LOGO_FILE)
-                    st.rerun()
-            
-            with col2:
-                st.subheader("⚙️ Configuration
+                    df = pd.read_csv(fn) if os.path.exists(fn) else
