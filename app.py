@@ -18,7 +18,8 @@ LOCK_FILE = "vote_lock.txt"
 LOGO_FILE = "logo_entreprise.png"
 
 for d in [VOTES_DIR, GALLERY_DIR, SOUNDS_DIR]:
-    if not os.path.exists(d): os.makedirs(d)
+    if not os.path.exists(d): 
+        os.makedirs(d)
 
 st.set_page_config(page_title="Régie Vote 2026", layout="wide")
 
@@ -37,11 +38,13 @@ def generer_qr(url):
     return buf.getvalue()
 
 def load_settings():
-    if os.path.exists(SETTINGS_FILE): return pd.read_csv(SETTINGS_FILE).iloc[0].to_dict()
+    if os.path.exists(SETTINGS_FILE): 
+        return pd.read_csv(SETTINGS_FILE).iloc[0].to_dict()
     return {"nb_choix": 3, "effet": "Ballons", "son": "Aucun"}
 
 def load_videos():
-    if os.path.exists(CONFIG_FILE): return pd.read_csv(CONFIG_FILE)['Video'].tolist()
+    if os.path.exists(CONFIG_FILE): 
+        return pd.read_csv(CONFIG_FILE)['Video'].tolist()
     return ["BU PAX", "BU FRET", "BU BTOB", "DPMI (ateliers)", "Service RH", "Service Finances", "Service AO", "Service QSSE", "Service IT", "Direction Pôle"]
 
 # --- LOGIQUE ---
@@ -101,8 +104,10 @@ if est_admin:
             if os.path.exists(fn):
                 df_r = pd.read_csv(fn)
                 st.write(f"Nombre de votes : {len(df_r)}")
-                if st.button("📣 Lancer la célébration"): st.balloons()
-            else: st.info("Aucun vote enregistré.")
+                if st.button("📣 Lancer la célébration"):
+                    st.balloons()
+            else:
+                st.info("Aucun vote enregistré.")
 
     with tab_admin:
         pwd_admin = st.text_input("Mot de passe Console Admin", type="password", key="pwd_admin")
@@ -118,12 +123,23 @@ if est_admin:
                 
                 u_gal = st.file_uploader("Ajouter Photos Galerie", type=['png', 'jpg'], accept_multiple_files=True, key="u_gal")
                 if u_gal:
-                    for f in u_gal: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
+                    for f in u_gal: 
+                        Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
                     st.success("Photos ajoutées !")
                     st.rerun()
             
             with col2:
                 st.subheader("⚙️ Configuration")
                 if st.button("🔒 Clôturer / 🔓 Ouvrir les votes"):
-                    if os.path.exists(LOCK_FILE): os.remove(LOCK_FILE)
-                    else:
+                    if os.path.exists(LOCK_FILE): 
+                        os.remove(LOCK_FILE)
+                    else: 
+                        with open(LOCK_FILE, "w") as f:
+                            f.write("LOCKED")
+                    st.rerun()
+                
+                if st.button("🗑️ Vider la Galerie"):
+                    for f in os.listdir(GALLERY_DIR): 
+                        os.remove(os.path.join(GALLERY_DIR, f))
+                    st.success("Galerie vidée")
+                    st.rerun()
