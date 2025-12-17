@@ -30,21 +30,18 @@ def get_admin_password():
         with open(PASS_FILE, "r", encoding="utf-8") as f: return f.read().strip()
     return DEFAULT_PASSWORD
 
-def set_admin_password(new_pass):
-    with open(PASS_FILE, "w", encoding="utf-8") as f: f.write(new_pass)
+def set_current_session(name):
+    with open(SESSION_CONFIG, "w", encoding="utf-8") as f: f.write(name)
 
 def get_current_session():
     if os.path.exists(SESSION_CONFIG):
         with open(SESSION_CONFIG, "r", encoding="utf-8") as f: return f.read().strip()
     return "session_1"
 
-def set_current_session(name):
-    with open(SESSION_CONFIG, "w", encoding="utf-8") as f: f.write(name)
-
 def load_videos():
     if os.path.exists(CONFIG_FILE): 
         return pd.read_csv(CONFIG_FILE)['Video'].tolist()
-    return ["BU PAX", "BU FRET", "BU BTOB", "DPMI (ateliers)", "Service RH", "Service Finances", "Service AO", "Service QSSE", "Service IT", "Direction Pôle"]
+    return ["BU PAX", "BU FRET", "BU BTOB", "DPMI", "RH", "Finances", "AO", "QSSE", "IT", "Direction"]
 
 def save_videos(liste):
     pd.DataFrame(liste, columns=['Video']).to_csv(CONFIG_FILE, index=False)
@@ -67,33 +64,16 @@ mode_vote = params.get("mode") == "vote"
 current_session = get_current_session()
 
 if "auth_ok" not in st.session_state: st.session_state["auth_ok"] = False
-if "voted" not in st.session_state: st.session_state["voted"] = False
 if "gal_key" not in st.session_state: st.session_state["gal_key"] = 0
 
-# --- 4. INTERFACE ADMIN (RÉGIE) ---
+# --- 4. INTERFACE ADMIN ---
 if est_admin:
     st.markdown("""
         <style>
-        [data-testid="stFileUploader"] {
-            background-color: #1c1e26;
-            border: 1px solid #3d444d;
-            border-radius: 8px;
-            padding: 10px;
-        }
-        [data-testid="stFileUploaderDropzone"] div div::before {
-            content: "＋";
-            font-size: 1.8rem;
-            color: #58A6FF;
-            display: block;
-            margin-bottom: -5px;
-        }
+        [data-testid="stFileUploader"] { background-color: #1c1e26; border: 1px solid #3d444d; border-radius: 8px; }
+        [data-testid="stFileUploaderDropzone"] div div::before { content: "＋"; font-size: 1.8rem; color: #58A6FF; display: block; }
         [data-testid="stFileUploaderDropzone"] div div span { display: none; }
-        [data-testid="stFileUploaderDropzone"]::after {
-            content: "Importer une photo ou un logo";
-            font-size: 0.85rem;
-            color: #c9d1d9;
-        }
-        .stButton button { font-size: 0.7rem; padding: 2px 10px; }
+        [data-testid="stFileUploaderDropzone"]::after { content: "Importer des photos"; font-size: 0.85rem; color: #c9d1d9; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -109,45 +89,65 @@ if est_admin:
                 st.rerun()
         else:
             st.success("✅ Connecté")
+            
+            # --- SECTION LOGO ISOLEE DANS LA SIDEBAR ---
+            st.divider()
+            st.subheader("🖼️ Logo Événement")
+            if os.path.exists(LOGO_FILE):
+                st.image(LOGO_FILE, width=100)
+                if st.button("🗑️ Supprimer le logo"):
+                    os.remove(LOGO_FILE)
+                    st.rerun()
+            
+            u_logo = st.file_uploader("Remplacer Logo", type=['png', 'jpg', 'jpeg'], key="sidebar_logo")
+            if u_logo:
+                Image.open(u_logo).save(LOGO_FILE)
+                st.rerun()
+            
+            st.divider()
             st.metric("👥 Participants", nb_p)
             st.metric("📥 Votes", nb_v)
+            
             st.divider()
-            ns = st.text_input("Nom session", key="side_ns")
-            if st.button("🚀 Lancer", use_container_width=True):
-                if ns: set_current_session(ns); st.rerun()
-            st.divider()
+            ns = st.text_input("Nom session", value=current_session)
+            if st.button("🚀 Mettre à jour session"):
+                set_current_session(ns); st.rerun()
+            
             if st.button("Déconnexion"): st.session_state["auth_ok"] = False; st.rerun()
 
     if st.session_state["auth_ok"]:
-        t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie"])
+        t1, t2, t3 = st.tabs(["📊 Résultats", "📝 Services", "🖼️ Galerie Photos"])
         
         with t1:
-            all_f = glob.glob(os.path.join(VOTES_DIR, "*.csv"))
             path_curr = os.path.join(VOTES_DIR, f"{current_session}.csv")
             df_res = pd.read_csv(path_curr) if os.path.exists(path_curr) else pd.DataFrame()
             if not df_res.empty:
-                vids_list = load_videos()
-                scores = {v: 0 for v in vids_list}
+                vids = load_videos()
+                scores = {v: 0 for v in vids}
                 for _, r in df_res.iterrows():
                     for i, p in enumerate([5, 3, 1]):
                         c = r.get(f'Top{i+1}')
                         if c in scores: scores[c] += p
                 df_p = pd.DataFrame(list(scores.items()), columns=['S', 'Pts']).sort_values('Pts', ascending=False)
                 st.altair_chart(alt.Chart(df_p).mark_bar(color='#58A6FF').encode(x='Pts', y=alt.Y('S', sort='-x')), use_container_width=True)
-            else: st.info("Aucun vote.")
+            else: st.info("Aucun vote dans cette session.")
 
         with t2:
-            n_v = st.text_input("Nouveau service")
+            st.write("### Liste des Services")
+            n_v = st.text_input("Nom du service à ajouter")
             if st.button("➕ Ajouter"):
-                if n_v: vids = load_videos(); vids.append(n_v); save_videos(vids); st.rerun()
+                if n_v: 
+                    v = load_videos(); v.append(n_v); save_videos(v); st.rerun()
+            st.divider()
             vids = load_videos()
             for i, v in enumerate(vids):
                 c1, c2 = st.columns([0.8, 0.2])
                 c1.write(f"• {v}")
-                if c2.button("🗑️", key=f"d_{i}"): vids.remove(v); save_videos(vids); st.rerun()
+                if c2.button("🗑️", key=f"ds_{i}"):
+                    vids.remove(v); save_videos(vids); st.rerun()
 
         with t3:
-            # UN SEUL UPLOADER
+            st.write("### 📸 Flux Galerie Social Wall")
             u_file = st.file_uploader("", type=['png', 'jpg', 'jpeg'], accept_multiple_files=True, key=f"gal_up_{st.session_state['gal_key']}")
             if u_file:
                 for f in u_file: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
@@ -162,41 +162,32 @@ if est_admin:
                 for i, img_p in enumerate(imgs):
                     with cols[i%5]:
                         st.image(img_p, use_container_width=True)
-                        # Options pour chaque image
-                        if st.button("Définir Logo", key=f"logo_{i}"):
-                            Image.open(img_p).save(LOGO_FILE); st.toast("Logo modifié !")
-                        if st.button("Retirer", key=f"del_{i}"):
+                        if st.button("Supprimer", key=f"del_{i}", use_container_width=True):
                             os.remove(img_p); st.rerun()
+            else: st.info("La galerie est vide.")
 
 # --- 5. MOBILE & SOCIAL WALL ---
 elif mode_vote:
     st.title("🗳️ Vote 2026")
-    if st.session_state["voted"]: st.success("✅ Voté !")
-    else:
-        pseudo = st.text_input("Pseudo")
-        if pseudo and st.button("🚀 Apparaître"):
-            df_p = pd.read_csv(PRESENCE_FILE) if os.path.exists(PRESENCE_FILE) else pd.DataFrame(columns=["Pseudo"])
-            if pseudo not in df_p['Pseudo'].values:
-                pd.DataFrame([[pseudo]], columns=["Pseudo"]).to_csv(PRESENCE_FILE, mode='a', header=not os.path.exists(PRESENCE_FILE), index=False)
-        vids = load_videos()
-        s1 = st.segmented_control("Top 1", vids)
-        if st.button("Valider"):
+    pseudo = st.text_input("Votre Pseudo / Trigramme")
+    vids = load_videos()
+    s1 = st.segmented_control("Votre coup de cœur", vids)
+    if st.button("Valider mon vote", use_container_width=True):
+        if pseudo and s1:
             fn = os.path.join(VOTES_DIR, f"{current_session}.csv")
-            pd.DataFrame([["", pseudo, s1, "", ""]], columns=["Prenom","Pseudo","Top1","Top2","Top3"]).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
-            st.session_state["voted"] = True; st.rerun()
+            pd.DataFrame([[pseudo, s1]], columns=["Pseudo","Top1"]).to_csv(fn, mode='a', header=not os.path.exists(fn), index=False)
+            st.success("Vote envoyé !")
 else:
     st.markdown("<style>[data-testid='stSidebar'] {display:none;}</style>", unsafe_allow_html=True)
     c1, c2 = st.columns([1, 2.5])
     with c1:
-        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=150)
-        qr_url = "https://vote-voeux-2026-6rueeu6wcdbxa878nepqgf.streamlit.app/?mode=vote"
+        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=180)
+        qr_url = f"{st.context.headers.get('Host', '')}/?mode=vote"
         qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
         st.image(qr_buf.getvalue(), use_container_width=True)
     with c2:
-        if os.path.exists(PRESENCE_FILE):
-            noms = pd.read_csv(PRESENCE_FILE)['Pseudo'].unique().tolist()
-            nuage = " ".join([f"<span style='font-size:{random.randint(20,50)}px; color:{random.choice(['#58A6FF','#FF4B4B'])}; font-weight:bold;'>{n}</span>" for n in noms])
-            st.markdown(f"<div style='text-align:center;'>{nuage}</div>", unsafe_allow_html=True)
+        st.header("Social Wall Live")
+        # Nuage de noms ou messages ici
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     if imgs:
         cols = st.columns(6)
