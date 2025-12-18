@@ -32,14 +32,15 @@ mode_vote = params.get("mode") == "vote"
 # --- 3. INTERFACE ADMIN ---
 if est_admin:
     st.title("🛠️ Console Régie Master")
+    # (Le code admin reste le même, il est fonctionnel)
+    current_pwd = open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEUX_2026"
     with st.sidebar:
         input_pwd = st.text_input("Code Secret", type="password")
     
-    if input_pwd != (open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEUX_2026"):
-        st.warning("Veuillez saisir le code dans la barre latérale.")
-        st.stop() 
+    if input_pwd != current_pwd:
+        st.warning("Code requis dans la sidebar.")
+        st.stop()
 
-    # (Code Admin inchangé pour gagner de la place, il fonctionne bien)
     config = {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 45}
     if os.path.exists(MSG_FILE): config = pd.read_csv(MSG_FILE).iloc[0].to_dict()
     
@@ -62,8 +63,11 @@ if est_admin:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
             st.rerun()
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+        cols = st.columns(6)
         for i, p in enumerate(imgs):
-            if st.button(f"Supprimer {i}", key=f"del_{i}"): os.remove(p); st.rerun()
+            with cols[i%6]:
+                st.image(p)
+                if st.button("🗑️", key=f"del_{i}"): os.remove(p); st.rerun()
 
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
@@ -73,65 +77,99 @@ elif not mode_vote:
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
-    # QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Nettoyage CSS Radical
+    # Préparation des données
+    stars_html = "".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; width:2px; height:2px;"></div>' for _ in range(50)])
+    
+    valid_photos_html = ""
+    last_photos = img_list[-12:]
+    for i, p_path in enumerate(last_photos):
+        b64 = get_b64(p_path)
+        if b64:
+            delay = -(i * (25 / max(len(last_photos), 1)))
+            valid_photos_html += f'<img src="data:image/png;base64,{b64}" class="orbit-img" style="animation-delay:{delay}s;">'
+
+    # INJECTION CSS + HTML EN UNE SEULE FOIS AVEC !IMPORTANT
     st.markdown(f"""
     <style>
-        /* 1. CACHE TOUT STREAMLIT SANS EXCEPTION */
-        [data-testid="stAppViewContainer"], [data-testid="stHeader"], footer, .stAppHeader {{
-            background-color: #050505 !important;
-        }}
-        
-        /* 2. CIBLE LE CARRÉ BLANC (Cache les conteneurs de texte Streamlit) */
-        .stMarkdown, .element-container, [data-testid="stVerticalBlock"] > div {{
+        /* On cache tout ce qui appartient à Streamlit */
+        header, footer, .stAppHeader, [data-testid="stHeader"], [data-testid="stVerticalBlock"] {{
+            visibility: hidden !important;
             display: none !important;
-            height: 0px !important;
-            margin: 0 !important;
-            padding: 0 !important;
         }}
 
-        /* 3. NOTRE MUR (Force l'affichage) */
-        #mon-wall-final {{
+        /* On force le fond de la page en noir */
+        .stApp, body, html {{
+            background-color: #050505 !important;
+            overflow: hidden !important;
+        }}
+
+        /* Notre Mur en position fixe absolue par rapport à la fenêtre */
+        .full-wall {{
+            visibility: visible !important;
             display: block !important;
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #050505; z-index: 2147483647; /* Z-index maximum possible */
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #050505;
+            z-index: 2147483647;
             overflow: hidden;
         }}
 
-        .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.5; }}
-        .welcome-msg {{
+        .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twinkle 3s infinite alternate; }}
+        @keyframes twinkle {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
+
+        .main-title {{
             position: absolute; top: 10%; width: 100%; text-align: center;
-            font-family: sans-serif; font-weight: bold;
+            font-family: 'Arial', sans-serif; font-weight: bold;
             color: {config['couleur']}; font-size: {config['taille']}px;
             text-shadow: 0 0 20px {config['couleur']};
+            z-index: 10;
         }}
-        .center-hub {{ position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); }}
-        .logo-img {{ width: 200px; height: 200px; object-fit: contain; }}
+
+        .center-group {{
+            position: absolute; top: 58%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 1px; height: 1px;
+        }}
+
+        .logo-main {{
+            position: absolute; transform: translate(-50%, -50%);
+            width: 220px; height: 220px; object-fit: contain;
+            filter: drop-shadow(0 0 15px {config['couleur']}77);
+        }}
+
         .orbit-img {{
-            position: absolute; width: 130px; height: 130px; border-radius: 50%;
-            border: 3px solid white; object-fit: cover;
+            position: absolute; width: 130px; height: 130px;
+            border-radius: 50%; border: 3px solid white; object-fit: cover;
+            box-shadow: 0 0 20px rgba(255,255,255,0.4);
             animation: move-orbit 25s linear infinite;
         }}
+
         @keyframes move-orbit {{
-            from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }}
-            to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }}
+            from {{ transform: rotate(0deg) translateX(270px) rotate(0deg); }}
+            to {{ transform: rotate(360deg) translateX(270px) rotate(-360deg); }}
         }}
-        .qr-area {{ position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 12px; text-align: center; }}
+
+        .qr-overlay {{
+            position: fixed; bottom: 30px; right: 30px;
+            background: white; padding: 10px; border-radius: 12px;
+            text-align: center; z-index: 20;
+        }}
     </style>
 
-    <div id="mon-wall-final">
-        {"".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; width:2px; height:2px;"></div>' for _ in range(50)])}
-        <div class="welcome-msg">{config['texte']}</div>
-        <div class="center-hub">
-            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-img'>" if logo_b64 else ""}
-            {"".join([f'<img src="data:image/png;base64,{get_b64(p)}" class="orbit-img" style="animation-delay:{-(i*(25/max(len(img_list),1)))}s;">' for i, p in enumerate(img_list[-10:]) if get_b64(p)])}
+    <div class="full-wall">
+        {stars_html}
+        <div class="main-title">{config['texte']}</div>
+        <div class="center-group">
+            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-main'>" if logo_b64 else ""}
+            {valid_photos_html}
         </div>
-        <div class="qr-area">
+        <div class="qr-overlay">
             <img src="data:image/png;base64,{qr_b64}" width="100"><br>
             <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
         </div>
