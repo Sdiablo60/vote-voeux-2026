@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd  # Correction ici : pandas au lieu de pd
+import pandas as pd
 import os
 import glob
 import random
@@ -48,7 +48,6 @@ else:
     logo_data = get_b64(LOGO_FILE)
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
-    # CSS PUR
     st.markdown("""
         <style>
             [data-testid="stHeader"], footer, header {display:none !important;}
@@ -66,11 +65,10 @@ else:
             @keyframes twinkle { from { opacity: 0.2; } to { opacity: 0.8; } }
 
             .welcome-title {
-                position: absolute; top: 8%; width: 100%; text-align: center;
-                color: white; font-family: sans-serif; font-size: 50px; font-weight: bold;
+                position: absolute; top: 7%; width: 100%; text-align: center;
+                color: white; font-family: sans-serif; font-size: 48px; font-weight: bold;
                 text-shadow: 0 0 20px rgba(255,255,255,0.6); z-index: 10001;
                 animation: pulse-text 4s ease-in-out infinite;
-                padding: 0 20px;
             }
             @keyframes pulse-text {
                 0% { transform: scale(1); opacity: 0.8; }
@@ -78,31 +76,31 @@ else:
                 100% { transform: scale(1); opacity: 0.8; }
             }
 
-            /* Centre abaissé à 65% pour libérer le haut */
+            /* Centre réajusté à 58% pour éviter les coupures en bas */
             .center-point {
-                position: absolute; top: 65%; left: 50%;
+                position: absolute; top: 58%; left: 50%;
                 transform: translate(-50%, -50%);
-                width: 200px; height: 200px;
+                width: 180px; height: 180px;
                 z-index: 10000;
             }
 
             .center-logo {
-                width: 200px; height: 200px; object-fit: contain;
+                width: 180px; height: 180px; object-fit: contain;
                 filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
             }
 
             .orbit-photo {
                 position: absolute; top: 50%; left: 50%;
-                width: 130px; height: 130px; margin-top: -65px; margin-left: -65px;
+                width: 120px; height: 120px; margin-top: -60px; margin-left: -60px;
                 border-radius: 50%; border: 3px solid white; object-fit: cover;
-                box-shadow: 0 0 25px rgba(255,255,255,0.4);
+                box-shadow: 0 0 20px rgba(255,255,255,0.4);
                 animation: orbit-animation 25s linear infinite;
             }
 
-            /* Rayon resserré à 280px pour ne pas toucher le texte */
+            /* Rayon resserré à 240px */
             @keyframes orbit-animation {
-                from { transform: rotate(0deg) translateX(280px) rotate(0deg); }
-                to { transform: rotate(360deg) translateX(280px) rotate(-360deg); }
+                from { transform: rotate(0deg) translateX(240px) rotate(0deg); }
+                to { transform: rotate(360deg) translateX(240px) rotate(-360deg); }
             }
         </style>
     """, unsafe_allow_html=True)
@@ -112,17 +110,15 @@ else:
     # Etoiles
     for _ in range(60):
         x, y = random.randint(0, 100), random.randint(0, 100)
-        s = random.randint(1, 3)
+        s = random.randint(1, 2)
         html_content += f'<div class="star" style="left:{x}vw; top:{y}vh; width:{s}px; height:{s}px;"></div>'
 
     html_content += '<div class="welcome-title">✨ BIENVENUE AUX VOEUX 2026 ✨</div>'
     
-    # Centre
     html_content += '<div class="center-point">'
     if logo_data:
         html_content += f'<img src="data:image/png;base64,{logo_data}" class="center-logo">'
     
-    # Photos
     if imgs:
         shuffled = imgs[-10:]
         for i, path in enumerate(shuffled):
