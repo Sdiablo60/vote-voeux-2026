@@ -1,5 +1,5 @@
 import streamlit as st
-import pd
+import pandas as pd  # Correction ici : pandas au lieu de pd
 import os
 import glob
 import random
@@ -99,7 +99,7 @@ else:
                 animation: orbit-animation 25s linear infinite;
             }
 
-            /* Rayon resserré à 280px */
+            /* Rayon resserré à 280px pour ne pas toucher le texte */
             @keyframes orbit-animation {
                 from { transform: rotate(0deg) translateX(280px) rotate(0deg); }
                 to { transform: rotate(360deg) translateX(280px) rotate(-360deg); }
