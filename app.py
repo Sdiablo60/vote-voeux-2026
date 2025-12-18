@@ -70,26 +70,22 @@ if est_admin:
 
     if st.session_state.get("auth"):
         st.title("Console de Régie")
-        st.metric("Nombre de participants enregistrés", len(json.load(open(PARTICIPANTS_FILE))))
+        st.metric("Nombre de participants connectés", len(json.load(open(PARTICIPANTS_FILE))))
         st.bar_chart(json.load(open(VOTES_FILE)))
 
 # --- 4. INTERFACE UTILISATEUR (TÉLÉPHONE) ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
-    
     vote_key = f"transdev_v{VOTE_VERSION}"
-    
-    # Vérification si déjà voté
     components.html(f'<script>if(localStorage.getItem("{vote_key}")){{window.parent.postMessage({{type:"voted"}},"*");}}</script>', height=0)
 
     if st.session_state.get("voted"):
         st.success("✅ Vote enregistré. Merci !")
     else:
-        # Étape 1 : Saisie du pseudo (pour compter le participant)
         if "user_pseudo" not in st.session_state:
             with st.form("pseudo_form"):
-                p = st.text_input("Entrez votre Prénom / Pseudo pour participer :")
+                p = st.text_input("Entrez votre Prénom / Pseudo :")
                 if st.form_submit_button("VALIDER"):
                     if p:
                         st.session_state["user_pseudo"] = p
@@ -99,18 +95,9 @@ elif est_utilisateur:
                             json.dump(parts, open(PARTICIPANTS_FILE, "w"))
                         st.rerun()
                     else: st.error("Pseudo requis.")
-        
-        # Étape 2 : Vote ou Attente
         else:
-            st.info(f"Bienvenue {st.session_state['user_pseudo']} !")
-            
             if not config.get("session_ouverte", False):
-                st.markdown("""
-                    <div style='text-align:center; padding:40px; border:2px dashed #E2001A; border-radius:15px; margin-top:20px;'>
-                        <h2 style='color:#E2001A;'>⌛ En attente ouverture des votes...</h2>
-                        <p>Le formulaire apparaîtra dès que l'animateur lancera la session.</p>
-                    </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"<div style='text-align:center; padding:40px; border:2px dashed #E2001A; border-radius:15px; margin-top:20px;'><h2 style='color:#E2001A;'>⌛ En attente ouverture des votes...</h2><p>Bienvenue {st.session_state['user_pseudo']}. Le formulaire apparaîtra bientôt.</p></div>", unsafe_allow_html=True)
                 if st.button("Actualiser"): st.rerun()
             else:
                 with st.form("vote_real"):
@@ -130,14 +117,28 @@ elif est_utilisateur:
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
     
-    # QR & Titre
+    # Génération du QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
+    # BANDEAU DOUBLE QR CODE (Attente)
     attente_html = ""
     if not config.get("session_ouverte", False):
-        attente_html = """<div style="margin-top:20px;"><span style="background:#E2001A; color:white; padding:12px 35px; border-radius:12px; font-size:32px; font-weight:bold; border:3px solid white; animation: blinker 1.5s linear infinite; display: inline-block;">⌛ En attente ouverture des votes...</span></div><style>@keyframes blinker { 50% { opacity: 0; } }</style>"""
+        attente_html = f"""
+        <div style="display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 25px;">
+            <div style="background: white; padding: 10px; border-radius: 10px; border: 3px solid #E2001A;">
+                <img src="data:image/png;base64,{qr_b64}" width="100">
+            </div>
+            <div style="background:#E2001A; color:white; padding:15px 40px; border-radius:12px; font-size:35px; font-weight:bold; border:3px solid white; animation: blinker 1.5s linear infinite;">
+                ⌛ En attente ouverture des votes...
+            </div>
+            <div style="background: white; padding: 10px; border-radius: 10px; border: 3px solid #E2001A;">
+                <img src="data:image/png;base64,{qr_b64}" width="100">
+            </div>
+        </div>
+        <style>@keyframes blinker {{ 50% {{ opacity: 0; }} }}</style>
+        """
 
     st.markdown(f"""
         <div style="text-align:center; padding-top:20px; font-family:sans-serif;">
@@ -151,23 +152,17 @@ else:
     if config["mode_affichage"] == "votes":
         st.bar_chart(json.load(open(VOTES_FILE)))
     else:
-        path = ADMIN_DIR if config["mode_affichage"] == "attente" else "*"
         img_list = glob.glob(os.path.join(ADMIN_DIR, "*"))
         if config["mode_affichage"] == "live": img_list += glob.glob(os.path.join(GALLERY_DIR, "*"))
         
-        photos_html = ""
-        for p in img_list[-12:]:
-            with open(p, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-                photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:280px; top:{random.randint(35,65)}%; left:{random.randint(5,80)}%; animation-duration:{random.uniform(10,15)}s;">'
+        photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" class="photo" style="width:280px; top:{random.randint(35,65)}%; left:{random.randint(5,80)}%; animation-duration:{random.uniform(10,15)}s;">' for p in img_list[-12:]])
         components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(40px,40px) rotate(3deg); }} }}</style><div style="width:100%; height:450px; position:relative;">{photos_html}</div>""", height=500)
 
-    # QR Code + Compteur Participants (Ceux qui ont mis leur pseudo)
+    # Bas de page avec Compteur
     nb_p = len(json.load(open(PARTICIPANTS_FILE)))
     st.markdown(f"""
-        <div style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:white; padding:10px; border-radius:15px; border:5px solid #E2001A; text-align:center; z-index:1000;">
-            <img src="data:image/png;base64,{qr_b64}" width="140">
-            <p style="margin:5px 0 0 0; font-weight:bold; font-size:22px; color:black;">{nb_p} PARTICIPANTS CONNECTÉS</p>
+        <div style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:white; padding:10px 30px; border-radius:15px; border:5px solid #E2001A; text-align:center; z-index:1000;">
+            <p style="margin:0; font-weight:bold; font-size:24px; color:black; font-family:sans-serif;">{nb_p} PARTICIPANTS CONNECTÉS</p>
         </div>
     """, unsafe_allow_html=True)
 
