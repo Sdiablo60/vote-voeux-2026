@@ -24,7 +24,7 @@ def get_b64(path):
     except: return None
     return None
 
-# --- LOGIQUE ACCÈS ---
+# --- LOGIQUE ---
 params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
@@ -83,51 +83,44 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # 1. CSS PUR (SANS VARIABLES PYTHON - AUCUN RISQUE DE RECTANGLE BLANC)
-    st.markdown("""
-    <style>
-        header, footer, .stAppHeader, [data-testid="stHeader"] { visibility: hidden !important; }
-        .stApp { background-color: #050505 !important; }
-
-        .planetarium {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #050505; z-index: 99999; overflow: hidden;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-        .wall-title {
-            position: absolute; top: 10%; width: 100%; text-align: center;
-            font-family: sans-serif; font-weight: bold; z-index: 1000;
-            animation: pulse-title 4s infinite;
-        }
-        @keyframes pulse-title { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
-        
-        .orbit-zone { position: relative; width: 1px; height: 1px; display: flex; justify-content: center; align-items: center; }
-        .main-logo { width: 220px; height: 220px; object-fit: contain; z-index: 50; }
-        .photo-bubble {
-            position: absolute; width: 130px; height: 130px; border-radius: 50%;
-            border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3);
-            animation: moveOrbit 25s linear infinite;
-        }
-        @keyframes moveOrbit {
-            from { transform: rotate(0deg) translateX(260px) rotate(0deg); }
-            to { transform: rotate(360deg) translateX(260px) rotate(-360deg); }
-        }
-        .qr-anchor {
-            position: fixed; bottom: 30px; right: 30px; background: white;
-            padding: 10px; border-radius: 12px; text-align: center; z-index: 200;
-        }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # 2. GÉNÉRATION DES PHOTOS
+    # Génération des photos
     photos_html = ""
     valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
     for i, b64 in enumerate(valid_photos):
         delay = -(i * (25 / max(len(valid_photos), 1)))
         photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-bubble" style="animation-delay:{delay}s;">'
 
-    # 3. HTML DYNAMIQUE (VARIABLES INJECTÉES DANS LE "STYLE=" EN LIGNE)
-    st.markdown(f"""
+    # INJECTION UNIQUE ET SOUDÉE (Plus aucun bloc Markdown séparé)
+    content = f"""
+    <style>
+        header, footer, .stAppHeader, [data-testid="stHeader"] {{ visibility: hidden !important; display: none !important; }}
+        .stApp {{ background-color: #050505 !important; }}
+        .planetarium {{
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #050505; z-index: 99999; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }}
+        .wall-title {{
+            position: absolute; top: 10%; width: 100%; text-align: center;
+            font-family: sans-serif; font-weight: bold; z-index: 1000;
+        }}
+        .orbit-zone {{ position: relative; width: 1px; height: 1px; display: flex; justify-content: center; align-items: center; }}
+        .main-logo {{ width: 220px; height: 220px; object-fit: contain; z-index: 50; }}
+        .photo-bubble {{
+            position: absolute; width: 130px; height: 130px; border-radius: 50%;
+            border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            animation: moveOrbit 25s linear infinite;
+        }}
+        @keyframes moveOrbit {{
+            from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }}
+            to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }}
+        }}
+        .qr-anchor {{
+            position: fixed; bottom: 30px; right: 30px; background: white;
+            padding: 10px; border-radius: 12px; text-align: center; z-index: 200;
+        }}
+    </style>
+    
     <div class="planetarium">
         <div class="wall-title" style="color:{config['couleur']}; font-size:{config['taille']}px; text-shadow: 0 0 20px {config['couleur']}99;">
             {config['texte']}
@@ -143,8 +136,8 @@ elif not mode_vote:
             <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """
+    st.components.v1.html(content, height=1000, scrolling=False)
 
 else:
     st.title("🗳️ Participation")
-    st.write("Interface mobile active.")
