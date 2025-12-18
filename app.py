@@ -29,11 +29,21 @@ if est_admin:
         .admin-welcome { text-align: center; margin-top: 60px; font-family: sans-serif; }
         [data-testid="stSidebar"] { min-width: 400px !important; max-width: 450px !important; }
         [data-testid="stHeader"] { display: block !important; }
-        .logo-preview-admin { border: 1px solid #ddd; padding: 10px; border-radius: 10px; margin-top: 10px; background: #f9f9f9; }
+        
+        /* Centrage forcé des images dans la sidebar */
+        [data-testid="stSidebar"] [data-testid="stImage"] {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
+        # --- LOGO EN HAUT ET CENTRÉ ---
+        if os.path.exists(LOGO_FILE):
+            st.image(LOGO_FILE, width=150)
+        
         st.title("⚙️ Régie Social Wall")
         pwd = st.sidebar.text_input("Code Secret Admin", type="password")
         st.sidebar.divider()
@@ -45,24 +55,18 @@ if est_admin:
             st.sidebar.link_button("🖥️ OUVRIR LE MUR (PLEIN ÉCRAN)", url_mur)
             st.sidebar.divider()
             
-            # --- GESTION ET APERÇU DU LOGO DANS LA SIDEBAR ---
-            st.sidebar.subheader("🖼️ Logo Central")
-            
-            # Affichage du logo actuel s'il existe
-            if os.path.exists(LOGO_FILE):
-                st.sidebar.image(LOGO_FILE, caption="Logo Actuel", use_container_width=True)
-                if st.sidebar.button("🗑️ Supprimer ce logo"):
-                    os.remove(LOGO_FILE)
-                    st.rerun()
-            
+            st.sidebar.subheader("🖼️ Gestion du Logo")
             ul = st.sidebar.file_uploader("Charger un nouveau logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
             if ul:
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
             
+            if os.path.exists(LOGO_FILE):
+                if st.sidebar.button("🗑️ Supprimer le logo actuel"):
+                    os.remove(LOGO_FILE)
+                    st.rerun()
+
             st.sidebar.divider()
-            
-            # Gestion des Photos
             st.sidebar.subheader("📸 Ajouter des photos")
             up = st.sidebar.file_uploader("Sélectionner des images", accept_multiple_files=True, key="photos_up")
             if up:
@@ -89,13 +93,10 @@ if est_admin:
     # --- ÉCRAN CENTRAL ---
     st.markdown('<div class="admin-welcome">', unsafe_allow_html=True)
     st.title("Bienvenue dans votre console d'administration")
-    
     if pwd == "ADMIN_LIVE_MASTER":
         st.success("Système opérationnel")
-        # On montre aussi le logo au centre pour confirmation visuelle
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, width=200)
-        st.info("👈 Tout se pilote depuis la barre latérale.")
     else:
         st.error("🔒 Accès restreint")
     st.markdown('</div>', unsafe_allow_html=True)
