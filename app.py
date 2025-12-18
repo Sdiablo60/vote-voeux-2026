@@ -22,7 +22,6 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 3. INTERFACE ADMINISTRATION ---
 if est_admin:
-    # Style spécifique pour l'admin
     st.markdown("""
         <style>
         html, body, .stApp { background-color: white !important; color: black !important; }
@@ -30,8 +29,7 @@ if est_admin:
         .admin-welcome { text-align: center; margin-top: 60px; font-family: sans-serif; }
         [data-testid="stSidebar"] { min-width: 400px !important; max-width: 450px !important; }
         [data-testid="stHeader"] { display: block !important; }
-        /* Style du bouton d'aperçu */
-        .stButton>button { width: 100%; border-radius: 20px; }
+        .logo-preview-admin { border: 1px solid #ddd; padding: 10px; border-radius: 10px; margin-top: 10px; background: #f9f9f9; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -43,21 +41,28 @@ if est_admin:
         if pwd == "ADMIN_LIVE_MASTER":
             st.sidebar.success("✅ Accès autorisé")
             
-            # --- NOUVEAU : BOUTON APERÇU ---
             url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
             st.sidebar.link_button("🖥️ OUVRIR LE MUR (PLEIN ÉCRAN)", url_mur)
             st.sidebar.divider()
             
-            # Gestion du Logo
+            # --- GESTION ET APERÇU DU LOGO DANS LA SIDEBAR ---
             st.sidebar.subheader("🖼️ Logo Central")
-            ul = st.sidebar.file_uploader("Changer le logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
+            
+            # Affichage du logo actuel s'il existe
+            if os.path.exists(LOGO_FILE):
+                st.sidebar.image(LOGO_FILE, caption="Logo Actuel", use_container_width=True)
+                if st.sidebar.button("🗑️ Supprimer ce logo"):
+                    os.remove(LOGO_FILE)
+                    st.rerun()
+            
+            ul = st.sidebar.file_uploader("Charger un nouveau logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
             if ul:
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
             
             st.sidebar.divider()
             
-            # Ajout de photos
+            # Gestion des Photos
             st.sidebar.subheader("📸 Ajouter des photos")
             up = st.sidebar.file_uploader("Sélectionner des images", accept_multiple_files=True, key="photos_up")
             if up:
@@ -66,16 +71,11 @@ if est_admin:
                 st.rerun()
             
             st.sidebar.divider()
-            
-            # Nettoyage
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
             if st.sidebar.button("🗑️ VIDER TOUTE LA GALERIE"):
                 for f in imgs: os.remove(f)
                 st.rerun()
 
-            st.sidebar.divider()
-            
-            # Galerie de prévisualisation
             if imgs:
                 st.sidebar.subheader(f"Galerie ({len(imgs)})")
                 for i, img_path in enumerate(imgs):
@@ -92,10 +92,12 @@ if est_admin:
     
     if pwd == "ADMIN_LIVE_MASTER":
         st.success("Système opérationnel")
-        st.info("👈 Gérez votre contenu via le menu à gauche. \n\n Cliquez sur le bouton bleu à gauche pour voir le résultat en direct.")
+        # On montre aussi le logo au centre pour confirmation visuelle
+        if os.path.exists(LOGO_FILE):
+            st.image(LOGO_FILE, width=200)
+        st.info("👈 Tout se pilote depuis la barre latérale.")
     else:
         st.error("🔒 Accès restreint")
-        st.write("Veuillez vous authentifier dans la barre latérale pour continuer.")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 4. MODE LIVE (MUR NOIR) ---
