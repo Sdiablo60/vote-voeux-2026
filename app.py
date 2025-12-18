@@ -17,11 +17,11 @@ GALLERY_DIR = "galerie_images"
 LOGO_FILE = "logo_entreprise.png"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- 2. GESTION DE LA SESSION ---
+# --- 2. GESTION DE LA SESSION (MÉMOIRE) ---
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 if "admin_password" not in st.session_state:
-    st.session_state["admin_password"] = "ADMIN_LIVE_MASTER" # Mot de passe par défaut
+    st.session_state["admin_password"] = "ADMIN_LIVE_MASTER"
 
 # --- 3. LOGIQUE DE NAVIGATION ---
 params = st.query_params
@@ -52,61 +52,57 @@ if est_admin:
         
         st.markdown("<h2 style='text-align: center; margin-top:-20px;'>⚙️ Régie Live</h2>", unsafe_allow_html=True)
         
-        # --- SAISIE DU MOT DE PASSE ---
-        pwd_input = st.text_input("Accès Admin", type="password")
+        # --- UNIQUE CHAMP DE MOT DE PASSE ---
+        # On utilise une clé spécifique pour que Streamlit s'en souvienne
+        pwd_input = st.text_input("Accès Régie (Code)", type="password", key="main_login_input")
+        
         if pwd_input == st.session_state["admin_password"]:
             st.session_state["authenticated"] = True
-            st.success("Déverrouillé")
         else:
             st.session_state["authenticated"] = False
-            if pwd_input: st.error("Code incorrect")
 
         st.divider()
 
-        # --- NOUVEAU : CHANGER LE MOT DE PASSE ---
-        with st.expander("🔑 Modifier le mot de passe"):
-            new_pwd = st.text_input("Nouveau code", type="password", key="new_pwd_set")
-            if st.button("Valider le nouveau code"):
-                if new_pwd:
+        # Si authentifié, on montre les menus de gestion
+        if st.session_state["authenticated"]:
+            st.success("✅ Accès déverrouillé")
+            
+            with st.expander("🔑 Changer le mot de passe"):
+                new_pwd = st.text_input("Nouveau code", type="password")
+                if st.button("Enregistrer nouveau code"):
                     st.session_state["admin_password"] = new_pwd
-                    st.success("Mot de passe modifié !")
-                    time.sleep(1)
                     st.rerun()
 
-        st.divider()
-        
-        # OPTIONS LOGO
-        st.subheader("🖼️ Logo")
-        ul_logo = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'])
-        if ul_logo:
-            with open(LOGO_FILE, "wb") as f: f.write(ul_logo.getbuffer())
-            st.rerun()
+            st.divider()
+            st.subheader("🖼️ Logo")
+            ul_logo = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'])
+            if ul_logo:
+                with open(LOGO_FILE, "wb") as f: f.write(ul_logo.getbuffer())
+                st.rerun()
 
-        st.divider()
-        if st.button("🔄 Actualiser la galerie", use_container_width=True):
-            st.rerun()
-
-        if st.session_state["authenticated"]:
             if st.button("🧨 VIDER TOUT LE MUR", use_container_width=True):
                 for f in glob.glob(os.path.join(GALLERY_DIR, "*")):
                     try: os.remove(f)
                     except: pass
                 st.rerun()
+        else:
+            st.warning("🔒 Entrez le code pour voir les menus")
 
-    # --- ZONE CENTRALE ---
+    # --- ZONE CENTRALE (Affiche le contenu SI ET SEULEMENT SI authentifié) ---
     if st.session_state["authenticated"]:
+        # Header central
         logo_b64 = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f: logo_b64 = base64.b64encode(f.read()).decode()
         
         st.markdown(f"""
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:20px;">
-                <h1 style="margin:0;">Console de Modération</h1>
+                <h1 style="margin:0; color: black;">Console de Modération</h1>
                 {f'<img src="data:image/png;base64,{logo_b64}" style="max-height:80px;">' if logo_b64 else ''}
             </div>
         """, unsafe_allow_html=True)
         
-        st.link_button("🖥️ MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True, type="primary")
+        st.link_button("🖥️ ACCÉDER AU MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True, type="primary")
 
         with st.expander("➕ Ajouter des photos manuellement"):
             up = st.file_uploader("Fichiers images", accept_multiple_files=True, key="manual_up")
@@ -114,8 +110,6 @@ if est_admin:
                 for f in up:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as out:
                         out.write(f.getbuffer())
-                st.success("Import réussi !")
-                time.sleep(1)
                 st.rerun()
 
         st.divider()
@@ -134,7 +128,7 @@ if est_admin:
 
         selected_photos = []
         if not sorted_imgs:
-            st.info("Aucun média.")
+            st.info("La galerie est vide.")
         else:
             if mode_vue == "Vignettes":
                 for i in range(0, len(sorted_imgs), 8):
@@ -161,7 +155,13 @@ if est_admin:
         if selected_photos:
             c3.download_button(f"📥 Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True)
     else:
-        st.warning("⚠️ Entrez le code secret pour débloquer la régie.")
+        # ÉCRAN DE VERROUILLAGE CENTRAL
+        st.markdown("""
+            <div style="text-align:center; margin-top:100px; padding:50px; border:2px dashed #ccc; border-radius:20px;">
+                <h1 style="color:#555;">🔒 Console Verrouillée</h1>
+                <p style="font-size:18px; color:#888;">Veuillez saisir le code secret dans la <b>barre latérale à gauche</b> pour accéder à la régie.</p>
+            </div>
+        """, unsafe_allow_html=True)
 
 # --- 6. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
@@ -185,7 +185,7 @@ elif not mode_vote:
         with open(img_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
         photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{random.randint(200, 300)}px; height:{random.randint(200, 300)}px; top:{random.randint(10, 70)}%; left:{random.randint(5, 80)}%; animation-duration:{random.uniform(8, 14)}s;">'
     
-    html_code = f"""<!DOCTYPE html><html><body style="margin:0; background:black; overflow:hidden; height:100vh; width:100vw;"><style> .container {{ position:relative; width:100vw; height:100vh; background:black; overflow:hidden; }} .main-title {{ position:absolute; top:40px; width:100%; text-align:center; color:white; font-family:sans-serif; font-size:55px; font-weight:bold; z-index:1001; text-shadow:0 0 20px rgba(255,255,255,0.7); }} .center-stack {{ position:absolute; top:55%; left:50%; transform:translate(-50%, -50%); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:20px; }} .logo {{ max-width:400px; filter:drop-shadow(0 0 15px white); }} .qr-box {{ background:white; padding:12px; border-radius:15px; text-align:center; }} .photo {{ position:absolute; border-radius:50%; border:5px solid white; object-fit:cover; animation:move alternate infinite ease-in-out; opacity:0.95; box-shadow:0 0 20px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:translate(0,0) rotate(0deg); }} to {{ transform:translate(60px, 80px) rotate(8deg); }} }} </style><div class="container"><div class="main-title">MEILLEURS VŒUX 2026</div><div class="center-stack">{f'<img src="data:image/png;base64,{logo_b64_live}" class="logo">' if logo_b64_live else ''}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="160"></div></div>{photos_html}</div></body></html>"""
+    html_code = f"""<!DOCTYPE html><html><body style="margin:0; background:black; overflow:hidden; height:100vh; width:100vw;"><style> .container {{ position:relative; width:100vw; height:100vh; background:black; overflow:hidden; }} .main-title {{ position:absolute; top:40px; width:100%; text-align:center; color:white; font-family:sans-serif; font-size:55px; font-weight:bold; z-index:1001; text-shadow:0 0 20px rgba(255,255,255,0.7); }} .center-stack {{ position:absolute; top:55%; left:50%; transform:translate(-50%, -50%); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:20px; }} .logo {{ max-width:350px; filter:drop-shadow(0 0 15px white); }} .qr-box {{ background:white; padding:12px; border-radius:15px; text-align:center; }} .photo {{ position:absolute; border-radius:50%; border:5px solid white; object-fit:cover; animation:move alternate infinite ease-in-out; opacity:0.95; box-shadow:0 0 20px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:translate(0,0) rotate(0deg); }} to {{ transform:translate(60px, 80px) rotate(8deg); }} }} </style><div class="container"><div class="main-title">MEILLEURS VŒUX 2026</div><div class="center-stack">{f'<img src="data:image/png;base64,{logo_b64_live}" class="logo">' if logo_b64_live else ''}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="160"></div></div>{photos_html}</div></body></html>"""
     components.html(html_code, height=1000)
 
 # --- 7. MODE VOTE ---
