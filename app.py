@@ -17,7 +17,7 @@ GALLERY_DIR = "galerie_images"
 LOGO_FILE = "logo_entreprise.png"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- 2. GESTION DE LA SESSION ---
+# --- 2. GESTION DE LA SESSION (Pour rester connecté) ---
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
@@ -43,23 +43,27 @@ def get_timestamped_name(prefix):
 if est_admin:
     # --- BARRE LATÉRALE ---
     with st.sidebar:
-        # LOGO EN HAUT - PLEINE LARGEUR
+        # 1. LOGO PLEINE LARGEUR EN HAUT
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
-            st.markdown("<br>", unsafe_allow_html=True) # Petit espace sous le logo
+            st.markdown("<br>", unsafe_allow_html=True)
         
         st.markdown("<h2 style='text-align: center;'>⚙️ Régie Live</h2>", unsafe_allow_html=True)
         
-        # Authentification
+        # 2. GESTION DU MOT DE PASSE
         pwd_input = st.text_input("Code Secret Admin", type="password")
         if pwd_input == "ADMIN_LIVE_MASTER":
             st.session_state["authenticated"] = True
-        
+            st.success("Accès déverrouillé")
+        else:
+            st.session_state["authenticated"] = False
+            st.warning("Code requis")
+
         st.divider()
         
-        # Configuration Logo (Toujours présente)
+        # 3. OPTIONS (Toujours visibles)
         st.subheader("🖼️ Identité Visuelle")
-        ul_logo = st.file_uploader("Remplacer le logo actuel", type=['png', 'jpg', 'jpeg'])
+        ul_logo = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'])
         if ul_logo:
             with open(LOGO_FILE, "wb") as f: f.write(ul_logo.getbuffer())
             st.rerun()
@@ -68,6 +72,7 @@ if est_admin:
         if st.button("🔄 Actualiser la galerie", use_container_width=True):
             st.rerun()
 
+        # 4. ACTIONS CRITIQUES (Si authentifié)
         if st.session_state["authenticated"]:
             if st.button("🧨 VIDER TOUT LE MUR", use_container_width=True):
                 for f in glob.glob(os.path.join(GALLERY_DIR, "*")):
@@ -75,9 +80,9 @@ if est_admin:
                     except: pass
                 st.rerun()
 
-    # --- ZONE CENTRALE ---
+    # --- ZONE CENTRALE (Protégée) ---
     if st.session_state["authenticated"]:
-        # Header stable
+        # Header avec Logo Large
         logo_b64 = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f: logo_b64 = base64.b64encode(f.read()).decode()
@@ -85,7 +90,7 @@ if est_admin:
         st.markdown(f"""
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:20px;">
                 <h1 style="margin:0;">Console de Modération</h1>
-                {f'<img src="data:image/png;base64,{logo_b64}" style="max-height:60px;">' if logo_b64 else ''}
+                {f'<img src="data:image/png;base64,{logo_b64}" style="max-height:80px;">' if logo_b64 else ''}
             </div>
         """, unsafe_allow_html=True)
         
@@ -104,11 +109,10 @@ if est_admin:
 
         st.divider()
 
-        # Galerie et Données
+        # Galerie
         all_imgs = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         sorted_imgs = sorted(all_imgs, key=os.path.getmtime, reverse=True)
 
-        # Contrôles de Galerie
         c1, c2, c3, c4 = st.columns([1.5, 1, 1, 1])
         c1.subheader(f"Photos ({len(sorted_imgs)})")
         
@@ -143,7 +147,6 @@ if est_admin:
                         os.remove(img_p)
                         st.rerun()
 
-        # Export de sélection
         if selected_photos:
             c3.download_button(f"📥 Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True)
     else:
@@ -169,15 +172,15 @@ elif not mode_vote:
     photos_html = ""
     for img_path in img_list[-15:]:
         with open(img_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
-        photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{random.randint(180, 260)}px; height:{random.randint(180, 260)}px; top:{random.randint(10, 70)}%; left:{random.randint(5, 80)}%; animation-duration:{random.uniform(8, 14)}s;">'
+        photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{random.randint(200, 300)}px; height:{random.randint(200, 300)}px; top:{random.randint(10, 70)}%; left:{random.randint(5, 80)}%; animation-duration:{random.uniform(8, 14)}s;">'
     
-    html_code = f"""<!DOCTYPE html><html><body style="margin:0; background:black; overflow:hidden; height:100vh; width:100vw;"><style> .container {{ position:relative; width:100vw; height:100vh; background:black; overflow:hidden; }} .main-title {{ position:absolute; top:40px; width:100%; text-align:center; color:white; font-family:sans-serif; font-size:55px; font-weight:bold; z-index:1001; text-shadow:0 0 20px rgba(255,255,255,0.7); }} .center-stack {{ position:absolute; top:55%; left:50%; transform:translate(-50%, -50%); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:20px; }} .logo {{ max-width:300px; filter:drop-shadow(0 0 15px white); }} .qr-box {{ background:white; padding:12px; border-radius:15px; text-align:center; }} .photo {{ position:absolute; border-radius:50%; border:5px solid white; object-fit:cover; animation:move alternate infinite ease-in-out; opacity:0.95; box-shadow:0 0 20px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:translate(0,0) rotate(0deg); }} to {{ transform:translate(60px, 80px) rotate(8deg); }} }} </style><div class="container"><div class="main-title">MEILLEURS VŒUX 2026</div><div class="center-stack">{f'<img src="data:image/png;base64,{logo_b64_live}" class="logo">' if logo_b64_live else ''}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="130"></div></div>{photos_html}</div></body></html>"""
+    html_code = f"""<!DOCTYPE html><html><body style="margin:0; background:black; overflow:hidden; height:100vh; width:100vw;"><style> .container {{ position:relative; width:100vw; height:100vh; background:black; overflow:hidden; }} .main-title {{ position:absolute; top:40px; width:100%; text-align:center; color:white; font-family:sans-serif; font-size:55px; font-weight:bold; z-index:1001; text-shadow:0 0 20px rgba(255,255,255,0.7); }} .center-stack {{ position:absolute; top:55%; left:50%; transform:translate(-50%, -50%); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:20px; }} .logo {{ max-width:400px; filter:drop-shadow(0 0 15px white); }} .qr-box {{ background:white; padding:12px; border-radius:15px; text-align:center; }} .photo {{ position:absolute; border-radius:50%; border:5px solid white; object-fit:cover; animation:move alternate infinite ease-in-out; opacity:0.95; box-shadow:0 0 20px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:translate(0,0) rotate(0deg); }} to {{ transform:translate(60px, 80px) rotate(8deg); }} }} </style><div class="container"><div class="main-title">MEILLEURS VŒUX 2026</div><div class="center-stack">{f'<img src="data:image/png;base64,{logo_b64_live}" class="logo">' if logo_b64_live else ''}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="160"></div></div>{photos_html}</div></body></html>"""
     components.html(html_code, height=1000)
 
 # --- 7. MODE VOTE ---
 else:
     st.title("📸 Envoyez votre photo !")
-    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
+    f = st.file_uploader("Choisir une image", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out: out.write(f.getbuffer())
         st.success("✅ Photo envoyée !")
