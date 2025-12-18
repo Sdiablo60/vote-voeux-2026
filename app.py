@@ -39,7 +39,6 @@ if est_admin:
         st.warning("Code requis.")
         st.stop()
 
-    # Code Admin identique (Fonctionnel)
     if os.path.exists(MSG_FILE): config = pd.read_csv(MSG_FILE).iloc[0].to_dict()
     else: config = {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 45}
     
@@ -69,7 +68,6 @@ if est_admin:
                 if st.button("🗑️", key=f"del_{i}"): os.remove(p); st.rerun()
 
 elif not mode_vote:
-    # --- MODE SOCIAL WALL (ISOLÉ) ---
     if os.path.exists(MSG_FILE): config = pd.read_csv(MSG_FILE).iloc[0].to_dict()
     else: config = {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 45}
     
@@ -81,45 +79,67 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}%; left:{random.randint(0,100)}%; width:2px; height:2px; animation-delay:{random.random()*3}s;"></div>' for _ in range(50)])
+    stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}%; left:{random.randint(0,100)}%; width:2px; height:2px; animation-delay:{random.random()*3}s;"></div>' for _ in range(60)])
     
     valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
     photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(25/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
 
-    # CONSTRUCTION DU CODE HTML SANS INTERFÉRENCE STREAMLIT
+    # HTML AVEC RECENTRAGE ET SÉCURITÉ BAS D'ÉCRAN
     html_code = f"""
     <html>
     <head>
         <style>
-            body {{ margin: 0; background-color: #050505; color: white; overflow: hidden; font-family: sans-serif; }}
-            .wall {{ position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }}
+            body, html {{ margin: 0; padding: 0; background-color: #050505; color: white; overflow: hidden; font-family: sans-serif; height: 100%; width: 100%; }}
+            .wall {{ position: relative; width: 100vw; height: 100vh; overflow: hidden; }}
             .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: twi 2s infinite alternate; }}
             @keyframes twi {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
-            .title {{ position: absolute; top: 10%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 20px {config['couleur']}; }}
-            .logo {{ position: absolute; width: 200px; height: 200px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); z-index: 10; }}
-            .photo {{ position: absolute; width: 130px; height: 130px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3); animation: orb 25s linear infinite; }}
-            @keyframes orb {{ from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }} to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }} }}
-            .qr {{ position: absolute; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 12px; text-align: center; color: black; }}
+            .title {{ position: absolute; top: 6%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 20px {config['couleur']}; z-index: 100; }}
+            
+            /* Recentrage vertical à 45% pour éviter la coupure basse */
+            .center-container {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
+            
+            .logo {{ width: 180px; height: 180px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); z-index: 10; }}
+            
+            .photo {{ position: absolute; width: 120px; height: 120px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3); animation: orb 25s linear infinite; }}
+            
+            /* Rayon d'orbite à 240px pour rester bien dans le cadre */
+            @keyframes orb {{ 
+                from {{ transform: rotate(0deg) translateX(240px) rotate(0deg); }} 
+                to {{ transform: rotate(360deg) translateX(240px) rotate(-360deg); }} 
+            }}
+            
+            .qr {{ position: absolute; bottom: 20px; right: 20px; background: white; padding: 8px; border-radius: 10px; text-align: center; color: black; z-index: 200; }}
         </style>
     </head>
     <body>
         <div class="wall">
             {stars_html}
             <div class="title">{config['texte']}</div>
-            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}
-            {photos_html}
+            <div class="center-container">
+                {"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}
+                {photos_html}
+            </div>
             <div class="qr">
-                <img src="data:image/png;base64,{qr_b64}" width="100"><br>
-                <span style="font-size:10px; font-weight:bold;">SCANNEZ POUR VOTER</span>
+                <img src="data:image/png;base64,{qr_b64}" width="90"><br>
+                <span style="font-size:9px; font-weight:bold;">SCANNEZ POUR VOTER</span>
             </div>
         </div>
     </body>
     </html>
     """
     
-    # Injection via un composant Iframe qui outrepasse l'UI Streamlit
-    st.markdown("""<style>[data-testid="stHeader"], footer {display:none !important;} .stApp {background:black !important;}</style>""", unsafe_allow_html=True)
-    components.html(html_code, height=1000)
+    # CSS de nettoyage pour Streamlit
+    st.markdown("""
+        <style>
+            [data-testid="stHeader"], footer {display:none !important;}
+            .stApp {background:black !important; overflow: hidden !important;}
+            iframe {border: none !important; margin: 0 !important; padding: 0 !important;}
+            .block-container {padding: 0 !important; max-width: 100% !important;}
+        </style>
+    """, unsafe_allow_html=True)
+    
+    # Affichage en plein écran (hauteur ajustée à 95vh pour plus de sécurité)
+    components.html(html_code, height=900, scrolling=False)
 
 else:
     st.title("🗳️ Participation")
