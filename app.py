@@ -1,5 +1,19 @@
 import streamlit as st
-import pandas as pd
+
+# --- 0. PRIORITÉ ABSOLUE : FORCER LE NOIR AVANT TOUT ---
+st.markdown("""
+    <style>
+    /* Ce bloc s'exécute immédiatement pour colorer le fond */
+    :root { background-color: #000000 !important; }
+    html, body, [data-testid="stAppViewContainer"], .stApp {
+        background-color: #000000 !important;
+        background: #000000 !important;
+        color: #000000 !important; /* Cache le texte de chargement */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+import pd
 import os
 import glob
 import random
@@ -13,23 +27,21 @@ st.set_page_config(page_title="Social Wall", layout="wide", initial_sidebar_stat
 
 GALLERY_DIR = "galerie_images"
 LOGO_FILE = "logo_entreprise.png"
-
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- STYLE CSS CRITIQUE ---
+# --- 2. STYLE CSS COMPLET (ANTI-SCROLL / ANTI-FLASH) ---
 st.markdown("""
     <style>
-    /* Force le noir sur la racine et les conteneurs Streamlit */
-    :root { background-color: #000000 !important; }
-    [data-testid="stAppViewContainer"], .stApp, html, body {
-        background-color: #000000 !important;
+    [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; }
+    
+    html, body, [data-testid="stAppViewContainer"], .stApp {
         overflow: hidden !important;
         height: 100vh !important;
         width: 100vw !important;
         margin: 0 !important;
         padding: 0 !important;
     }
-    /* Fixation de l'iframe pour éviter tout saut visuel */
+
     iframe {
         position: fixed !important;
         top: 0 !important;
@@ -40,7 +52,7 @@ st.markdown("""
         background-color: #000000 !important;
         z-index: 9999;
     }
-    [data-testid="stHeader"], footer, #MainMenu { display: none !important; }
+    .main .block-container { padding: 0 !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -55,23 +67,23 @@ params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
-# --- 2. INTERFACE ADMIN ---
+# --- 3. INTERFACE ADMIN ---
 if est_admin:
-    st.markdown("<style>html, body, .stApp { overflow: auto !important; position: relative !important; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>html, body, .stApp { overflow: auto !important; position: relative !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("⚙️ Administration")
-    if st.text_input("Code Secret", type="password") == "ADMIN_LIVE_MASTER":
-        ul = st.file_uploader("Logo Central", type=['png', 'jpg'])
+    if st.text_input("Code", type="password") == "ADMIN_LIVE_MASTER":
+        ul = st.file_uploader("Logo", type=['png', 'jpg'])
         if ul:
             with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
             st.rerun()
-        up = st.file_uploader("Ajouter des Photos", accept_multiple_files=True)
+        up = st.file_uploader("Ajouter Photos", accept_multiple_files=True)
         if up:
             for f in up:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
             st.rerun()
     else: st.stop()
 
-# --- 3. MODE LIVE (MUR) ---
+# --- 4. MODE LIVE (MUR) ---
 elif not mode_vote:
     try:
         from streamlit_autorefresh import st_autorefresh
@@ -87,22 +99,19 @@ elif not mode_vote:
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
     photos_html = ""
-    # On affiche les 15 dernières photos
     for img_path in img_list[-15:]:
         b64 = get_b64(img_path)
         if b64:
             size = random.randint(160, 240)
             top, left = random.randint(5, 75), random.randint(5, 85)
-            duration = random.uniform(6, 12)
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
+            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(6,12)}s;">'
 
     html_code = f"""
     <!DOCTYPE html>
     <html style="background: black;">
-    <body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw; opacity: 0; animation: fadeIn 1s forwards;">
+    <body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw; opacity: 0; animation: fadeIn 1.5s forwards;">
         <style>
             @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
-            
             .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }}
             .center-stack {{ 
                 position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
@@ -111,14 +120,13 @@ elif not mode_vote:
             .logo {{ max-width: 260px; filter: drop-shadow(0 0 15px white); }}
             .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; box-shadow: 0 0 30px rgba(255,255,255,0.4); }}
             .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
-            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(70px, 90px) rotate(10deg); }} }}
+            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 90px) rotate(10deg); }} }}
         </style>
         <div class="container">
             <div class="center-stack">
                 {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else '<div style="color:white; font-size:40px; font-weight:bold;">SOCIAL WALL</div>'}
                 <div class="qr-box">
                     <img src="data:image/png;base64,{qr_b64}" width="120">
-                    <p style="color:black; font-size:10px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ MOI</p>
                 </div>
             </div>
             {photos_html}
@@ -128,8 +136,9 @@ elif not mode_vote:
     """
     components.html(html_code)
 
-# --- 4. MODE VOTE ---
+# --- 5. MODE VOTE ---
 else:
+    st.markdown("<style>html, body, .stApp { background-color: #111 !important; color: white !important; overflow: auto !important; }</style>", unsafe_allow_html=True)
     st.title("📸 Envoyez votre photo")
     f = st.file_uploader("Image", type=['jpg', 'jpeg', 'png'])
     if f:
