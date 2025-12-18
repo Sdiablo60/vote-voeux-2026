@@ -26,18 +26,20 @@ est_admin = params.get("admin") == "true"
 
 if est_admin:
     st.title("🛠️ Console Régie")
-    ul = st.file_uploader("Logo Central", type=['png','jpg','jpeg'])
-    if ul: 
-        with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
-        st.success("Logo mis à jour")
+    col1, col2 = st.columns(2)
+    with col1:
+        ul = st.file_uploader("Logo Central", type=['png','jpg','jpeg'])
+        if ul: 
+            with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
+            st.success("Logo mis à jour")
+    with col2:
+        uf = st.file_uploader("Ajouter Photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
+        if uf:
+            for f in uf:
+                with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
+            st.rerun()
     
-    uf = st.file_uploader("Ajouter Photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
-    if uf:
-        for f in uf:
-            with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
-        st.rerun()
-    
-    if st.button("Vider la galerie"):
+    if st.button("🗑️ Vider la galerie"):
         for f in glob.glob(os.path.join(GALLERY_DIR, "*")): os.remove(f)
         st.rerun()
 
@@ -46,7 +48,6 @@ else:
     logo_data = get_b64(LOGO_FILE)
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
-    # CSS Sécurisé
     st.markdown("""
         <style>
             [data-testid="stHeader"], footer, header {display:none !important;}
@@ -75,57 +76,77 @@ else:
                 100% { transform: scale(1); opacity: 0.8; }
             }
 
-            /* Positionnement du centre de l'orbite à 60% du haut */
             .center-point {
                 position: absolute; top: 60%; left: 50%;
                 transform: translate(-50%, -50%);
-                width: 1px; height: 1px; z-index: 10000;
+                width: 250px; height: 250px;
+                display: flex; justify-content: center; align-items: center;
             }
 
             .center-logo {
-                position: absolute; top: 0; left: 0;
-                transform: translate(-50%, -50%);
-                width: 250px; height: 250px; object-fit: contain;
+                width: 100%; height: 100%; object-fit: contain;
+                z-index: 10000; filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
             }
 
-            .orbit-photo {
-                position: absolute; top: 0; left: 0;
-                width: 150px; height: 150px; margin-top: -75px; margin-left: -75px;
-                border-radius: 50%; border: 3px solid white; object-fit: cover;
-                box-shadow: 0 0 20px rgba(255,255,255,0.4);
-                animation: orbit-move 25s linear infinite;
+            /* Conteneur de l'orbite pour éviter l'effet "trait" */
+            .orbit-wrapper {
+                position: absolute;
+                width: 800px; height: 800px; /* Diamètre de l'orbite */
+                animation: rotate-all 30s linear infinite;
+                display: flex; justify-content: center; align-items: center;
             }
 
-            @keyframes orbit-move {
-                from { transform: rotate(0deg) translateX(380px) rotate(0deg); }
-                to { transform: rotate(360deg) translateX(380px) rotate(-360deg); }
+            @keyframes rotate-all {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+
+            .photo-bubble {
+                position: absolute;
+                width: 160px; height: 160px;
+                border-radius: 50%;
+                border: 4px solid white;
+                object-fit: cover;
+                box-shadow: 0 0 25px rgba(255,255,255,0.5);
+                /* On contre-pivote l'image pour qu'elle reste droite */
+                animation: counter-rotate 30s linear infinite;
+            }
+
+            @keyframes counter-rotate {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(-360deg); }
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # Construction HTML
     html_content = '<div class="main-container">'
     
-    # Étoiles (60 étoiles)
-    for _ in range(60):
+    # Étoiles
+    for _ in range(70):
         x, y = random.randint(0, 100), random.randint(0, 100)
         s = random.randint(1, 3)
         html_content += f'<div class="star" style="left:{x}vw; top:{y}vh; width:{s}px; height:{s}px;"></div>'
 
     html_content += '<div class="welcome-title">✨ BIENVENUE AUX VOEUX 2026 ✨</div>'
     
-    # Point central (Logo + Photos)
+    # Centre
     html_content += '<div class="center-point">'
     if logo_data:
         html_content += f'<img src="data:image/png;base64,{logo_data}" class="center-logo">'
     
+    # Photos
     if imgs:
-        shuffled = imgs[-12:] # 12 dernières photos
-        for i, path in enumerate(shuffled):
+        display_imgs = imgs[-10:] # Max 10 photos pour la clarté
+        for i, path in enumerate(display_imgs):
             img_b64 = get_b64(path)
-            delay = -(i * (25 / len(shuffled)))
-            html_content += f'<img src="data:image/png;base64,{img_b64}" class="orbit-photo" style="animation-delay:{delay}s;">'
+            angle = (360 / len(display_imgs)) * i
+            # On place chaque photo sur le bord du cercle de 800px (rayon 400px)
+            html_content += f'''
+                <div class="orbit-wrapper" style="transform: rotate({angle}deg);">
+                    <img src="data:image/png;base64,{img_b64}" class="photo-bubble" style="top: 0;">
+                </div>
+            '''
     
-    html_content += '</div></div>' # Fermeture center-point et main-container
+    html_content += '</div></div>'
     
     st.markdown(html_content, unsafe_allow_html=True)
