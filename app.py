@@ -41,6 +41,7 @@ if est_admin:
     pwd_actuel = open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEUX_2026"
     with st.sidebar:
         input_pwd = st.text_input("Code Secret", type="password")
+    
     if input_pwd != pwd_actuel:
         st.warning("Veuillez saisir le code dans la barre latérale.")
         st.stop() 
@@ -81,96 +82,81 @@ elif not mode_vote:
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
+    # QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
+    # Nettoyage CSS Préventif (On force le noir sur TOUT le site avant d'afficher le mur)
+    st.markdown("""
+        <style>
+            [data-testid="stAppViewContainer"], .stApp, .main, [data-testid="stVerticalBlock"] {
+                background-color: #050505 !important;
+            }
+            /* Cacher les éléments de décoration et le widget de statut "Running" */
+            [data-testid="stHeader"], footer, [data-testid="stStatusWidget"], .stDeployButton {
+                display: none !important;
+            }
+            /* Supprimer spécifiquement le carré blanc au centre */
+            div[class*="st-emotion-cache"] {
+                background-color: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Eléments dynamiques
     stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}vh; left:{random.randint(0,100)}vw; width:{random.randint(1,3)}px; height:{random.randint(1,3)}px; animation-delay:{random.random()*3}s;"></div>' for _ in range(80)])
     
-    photos_html = ""
     valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
-    for i, b64 in enumerate(valid_photos):
-        delay = -(i * (25 / max(len(valid_photos), 1)))
-        photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-bubble" style="animation-delay:{delay}s;">'
+    photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="orb" style="animation-delay:{-(i*(25/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
 
-    # INJECTION CSS AVEC CIBLE PRÉCISE POUR ÉVITER L'ÉCRAN NOIR VIDE
+    # Rendu du Mur
     st.markdown(f"""
     <style>
-        /* Force le fond noir partout */
-        .stApp, [data-testid="stAppViewContainer"] {{
-            background-color: #050505 !important;
-        }}
-        header, footer, [data-testid="stHeader"] {{ display: none !important; }}
-
-        /* On cache les conteneurs Streamlit vides qui font le carré blanc */
-        [data-testid="stVerticalBlock"] > div:not(:last-child) {{
-            display: none !important;
-        }}
-
-        .master-wall {{
+        .wall {{
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #050505; z-index: 999999;
-            display: block !important; overflow: hidden;
+            background-color: #050505; z-index: 999999; overflow: hidden;
         }}
-
-        .star {{
-            position: absolute; background: white; border-radius: 50%;
-            opacity: 0.3; animation: twinkle 2s infinite alternate;
-        }}
-        @keyframes twinkle {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
-
-        .title-text {{
+        .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: twi 2s infinite alternate; }}
+        @keyframes twi {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
+        .ttl {{ 
             position: absolute; top: 8%; width: 100%; text-align: center;
             font-family: sans-serif; font-weight: bold; z-index: 1000001;
             color: {config['couleur']}; font-size: {config['taille']}px;
-            text-shadow: 0 0 20px {config['couleur']}aa;
+            text-shadow: 0 0 20px {config['couleur']};
         }}
-
-        .center-hub {{
-            position: absolute; top: 58%; left: 50%;
-            transform: translate(-50%, -50%); width: 1px; height: 1px;
-            z-index: 1000000;
+        .hub {{ position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%); width: 1px; height: 1px; z-index: 1000000; }}
+        .logo {{ position: absolute; transform: translate(-50%, -50%); width: 220px; height: 220px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}55); }}
+        .orb {{ 
+            position: absolute; width: 135px; height: 135px; border-radius: 50%; 
+            border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            animation: moveOrb 25s linear infinite; 
         }}
-
-        .logo-img {{
-            position: absolute; transform: translate(-50%, -50%);
-            width: 200px; height: 200px; object-fit: contain;
-            filter: drop-shadow(0 0 15px {config['couleur']}55);
+        @keyframes moveOrb {{
+            from {{ transform: rotate(0deg) translateX(265px) rotate(0deg); }}
+            to {{ transform: rotate(360deg) translateX(265px) rotate(-360deg); }}
         }}
-
-        .photo-bubble {{
-            position: absolute; width: 130px; height: 130px;
-            border-radius: 50%; border: 3px solid white; object-fit: cover;
-            box-shadow: 0 0 15px rgba(255,255,255,0.3);
-            animation: orbitAnim 25s linear infinite;
-        }}
-
-        @keyframes orbitAnim {{
-            from {{ transform: rotate(0deg) translateX(270px) rotate(0deg); }}
-            to {{ transform: rotate(360deg) translateX(270px) rotate(-360deg); }}
-        }}
-
-        .qr-anchor {{
-            position: fixed; bottom: 30px; right: 30px;
-            background: white; padding: 10px; border-radius: 12px;
-            text-align: center; z-index: 1000002;
-        }}
+        .qr {{ position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 12px; text-align: center; z-index: 1000002; }}
     </style>
 
-    <div class="master-wall">
+    <div class="wall">
         {stars_html}
-        <div class="title-text">{config['texte']}</div>
-        <div class="center-hub">
-            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-img'>" if logo_b64 else ""}
+        <div class="ttl">{config['texte']}</div>
+        <div class="hub">
+            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}
             {photos_html}
         </div>
-        <div class="qr-anchor">
+        <div class="qr">
             <img src="data:image/png;base64,{qr_b64}" width="100"><br>
             <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+# --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participation")
+    st.info("Interface mobile active.")
