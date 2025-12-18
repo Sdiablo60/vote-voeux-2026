@@ -20,6 +20,8 @@ if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 # --- 2. GESTION DE LA SESSION ---
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
+if "admin_password" not in st.session_state:
+    st.session_state["admin_password"] = "ADMIN_LIVE_MASTER" # Mot de passe par défaut
 
 # --- 3. LOGIQUE DE NAVIGATION ---
 params = st.query_params
@@ -43,27 +45,38 @@ def get_timestamped_name(prefix):
 if est_admin:
     # --- BARRE LATÉRALE ---
     with st.sidebar:
-        # LOGO PLEINE LARGEUR EN HAUT
+        # LOGO PLEINE LARGEUR
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
             st.markdown("<br>", unsafe_allow_html=True)
         
-        st.markdown("<h2 style='text-align: center; margin-top:-20px;'>⚙️ Régie</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; margin-top:-20px;'>⚙️ Régie Live</h2>", unsafe_allow_html=True)
         
-        # --- GESTION DU MOT DE PASSE ---
-        pwd_input = st.text_input("Code Secret Admin", type="password")
-        if pwd_input == "ADMIN_LIVE_MASTER":
+        # --- SAISIE DU MOT DE PASSE ---
+        pwd_input = st.text_input("Accès Admin", type="password")
+        if pwd_input == st.session_state["admin_password"]:
             st.session_state["authenticated"] = True
-            st.success("Accès autorisé")
+            st.success("Déverrouillé")
         else:
             st.session_state["authenticated"] = False
-            if pwd_input:
-                st.error("Code incorrect")
+            if pwd_input: st.error("Code incorrect")
+
+        st.divider()
+
+        # --- NOUVEAU : CHANGER LE MOT DE PASSE ---
+        with st.expander("🔑 Modifier le mot de passe"):
+            new_pwd = st.text_input("Nouveau code", type="password", key="new_pwd_set")
+            if st.button("Valider le nouveau code"):
+                if new_pwd:
+                    st.session_state["admin_password"] = new_pwd
+                    st.success("Mot de passe modifié !")
+                    time.sleep(1)
+                    st.rerun()
 
         st.divider()
         
-        # OPTIONS DE CONFIGURATION
-        st.subheader("🖼️ Identité Visuelle")
+        # OPTIONS LOGO
+        st.subheader("🖼️ Logo")
         ul_logo = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'])
         if ul_logo:
             with open(LOGO_FILE, "wb") as f: f.write(ul_logo.getbuffer())
@@ -73,7 +86,6 @@ if est_admin:
         if st.button("🔄 Actualiser la galerie", use_container_width=True):
             st.rerun()
 
-        # ACTIONS CRITIQUES (SI AUTHENTIFIÉ)
         if st.session_state["authenticated"]:
             if st.button("🧨 VIDER TOUT LE MUR", use_container_width=True):
                 for f in glob.glob(os.path.join(GALLERY_DIR, "*")):
@@ -81,9 +93,8 @@ if est_admin:
                     except: pass
                 st.rerun()
 
-    # --- ZONE CENTRALE (PROTÉGÉE) ---
+    # --- ZONE CENTRALE ---
     if st.session_state["authenticated"]:
-        # Header
         logo_b64 = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f: logo_b64 = base64.b64encode(f.read()).decode()
@@ -95,16 +106,15 @@ if est_admin:
             </div>
         """, unsafe_allow_html=True)
         
-        st.link_button("🖥️ ACCÉDER AU MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True, type="primary")
+        st.link_button("🖥️ MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True, type="primary")
 
-        # Import manuel
         with st.expander("➕ Ajouter des photos manuellement"):
             up = st.file_uploader("Fichiers images", accept_multiple_files=True, key="manual_up")
             if up:
                 for f in up:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as out:
                         out.write(f.getbuffer())
-                st.success("Importation réussie !")
+                st.success("Import réussi !")
                 time.sleep(1)
                 st.rerun()
 
@@ -124,7 +134,7 @@ if est_admin:
 
         selected_photos = []
         if not sorted_imgs:
-            st.info("Aucun média dans la galerie.")
+            st.info("Aucun média.")
         else:
             if mode_vue == "Vignettes":
                 for i in range(0, len(sorted_imgs), 8):
@@ -151,9 +161,9 @@ if est_admin:
         if selected_photos:
             c3.download_button(f"📥 Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True)
     else:
-        st.warning("Veuillez saisir le code secret dans la barre latérale pour débloquer la régie.")
+        st.warning("⚠️ Entrez le code secret pour débloquer la régie.")
 
-# --- 6. MODE LIVE (Identique) ---
+# --- 6. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
     st.markdown("""<style>:root { background-color: black; } [data-testid="stAppViewContainer"], .stApp { background-color: black !important; } [data-testid="stHeader"], footer { display: none !important; } </style>""", unsafe_allow_html=True)
     try:
@@ -184,4 +194,4 @@ else:
     f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out: out.write(f.getbuffer())
-        st.success("✅ Photo envoyée !")
+        st.success("✅ C'est envoyé !")
