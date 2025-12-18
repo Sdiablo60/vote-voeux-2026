@@ -21,9 +21,8 @@ params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
-# --- 3. FONCTIONS UTILES (Gestion ZIP & Nommage) ---
+# --- 3. FONCTIONS UTILES ---
 def create_zip(file_list):
-    """Génère un fichier ZIP en mémoire sans crash serveur."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as z:
         for f in file_list:
@@ -32,7 +31,6 @@ def create_zip(file_list):
     return buf.getvalue()
 
 def get_timestamped_name(prefix):
-    """Génère un nom de fichier : AAAA-MM-JJ_HHhMM_prefixe.zip pour le classement."""
     now = datetime.datetime.now()
     date_str = now.strftime("%Y-%m-%d_%Hh%M")
     return f"{date_str}_{prefix}.zip"
@@ -46,7 +44,6 @@ if est_admin:
         .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #eee; margin-bottom: 20px; }
         .logo-top-right { max-width: 100px; max-height: 50px; object-fit: contain; }
         [data-testid="stSidebar"] { min-width: 300px !important; }
-        /* Force le maintien des colonnes sur une ligne */
         [data-testid="column"] { min-width: 0px !important; flex-basis: 0 !important; flex-grow: 1 !important; }
         div[data-testid="stHorizontalBlock"] { align-items: center; }
         </style>
@@ -65,7 +62,7 @@ if est_admin:
                 st.rerun()
 
     if pwd == "ADMIN_LIVE_MASTER":
-        # HEADER AVEC LOGO À DROITE
+        # HEADER
         logo_html = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f: data = base64.b64encode(f.read()).decode()
@@ -74,12 +71,16 @@ if est_admin:
         st.markdown(f'<div class="admin-header"><div><h2 style="margin:0;">Console Régie</h2></div><div>{logo_html}</div></div>', unsafe_allow_html=True)
         st.link_button("🖥️ PROJETER LE MUR", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
 
+        # --- EXPANDER D'AJOUT AVEC RERUN AUTOMATIQUE ---
         with st.expander("➕ Ajouter des photos manuellement"):
-            up = st.file_uploader("Fichiers (JPG/PNG)", accept_multiple_files=True, key="ph_center")
+            up = st.file_uploader("Sélectionner des images", accept_multiple_files=True, key="ph_center")
             if up:
                 for f in up:
-                    with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
-                st.rerun()
+                    with open(os.path.join(GALLERY_DIR, f.name), "wb") as file:
+                        file.write(f.getbuffer())
+                st.toast(f"✅ {len(up)} photo(s) ajoutée(s) !")
+                time.sleep(1) 
+                st.rerun() # Ferme l'expander et actualise la galerie
 
         st.divider()
 
@@ -88,19 +89,14 @@ if est_admin:
         sorted_imgs = sorted(all_files, key=os.path.getmtime, reverse=True)
         selected_photos = []
 
-        # LIGNE DE CONTRÔLE (Titre | Tout | Sélection | Vue)
+        # LIGNE DE CONTRÔLE
         c_titre, c_zip_all, c_zip_sel, c_vue = st.columns([1.5, 1, 1, 1])
-        
-        with c_titre:
-            st.subheader(f"🖼️ Modération ({len(all_files)})")
-        
+        with c_titre: st.subheader(f"🖼️ Modération ({len(all_files)})")
         with c_zip_all:
             if all_files:
                 zip_data = create_zip(all_files)
                 st.download_button(label="📥 Tout (ZIP)", data=zip_data, file_name=get_timestamped_name("galerie_complete"), mime="application/zip", use_container_width=True)
-        
-        with c_vue:
-            mode_vue = st.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
+        with c_vue: mode_vue = st.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
 
         # AFFICHAGE GALERIE
         if not all_files:
@@ -134,7 +130,7 @@ if est_admin:
                                 with c3:
                                     if st.button(f"Suppr.", key=f"dl_{i+j}", use_container_width=True): os.remove(img_p); st.rerun()
 
-        # AFFICHAGE DU BOUTON SÉLECTION (Sur la ligne du haut si cochés)
+        # BOUTON SÉLECTION CHRONOLOGIQUE
         if selected_photos:
             with c_zip_sel:
                 zip_sel_data = create_zip(selected_photos)
