@@ -22,7 +22,7 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 3. INTERFACE ADMINISTRATION ---
 if est_admin:
-    # Style spécifique pour rendre l'admin lisible (Fond clair, texte noir)
+    # Style spécifique pour rendre l'admin lisible (Fond blanc, texte noir)
     st.markdown("""
         <style>
         html, body, .stApp, [data-testid="stAppViewContainer"] {
@@ -36,22 +36,23 @@ if est_admin:
         </style>
     """, unsafe_allow_html=True)
     
+    # Barre latérale pour la sécurité
     with st.sidebar:
         st.title("⚙️ Menu Régie")
-        st.info("Mode Administration activé")
+        pwd = st.text_input("Code Secret Admin", type="password")
+        st.divider()
         if st.button("🔄 Actualiser l'interface"):
             st.rerun()
 
-    st.title("Console d'Administration du Wall")
-    pwd = st.text_input("Entrez le code secret pour déverrouiller les outils", type="password")
-    
+    # Vérification du code pour afficher le contenu central
     if pwd == "ADMIN_LIVE_MASTER":
+        st.title("Console d'Administration")
         st.success("✅ Accès autorisé")
         
         col1, col2 = st.columns(2)
         with col1:
             st.header("Logo Central")
-            ul = st.file_uploader("Upload Logo (PNG conseillé)", type=['png', 'jpg', 'jpeg'])
+            ul = st.file_uploader("Upload Logo (PNG/JPG)", type=['png', 'jpg', 'jpeg'])
             if ul:
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
@@ -81,12 +82,14 @@ if est_admin:
                         os.remove(img_path)
                         st.rerun()
     else:
-        st.warning("Veuillez saisir le code secret pour accéder aux réglages.")
+        # Message central si le code n'est pas bon
+        st.title("🔒 Accès Verrouillé")
+        st.info("Veuillez saisir le code secret dans la barre latérale à gauche pour accéder aux outils.")
         st.stop()
 
 # --- 4. MODE LIVE (MUR DE PHOTOS) ---
 elif not mode_vote:
-    # STYLE NOIR RADICAL ANTI-FLASH ET ANTI-SCROLL
+    # STYLE NOIR RADICAL ET ANTI-SCROLL
     st.markdown("""
         <style>
         :root { background-color: #000000 !important; }
@@ -100,7 +103,6 @@ elif not mode_vote:
         }
         [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; }
         
-        /* Fixation de l'iframe pour supprimer le scroll souris */
         iframe {
             position: fixed !important;
             top: 0 !important;
@@ -108,12 +110,12 @@ elif not mode_vote:
             width: 100vw !important;
             height: 100vh !important;
             border: none !important;
+            background-color: #000000 !important;
             z-index: 9999;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Auto-refresh toutes les 25 secondes
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=25000, key="wall_refresh")
@@ -179,7 +181,7 @@ elif not mode_vote:
                 {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
                 <div class="qr-box">
                     <img src="data:image/png;base64,{qr_b64}" width="120">
-                    <p style="color:black; font-size:10px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ POUR PARTICIPER</p>
+                    <p style="color:black; font-size:10px; font-weight:bold; margin-top:5px;">SCANNEZ POUR PARTICIPER</p>
                 </div>
             </div>
             {photos_html}
@@ -193,11 +195,9 @@ elif not mode_vote:
 else:
     st.markdown("<style>html, body, .stApp { background-color: #111 !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("📸 Partagez votre photo !")
-    st.write("Elle apparaîtra instantanément sur l'écran géant.")
-    
     f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
-        st.success("✅ Photo envoyée avec succès !")
+        st.success("✅ Photo envoyée ! Regardez l'écran.")
         st.balloons()
