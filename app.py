@@ -107,7 +107,7 @@ elif est_utilisateur:
                         st.rerun()
         else:
             if not config["session_ouverte"]:
-                st.warning("⌛ En attente des votes...")
+                st.warning("⌛ En attente ouverture des votes...")
                 try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=5000, key="m_ref")
                 except: pass
             else:
@@ -142,7 +142,7 @@ else:
     if not config["session_ouverte"]:
         attente_html = f"""<div style="display:flex;align-items:center;justify-content:center;gap:30px;margin-top:20px;">
             <div style="background:white;padding:8px;border-radius:10px;"><img src="data:image/png;base64,{qr_b64}" width="110"></div>
-            <div style="background:#E2001A;color:white;padding:15px 40px;border-radius:12px;font-size:32px;font-weight:bold;border:3px solid white;animation:blink 1.5s infinite;">⌛ En attente des votes...</div>
+            <div style="background:#E2001A;color:white;padding:15px 40px;border-radius:12px;font-size:32px;font-weight:bold;border:3px solid white;animation:blink 1.5s infinite;">⌛ En attente ouverture des votes...</div>
             <div style="background:white;padding:8px;border-radius:10px;"><img src="data:image/png;base64,{qr_b64}" width="110"></div>
         </div><style>@keyframes blink {{ 50% {{ opacity: 0; }} }}</style>"""
 
@@ -151,8 +151,7 @@ else:
         <div style="background:white;display:inline-block;padding:8px 30px;border-radius:25px;margin:15px 0;border:3px solid #E2001A;"><p style="color:black;font-size:26px;font-weight:bold;margin:0;">{nb_p} PARTICIPANTS CONNECTÉS</p></div>
         <h1 style="font-size:58px;margin:0;">{config['titre_mur']}</h1>{attente_html}</div>""", unsafe_allow_html=True)
 
-    # CORRECTION : Affichage du contenu
-    # On affiche l'écran de vote SEULEMENT si Session Ouverte ET Mode Votes
+    # Affichage du contenu
     if config["mode_affichage"] == "votes" and config["session_ouverte"]:
         if config["reveal_resultats"] and v_data:
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
@@ -165,8 +164,8 @@ else:
         else:
             st.markdown("<div style='text-align:center;margin-top:50px;color:white;'><h2>LES VOTES SONT OUVERTS !</h2><p>Le podium sera révélé à la clôture.</p></div>", unsafe_allow_html=True)
     
-    # Sinon, si on est en mode "Votes" mais session fermée, ou mode Attente/Live : On affiche les photos
     else:
+        # En attente ou Mode Live : On affiche les photos
         img_list = glob.glob(os.path.join(ADMIN_DIR, "*")) + (glob.glob(os.path.join(GALLERY_DIR, "*")) if config["mode_affichage"]=="live" else [])
         if img_list:
             photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" class="photo" style="width:280px;top:{random.randint(45,75)}%;left:{random.randint(5,85)}%;animation-duration:{random.uniform(10,15)}s;">' for p in img_list[-12:]])
