@@ -1,6 +1,6 @@
 import streamlit as st
 
-# --- 0. PRIORITÉ ABSOLUE : FORCER LE NOIR AVANT TOUT ---
+# --- 0. PRIORITÉ ABSOLUE : FORCER LE NOIR ---
 st.markdown("""
     <style>
     :root { background-color: #000000 !important; }
@@ -11,7 +11,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-import pandas as pd  # Correction ici : pandas as pd
+import pandas as pd
 import os
 import glob
 import random
@@ -31,7 +31,6 @@ if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 st.markdown("""
     <style>
     [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; }
-    
     html, body, [data-testid="stAppViewContainer"], .stApp {
         overflow: hidden !important;
         height: 100vh !important;
@@ -39,7 +38,6 @@ st.markdown("""
         margin: 0 !important;
         padding: 0 !important;
     }
-
     iframe {
         position: fixed !important;
         top: 0 !important;
@@ -71,7 +69,7 @@ if est_admin:
     st.title("⚙️ Administration")
     if st.text_input("Code Secret", type="password") == "ADMIN_LIVE_MASTER":
         st.success("Accès autorisé")
-        ul = st.file_uploader("Charger le Logo", type=['png', 'jpg'])
+        ul = st.file_uploader("Logo", type=['png', 'jpg'])
         if ul:
             with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
             st.rerun()
@@ -82,7 +80,7 @@ if est_admin:
             st.rerun()
     else: st.stop()
 
-# --- 4. MODE LIVE (MUR) ---
+# --- 4. MODE LIVE ---
 elif not mode_vote:
     try:
         from streamlit_autorefresh import st_autorefresh
@@ -92,7 +90,6 @@ elif not mode_vote:
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
-    # URL dynamique pour le QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
@@ -102,8 +99,9 @@ elif not mode_vote:
     for img_path in img_list[-15:]:
         b64 = get_b64(img_path)
         if b64:
-            size = random.randint(160, 240)
-            top, left = random.randint(5, 75), random.randint(5, 85)
+            size = random.randint(150, 230)
+            # Placement aléatoire
+            top, left = random.randint(10, 70), random.randint(5, 85)
             duration = random.uniform(6, 12)
             photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
 
@@ -115,22 +113,31 @@ elif not mode_vote:
             @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
             .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }}
             
+            /* TITRE FIXE EN HAUT */
+            .main-title {{
+                position: absolute; top: 40px; width: 100%; text-align: center;
+                color: white; font-family: sans-serif; font-size: 50px; font-weight: bold;
+                z-index: 1001; text-shadow: 0 0 20px rgba(255,255,255,0.6);
+            }}
+
+            /* BLOC CENTRAL */
             .center-stack {{ 
-                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); 
                 z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 20px; 
             }}
             .logo {{ max-width: 260px; filter: drop-shadow(0 0 15px white); }}
             .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; box-shadow: 0 0 30px rgba(255,255,255,0.4); }}
             
             .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
-            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 90px) rotate(10deg); }} }}
+            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(70px, 90px) rotate(10deg); }} }}
         </style>
         <div class="container">
+            <div class="main-title">MEILLEURS VŒUX 2026</div>
             <div class="center-stack">
-                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else '<div style="color:white; font-size:40px; font-weight:bold;">SOCIAL WALL</div>'}
+                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
                 <div class="qr-box">
                     <img src="data:image/png;base64,{qr_b64}" width="120">
-                    <p style="color:black; font-size:10px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ MOI</p>
+                    <p style="color:black; font-size:10px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ POUR PARTICIPER</p>
                 </div>
             </div>
             {photos_html}
