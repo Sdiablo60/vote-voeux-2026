@@ -3,17 +3,15 @@ import streamlit as st
 # --- 0. PRIORITÉ ABSOLUE : FORCER LE NOIR AVANT TOUT ---
 st.markdown("""
     <style>
-    /* Ce bloc s'exécute immédiatement pour colorer le fond */
     :root { background-color: #000000 !important; }
     html, body, [data-testid="stAppViewContainer"], .stApp {
         background-color: #000000 !important;
         background: #000000 !important;
-        color: #000000 !important; /* Cache le texte de chargement */
     }
     </style>
 """, unsafe_allow_html=True)
 
-import pd
+import pandas as pd  # Correction ici : pandas as pd
 import os
 import glob
 import random
@@ -29,7 +27,7 @@ GALLERY_DIR = "galerie_images"
 LOGO_FILE = "logo_entreprise.png"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- 2. STYLE CSS COMPLET (ANTI-SCROLL / ANTI-FLASH) ---
+# --- 2. STYLE CSS COMPLET ---
 st.markdown("""
     <style>
     [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; }
@@ -71,12 +69,13 @@ mode_vote = params.get("mode") == "vote"
 if est_admin:
     st.markdown("<style>html, body, .stApp { overflow: auto !important; position: relative !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("⚙️ Administration")
-    if st.text_input("Code", type="password") == "ADMIN_LIVE_MASTER":
-        ul = st.file_uploader("Logo", type=['png', 'jpg'])
+    if st.text_input("Code Secret", type="password") == "ADMIN_LIVE_MASTER":
+        st.success("Accès autorisé")
+        ul = st.file_uploader("Charger le Logo", type=['png', 'jpg'])
         if ul:
             with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
             st.rerun()
-        up = st.file_uploader("Ajouter Photos", accept_multiple_files=True)
+        up = st.file_uploader("Ajouter des Photos", accept_multiple_files=True)
         if up:
             for f in up:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
@@ -93,6 +92,7 @@ elif not mode_vote:
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
+    # URL dynamique pour le QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
@@ -104,7 +104,8 @@ elif not mode_vote:
         if b64:
             size = random.randint(160, 240)
             top, left = random.randint(5, 75), random.randint(5, 85)
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(6,12)}s;">'
+            duration = random.uniform(6, 12)
+            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
 
     html_code = f"""
     <!DOCTYPE html>
@@ -113,12 +114,14 @@ elif not mode_vote:
         <style>
             @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
             .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }}
+            
             .center-stack {{ 
                 position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
                 z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 20px; 
             }}
             .logo {{ max-width: 260px; filter: drop-shadow(0 0 15px white); }}
             .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; box-shadow: 0 0 30px rgba(255,255,255,0.4); }}
+            
             .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
             @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 90px) rotate(10deg); }} }}
         </style>
@@ -127,6 +130,7 @@ elif not mode_vote:
                 {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else '<div style="color:white; font-size:40px; font-weight:bold;">SOCIAL WALL</div>'}
                 <div class="qr-box">
                     <img src="data:image/png;base64,{qr_b64}" width="120">
+                    <p style="color:black; font-size:10px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ MOI</p>
                 </div>
             </div>
             {photos_html}
