@@ -78,7 +78,7 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Étoiles et Photos
+    # Génération du HTML dynamique
     stars_html = "".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; animation-duration:{random.randint(3,6)}s;"></div>' for _ in range(60)])
     photos_html = ""
     if imgs:
@@ -88,16 +88,17 @@ elif not mode_vote:
             delay = -(i * (20 / len(shuffled)))
             photos_html += f'<img src="data:image/png;base64,{p_b64}" class="photo-orbit" style="animation-delay:{delay}s;">'
 
-    # INJECTION CSS SÉPARÉE POUR ÉVITER LE F-STRING BUG
-    st.markdown("""
+    # INJECTION DU CSS PUR (SANS VARIABLES PYTHON POUR ÉVITER LES ERREURS)
+    st.markdown(r"""
     <style>
-        header, footer, .stAppHeader, [data-testid="stHeader"] { display: none !important; }
+        /* Masquage radical de Streamlit */
+        header, footer, .stAppHeader, [data-testid="stHeader"], [data-testid="stToolbar"] { display: none !important; }
         .stApp { background-color: #050505 !important; }
-        .main { background-color: #050505 !important; }
         
         .live-container {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: #050505; z-index: 9999; overflow: hidden;
+            color: white; margin: 0; padding: 0;
         }
         .star { position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%; animation: twinkle infinite alternate; }
         @keyframes twinkle { from { opacity: 0.1; } to { opacity: 0.8; } }
@@ -114,7 +115,7 @@ elif not mode_vote:
         }
         .logo-center {
             position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%);
-            width: 200px; z-index: 10000;
+            width: 220px; height: 220px; object-fit: contain; z-index: 10000;
         }
         .photo-orbit {
             position: absolute; top: 55%; left: 50%; width: 140px; height: 140px;
@@ -123,14 +124,14 @@ elif not mode_vote:
             animation: orbit 20s linear infinite; z-index: 9999;
         }
         @keyframes orbit {
-            from { transform: rotate(0deg) translateX(320px) rotate(0deg); }
-            to { transform: rotate(360deg) translateX(320px) rotate(-360deg); }
+            from { transform: rotate(0deg) translateX(min(32vw, 350px)) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(min(32vw, 350px)) rotate(-360deg); }
         }
-        .qr-zone { position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 12px; text-align: center; z-index: 10002; color: black; }
+        .qr-zone { position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 12px; text-align: center; z-index: 10002; color: black !important; }
     </style>
     """, unsafe_allow_html=True)
 
-    # AFFICHAGE DU CONTENU
+    # AFFICHAGE DU CONTENU (INJECTION DES VARIABLES VIA STYLE INLINE)
     st.markdown(f"""
     <div class="live-container">
         {stars_html}
@@ -141,7 +142,7 @@ elif not mode_vote:
         {photos_html}
         <div class="qr-zone">
             <img src="data:image/png;base64,{qr_b64}" width="100"><br>
-            <small><b>VOTER ICI</b></small>
+            <span style="font-size:12px; font-weight:bold; font-family:sans-serif;">SCANNEZ POUR VOTER</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
