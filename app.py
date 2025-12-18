@@ -1,5 +1,4 @@
 import streamlit as st
-import pd as pd # Alias court pour éviter les erreurs
 import pandas as pd
 import os
 import glob
@@ -22,47 +21,46 @@ if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 if not os.path.exists(PWD_FILE):
     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD)
 
-# --- STYLE CSS RADICAL (BLOQUE LE SCROLL) ---
+# --- STYLE CSS RADICAL (BLOQUE LE SCROLL + DESIGN) ---
 st.markdown("""
     <style>
-    /* Supprime tout scroll possible sur Streamlit */
+    /* Masquer les éléments Streamlit */
     #MainMenu, header, footer {display: none !important;}
     [data-testid="stHeader"] {display:none !important;}
     
-    /* Bloque le scroll vertical et horizontal sur toutes les couches */
-    html, body, [data-testid="stAppViewContainer"], .main, .block-container {
-        overflow: hidden !important;
-        height: 100vh !important;
-        width: 100vw !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
+    /* BLOQUE LE SCROLL VERTICAL SUR LE CLOUD */
+    section.main { overflow: hidden !important; padding: 0 !important; }
+    .block-container { padding: 0 !important; max-width: 100% !important; }
+    [data-testid="stAppViewContainer"] { overflow: hidden !important; }
 
-    /* Titre Tableau de Bord */
+    /* Titre Tableau de Bord Sidebar */
     .sidebar-title {
         text-align: center;
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 900;
         background: linear-gradient(45deg, #ff00cc, #3333ff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        padding-top: 10px;
         margin-bottom: 20px;
         text-transform: uppercase;
-        letter-spacing: 2px;
     }
 
-    /* Welcome Badge */
+    /* Badge Bienvenue Fixe */
     .welcome-header {
         position: fixed;
         top: 20px;
         right: 30px;
-        padding: 12px 28px;
+        padding: 10px 25px;
         background: rgba(0, 0, 0, 0.85);
         border-radius: 50px;
         border: 2px solid #ff00cc;
         z-index: 9999;
     }
+    
+    /* Nettoyage Uploaders Sidebar */
+    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] div div { display: none !important; }
+    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] { border: none !important; background: transparent !important; padding: 0 !important; }
+    [data-testid="stSidebar"] button div:before { font-size: 14px !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -93,12 +91,28 @@ if est_admin:
         input_pwd = st.text_input("Code Secret", type="password")
         if input_pwd == pwd_actuel:
             st.markdown('<div class="welcome-header"><span style="color:white;font-weight:bold;">🚀 Bienvenue sur votre Espace de Gestion</span></div>', unsafe_allow_html=True)
-            # Paramètres logo, message, photos... (Code identique précédent)
-            ul = st.file_uploader("Changer Logo", type=['png','jpg','jpeg'], key="logo_clean")
+            
+            st.header("🖼️ Logo")
+            ul = st.file_uploader("", type=['png','jpg','jpeg'], key="logo_clean")
             if ul: 
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
-            # ... (Ajoutez ici les autres sliders et boutons si besoin)
+
+            st.header("💬 Message Mur")
+            config = get_config()
+            new_txt = st.text_area("Texte", config["texte"])
+            new_clr = st.color_picker("Couleur", config["couleur"])
+            new_siz = st.slider("Taille", 20, 150, int(config["taille"]))
+            if st.button("🚀 Appliquer"):
+                pd.DataFrame([{"texte": new_txt, "couleur": new_clr, "taille": new_siz}]).to_csv(MSG_FILE, index=False)
+                st.rerun()
+
+            st.header("📸 Ajouter Photos")
+            uf = st.file_uploader("", type=['png','jpg','jpeg'], accept_multiple_files=True, key="imgs_up")
+            if uf:
+                for f in uf:
+                    with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
+                st.rerun()
         else:
             st.stop()
     
@@ -141,18 +155,17 @@ elif not mode_vote:
             .photo {{ position: absolute; width: 160px; height: 160px; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: orb 40s linear infinite; }}
             @keyframes orb {{ from {{ transform: rotate(0deg) translateX(320px) rotate(0deg); }} to {{ transform: rotate(360deg) translateX(320px) rotate(-360deg); }} }}
             
-            /* FORCE QR CODE EN HAUT A DROITE */
+            /* QR CODE EN HAUT A DROITE FIXE */
             .qr-fixed {{ 
                 position: fixed !important; 
-                top: 20px !important; 
-                right: 20px !important; 
+                top: 25px !important; 
+                right: 25px !important; 
                 background: white !important; 
                 padding: 10px !important; 
                 border-radius: 15px !important; 
                 text-align: center !important; 
                 color: black !important; 
                 z-index: 9999 !important; 
-                width: 120px !important;
                 box-shadow: 0 0 20px rgba(255,255,255,0.3) !important;
             }}
         </style>
@@ -160,8 +173,8 @@ elif not mode_vote:
     <body>
         <div class="wall">
             <div class="qr-fixed">
-                <img src="data:image/png;base64,{qr_b64}" width="100">
-                <div style="font-size:10px; font-weight:bold; margin-top:5px;">SCANNEZ ICI</div>
+                <img src="data:image/png;base64,{qr_b64}" width="110">
+                <div style="font-size:10px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ POUR PARTICIPER</div>
             </div>
             <div class="title">{config['texte']}</div>
             <div class="center-container">
@@ -172,7 +185,6 @@ elif not mode_vote:
     </body>
     </html>
     """
-    # Augmentation de la hauteur pour couvrir tout l'écran
     components.html(html_code, height=1200, scrolling=False)
 
 # --- 5. MODE VOTE ---
@@ -182,4 +194,5 @@ else:
     if uf:
         fname = f"img_{random.randint(1000,9999)}.jpg"
         with open(os.path.join(GALLERY_DIR, fname), "wb") as f: f.write(uf.getbuffer())
-        st.success("Envoyé !")
+        st.success("Photo envoyée !")
+        st.balloons()
