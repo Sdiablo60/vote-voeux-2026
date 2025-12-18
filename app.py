@@ -44,7 +44,7 @@ est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
 if est_admin:
-    # --- CSS PERSONNALISÉ (TYPOGRAPHIE ET COULEURS) ---
+    # --- CSS PERSONNALISÉ (ROBOTO & ROUGE TRANSDEV) ---
     st.markdown("""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
@@ -59,18 +59,11 @@ if est_admin:
             background-color: white;
             z-index: 1000;
             padding: 20px 0;
-            border-bottom: 3px solid #E2001A; /* Rouge Transdev par défaut */
+            border-bottom: 3px solid #E2001A;
         }
         
-        h1, h2, h3 {
-            color: #4D4D4D; /* Gris foncé typique */
-        }
-        
+        h1, h2, h3 { color: #4D4D4D; }
         [data-testid="column"] { min-width: 0px !important; }
-        
-        .stButton button {
-            border-radius: 4px;
-        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -107,20 +100,20 @@ if est_admin:
                 st.rerun()
 
     if st.session_state["authenticated"]:
-        # --- EN-TÊTE FIGÉ AVEC LOGO AGRANDI ---
+        # --- EN-TÊTE FIGÉ (LOGO À DROITE) ---
         st.markdown('<div class="main-header-sticky">', unsafe_allow_html=True)
         
-        # Structure de l'en-tête : Logo à gauche (plus grand), Titre à droite
-        c_logo_main, c_title_main = st.columns([1, 2])
-        
-        if os.path.exists(LOGO_FILE):
-            # Logo agrandi au centre
-            c_logo_main.image(LOGO_FILE, width=250) # Taille augmentée
+        # Structure de l'en-tête : Titre à gauche, Logo à droite
+        c_title_main, c_logo_main = st.columns([2, 1])
         
         with c_title_main:
             st.markdown("<h1 style='margin-bottom:0;'>Console de Modération</h1>", unsafe_allow_html=True)
-            st.caption("Gestion de la galerie en temps réel")
-
+            st.caption("Gestion de la galerie Transdev en temps réel")
+        
+        if os.path.exists(LOGO_FILE):
+            # Logo agrandi positionné à droite
+            c_logo_main.image(LOGO_FILE, width=280) 
+        
         st.link_button("🖥️ ACCÉDER AU MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
 
         all_imgs = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
