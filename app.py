@@ -21,6 +21,33 @@ if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 if not os.path.exists(PWD_FILE):
     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD)
 
+# --- CSS POUR NETTOYER L'UPLOADER DE LOGO ---
+# Ce bloc supprime "Drag and drop", la limite de taille et renomme le bouton
+st.markdown("""
+    <style>
+    /* Masquer le texte "Drag and drop" et la limite de taille dans la sidebar */
+    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] div div {
+        display: none !important;
+    }
+    /* Supprimer la bordure et le fond gris du cadre d'upload pour qu'il soit transparent */
+    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] {
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+    }
+    /* Modifier le texte du bouton "Browse files" */
+    [data-testid="stSidebar"] button[kind="secondary"] div:before {
+        content: "Importer un nouveau logo" !important;
+    }
+    [data-testid="stSidebar"] button[kind="secondary"] div {
+        font-size: 0 !important;
+    }
+    [data-testid="stSidebar"] button[kind="secondary"] div:before {
+        font-size: 16px !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 def get_b64(path):
     try:
         if os.path.exists(path) and os.path.getsize(path) > 0:
@@ -41,68 +68,59 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 3. INTERFACE ADMIN ---
 if est_admin:
-    st.markdown("""<style>#MainMenu, header, footer {display: none !important;}</style>""", unsafe_allow_html=True)
-    
     with open(PWD_FILE, "r") as f:
         pwd_actuel = f.read().strip()
 
     with st.sidebar:
-        # --- BLOC LOGO (TOUT EN HAUT) ---
-        st.header("🖼️ Logo Principal")
+        # 1. LOGO EN PREMIER (VISUEL)
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
         
-        # Uploader de logo immédiatement disponible
-        ul = st.file_uploader("Charger un nouveau logo", type=['png','jpg','jpeg'], key="logo_top")
+        # 2. BOUTON D'IMPORTATION ÉPURÉ (SANS TEXTES PAR DÉFAUT)
+        ul = st.file_uploader("", type=['png','jpg','jpeg'], key="logo_clean")
         if ul:
             with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
             st.rerun()
 
         st.divider()
         
-        # --- ZONE DE SÉCURITÉ ---
+        # 3. SÉCURITÉ
         st.header("🔑 Sécurité")
-        input_pwd = st.text_input("Code Secret Régie", type="password")
+        input_pwd = st.text_input("Code Secret", type="password")
         
         if input_pwd == pwd_actuel:
-            st.success("Accès Régie Déverrouillé")
+            st.success("Déverrouillé")
             
             st.divider()
-            # CONFIGURATION DU MESSAGE
-            st.header("💬 Message Live")
+            st.header("💬 Message")
             config = get_config()
-            new_txt = st.text_area("Texte du mur", config["texte"])
+            new_txt = st.text_area("Texte", config["texte"])
             new_clr = st.color_picker("Couleur", config["couleur"])
             new_siz = st.slider("Taille", 20, 150, int(config["taille"]))
-            if st.button("🚀 Appliquer les modifications"):
+            if st.button("🚀 Appliquer"):
                 pd.DataFrame([{"texte": new_txt, "couleur": new_clr, "taille": new_siz}]).to_csv(MSG_FILE, index=False)
                 st.rerun()
 
             st.divider()
-            # GESTION DES PHOTOS
-            st.header("📸 Ajouter des Photos")
-            uf = st.file_uploader("Importer des images", type=['png','jpg','jpeg'], accept_multiple_files=True)
+            st.header("📸 Photos")
+            uf = st.file_uploader("Ajouter Photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
             if uf:
                 for f in uf:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
 
             st.divider()
-            # PARAMÈTRES AVANCÉS
-            with st.expander("⚙️ Options de sécurité"):
-                new_pwd = st.text_input("Changer le Code Secret", type="password")
-                if st.button("💾 Enregistrer nouveau code"):
-                    if new_pwd:
-                        with open(PWD_FILE, "w") as f: f.write(new_pwd); st.rerun()
-                
-                st.info(f"Aide-mémoire : Année de l'événement. (Défaut: {DEFAULT_PWD})")
-                if st.button("♻️ Réinitialiser d'usine"):
+            with st.expander("⚙️ Options"):
+                new_pwd = st.text_input("Nouveau MDP", type="password")
+                if st.button("💾 Sauver"):
+                    with open(PWD_FILE, "w") as f: f.write(new_pwd); st.rerun()
+                st.info(f"Défaut: {DEFAULT_PWD}")
+                if st.button("♻️ Reset"):
                     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD); st.rerun()
         else:
             st.stop()
 
-    # Galerie de suppression (Corps de page)
-    st.subheader("🗑️ Galerie des photos diffusées")
+    st.subheader("🗑️ Galerie Live")
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     cols = st.columns(6)
     for i, p in enumerate(imgs):
@@ -113,7 +131,7 @@ if est_admin:
 
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
-    st.markdown("""<style>#MainMenu, header, footer {display: none !important;} [data-testid="stHeader"] {display:none !important;} .stApp {background:black !important;}</style>""", unsafe_allow_html=True)
+    st.markdown("""<style>#MainMenu, header, footer {display: none !important;} .stApp {background:black !important;}</style>""", unsafe_allow_html=True)
     
     try:
         from streamlit_autorefresh import st_autorefresh
@@ -130,7 +148,6 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}%; left:{random.randint(0,100)}%; width:2px; height:2px; animation-delay:{random.random()*3}s;"></div>' for _ in range(60)])
     valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
     photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(30/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
 
@@ -140,8 +157,6 @@ elif not mode_vote:
         <style>
             body, html {{ margin: 0; padding: 0; background-color: #050505; color: white; overflow: hidden; font-family: sans-serif; height: 100%; width: 100%; }}
             .wall {{ position: relative; width: 100vw; height: 100vh; overflow: hidden; }}
-            .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: twi 2s infinite alternate; }}
-            @keyframes twi {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
             .title {{ position: absolute; top: 0.5%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}; z-index: 100; }}
             .center-container {{ position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
             .logo {{ width: 170px; height: 170px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); z-index: 10; }}
@@ -150,16 +165,15 @@ elif not mode_vote:
             .qr {{ position: absolute; bottom: 25px; right: 25px; background: white; padding: 10px; border-radius: 12px; text-align: center; color: black; z-index: 200; }}
         </style>
     </head>
-    <body><div class="wall">{stars_html}<div class="title">{config['texte']}</div><div class="center-container">{"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}{photos_html}</div><div class="qr"><img src="data:image/png;base64,{qr_b64}" width="95"><br><span style="font-size:10px; font-weight:bold;">SCANNEZ POUR PARTICIPER</span></div></div></body>
+    <body><div class="wall"><div class="title">{config['texte']}</div><div class="center-container">{"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}{photos_html}</div><div class="qr"><img src="data:image/png;base64,{qr_b64}" width="95"><br><span style="font-size:10px; font-weight:bold;">SCANNEZ POUR PARTICIPER</span></div></div></body>
     </html>
     """
     components.html(html_code, height=980, scrolling=False)
 
 # --- 5. MODE VOTE ---
 else:
-    st.title("🗳️ Participez au Social Wall")
-    uf = st.file_uploader("Sélectionnez votre photo ✨", type=['jpg', 'jpeg', 'png'])
+    st.title("🗳️ Participez")
+    uf = st.file_uploader("Photo ✨", type=['jpg', 'jpeg', 'png'])
     if uf:
         with open(os.path.join(GALLERY_DIR, uf.name), "wb") as f: f.write(uf.getbuffer())
-        st.success("Photo envoyée avec succès !")
-        st.balloons()
+        st.success("Envoyé !")
