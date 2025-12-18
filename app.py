@@ -45,48 +45,63 @@ params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
-# --- 3. INTERFACE ADMIN ---
+# --- 3. INTERFACE ADMIN (Barre latérale rétablie avec toutes les options) ---
 if est_admin:
     st.title("🛠️ Console Régie Master")
+    
     with open(PWD_FILE, "r") as f:
         pwd_actuel = f.read().strip()
+        
     with st.sidebar:
-        st.header("🔑 Connexion")
+        st.header("🔑 Sécurité")
         input_pwd = st.text_input("Code Secret", type="password")
-    if input_pwd != pwd_actuel:
-        st.warning("Veuillez saisir le code secret dans la barre latérale.")
-        st.stop() 
-
-    config = get_config()
-    t1, t2 = st.tabs(["💬 Message", "🖼️ Médias"])
-    with t1:
-        txt = st.text_area("Texte", config["texte"])
-        clr = st.color_picker("Couleur", config["couleur"])
-        siz = st.slider("Taille", 20, 120, int(config["taille"]))
-        if st.button("Enregistrer"):
-            pd.DataFrame([{"texte": txt, "couleur": clr, "taille": siz}]).to_csv(MSG_FILE, index=False)
-            st.rerun()
-    with t2:
-        c1, c2 = st.columns(2)
-        with c1:
-            ul = st.file_uploader("Logo Central", type=['png','jpg','jpeg'])
+        
+        if input_pwd == pwd_actuel:
+            st.success("Accès Autorisé")
+            st.divider()
+            st.header("💬 Configuration")
+            config = get_config()
+            
+            # Options de texte
+            new_txt = st.text_area("Message Live", config["texte"])
+            new_clr = st.color_picker("Couleur", config["couleur"])
+            new_siz = st.slider("Taille", 20, 150, int(config["taille"]))
+            
+            if st.button("🚀 Appliquer les changements"):
+                pd.DataFrame([{"texte": new_txt, "couleur": new_clr, "taille": new_siz}]).to_csv(MSG_FILE, index=False)
+                st.rerun()
+                
+            st.divider()
+            st.header("🖼️ Médias")
+            # Upload Logo
+            ul = st.file_uploader("Changer le Logo", type=['png','jpg','jpeg'])
             if ul:
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
-        with c2:
-            uf = st.file_uploader("Ajouter Photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
+                
+            # Upload Photos
+            uf = st.file_uploader("Ajouter des photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
             if uf:
                 for f in uf:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
-        st.divider()
-        imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+        else:
+            st.warning("Veuillez saisir le code secret.")
+            st.stop()
+
+    # Corps de la page admin : Galerie de gestion
+    st.subheader("🗑️ Gestion de la Galerie (Suppression)")
+    imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+    if not imgs:
+        st.info("Aucune image dans la galerie.")
+    else:
         cols = st.columns(6)
         for i, p in enumerate(imgs):
             with cols[i%6]:
                 st.image(p, use_container_width=True)
-                if st.button("🗑️", key=f"del_{i}"):
-                    os.remove(p); st.rerun()
+                if st.button("Supprimer", key=f"del_{i}"):
+                    os.remove(p)
+                    st.rerun()
 
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
@@ -94,7 +109,7 @@ elif not mode_vote:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=30000, key="wall_refresh")
     except:
-        st.warning("Module autorefresh manquant. Rafraîchissez manuellement (F5).")
+        st.fragment(run_every=30)(lambda: st.rerun())()
 
     config = get_config()
     logo_b64 = get_b64(LOGO_FILE)
@@ -106,7 +121,6 @@ elif not mode_vote:
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
     stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}%; left:{random.randint(0,100)}%; width:2px; height:2px; animation-delay:{random.random()*3}s;"></div>' for _ in range(60)])
-    
     valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
     photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(30/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
 
@@ -119,10 +133,8 @@ elif not mode_vote:
             .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: twi 2s infinite alternate; }}
             @keyframes twi {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
             
-            /* TITRE COLLÉ EN HAUT (0.5%) */
             .title {{ position: absolute; top: 0.5%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}; z-index: 100; }}
             
-            /* CENTRE REMONTÉ À 38% */
             .center-container {{ position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
             .logo {{ width: 170px; height: 170px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); z-index: 10; }}
             
@@ -155,13 +167,12 @@ elif not mode_vote:
     st.markdown("""<style>[data-testid="stHeader"], footer {display:none !important;} .stApp {background:black !important; overflow: hidden !important;} iframe {border: none !important;} .block-container {padding: 0 !important; max-width: 100% !important;}</style>""", unsafe_allow_html=True)
     components.html(html_code, height=980, scrolling=False)
 
-# --- 5. MODE VOTE / UPLOAD ---
+# --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participez au Social Wall")
-    st.write("Envoyez une photo pour l'afficher sur le mur !")
-    uf = st.file_uploader("Choisissez une photo ✨", type=['jpg', 'jpeg', 'png'])
+    uf = st.file_uploader("Envoyez votre photo ✨", type=['jpg', 'jpeg', 'png'])
     if uf:
         with open(os.path.join(GALLERY_DIR, uf.name), "wb") as f:
             f.write(uf.getbuffer())
-        st.success("C'est envoyé ! Regardez l'écran géant.")
+        st.success("Photo envoyée ! Regardez l'écran géant.")
         st.balloons()
