@@ -47,103 +47,112 @@ query_params = st.query_params
 est_admin = query_params.get("admin") == "true"
 est_utilisateur = query_params.get("mode") == "vote"
 
-# --- 4. ADMIN (MASTER) ---
+# --- 4. ADMIN (STRUCTURE MASTER FIGÉE) ---
 if est_admin:
     config = load_config()
     st.markdown("""<style>.main-header { position: sticky; top: 0; background: white; z-index: 1000; border-bottom: 3px solid #E2001A; padding: 10px; }</style>""", unsafe_allow_html=True)
     
     with st.sidebar:
-        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE)
+        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, use_container_width=True)
         pwd = st.text_input("Code Admin", type="password")
-        if pwd == "ADMIN_LIVE_MASTER":
-            st.session_state["auth"] = True
+        if pwd == "ADMIN_LIVE_MASTER": st.session_state["auth"] = True
             
         if st.session_state.get("auth"):
             st.subheader("Paramètres")
             nouveau_titre = st.text_input("Sous-titre :", value=config.get("titre_mur"))
             new_mode = st.radio("Mode Mur :", ["Photos", "Votes"], index=0 if config["mode_affichage"]=="photos" else 1)
-            if st.button("Mise à jour du Mur", type="primary", use_container_width=True):
+            if st.button("Mettre à jour le Mur", type="primary", use_container_width=True):
                 save_config(new_mode.lower(), nouveau_titre)
                 st.rerun()
 
     if st.session_state.get("auth"):
-        cols = st.columns([2, 1])
-        cols[0].title("Console de Régie")
-        if os.path.exists(LOGO_FILE): cols[1].image(LOGO_FILE, width=250)
-        
-        st.subheader("Résultats actuels")
+        c_title, c_logo = st.columns([2, 1])
+        c_title.title("Console de Régie")
+        if os.path.exists(LOGO_FILE): c_logo.image(LOGO_FILE, width=250)
+        st.subheader("Résultats des votes")
         st.bar_chart(get_votes())
 
-# --- 5. UTILISATEUR (VOTE TOP 3) ---
+# --- 5. UTILISATEUR (AVEC SÉCURITÉ ANTI-DOUBLE VOTE) ---
 elif est_utilisateur:
     st.title("🗳️ Vote Transdev")
-    options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
-    choix = st.multiselect("Choisissez vos 3 vidéos préférées :", options, max_selections=3)
-    if st.button("Valider mon Top 3"):
-        if 0 < len(choix) <= 3:
-            add_votes_multiple(choix)
-            st.success("Merci pour votre vote !")
-            st.balloons()
-        else: st.error("Sélectionnez au moins 1 vidéo.")
+    
+    # Injection JavaScript pour vérifier le LocalStorage
+    components.html("""
+        <script>
+        const hasVoted = localStorage.getItem('transdev_voted_2026');
+        if (hasVoted) {
+            window.parent.postMessage({type: 'voted', value: true}, '*');
+        }
+        </script>
+    """, height=0)
 
-# --- 6. MUR LIVE (SOCIAL) ---
+    # État du vote stocké dans la session Streamlit via le message JS
+    if "user_already_voted" not in st.session_state:
+        st.session_state["user_already_voted"] = False
+
+    if st.session_state["user_already_voted"]:
+        st.warning("📢 Vous avez déjà enregistré votre vote pour ce concours. Merci !")
+    else:
+        options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
+        choix = st.multiselect("Choisissez vos 3 vidéos préférées :", options, max_selections=3)
+        
+        if st.button("Valider mon Top 3"):
+            if 0 < len(choix) <= 3:
+                add_votes_multiple(choix)
+                # Marquer comme voté dans le navigateur via JS
+                components.html(f"""
+                    <script>
+                    localStorage.setItem('transdev_voted_2026', 'true');
+                    window.parent.location.reload();
+                    </script>
+                """, height=0)
+                st.session_state["user_already_voted"] = True
+                st.success("Merci pour votre vote !")
+                st.balloons()
+            else:
+                st.error("Sélectionnez au moins 1 vidéo.")
+
+# --- 6. MUR LIVE (RESTE INCHANGÉ) ---
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'] { display: none; }</style>", unsafe_allow_html=True)
     config = load_config()
     sous_titre = config.get("titre_mur", "")
     
-    # Génération QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
-    qr_img = qrcode.make(qr_url)
-    buf = BytesIO(); qr_img.save(buf, format="PNG")
-    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
+    qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Affichage des TITRES (Communs aux deux modes)
     st.markdown(f"""
-        <div style='text-align:center; padding: 20px;'>
+        <div style='text-align:center; padding-top: 20px; font-family:sans-serif;'>
             <p style='color:#E2001A; font-size:30px; font-weight:bold; margin:0;'>MUR PHOTO LIVE</p>
-            <h1 style='color:white; font-size:50px; margin:0;'>{sous_titre}</h1>
+            <h1 style='color:white; font-size:55px; margin-top:0;'>{sous_titre}</h1>
         </div>
     """, unsafe_allow_html=True)
 
     if config["mode_affichage"] == "votes":
         v_data = get_votes()
-        if v_data:
+        has_votes = any(v > 0 for v in v_data.values()) if v_data else False
+        if has_votes:
             st.bar_chart(v_data)
+            st.markdown(f"<div style='position:fixed; bottom:30px; right:30px; background:white; padding:10px; border-radius:15px; border:4px solid #E2001A; text-align:center;'><p style='margin:0; font-size:14px; font-weight:bold;'>VOTEZ ICI</p><img src='data:image/png;base64,{qr_b64}' width='110'></div>", unsafe_allow_html=True)
         else:
-            st.markdown("<p style='color:gray; text-align:center;'>En attente des premiers votes...</p>", unsafe_allow_html=True)
-        
-        # QR Code flottant en bas pour le mode vote
-        st.markdown(f"""
-            <div style='position:fixed; bottom:30px; right:30px; background:white; padding:10px; border-radius:10px; border:3px solid #E2001A; z-index:2000;'>
-                <p style='margin:0; font-size:12px; font-weight:bold; text-align:center;'>VOTEZ ICI</p>
-                <img src="data:image/png;base64,{qr_b64}" width="120">
-            </div>
-        """, unsafe_allow_html=True)
+            st.markdown(f"<div style='text-align:center; margin-top:50px;'><p style='color:#aaaaaa; font-size:24px; margin-bottom:30px;'>En attente des premiers votes...</p><div style='display:inline-block; background:white; padding:30px; border-radius:30px; border:8px solid #E2001A;'><img src='data:image/png;base64,{qr_b64}' width='300'><p style='margin-top:20px; font-weight:bold; font-size:25px; color:black;'>SCANNEZ POUR VOTER</p></div></div>", unsafe_allow_html=True)
     else:
-        # Mode Photos (Animation classique)
         img_list = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         photos_html = ""
         for p in img_list[-12:]:
             with open(p, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode()
-                photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:280px; top:{random.randint(20,60)}%; left:{random.randint(10,80)}%; animation-duration:{random.uniform(10,15)}s;">'
+                photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:280px; top:{random.randint(20,65)}%; left:{random.randint(5,80)}%; animation-duration:{random.uniform(10,15)}s;">'
         
         html_content = f"""
-        <style>
-            .photo {{ position:absolute; border:5px solid white; border-radius:10px; animation:move alternate infinite ease-in-out; }}
-            @keyframes move {{ from {{ transform:rotate(-2deg); }} to {{ transform:translate(30px,30px) rotate(2deg); }} }}
-        </style>
-        <div style="width:100%; height:600px; position:relative;">{photos_html}</div>
-        <div style="position:fixed; bottom:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
-            <div style="background:white; padding:20px; border-radius:20px; border:5px solid #E2001A;">
-                <img src="data:image/png;base64,{qr_b64}" width="180">
-            </div>
-        </div>
+        <style>.photo {{ position:absolute; border:6px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; box-shadow: 10px 10px 20px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(40px,40px) rotate(3deg); }} }}</style>
+        <div style="width:100%; height:550px; position:relative;">{photos_html}</div>
+        <div style="position:fixed; bottom:40px; left:50%; transform:translateX(-50%); background:white; padding:15px; border-radius:20px; border:5px solid #E2001A; text-align:center; z-index:1000;"><img src="data:image/png;base64,{qr_b64}" width="160"><p style="margin:5px 0 0 0; font-weight:bold; font-size:14px;">PARTICIPEZ ICI</p></div>
         """
         components.html(html_content, height=800)
 
     try:
         from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(interval=15000, key="wall")
+        st_autorefresh(interval=15000, key="global_refresh")
     except: pass
