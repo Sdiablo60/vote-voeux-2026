@@ -32,28 +32,22 @@ if est_admin:
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            padding: 20px; 
-            border-bottom: 2px solid #f0f2f6; 
-            margin-bottom: 30px; 
+            padding: 15px 20px; 
+            border-bottom: 1px solid #eee; 
+            margin-bottom: 20px; 
         }
         
         .logo-top-right {
-            max-width: 150px;
-            max-height: 80px;
+            max-width: 120px;
+            max-height: 60px;
             object-fit: contain;
         }
 
-        [data-testid="stSidebar"] { min-width: 350px !important; }
+        [data-testid="stSidebar"] { min-width: 300px !important; }
         [data-testid="stHeader"] { display: block !important; }
         
-        /* Style pour la zone d'ajout centrale */
-        .upload-box {
-            background-color: #f0f2f6;
-            padding: 20px;
-            border-radius: 15px;
-            border: 2px dashed #bfc5d3;
-            margin-bottom: 20px;
-        }
+        /* Discrétion de l'expander */
+        .stDetails { border: none !important; background-color: #f9f9f9 !important; border-radius: 10px !important; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -61,12 +55,12 @@ if est_admin:
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
         
-        st.title("⚙️ Configuration")
+        st.title("⚙️ Réglages")
         pwd = st.text_input("Code Secret Admin", type="password")
         st.divider()
 
         if pwd == "ADMIN_LIVE_MASTER":
-            st.success("Accès autorisé")
+            st.success("Admin connecté")
             
             st.subheader("🖼️ Logo")
             ul_sidebar = st.file_uploader("Changer le logo", type=['png', 'jpg', 'jpeg'], key="logo_side")
@@ -75,16 +69,16 @@ if est_admin:
                 st.rerun()
 
             st.divider()
-            if st.button("🧨 VIDER TOUTE LA GALERIE", use_container_width=True):
+            if st.button("🧨 VIDER LA GALERIE", use_container_width=True):
                 imgs_to_del = glob.glob(os.path.join(GALLERY_DIR, "*"))
                 for f in imgs_to_del: os.remove(f)
                 st.rerun()
         else:
-            st.warning("Identifiez-vous à gauche.")
+            st.warning("Identification requise.")
 
     # --- ÉCRAN CENTRAL ---
     if pwd == "ADMIN_LIVE_MASTER":
-        # LOGO HAUT DROITE
+        # HEADER ÉPURÉ
         logo_html = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f:
@@ -93,31 +87,25 @@ if est_admin:
         
         st.markdown(f"""
             <div class="admin-header">
-                <div>
-                    <h1 style="margin:0;">Console d'Administration</h1>
-                    <p style="margin:0; opacity: 0.7;">Gestion du direct</p>
-                </div>
+                <div><h2 style="margin:0;">Console Régie</h2></div>
                 <div>{logo_html}</div>
             </div>
         """, unsafe_allow_html=True)
         
-        # BOUTON DU MUR
+        # BOUTON DU MUR (Moins imposant)
         url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
-        st.link_button("🖥️ OUVRIR LE MUR EN PLEIN ÉCRAN", url_mur, type="primary", use_container_width=True)
+        st.link_button("🖥️ PROJETER LE MUR", url_mur, use_container_width=True)
 
-        st.divider()
-
-        # --- NOUVEAU : AJOUT DE PHOTOS DEPUIS LE CENTRE ---
-        st.subheader("📥 Ajouter des photos manuellement")
-        with st.container():
-            up_center = st.file_uploader("Glissez vos images ici ou cliquez pour parcourir", 
+        # --- BOUTON DISCRET D'AJOUT (EXPANDER) ---
+        with st.expander("➕ Ajouter des photos manuellement"):
+            up_center = st.file_uploader("Sélectionnez vos fichiers", 
                                         accept_multiple_files=True, 
                                         key="ph_center")
             if up_center:
                 for f in up_center:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file:
                         file.write(f.getbuffer())
-                st.toast(f"{len(up_center)} photo(s) ajoutée(s) !")
+                st.success(f"{len(up_center)} photo(s) ajoutée(s) !")
                 time.sleep(1)
                 st.rerun()
 
@@ -125,20 +113,20 @@ if est_admin:
 
         # GALERIE DE MODÉRATION
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-        st.header(f"🖼️ Modération des Photos ({len(imgs)})")
+        st.subheader(f"🖼️ Modération ({len(imgs)} photos)")
         
         if not imgs:
-            st.info("La galerie est vide. Ajoutez des photos ci-dessus.")
+            st.info("Aucune photo sur le mur.")
         else:
-            cols = st.columns(4)
+            cols = st.columns(5) # 5 colonnes pour voir plus de photos
             for i, img_path in enumerate(reversed(imgs)):
-                with cols[i % 4]:
+                with cols[i % 5]:
                     st.image(img_path, use_container_width=True)
-                    if st.button(f"Supprimer #{len(imgs)-i}", key=f"del_{i}"):
+                    if st.button("Supprimer", key=f"del_{i}"):
                         os.remove(img_path)
                         st.rerun()
     else:
-        st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1><p>Entrez le mot de passe à gauche.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1></div>', unsafe_allow_html=True)
 
 # --- 4. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
@@ -194,7 +182,6 @@ elif not mode_vote:
                 {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
                 <div class="qr-box">
                     <img src="data:image/png;base64,{qr_b64}" width="130">
-                    <p style="color:black; font-size:12px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ POUR PARTICIPER</p>
                 </div>
             </div>
             {photos_html}
@@ -208,8 +195,8 @@ elif not mode_vote:
 else:
     st.markdown("<style>html, body, .stApp { background-color: #111 !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("📸 Partagez votre photo !")
-    f = st.file_uploader("Choisir une image", type=['jpg', 'jpeg', 'png'])
+    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
-        st.success("✅ C'est envoyé !")
+        st.success("✅ C'est en ligne !")
