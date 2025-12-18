@@ -28,24 +28,18 @@ if est_admin:
         * { color: black !important; }
         .admin-welcome { text-align: center; margin-top: 60px; font-family: sans-serif; }
         
-        /* Ajustement Sidebar pour logo plein écran */
-        [data-testid="stSidebar"] { 
-            min-width: 350px !important; 
-        }
+        [data-testid="stSidebar"] { min-width: 350px !important; }
         
-        /* Supprime les marges en haut du logo pour qu'il soit collé au bord */
+        /* Force le logo en haut de sidebar à prendre toute la largeur */
         [data-testid="stSidebar"] [data-testid="stImage"] {
             display: flex;
             justify-content: center;
             margin: 0 !important;
             padding: 0 !important;
         }
-        
-        /* Force l'image à prendre toute la largeur disponible */
         [data-testid="stSidebar"] [data-testid="stImage"] img {
             width: 100% !important;
             height: auto !important;
-            border-radius: 0px !important;
         }
 
         [data-testid="stHeader"] { display: block !important; }
@@ -53,56 +47,57 @@ if est_admin:
     """, unsafe_allow_html=True)
     
     with st.sidebar:
-        # --- LOGO EN HAUT - PLEINE LARGEUR ---
+        # --- 1. AFFICHAGE DU LOGO ACTUEL (SI EXISTE) ---
         if os.path.exists(LOGO_FILE):
-            # On utilise use_container_width pour remplir l'espace
             st.image(LOGO_FILE, use_container_width=True)
+            if st.button("🗑️ Supprimer le logo actuel"):
+                os.remove(LOGO_FILE)
+                st.rerun()
         
         st.title("⚙️ Régie Social Wall")
-        pwd = st.sidebar.text_input("Code Secret Admin", type="password")
-        st.sidebar.divider()
+        pwd = st.text_input("Code Secret Admin", type="password")
+        st.divider()
 
         if pwd == "ADMIN_LIVE_MASTER":
-            st.sidebar.success("✅ Accès autorisé")
+            st.success("✅ Accès autorisé")
             
+            # Bouton d'aperçu du mur
             url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
-            st.sidebar.link_button("🖥️ OUVRIR LE MUR (PLEIN ÉCRAN)", url_mur)
-            st.sidebar.divider()
+            st.link_button("🖥️ OUVRIR LE MUR (PLEIN ÉCRAN)", url_mur)
+            st.divider()
             
-            st.sidebar.subheader("🖼️ Gestion du Logo")
-            ul = st.sidebar.file_uploader("Charger un nouveau logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
+            # --- 2. BOUTON D'UPLOAD LOGO (TOUJOURS DISPONIBLE) ---
+            st.subheader("🖼️ Gestion du Logo")
+            ul = st.file_uploader("Charger un logo (PNG/JPG)", type=['png', 'jpg', 'jpeg'], key="logo_uploader")
             if ul:
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
-            
-            if os.path.exists(LOGO_FILE):
-                if st.sidebar.button("🗑️ Supprimer le logo actuel"):
-                    os.remove(LOGO_FILE)
-                    st.rerun()
 
-            st.sidebar.divider()
-            st.sidebar.subheader("📸 Ajouter des photos")
-            up = st.sidebar.file_uploader("Sélectionner des images", accept_multiple_files=True, key="photos_up")
+            st.divider()
+            
+            # 3. Gestion des Photos
+            st.subheader("📸 Ajouter des photos")
+            up = st.file_uploader("Sélectionner des images", accept_multiple_files=True, key="photos_up")
             if up:
                 for f in up:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
             
-            st.sidebar.divider()
+            st.divider()
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-            if st.sidebar.button("🗑️ VIDER TOUTE LA GALERIE"):
+            if st.button("🗑️ VIDER TOUTE LA GALERIE"):
                 for f in imgs: os.remove(f)
                 st.rerun()
 
             if imgs:
-                st.sidebar.subheader(f"Galerie ({len(imgs)})")
+                st.subheader(f"Galerie ({len(imgs)})")
                 for i, img_path in enumerate(imgs):
-                    st.sidebar.image(img_path, use_container_width=True)
-                    if st.sidebar.button(f"Supprimer la photo {i}", key=f"del_{i}"):
+                    st.image(img_path, use_container_width=True)
+                    if st.button(f"Supprimer la photo {i}", key=f"del_{i}"):
                         os.remove(img_path)
                         st.rerun()
         else:
-            st.sidebar.warning("Entrez le code pour voir les outils.")
+            st.warning("Entrez le code pour voir les outils.")
 
     # --- ÉCRAN CENTRAL ---
     st.markdown('<div class="admin-welcome">', unsafe_allow_html=True)
@@ -208,4 +203,4 @@ else:
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
-        st.success("✅ C'est en ligne !")
+        st.success("✅ Envoyé !")
