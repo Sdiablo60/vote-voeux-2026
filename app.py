@@ -21,34 +21,30 @@ if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 if not os.path.exists(PWD_FILE):
     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD)
 
-# --- STYLE CSS RADICAL (ANTI-FLASH BLANC) ---
+# --- STYLE CSS (SUPPRESSION TOTALE DU SCROLL) ---
 st.markdown("""
     <style>
-    /* Force le noir sur absolument tous les conteneurs Streamlit */
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .stApp {
-        background-color: #000000 !important;
-        background: #000000 !important;
-        color: white !important;
-    }
-    
-    /* Masquer les éléments de l'interface */
-    #MainMenu, footer, [data-testid="stHeader"], [data-testid="stDecoration"] { 
-        display: none !important; 
-    }
-    
-    /* Supprimer les marges et bloquer le scroll */
-    .main .block-container { 
-        padding: 0 !important; 
-        max-width: 100% !important; 
-    }
-    
-    section.main { 
-        overflow: hidden !important; 
-        height: 100vh !important; 
+    /* Force le noir partout */
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: black !important;
+        overflow: hidden !important;
+        height: 100vh !important;
+        width: 100vw !important;
     }
 
-    /* Animation de transition douce pour éviter les sauts visuels */
-    * { transition: background-color 0.5s ease; }
+    /* Supprime les espacements internes de Streamlit qui créent le scroll */
+    .main .block-container {
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    
+    [data-testid="stVerticalBlock"] {
+        gap: 0 !important;
+    }
+
+    #MainMenu, footer, [data-testid="stDecoration"] { 
+        display: none !important; 
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -95,6 +91,7 @@ if est_admin:
                 st.rerun()
         else: st.stop()
     
+    st.markdown("<style>section.main { overflow: auto !important; }</style>", unsafe_allow_html=True) # Scroll autorisé en admin
     imgs = sorted(glob.glob(os.path.join(GALLERY_DIR, "*")), key=os.path.getmtime, reverse=True)
     cols = st.columns(6)
     for i, p in enumerate(imgs):
@@ -102,9 +99,8 @@ if est_admin:
             st.image(p, use_container_width=True)
             if st.button("🗑️", key=f"del_{i}"): os.remove(p); st.rerun()
 
-# --- 4. MODE LIVE (VERSION SANS FLASH) ---
+# --- 4. MODE LIVE ---
 elif not mode_vote:
-    # On rafraîchit moins souvent pour limiter les clignotements (toutes les 30s au lieu de 20s)
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=30000, key="wall_refresh")
@@ -120,7 +116,6 @@ elif not mode_vote:
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
     photos_html = ""
-    # On limite à 15 photos pour un chargement plus rapide
     for i, img_path in enumerate(img_list[-15:]):
         b64 = get_b64(img_path)
         if b64:
@@ -129,37 +124,20 @@ elif not mode_vote:
             left = random.randint(5, 80)
             duration = random.uniform(6.0, 10.0)
             delay = random.uniform(0, 8)
-            
-            photos_html += f"""<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s; animation-delay:-{delay}s;">"""
+            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s; animation-delay:-{delay}s;">'
 
     html_code = f"""
     <html>
     <head>
         <style>
-            /* Fond noir immédiat en HTML pur */
-            body, html {{ margin: 0; padding: 0; background-color: #000 !important; color: white; overflow: hidden; height: 100vh; width: 100vw; font-family: sans-serif; }}
-            .wall {{ position: relative; width: 100vw; height: 100vh; background: #000; }}
+            body, html {{ margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw; font-family: sans-serif; }}
+            .wall {{ position: relative; width: 100vw; height: 100vh; background: black; }}
             .title {{ position: absolute; top: 2%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 20px {config['couleur']}aa; z-index: 100; }}
-            
-            .center-block {{ 
-                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                display: flex; flex-direction: column; align-items: center; justify-content: center; 
-                z-index: 1000; gap: 8px;
-            }}
-            .logo {{ width: 220px; height: auto; filter: drop-shadow(0 0 20px rgba(255,255,255,0.4)); }}
-            .qr-zone {{ background: white; padding: 8px; border-radius: 12px; text-align: center; width: 95px; box-shadow: 0 0 30px rgba(255,255,255,0.2); }}
-
-            .photo {{ 
-                position: absolute; border-radius: 50%; border: 3px solid white; object-fit: cover; 
-                box-shadow: 0 0 15px rgba(0,0,0,0.5); animation: floatAround linear infinite alternate; 
-                opacity: 0.9; z-index: 10;
-            }}
-
-            @keyframes floatAround {{
-                0% {{ transform: translate(0,0) rotate(0deg) scale(1); }}
-                50% {{ transform: translate(80px, -60px) rotate(8deg) scale(1.05); }}
-                100% {{ transform: translate(-60px, 90px) rotate(-8deg) scale(1); }}
-            }}
+            .center-block {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 1000; }}
+            .logo {{ width: 220px; filter: drop-shadow(0 0 20px rgba(255,255,255,0.4)); }}
+            .qr-zone {{ background: white; padding: 8px; border-radius: 12px; text-align: center; width: 95px; }}
+            .photo {{ position: absolute; border-radius: 50%; border: 3px solid white; object-fit: cover; animation: floatAround linear infinite alternate; opacity: 0.9; }}
+            @keyframes floatAround {{ 0% {{ transform: translate(0,0) rotate(0deg); }} 100% {{ transform: translate(60px, 80px) rotate(8deg); }} }}
         </style>
     </head>
     <body>
@@ -167,25 +145,21 @@ elif not mode_vote:
             <div class="title">{config['texte']}</div>
             <div class="center-block">
                 {"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}
-                <div class="qr-zone">
-                    <img src="data:image/png;base64,{qr_b64}" width="85">
-                    <div style="color:black; font-size:8px; font-weight:bold; margin-top:2px;">PARTICIPER</div>
-                </div>
+                <div class="qr-zone"><img src="data:image/png;base64,{qr_b64}" width="85"></div>
             </div>
             {photos_html}
         </div>
     </body>
     </html>
     """
-    components.html(html_code, height=1000, scrolling=False)
+    # Réduction de la hauteur à 98vh pour s'assurer que ça ne dépasse pas
+    components.html(html_code, height=900, scrolling=False)
 
 # --- 5. MODE VOTE ---
 else:
-    st.markdown("<style>.stApp { background-color: #111 !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Participez")
     uf = st.file_uploader("Prenez une photo ✨", type=['jpg', 'jpeg', 'png'])
     if uf:
         fname = f"img_{random.randint(1000,9999)}.jpg"
         with open(os.path.join(GALLERY_DIR, fname), "wb") as f: f.write(uf.getbuffer())
         st.success("Photo envoyée !")
-        st.balloons()
