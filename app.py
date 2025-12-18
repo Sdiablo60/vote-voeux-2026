@@ -25,7 +25,7 @@ st.set_page_config(page_title="Social Wall 2026", layout="wide", initial_sidebar
 # --- 2. FONCTIONS ---
 def get_msg():
     if os.path.exists(MSG_FILE): return pd.read_csv(MSG_FILE).iloc[0].to_dict()
-    return {"texte": "✨ Bienvenue à la Grande Soirée des Vœux 2026 !", "couleur": "#FFFFFF", "taille": 45, "font": "sans-serif"}
+    return {"texte": "✨ Bienvenue à la Grande Soirée des Vœux 2026 !", "couleur": "#FFFFFF", "taille": 45}
 
 def img_to_base64(img_path):
     try:
@@ -52,114 +52,113 @@ if est_admin:
             nc = st.color_picker("Couleur", m["couleur"])
             ns = st.slider("Taille", 20, 100, int(m["taille"]))
             if st.button("Mettre à jour"):
-                pd.DataFrame([{"texte": nt, "couleur": nc, "taille": ns, "font": "sans-serif"}]).to_csv(MSG_FILE, index=False)
+                pd.DataFrame([{"texte": nt, "couleur": nc, "taille": ns}]).to_csv(MSG_FILE, index=False)
                 st.rerun()
             ul = st.file_uploader("Logo Central", type=['png','jpg'])
             if ul: Image.open(ul).save(LOGO_FILE); st.rerun()
         with t2:
-            uf = st.file_uploader("Ajouter des photos", type=['png','jpg'], accept_multiple_files=True)
+            uf = st.file_uploader("Ajouter des photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
             if uf:
                 for f in uf: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
                 st.rerun()
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+            cols = st.columns(4)
             for i, p in enumerate(imgs):
-                if st.button(f"Supprimer {i}", key=f"del_{i}"): os.remove(p); st.rerun()
+                with cols[i%4]:
+                    st.image(p, width=100)
+                    if st.button("Supprimer", key=f"del_{i}"): os.remove(p); st.rerun()
+    else:
+        st.info("Veuillez entrer le code dans la barre latérale.")
 
-# --- 5. MODE LIVE (TOTALEMENT INDÉPENDANT) ---
+# --- 5. MODE LIVE (VERSION FIXÉE) ---
 elif not mode_vote:
     msg = get_msg()
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     logo_b64 = img_to_base64(LOGO_FILE)
     
-    # Préparation du HTML des photos
-    photos_html = ""
-    if imgs:
-        shuffled = imgs[-12:] # 12 dernières
-        for i, path in enumerate(shuffled):
-            b64 = img_to_base64(path)
-            delay = -(i * (30 / len(shuffled)))
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-orbit" style="animation-delay:{delay}s;">'
-
-    # Préparation des étoiles
-    stars_html = "".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; animation-duration:{random.randint(3,7)}s; animation-delay:{random.randint(0,5)}s;"></div>' for _ in range(100)])
-
-    # QR Code
+    # Construction du QR Code
     qr_url = f"https://{st.context.headers.get('Host', 'localhost')}/?mode=vote"
-    qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
+    qr_buf = BytesIO()
+    qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # STYLE & HTML FINAL (Injection directe pour éviter les contraintes de layout)
+    # Construction des étoiles
+    stars_html = "".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; animation-duration:{random.randint(3,6)}s;"></div>' for _ in range(80)])
+
+    # Construction des photos
+    photos_html = ""
+    if imgs:
+        shuffled = imgs[-12:]
+        for i, path in enumerate(shuffled):
+            p_b64 = img_to_base64(path)
+            delay = -(i * (25 / len(shuffled)))
+            photos_html += f'<img src="data:image/png;base64,{p_b64}" class="photo-orbit" style="animation-delay:{delay}s;">'
+
+    # Injection HTML/CSS
     st.markdown(f"""
-        <style>
-        /* On cache tout Streamlit */
-        [data-testid="stSidebar"], [data-testid="stHeader"], .stApp {{ display: none; }}
+    <style>
+        /* Masquer Streamlit */
+        header, footer, .stApp {{ visibility: hidden; }}
         
-        body {{ background-color: #050505; margin: 0; padding: 0; overflow: hidden; }}
-
-        .wall-wrapper {{
+        .live-bg {{
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #050505; z-index: 9999; font-family: sans-serif;
+            background: #050505; z-index: 1000; overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
         }}
-
-        /* Etoiles */
+        
         .star {{
-            position: absolute; width: 2px; height: 2px; background: white; 
-            border-radius: 50%; opacity: 0.3; animation: twinkle infinite alternate;
+            position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%;
+            animation: twinkle infinite alternate;
         }}
         @keyframes twinkle {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
 
-        /* Message accueil avec Pulsation */
-        .welcome {{
-            position: absolute; top: 10%; width: 100%; text-align: center;
+        .welcome-msg {{
+            position: absolute; top: 8%; width: 100%; text-align: center;
             color: {msg['couleur']}; font-size: {msg['taille']}px; font-weight: bold;
-            animation: pulse 4s ease-in-out infinite; z-index: 100;
+            animation: pulse 4s ease-in-out infinite; z-index: 1100;
         }}
         @keyframes pulse {{
             0% {{ transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}55; }}
-            50% {{ transform: scale(1.05); text-shadow: 0 0 30px {msg['couleur']}; }}
+            50% {{ transform: scale(1.03); text-shadow: 0 0 30px {msg['couleur']}; }}
             100% {{ transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}55; }}
         }}
 
-        /* Logo Central */
-        .logo {{
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 250px; height: 250px; border-radius: 50%; z-index: 50;
-            filter: drop-shadow(0 0 30px {msg['couleur']}88); object-fit: contain;
+        .logo-center {{
+            position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%);
+            width: 220px; z-index: 1050; filter: drop-shadow(0 0 40px {msg['couleur']}88);
         }}
 
-        /* Orbite */
         .photo-orbit {{
-            position: absolute; top: 50%; left: 50%; width: 150px; height: 150px;
+            position: absolute; top: 55%; left: 50%; width: 150px; height: 150px;
             margin-top: -75px; margin-left: -75px; border-radius: 50%;
             border: 3px solid white; object-fit: cover;
-            animation: orbit 30s linear infinite; z-index: 40;
-            box-shadow: 0 0 20px rgba(255,255,255,0.3);
+            animation: orbit 25s linear infinite; z-index: 1040;
         }}
         @keyframes orbit {{
-            from {{ transform: rotate(0deg) translateX(min(30vw, 380px)) rotate(0deg); }}
-            to {{ transform: rotate(360deg) translateX(min(30vw, 380px)) rotate(-360deg); }}
+            from {{ transform: rotate(0deg) translateX(350px) rotate(0deg); }}
+            to {{ transform: rotate(360deg) translateX(350px) rotate(-360deg); }}
         }}
 
-        /* QR Code */
-        .qr {{
+        .qr-corner {{
             position: fixed; bottom: 30px; right: 30px; background: white;
-            padding: 10px; border-radius: 15px; text-align: center; z-index: 200;
+            padding: 12px; border-radius: 15px; text-align: center; z-index: 1200;
         }}
-        </style>
+    </style>
 
-        <div class="wall-wrapper">
-            {stars_html}
-            <div class="welcome">{msg['texte']}</div>
-            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}
-            {photos_html}
-            <div class="qr">
-                <img src="data:image/png;base64,{qr_b64}" width="110"><br>
-                <b style="color:black; font-size:12px;">SCANNEZ POUR VOTER</b>
-            </div>
+    <div class="live-bg">
+        {stars_html}
+        <div class="welcome-msg">{msg['texte']}</div>
+        {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-center'>" if logo_b64 else ""}
+        {photos_html}
+        <div class="qr-corner">
+            <img src="data:image/png;base64,{qr_b64}" width="100"><br>
+            <small style="color:black; font-weight:bold;">SCANNEZ POUR VOTER</small>
         </div>
+    </div>
     """, unsafe_allow_html=True)
 
-    time.sleep(10); st.rerun()
+    time.sleep(10)
+    st.rerun()
 
 else:
     st.title("🗳️ Vote & Présence")
