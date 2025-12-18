@@ -25,8 +25,6 @@ else:
     config = default_config
 
 VOTE_VERSION = config.get("vote_version", 1)
-if not os.path.exists(VOTES_FILE): json.dump({}, open(VOTES_FILE, "w"))
-if not os.path.exists(PARTICIPANTS_FILE): json.dump([], open(PARTICIPANTS_FILE, "w"))
 
 # --- 2. NAVIGATION ---
 query_params = st.query_params
@@ -53,7 +51,8 @@ if est_admin:
             if st.sidebar.button("🔴 RESET COMPLET", type="secondary", use_container_width=True):
                 config.update({"vote_version": VOTE_VERSION+1, "session_ouverte": False, "reveal_resultats": False, "mode_affichage": "attente"})
                 with open(CONFIG_FILE, "w") as f: json.dump(config, f)
-                json.dump({}, open(VOTES_FILE, "w")); json.dump([], open(PARTICIPANTS_FILE, "w"))
+                with open(VOTES_FILE, "w") as f: json.dump({}, f)
+                with open(PARTICIPANTS_FILE, "w") as f: json.dump([], f)
                 st.rerun()
     
     st.title("📊 Console de Suivi")
@@ -61,18 +60,10 @@ if est_admin:
         nb_p = len(json.load(open(PARTICIPANTS_FILE)))
         v_data = json.load(open(VOTES_FILE))
     except: nb_p = 0; v_data = {}
-    c1, c2 = st.columns(2)
-    c1.metric("Participants connectés", nb_p)
-    c2.metric("Total Points", sum(v_data.values()))
-    if v_data:
-        st.subheader("🏆 Podium Provisoire")
-        top_3 = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
-        cols = st.columns(3)
-        for i, (name, score) in enumerate(top_3):
-            cols[i].markdown(f"<div style='background:#f0f2f6;padding:15px;border-radius:10px;text-align:center;border-top:5px solid #E2001A;'><b>{i+1}er: {name}</b><br>{score} pts</div>", unsafe_allow_html=True)
-        st.bar_chart(v_data)
+    st.metric("Participants connectés", nb_p)
+    if v_data: st.bar_chart(v_data)
 
-# --- 4. UTILISATEUR (POINTS À CHAQUE SÉLECTION) ---
+# --- 4. UTILISATEUR (GESTION 3 CHOIX MAX) ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
@@ -102,11 +93,9 @@ elif est_utilisateur:
                 st.write(f"Bonjour **{st.session_state['user_pseudo']}**")
                 options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
                 
-                choix = st.multiselect("Sélectionnez vos 3 favoris :", options, max_selections=3)
+                choix = st.multiselect("Choisissez vos 3 favoris (l'ordre de clic compte) :", options, max_selections=3)
                 
-                # --- BLOC DE RÉCAPITULATIF AVEC POINTS EN TEMPS RÉEL ---
                 if len(choix) > 0:
-                    # Attribution dynamique
                     pts_txt = ["🥇 <b>+5 pts</b>", "🥈 <b>+3 pts</b>", "🥉 <b>+1 pt</b>"]
                     lignes_html = ""
                     for i in range(3):
@@ -115,29 +104,28 @@ elif est_utilisateur:
                         lignes_html += f"<p style='font-size:18px; margin:10px 0;'>{label_pts} : {nom_service}</p>"
 
                     st.markdown(f"""
-                        <div style="background: #111; padding: 20px; border-radius: 15px; border: 2px solid #E2001A; margin-top: 20px;">
-                            <h4 style="margin-top:0; color:#E2001A;">Récapitulatif de vos points :</h4>
+                        <div style="background: #111; padding: 20px; border-radius: 15px; border: 2px solid #E2001A; margin-top: 10px;">
+                            <h4 style="margin-top:0; color:#E2001A;">Votre Podium actuel :</h4>
                             {lignes_html}
                         </div>
                     """, unsafe_allow_html=True)
 
-                if st.button("VALIDER MON VOTE DÉFINITIF", use_container_width=True, type="primary"):
-                    if len(choix) == 3:
+                if len(choix) == 3:
+                    st.success("🎯 Top 3 complet ! Vous pouvez maintenant valider.")
+                    if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
                         vts = json.load(open(VOTES_FILE))
                         pts_map = [5, 3, 1]
                         for idx, v in enumerate(choix):
                             vts[v] = vts.get(v, 0) + pts_map[idx]
                         with open(VOTES_FILE, "w") as f: json.dump(vts, f)
-                        
                         components.html(f"""<script>localStorage.setItem("{vote_key}", "true"); setTimeout(() => {{ window.parent.location.reload(); }}, 300);</script>""", height=0)
                         st.session_state["voted_final"] = True
                         st.rerun()
-                    else:
-                        st.error("⚠️ Vous devez choisir 3 services pour valider.")
+                elif len(choix) > 0:
+                    st.info(f"Sélectionnez encore {3 - len(choix)} vidéo(s)...")
 
 # --- 5. MUR SOCIAL ---
 else:
-    # (Le reste du code du mur social reste inchangé)
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
@@ -173,7 +161,7 @@ else:
         img_list = glob.glob(os.path.join(ADMIN_DIR, "*")) + (glob.glob(os.path.join(GALLERY_DIR, "*")) if config["mode_affichage"]=="live" else [])
         if img_list:
             photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" class="photo" style="width:280px;top:{random.randint(45,75)}%;left:{random.randint(5,85)}%;animation-duration:{random.uniform(10,15)}s;">' for p in img_list[-12:]])
-            components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; box-shadow: 5px 5px 15px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(30px,30px) rotate(3deg); }} }}</style><div style="width:100%; height:450px; position:relative;">{photos_html}</div>""", height=500)
+            components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; box-shadow: 5px 5px 15px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(35px,35px) rotate(3deg); }} }}</style><div style="width:100%; height:450px; position:relative;">{photos_html}</div>""", height=500)
 
     try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=5000, key="w_ref")
     except: pass
