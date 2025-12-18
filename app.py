@@ -88,7 +88,9 @@ if est_admin:
             
             st.divider()
             if st.button("🧨 RESET TOTAL", use_container_width=True):
-                for f in glob.glob(os.path.join(GALLERY_DIR, "*")): os.remove(f)
+                for f in glob.glob(os.path.join(GALLERY_DIR, "*")): 
+                    try: os.remove(f)
+                    except: pass
                 with open(VOTES_FILE, "w") as f: json.dump({}, f)
                 st.rerun()
 
@@ -103,7 +105,6 @@ if est_admin:
         st.link_button("🖥️ OUVRIR LE MUR LIVE", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Galerie Master (8 colonnes vignettes / 4 colonnes liste)
         all_imgs = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         sorted_imgs = sorted(all_imgs, key=os.path.getmtime, reverse=True)
         mode_vue = st.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
@@ -117,7 +118,10 @@ if est_admin:
                         img_p = sorted_imgs[idx]
                         with cols[j]:
                             st.image(img_p, use_container_width=True)
-                            if st.button("🗑️", key=f"d_{idx}"): os.remove(img_p); st.rerun()
+                            if st.button("🗑️", key=f"d_{idx}"): 
+                                try: os.remove(img_p)
+                                except: pass
+                                st.rerun()
         else:
             for i in range(0, len(sorted_imgs), 4):
                 cols = st.columns(4)
@@ -128,7 +132,12 @@ if est_admin:
                         with cols[j]:
                             with st.container(border=True):
                                 st.image(img_p, use_container_width=True)
-                                if st.button("Supprimer", key=f"bl_{idx}", use_container_width=True): os.remove(img_p); st.rerun()
+                                if st.button("Supprimer", key=f"bl_{idx}", use_container_width=True): 
+                                    try: os.remove(img_p)
+                                    except: pass
+                                    st.rerun()
+    else:
+        st.info("🔒 Accès restreint. Utilisez la barre latérale.")
 
 # --- 6. INTERFACE UTILISATEUR (QR CODE) ---
 elif est_utilisateur:
@@ -159,8 +168,8 @@ else:
     if config["mode_affichage"] == "votes":
         st.markdown(f"""
             <div style='text-align:center; padding-top:40px; font-family:sans-serif;'>
-                <h2 style='color:#E2001A; font-size:30px; margin-bottom:0;'>MUR PHOTO LIVE</h2>
-                <h1 style='color:white; font-size:50px; margin-top:0;'>{sous_titre}</h1>
+                <p style='color:#E2001A; font-size:35px; font-weight:bold; margin:0;'>MUR PHOTO LIVE</p>
+                <h1 style='color:white; font-size:55px; margin-top:0;'>{sous_titre}</h1>
             </div>
         """, unsafe_allow_html=True)
         st.bar_chart(get_votes())
@@ -173,4 +182,38 @@ else:
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f: logo_b64 = base64.b64encode(f.read()).decode()
         
-        photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" class="photo" style="width:{random.randint(220,320)}px; top:{random.randint(10,70)}%; left:{random.randint(5,85)}%; animation
+        # Correction de la ligne photos_html (SyntaxError)
+        photos_html = ""
+        for p in img_list[-15:]:
+            with open(p, "rb") as f:
+                img_data = base64.b64encode(f.read()).decode()
+                w = random.randint(220,320)
+                t = random.randint(10,70)
+                l = random.randint(5,85)
+                dur = random.uniform(9,15)
+                photos_html += f'<img src="data:image/png;base64,{img_data}" class="photo" style="width:{w}px; top:{t}%; left:{l}%; animation-duration:{dur}s;">'
+        
+        html_code = f"""
+        <html><body style="margin:0; background:black; overflow:hidden; width:100vw; height:100vh;">
+        <style>
+            .header-box {{ position:absolute; top:30px; width:100%; text-align:center; z-index:1001; font-family:'Roboto', sans-serif; }}
+            .title-fixed {{ color:#E2001A; font-size:35px; font-weight:bold; margin:0; text-shadow: 0 0 10px rgba(226,0,26,0.3); }}
+            .title-dynamic {{ color:white; font-size:55px; font-weight:bold; margin:0; text-shadow: 0 0 20px rgba(255,255,255,0.5); }}
+            .center-stack {{ position:absolute; top:58%; left:50%; transform:translate(-50%, -50%); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:25px; }}
+            .logo {{ max-width:380px; filter:drop-shadow(0 0 20px white); }}
+            .qr-box {{ background:white; padding:15px; border-radius:15px; border: 5px solid #E2001A; }}
+            .photo {{ position:absolute; border:6px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; opacity:0.95; box-shadow: 15px 15px 35px rgba(0,0,0,0.6); }}
+            @keyframes move {{ from {{ transform:translate(0,0) rotate(-3deg); }} to {{ transform:translate(60px, 60px) rotate(4deg); }} }}
+        </style>
+        <div class="header-box">
+            <p class="title-fixed">MUR PHOTO LIVE</p>
+            <h1 class="title-dynamic">{sous_titre}</h1>
+        </div>
+        <div class="center-stack">
+            {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
+            <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="170"></div>
+        </div>
+        {photos_html}
+        </body></html>
+        """
+        components.html(html_code, height=1000)
