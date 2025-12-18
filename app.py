@@ -17,28 +17,21 @@ MSG_FILE = "live_config.csv"
 
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- STYLE CSS CRITIQUE (ANTI-SCROLL & ANTI-FLASH) ---
+# --- STYLE CSS (NOIR FORCÉ MAIS VISIBLE) ---
 st.markdown("""
     <style>
-    /* Force le noir absolu sur toutes les couches de Streamlit */
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .stApp {
+    html, body, [data-testid="stAppViewContainer"], .stApp {
         background-color: #000000 !important;
         overflow: hidden !important;
         height: 100vh !important;
-        width: 100vw !important;
     }
-    /* Supprime les marges qui créent le scroll */
-    .main .block-container {
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    /* Masque les outils Streamlit */
-    #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
+    .main .block-container { padding: 0 !important; }
+    #MainMenu, footer, [data-testid="stHeader"] { display: none !important; }
     </style>
 """, unsafe_allow_html=True)
 
 def get_b64(path):
-    if os.path.exists(path):
+    if os.path.exists(path) and os.path.getsize(path) > 0:
         try:
             with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
         except: return None
@@ -46,7 +39,8 @@ def get_b64(path):
 
 def get_config():
     if os.path.exists(MSG_FILE):
-        return pd.read_csv(MSG_FILE).iloc[0].to_dict()
+        try: return pd.read_csv(MSG_FILE).iloc[0].to_dict()
+        except: pass
     return {"texte": "✨ ENVOYEZ VOS PHOTOS ! ✨", "couleur": "#FFFFFF", "taille": 50}
 
 params = st.query_params
@@ -55,15 +49,24 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 3. INTERFACE ADMIN ---
 if est_admin:
-    st.title("⚙️ Régie")
-    pwd = st.text_input("Code", type="password")
+    st.title("⚙️ Régie Live")
+    pwd = st.text_input("Code Secret", type="password")
     if pwd == "ADMIN_LIVE_MASTER":
+        st.success("Accès autorisé")
         config = get_config()
-        t = st.text_input("Message", config["texte"])
-        if st.button("Enregistrer"):
+        t = st.text_input("Message écran", config["texte"])
+        if st.button("Mettre à jour le texte"):
             pd.DataFrame([{"texte": t, "couleur": "#FFFFFF", "taille": 50}]).to_csv(MSG_FILE, index=False)
             st.rerun()
-        up = st.file_uploader("Photos", accept_multiple_files=True)
+        
+        st.divider()
+        logo_up = st.file_uploader("Upload LOGO", type=['png', 'jpg'])
+        if logo_up:
+            with open(LOGO_FILE, "wb") as f: f.write(logo_up.getbuffer())
+            st.success("Logo mis à jour !")
+            
+        st.divider()
+        up = st.file_uploader("Ajouter des Photos au Mur", accept_multiple_files=True)
         if up:
             for f in up:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
@@ -81,47 +84,49 @@ elif not mode_vote:
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
+    # Génération du QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
+    # Préparation des photos
     photos_html = ""
-    # On limite à 12 photos pour la fluidité
-    for img_path in img_list[-12:]:
+    valid_photos = img_list[-15:]
+    for img_path in valid_photos:
         b64 = get_b64(img_path)
         if b64:
-            size = random.randint(160, 240)
+            size = random.randint(150, 230)
             top, left = random.randint(5, 75), random.randint(5, 80)
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(6,12)}s; animation-delay:-{random.uniform(0,10)}s;">'
+            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(7,15)}s; animation-delay:-{random.uniform(0,10)}s;">'
 
+    # Construction du HTML final
     html_code = f"""
+    <!DOCTYPE html>
     <html>
     <head>
         <style>
-            /* LE NOIR DOIT ÊTRE DÉFINI ICI AUSSI */
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body, html {{ background-color: black !important; overflow: hidden; height: 100vh; width: 100vw; font-family: sans-serif; }}
+            body, html {{ background-color: #000 !important; color: white; overflow: hidden; height: 100vh; width: 100vw; font-family: sans-serif; }}
+            .wall {{ position: relative; width: 100vw; height: 100vh; background: #000; display: block; }}
+            .title {{ position: absolute; top: 4%; width: 100%; text-align: center; color: white; font-size: {config['taille']}px; font-weight: bold; z-index: 100; text-shadow: 0 0 15px rgba(255,255,255,0.7); }}
             
-            .wall {{ position: relative; width: 100vw; height: 100vh; background: black; }}
-            .title {{ position: absolute; top: 4%; width: 100%; text-align: center; color: white; font-size: {config['taille']}px; font-weight: bold; z-index: 100; text-shadow: 0 0 15px rgba(255,255,255,0.5); }}
-            
-            .center-zone {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; }}
-            .logo {{ width: 240px; margin-bottom: 15px; filter: drop-shadow(0 0 15px white); }}
-            .qr-box {{ background: white; padding: 10px; border-radius: 15px; display: inline-block; box-shadow: 0 0 20px rgba(255,255,255,0.3); }}
+            .center-zone {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; display: flex; flex-direction: column; align-items: center; }}
+            .logo {{ max-width: 250px; margin-bottom: 20px; filter: drop-shadow(0 0 10px white); }}
+            .qr-box {{ background: white; padding: 12px; border-radius: 15px; display: inline-block; box-shadow: 0 0 30px rgba(255,255,255,0.4); }}
             
             .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: float alternate infinite ease-in-out; opacity: 0.9; }}
-            @keyframes float {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(70px, 90px) rotate(10deg); }} }}
+            @keyframes float {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 80px) rotate(8deg); }} }}
         </style>
     </head>
     <body>
         <div class="wall">
             <div class="title">{config['texte']}</div>
             <div class="center-zone">
-                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
+                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else '<div style="height:100px;"></div>'}
                 <div class="qr-box">
-                    <img src="data:image/png;base64,{qr_b64}" width="110">
-                    <div style="color:black; font-size:10px; font-weight:bold; margin-top:5px;">SCANNEZ MOI</div>
+                    <img src="data:image/png;base64,{qr_b64}" width="120">
+                    <p style="color:black; font-size:11px; font-weight:bold; margin-top:5px; font-family:Arial;">SCANNEZ POUR PARTICIPER</p>
                 </div>
             </div>
             {photos_html}
@@ -129,5 +134,15 @@ elif not mode_vote:
     </body>
     </html>
     """
-    # Le secret est ici : on utilise une hauteur fixe légèrement plus petite que 100vh
-    components.html(html_code, height=900, scrolling=False)
+    components.html(html_code, height=950, scrolling=False)
+
+# --- 5. MODE VOTE ---
+else:
+    st.title("📸 Partagez votre photo")
+    st.write("Elle apparaîtra instantanément sur le mur !")
+    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
+    if f:
+        with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
+            out.write(f.getbuffer())
+        st.success("C'est envoyé ! Regardez l'écran géant 🚀")
+        st.balloons()
