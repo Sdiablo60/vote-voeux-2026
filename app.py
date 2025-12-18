@@ -32,7 +32,7 @@ mode_vote = params.get("mode") == "vote"
 
 if est_admin:
     st.title("🛠️ Console Régie Master")
-    pwd_actuel = open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEU_2026"
+    pwd_actuel = open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEUX_2026"
     with st.sidebar:
         input_pwd = st.text_input("Code Secret", type="password")
     if input_pwd != pwd_actuel:
@@ -81,8 +81,8 @@ elif not mode_vote:
 
     stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}%; left:{random.randint(0,100)}%; width:2px; height:2px; animation-delay:{random.random()*3}s;"></div>' for _ in range(70)])
     
-    valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
-    photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(35/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
+    valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
+    photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(30/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
 
     html_code = f"""
     <html>
@@ -93,23 +93,22 @@ elif not mode_vote:
             .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: twi 2s infinite alternate; }}
             @keyframes twi {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
             
-            /* Titre collé au sommet */
             .title {{ position: absolute; top: 1%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}; z-index: 100; }}
             
-            .center-container {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
+            /* CENTRE REMONTÉ À 42% */
+            .center-container {{ position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
             
-            .logo {{ width: 200px; height: 200px; object-fit: contain; filter: drop-shadow(0 0 20px {config['couleur']}66); z-index: 10; }}
+            .logo {{ width: 190px; height: 190px; object-fit: contain; filter: drop-shadow(0 0 20px {config['couleur']}66); z-index: 10; }}
             
-            /* Photos plus grandes */
-            .photo {{ position: absolute; width: 140px; height: 140px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 20px rgba(255,255,255,0.4); animation: orb 35s linear infinite; }}
+            .photo {{ position: absolute; width: 135px; height: 135px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 20px rgba(255,255,255,0.4); animation: orb 30s linear infinite; }}
             
-            /* Orbite élargie */
+            /* RAYON AJUSTÉ À 260px POUR ÉVITER LES COUPURES */
             @keyframes orb {{ 
-                from {{ transform: rotate(0deg) translateX(280px) rotate(0deg); }} 
-                to {{ transform: rotate(360deg) translateX(280px) rotate(-360deg); }} 
+                from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }} 
+                to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }} 
             }}
             
-            .qr {{ position: absolute; bottom: 20px; right: 20px; background: white; padding: 10px; border-radius: 12px; text-align: center; color: black; z-index: 200; box-shadow: 0 0 15px rgba(255,255,255,0.2); }}
+            .qr {{ position: absolute; bottom: 25px; right: 25px; background: white; padding: 10px; border-radius: 12px; text-align: center; color: black; z-index: 200; box-shadow: 0 0 15px rgba(255,255,255,0.2); }}
         </style>
     </head>
     <body>
@@ -138,7 +137,7 @@ elif not mode_vote:
         </style>
     """, unsafe_allow_html=True)
     
-    components.html(html_code, height=1000, scrolling=False)
+    components.html(html_code, height=980, scrolling=False)
 
 else:
     st.title("🗳️ Participation")
