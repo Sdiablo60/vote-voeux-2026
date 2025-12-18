@@ -41,14 +41,12 @@ if est_admin:
     pwd_actuel = open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEUX_2026"
     with st.sidebar:
         input_pwd = st.text_input("Code Secret", type="password")
-    
     if input_pwd != pwd_actuel:
         st.warning("Veuillez saisir le code dans la barre latérale.")
         st.stop() 
 
     config = get_config()
     t1, t2 = st.tabs(["💬 Configuration", "🖼️ Galerie & Logo"])
-    
     with t1:
         col1, col2 = st.columns(2)
         txt = col1.text_area("Message", config["texte"])
@@ -57,7 +55,6 @@ if est_admin:
         if st.button("🚀 Enregistrer"):
             pd.DataFrame([{"texte": txt, "couleur": clr, "taille": siz}]).to_csv(MSG_FILE, index=False)
             st.rerun()
-            
     with t2:
         c1, c2 = st.columns(2)
         ul = c1.file_uploader("Logo", type=['png','jpg','jpeg'])
@@ -69,7 +66,6 @@ if est_admin:
             for f in uf:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
             st.rerun()
-        
         st.divider()
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
         cols = st.columns(6)
@@ -77,8 +73,7 @@ if est_admin:
             with cols[i%6]:
                 st.image(p, use_container_width=True)
                 if st.button("🗑️", key=f"del_{i}"):
-                    os.remove(p)
-                    st.rerun()
+                    os.remove(p); st.rerun()
 
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
@@ -99,33 +94,24 @@ elif not mode_vote:
         delay = -(i * (25 / max(len(valid_photos), 1)))
         photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-bubble" style="animation-delay:{delay}s;">'
 
-    # INJECTION CSS AVEC NETTOYAGE CHIRURGICAL
+    # INJECTION CSS AVEC CIBLE PRÉCISE POUR ÉVITER L'ÉCRAN NOIR VIDE
     st.markdown(f"""
     <style>
-        /* 1. CACHE ABSOLUMENT TOUT LE CONTENU NATIF DE STREAMLIT */
-        [data-testid="stVerticalBlock"] > div {{
-            display: none !important;
-        }}
-        
-        /* 2. FORCE LE FOND NOIR SUR TOUTE LA PAGE */
+        /* Force le fond noir partout */
         .stApp, [data-testid="stAppViewContainer"] {{
             background-color: #050505 !important;
-            padding: 0 !important;
         }}
+        header, footer, [data-testid="stHeader"] {{ display: none !important; }}
 
-        header, footer, [data-testid="stHeader"], [data-testid="stStatusWidget"] {{
+        /* On cache les conteneurs Streamlit vides qui font le carré blanc */
+        [data-testid="stVerticalBlock"] > div:not(:last-child) {{
             display: none !important;
         }}
 
-        /* 3. NOTRE MUR (LUI SEUL EST AFFICHÉ) */
         .master-wall {{
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background-color: #050505;
-            z-index: 999999;
-            display: block !important;
-            overflow: hidden;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background-color: #050505; z-index: 999999;
+            display: block !important; overflow: hidden;
         }}
 
         .star {{
@@ -136,7 +122,7 @@ elif not mode_vote:
 
         .title-text {{
             position: absolute; top: 8%; width: 100%; text-align: center;
-            font-family: sans-serif; font-weight: bold; z-index: 1000;
+            font-family: sans-serif; font-weight: bold; z-index: 1000001;
             color: {config['couleur']}; font-size: {config['taille']}px;
             text-shadow: 0 0 20px {config['couleur']}aa;
         }}
@@ -144,6 +130,7 @@ elif not mode_vote:
         .center-hub {{
             position: absolute; top: 58%; left: 50%;
             transform: translate(-50%, -50%); width: 1px; height: 1px;
+            z-index: 1000000;
         }}
 
         .logo-img {{
@@ -160,14 +147,14 @@ elif not mode_vote:
         }}
 
         @keyframes orbitAnim {{
-            from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }}
-            to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }}
+            from {{ transform: rotate(0deg) translateX(270px) rotate(0deg); }}
+            to {{ transform: rotate(360deg) translateX(270px) rotate(-360deg); }}
         }}
 
         .qr-anchor {{
             position: fixed; bottom: 30px; right: 30px;
             background: white; padding: 10px; border-radius: 12px;
-            text-align: center; z-index: 1001;
+            text-align: center; z-index: 1000002;
         }}
     </style>
 
