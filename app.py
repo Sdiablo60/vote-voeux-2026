@@ -20,13 +20,17 @@ for d in [GALLERY_DIR]:
 
 def get_b64(path):
     try:
-        if os.path.exists(path):
-            with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
-    except: return ""
-    return ""
+        if os.path.exists(path) and os.path.getsize(path) > 0:
+            with open(path, "rb") as f:
+                return base64.b64encode(f.read()).decode()
+    except Exception:
+        return None # Retourne None en cas d'erreur pour filtrer après
+    return None
 
 def get_config():
-    if os.path.exists(MSG_FILE): return pd.read_csv(MSG_FILE).iloc[0].to_dict()
+    if os.path.exists(MSG_FILE):
+        try: return pd.read_csv(MSG_FILE).iloc[0].to_dict()
+        except: pass
     return {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 48}
 
 def get_admin_pwd():
@@ -34,7 +38,7 @@ def get_admin_pwd():
         with open(PWD_FILE, "r") as f: return f.read().strip()
     return "ADMIN_VOEUX_2026"
 
-# --- 2. LOGIQUE D'AFFICHAGE ---
+# --- 2. LOGIQUE ---
 params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
@@ -44,30 +48,16 @@ if est_admin:
     st.title("🛠️ Console Régie Master")
     current_pwd = get_admin_pwd()
     
-    # On utilise la sidebar pour le verrouillage
     with st.sidebar:
         st.header("🔑 Connexion")
         input_pwd = st.text_input("Code Secret", type="password")
     
-    # BLOC DE SÉCURITÉ STRICT
     if input_pwd != current_pwd:
-        st.warning("Accès restreint. Veuillez saisir le code dans la barre latérale.")
-        st.stop() # Arrête l'exécution du script ici même
-    
-    # Si on arrive ici, le code est BON
-    st.sidebar.success("Connecté")
-    with st.sidebar:
-        st.divider()
-        st.header("⚙️ Paramètres")
-        new_pwd = st.text_input("Nouveau code", type="password")
-        if st.button("Modifier le code"):
-            with open(PWD_FILE, "w") as f: f.write(new_pwd)
-            st.rerun()
-        if st.button("🚨 RESET GALERIE"):
-            for f in glob.glob(os.path.join(GALLERY_DIR, "*")): os.remove(f)
-            st.rerun()
+        if input_pwd: st.error("Code incorrect")
+        st.warning("Veuillez saisir le code dans la barre latérale.")
+        st.stop() 
 
-    # Contenu de gestion
+    # Contenu Admin
     config = get_config()
     t1, t2 = st.tabs(["💬 Configuration", "🖼️ Galerie & Logo"])
     
@@ -105,49 +95,61 @@ if est_admin:
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
     config = get_config()
-    logo_data = get_b64(LOGO_FILE)
-    imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+    logo_b64 = get_b64(LOGO_FILE)
+    img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
+    # QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Construction du HTML final en un seul bloc pour éviter le carré blanc
+    # Génération sécurisée des photos
     stars_html = "".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; width:{random.randint(1,2)}px; height:{random.randint(1,2)}px;"></div>' for _ in range(60)])
-    photos_html = "".join([f'<img src="data:image/png;base64,{get_b64(p)}" class="photo-node" style="animation-delay:{-(i*(25/max(len(imgs),1)))}s;">' for i, p in enumerate(imgs[-10:])])
     
-    full_html = f"""
+    photos_html = ""
+    valid_photos = []
+    # On limite aux 10 dernières photos et on vérifie qu'elles sont lisibles
+    for p_path in img_list[-10:]:
+        b64 = get_b64(p_path)
+        if b64: valid_photos.append(b64)
+    
+    for i, b64 in enumerate(valid_photos):
+        delay = -(i * (25 / max(len(valid_photos), 1)))
+        photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-node" style="animation-delay:{delay}s;">'
+
+    # BLOC UNIQUE HTML/CSS
+    full_content = f"""
     <style>
         header, footer, .stAppHeader, [data-testid="stHeader"] {{ display:none !important; }}
         .stApp {{ background-color: #050505 !important; }}
-        .wall {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #050505; z-index: 999; overflow: hidden; }}
+        .wall-bg {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #050505; z-index: 999; overflow: hidden; }}
         .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twi 3s infinite alternate; }}
         @keyframes twi {{ from {{ opacity: 0.2; }} to {{ opacity: 0.8; }} }}
-        .msg {{ position: absolute; top: 8%; width: 100%; text-align: center; font-family: sans-serif; font-weight: bold; z-index: 1001; animation: pul 4s infinite; color: {config['couleur']}; font-size: {config['taille']}px; text-shadow: 0 0 20px {config['couleur']}; }}
-        @keyframes pul {{ 0%, 100% {{ transform: scale(1); }} 50% {{ transform: scale(1.03); }} }}
-        .center {{ position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%); width: 1px; height: 1px; z-index: 1000; }}
-        .logo {{ position: absolute; transform: translate(-50%, -50%); width: 220px; height: 220px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); }}
+        .msg-wall {{ position: absolute; top: 8%; width: 100%; text-align: center; font-family: sans-serif; font-weight: bold; z-index: 1001; animation: pul 4s infinite; color: {config['couleur']}; font-size: {config['taille']}px; text-shadow: 0 0 20px {config['couleur']}; }}
+        @keyframes pul {{ 0%, 100% {{ transform: scale(1); }} 50% {{ transform: scale(1.02); }} }}
+        .center-hub {{ position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%); width: 1px; height: 1px; z-index: 1000; }}
+        .logo-main {{ position: absolute; transform: translate(-50%, -50%); width: 220px; height: 220px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); }}
         .photo-node {{ position: absolute; width: 130px; height: 130px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 20px rgba(255,255,255,0.4); animation: orb 25s linear infinite; }}
         @keyframes orb {{ from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }} to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }} }}
-        .qr {{ position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 15px; text-align: center; z-index: 1002; }}
+        .qr-box {{ position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 15px; text-align: center; z-index: 1002; }}
     </style>
-    <div class="wall">
+    <div class="wall-bg">
         {stars_html}
-        <div class="msg">{config['texte']}</div>
-        <div class="center">
-            {"<img src='data:image/png;base64," + logo_data + "' class='logo'>" if logo_data else ""}
+        <div class="msg-wall">{config['texte']}</div>
+        <div class="center-hub">
+            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-main'>" if logo_b64 else ""}
             {photos_html}
         </div>
-        <div class="qr">
+        <div class="qr-box">
             <img src="data:image/png;base64,{qr_b64}" width="100"><br>
             <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
         </div>
     </div>
     """
-    st.markdown(full_html, unsafe_allow_html=True)
+    st.markdown(full_content, unsafe_allow_html=True)
 
 # --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participation")
-    st.info("Interface mobile active.")
+    st.write("Interface mobile active.")
