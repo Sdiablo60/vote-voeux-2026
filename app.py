@@ -44,7 +44,7 @@ est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
 if est_admin:
-    # CSS POUR FIGER LE HAUT
+    # CSS POUR FIGER LE HAUT ET STYLE DES CARTES
     st.markdown("""
         <style>
         .main-header-sticky {
@@ -56,6 +56,12 @@ if est_admin:
             border-bottom: 2px solid #f0f2f6;
         }
         [data-testid="column"] { min-width: 0px !important; }
+        .list-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 10px;
+            background: #fafafa;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -103,16 +109,13 @@ if est_admin:
         
         st.link_button("🖥️ ACCÉDER AU MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
 
-        # Récupération des images
         all_imgs = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         sorted_imgs = sorted(all_imgs, key=os.path.getmtime, reverse=True)
         selected_photos = []
 
-        # Barre de contrôle (Sticky)
         ctrl1, ctrl2, ctrl3, ctrl4, ctrl5 = st.columns([1.5, 1, 1, 1, 1])
         ctrl1.write(f"**Photos : {len(all_imgs)}**")
         
-        # Bouton Tout Sélectionner
         if ctrl2.button("✅/⬜ Tout" , use_container_width=True):
             st.session_state["all_selected"] = not st.session_state["all_selected"]
             st.rerun()
@@ -138,6 +141,7 @@ if est_admin:
             st.info("La galerie est vide.")
         else:
             if mode_vue == "Vignettes":
+                # Mosaïque 8 COLONNES (Compacte)
                 for i in range(0, len(sorted_imgs), 8):
                     cols = st.columns(8)
                     for j in range(8):
@@ -145,27 +149,36 @@ if est_admin:
                         if idx < len(sorted_imgs):
                             img_p = sorted_imgs[idx]
                             with cols[j]:
-                                # Si "Tout sélectionner" est actif, on coche par défaut
                                 is_checked = st.checkbox("Sél.", value=st.session_state["all_selected"], key=f"v_{img_p}_{idx}")
-                                if is_checked:
-                                    selected_photos.append(img_p)
+                                if is_checked: selected_photos.append(img_p)
                                 st.image(img_p, use_container_width=True)
                                 if st.button("🗑️", key=f"del_{img_p}_{idx}"): 
                                     os.remove(img_p)
                                     st.rerun()
             else:
-                for idx, img_p in enumerate(sorted_imgs):
-                    l1, l2, l3, l4 = st.columns([0.5, 1, 5, 1])
-                    is_checked = l1.checkbox("", value=st.session_state["all_selected"], key=f"l_{img_p}_{idx}")
-                    if is_checked:
-                        selected_photos.append(img_p)
-                    l2.image(img_p, width=60)
-                    l3.text(os.path.basename(img_p))
-                    if l4.button("Suppr.", key=f"btn_{img_p}_{idx}", use_container_width=True):
-                        os.remove(img_p)
-                        st.rerun()
+                # Mode Liste 4 COLONNES (Aperçus agrandis)
+                for i in range(0, len(sorted_imgs), 4):
+                    cols = st.columns(4)
+                    for j in range(4):
+                        idx = i + j
+                        if idx < len(sorted_imgs):
+                            img_p = sorted_imgs[idx]
+                            with cols[j]:
+                                with st.container(border=True):
+                                    # Ligne supérieure : Checkbox + Image large
+                                    c_check, c_preview = st.columns([1, 4])
+                                    with c_check:
+                                        is_checked = st.checkbox("", value=st.session_state["all_selected"], key=f"l_chk_{img_p}_{idx}", label_visibility="collapsed")
+                                        if is_checked: selected_photos.append(img_p)
+                                    with c_preview:
+                                        st.image(img_p, use_container_width=True)
+                                    
+                                    # Infos et Action sous l'image
+                                    st.caption(f"📄 {os.path.basename(img_p)[:25]}")
+                                    if st.button("Supprimer", key=f"btn_l_{img_p}_{idx}", use_container_width=True):
+                                        os.remove(img_p)
+                                        st.rerun()
 
-        # Bouton téléchargement sélection dynamique (Sticky ctrl4)
         if selected_photos:
             with ctrl4:
                 st.download_button(f"📥 Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True, type="primary")
