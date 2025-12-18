@@ -84,7 +84,6 @@ elif not mode_vote:
     valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
     photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(25/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
 
-    # HTML AVEC RECENTRAGE ET SÉCURITÉ BAS D'ÉCRAN
     html_code = f"""
     <html>
     <head>
@@ -93,16 +92,14 @@ elif not mode_vote:
             .wall {{ position: relative; width: 100vw; height: 100vh; overflow: hidden; }}
             .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: twi 2s infinite alternate; }}
             @keyframes twi {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
-            .title {{ position: absolute; top: 6%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 20px {config['couleur']}; z-index: 100; }}
             
-            /* Recentrage vertical à 45% pour éviter la coupure basse */
+            /* Titre remonté à 3% */
+            .title {{ position: absolute; top: 3%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 20px {config['couleur']}; z-index: 100; }}
+            
             .center-container {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
-            
             .logo {{ width: 180px; height: 180px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); z-index: 10; }}
-            
             .photo {{ position: absolute; width: 120px; height: 120px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3); animation: orb 25s linear infinite; }}
             
-            /* Rayon d'orbite à 240px pour rester bien dans le cadre */
             @keyframes orb {{ 
                 from {{ transform: rotate(0deg) translateX(240px) rotate(0deg); }} 
                 to {{ transform: rotate(360deg) translateX(240px) rotate(-360deg); }} 
@@ -128,18 +125,16 @@ elif not mode_vote:
     </html>
     """
     
-    # CSS de nettoyage pour Streamlit
     st.markdown("""
         <style>
             [data-testid="stHeader"], footer {display:none !important;}
             .stApp {background:black !important; overflow: hidden !important;}
-            iframe {border: none !important; margin: 0 !important; padding: 0 !important;}
+            iframe {border: none !important;}
             .block-container {padding: 0 !important; max-width: 100% !important;}
         </style>
     """, unsafe_allow_html=True)
     
-    # Affichage en plein écran (hauteur ajustée à 95vh pour plus de sécurité)
-    components.html(html_code, height=900, scrolling=False)
+    components.html(html_code, height=950, scrolling=False)
 
 else:
     st.title("🗳️ Participation")
