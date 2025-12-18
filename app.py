@@ -25,7 +25,7 @@ if not os.path.exists(VOTES_FILE):
     with open(VOTES_FILE, "w") as f: json.dump({}, f)
 if not os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "w") as f: 
-        json.dump({"mode_affichage": "photos", "titre_mur": "SOIRÉE DE GALA 2026"}, f)
+        json.dump({"mode_affichage": "photos", "titre_mur": "CONCOURS VIDÉO 2026"}, f)
 
 # --- 2. GESTION DE LA SESSION ---
 if "authenticated" not in st.session_state:
@@ -44,9 +44,10 @@ def save_config(mode, titre):
 def get_votes():
     with open(VOTES_FILE, "r") as f: return json.load(f)
 
-def add_vote(candidat):
+def add_votes_multiple(choix_list):
     votes = get_votes()
-    votes[candidat] = votes.get(candidat, 0) + 1
+    for c in choix_list:
+        votes[c] = votes.get(c, 0) + 1
     with open(VOTES_FILE, "w") as f: json.dump(votes, f)
 
 # --- 4. NAVIGATION ---
@@ -79,18 +80,13 @@ if est_admin:
         st.divider()
         if st.session_state["authenticated"]:
             st.subheader("🎮 Configuration Live")
-            nouveau_titre = st.text_input("Sous-titre (modifiable) :", value=config.get("titre_mur", "ÉVÉNEMENT 2026"))
+            nouveau_titre = st.text_input("Sous-titre mur :", value=config.get("titre_mur", "CONCOURS VIDÉO"))
             new_mode = st.radio("Affichage Mur :", ["Photos", "Votes"], index=0 if config["mode_affichage"] == "photos" else 1)
-            
             if st.button("Mettre à jour le Mur", use_container_width=True, type="primary"):
                 save_config(new_mode.lower(), nouveau_titre)
                 st.rerun()
-            
-            st.divider()
             if st.button("🧨 RESET TOTAL", use_container_width=True):
-                for f in glob.glob(os.path.join(GALLERY_DIR, "*")): 
-                    try: os.remove(f)
-                    except: pass
+                for f in glob.glob(os.path.join(GALLERY_DIR, "*")): os.remove(f)
                 with open(VOTES_FILE, "w") as f: json.dump({}, f)
                 st.rerun()
 
@@ -99,12 +95,17 @@ if est_admin:
         c_title_main, c_logo_main = st.columns([2, 1])
         with c_title_main:
             st.markdown("<h1 style='margin-bottom:0;'>Console de Modération</h1>", unsafe_allow_html=True)
-            st.caption(f"Sous-titre actuel : {config.get('titre_mur')}")
+            st.caption(f"Mode actuel : {config['mode_affichage'].upper()}")
         if os.path.exists(LOGO_FILE):
             c_logo_main.image(LOGO_FILE, width=280) 
         st.link_button("🖥️ OUVRIR LE MUR LIVE", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
+        # Affichage des votes (Admin)
+        st.subheader("📊 Résultats des 10 Services")
+        st.bar_chart(get_votes())
+
+        # Galerie Master (8 colonnes / 4 colonnes)
         all_imgs = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         sorted_imgs = sorted(all_imgs, key=os.path.getmtime, reverse=True)
         mode_vue = st.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
@@ -118,10 +119,7 @@ if est_admin:
                         img_p = sorted_imgs[idx]
                         with cols[j]:
                             st.image(img_p, use_container_width=True)
-                            if st.button("🗑️", key=f"d_{idx}"): 
-                                try: os.remove(img_p)
-                                except: pass
-                                st.rerun()
+                            if st.button("🗑️", key=f"d_{idx}"): os.remove(img_p); st.rerun()
         else:
             for i in range(0, len(sorted_imgs), 4):
                 cols = st.columns(4)
@@ -132,46 +130,43 @@ if est_admin:
                         with cols[j]:
                             with st.container(border=True):
                                 st.image(img_p, use_container_width=True)
-                                if st.button("Supprimer", key=f"bl_{idx}", use_container_width=True): 
-                                    try: os.remove(img_p)
-                                    except: pass
-                                    st.rerun()
-    else:
-        st.info("🔒 Accès restreint. Utilisez la barre latérale.")
+                                if st.button("Supprimer", key=f"bl_{idx}", use_container_width=True): os.remove(img_p); st.rerun()
 
-# --- 6. INTERFACE UTILISATEUR (QR CODE) ---
+# --- 6. INTERFACE UTILISATEUR (TOP 3 / 10 VIDÉOS) ---
 elif est_utilisateur:
     st.title("📲 Participation")
     t1, t2 = st.tabs(["📸 Photo", "🗳️ Vote Vidéo"])
     with t1:
-        f = st.file_uploader("Envoyer une photo", type=['jpg', 'png'])
+        f = st.file_uploader("Prendre une photo", type=['jpg', 'png'])
         if f:
             with open(os.path.join(GALLERY_DIR, f"u_{random.randint(100,999)}.jpg"), "wb") as out: out.write(f.getbuffer())
-            st.success("Photo envoyée !")
+            st.success("C'est envoyé !")
     with t2:
-        st.subheader("Votez pour le projet gagnant :")
-        video_choice = st.radio("Sélectionnez :", ["Projet 1 : Innovation", "Projet 2 : Équipe", "Projet 3 : Durabilité", "Projet 4 : Clients"])
-        if st.button("Valider mon vote"):
-            add_vote(video_choice); st.success("Vote pris en compte !")
+        st.subheader("Votez pour vos 3 vidéos préférées")
+        options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
+        choix = st.multiselect("Sélectionnez 3 services maximum :", options)
+        
+        if len(choix) > 3:
+            st.error("Veuillez sélectionner seulement 3 vidéos.")
+        elif len(choix) > 0:
+            if st.button(f"Valider mes {len(choix)} votes"):
+                add_votes_multiple(choix)
+                st.success("Votes enregistrés avec succès !")
+                st.balloons()
 
 # --- 7. MODE LIVE (MUR NOIR) ---
 else:
     st.markdown("<style>:root { background-color: black; } [data-testid='stAppViewContainer'], .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } </style>", unsafe_allow_html=True)
     try:
         from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(interval=20000, key="refresh")
+        st_autorefresh(interval=15000, key="refresh")
     except: pass
     
     config = load_config()
     sous_titre = config.get("titre_mur", "")
     
     if config["mode_affichage"] == "votes":
-        st.markdown(f"""
-            <div style='text-align:center; padding-top:40px; font-family:sans-serif;'>
-                <p style='color:#E2001A; font-size:35px; font-weight:bold; margin:0;'>MUR PHOTO LIVE</p>
-                <h1 style='color:white; font-size:55px; margin-top:0;'>{sous_titre}</h1>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"<div style='text-align:center; padding-top:40px;'><p style='color:#E2001A; font-size:35px; font-weight:bold; margin:0;'>MUR PHOTO LIVE</p><h1 style='color:white; font-size:55px; margin-top:0;'>{sous_titre}</h1></div>", unsafe_allow_html=True)
         st.bar_chart(get_votes())
     else:
         img_list = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
@@ -182,38 +177,26 @@ else:
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f: logo_b64 = base64.b64encode(f.read()).decode()
         
-        # Correction de la ligne photos_html (SyntaxError)
         photos_html = ""
         for p in img_list[-15:]:
             with open(p, "rb") as f:
                 img_data = base64.b64encode(f.read()).decode()
-                w = random.randint(220,320)
-                t = random.randint(10,70)
-                l = random.randint(5,85)
-                dur = random.uniform(9,15)
-                photos_html += f'<img src="data:image/png;base64,{img_data}" class="photo" style="width:{w}px; top:{t}%; left:{l}%; animation-duration:{dur}s;">'
+                photos_html += f'<img src="data:image/png;base64,{img_data}" class="photo" style="width:{random.randint(220,320)}px; top:{random.randint(10,70)}%; left:{random.randint(5,85)}%; animation-duration:{random.uniform(9,15)}s;">'
         
         html_code = f"""
         <html><body style="margin:0; background:black; overflow:hidden; width:100vw; height:100vh;">
         <style>
-            .header-box {{ position:absolute; top:30px; width:100%; text-align:center; z-index:1001; font-family:'Roboto', sans-serif; }}
-            .title-fixed {{ color:#E2001A; font-size:35px; font-weight:bold; margin:0; text-shadow: 0 0 10px rgba(226,0,26,0.3); }}
-            .title-dynamic {{ color:white; font-size:55px; font-weight:bold; margin:0; text-shadow: 0 0 20px rgba(255,255,255,0.5); }}
+            .header-box {{ position:absolute; top:30px; width:100%; text-align:center; z-index:1001; font-family:sans-serif; }}
+            .title-fixed {{ color:#E2001A; font-size:35px; font-weight:bold; margin:0; }}
+            .title-dynamic {{ color:white; font-size:55px; font-weight:bold; margin:0; }}
             .center-stack {{ position:absolute; top:58%; left:50%; transform:translate(-50%, -50%); z-index:1000; display:flex; flex-direction:column; align-items:center; gap:25px; }}
             .logo {{ max-width:380px; filter:drop-shadow(0 0 20px white); }}
             .qr-box {{ background:white; padding:15px; border-radius:15px; border: 5px solid #E2001A; }}
-            .photo {{ position:absolute; border:6px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; opacity:0.95; box-shadow: 15px 15px 35px rgba(0,0,0,0.6); }}
+            .photo {{ position:absolute; border:6px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; opacity:0.95; }}
             @keyframes move {{ from {{ transform:translate(0,0) rotate(-3deg); }} to {{ transform:translate(60px, 60px) rotate(4deg); }} }}
         </style>
-        <div class="header-box">
-            <p class="title-fixed">MUR PHOTO LIVE</p>
-            <h1 class="title-dynamic">{sous_titre}</h1>
-        </div>
-        <div class="center-stack">
-            {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
-            <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="170"></div>
-        </div>
-        {photos_html}
-        </body></html>
+        <div class="header-box"><p class="title-fixed">MUR PHOTO LIVE</p><h1 class="title-dynamic">{sous_titre}</h1></div>
+        <div class="center-stack">{f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="170"></div></div>
+        {photos_html}</body></html>
         """
         components.html(html_code, height=1000)
