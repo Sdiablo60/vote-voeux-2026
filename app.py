@@ -24,65 +24,57 @@ if not os.path.exists(PWD_FILE):
 # --- STYLE CSS "SEXY & FLASHY" ---
 st.markdown("""
     <style>
-    /* Masquage des éléments Streamlit */
     #MainMenu, header, footer {display: none !important;}
     
-    /* Nettoyage des uploaders */
-    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] div div { display: none !important; }
-    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] { border: none !important; background: transparent !important; padding: 0 !important; }
-    [data-testid="stSidebar"] .st-key-logo_clean button div:before { content: "Nouveau Logo" !important; }
-    [data-testid="stSidebar"] .st-key-imgs_up button div:before { content: "Ajouter des Photos" !important; }
-    [data-testid="stSidebar"] button div { font-size: 0 !important; }
-    [data-testid="stSidebar"] button div:before { font-size: 14px !important; }
-
-    /* Titre Tableau de Bord sous le logo */
+    /* Titre Tableau de Bord TOUT EN HAUT de la barre latérale */
     .sidebar-title {
         text-align: center;
-        font-size: 22px;
-        font-weight: 800;
+        font-size: 24px;
+        font-weight: 900;
         background: linear-gradient(45deg, #ff00cc, #3333ff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        margin-top: -10px;
+        padding-top: 10px;
         margin-bottom: 20px;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 2px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
-    /* Message de bienvenue Flashy en haut à droite */
+    /* Message de bienvenue Flashy en haut à droite (Conditionnel) */
     .welcome-header {
         position: fixed;
-        top: 15px;
-        right: 25px;
-        padding: 10px 25px;
-        background: rgba(10, 10, 10, 0.8);
+        top: 20px;
+        right: 30px;
+        padding: 12px 28px;
+        background: rgba(0, 0, 0, 0.85);
         border-radius: 50px;
         border: 2px solid #ff00cc;
-        box-shadow: 0 0 15px #ff00cc66, inset 0 0 10px #3333ff66;
-        z-index: 1000;
+        box-shadow: 0 0 20px #ff00cc88;
+        z-index: 9999;
         animation: glow 3s infinite alternate;
     }
     
     .welcome-text {
-        font-weight: 700;
-        background: linear-gradient(90deg, #fff, #ff00cc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 16px;
+        font-weight: 800;
+        color: white;
+        text-shadow: 0 0 10px #ff00cc;
+        font-size: 15px;
+        letter-spacing: 0.5px;
     }
 
     @keyframes glow {
-        from { border-color: #ff00cc; box-shadow: 0 0 10px #ff00cc66; }
-        to { border-color: #3333ff; box-shadow: 0 0 20px #3333ff88; }
+        from { border-color: #ff00cc; box-shadow: 0 0 15px #ff00cc77; }
+        to { border-color: #3333ff; box-shadow: 0 0 25px #3333ff99; }
     }
-    
-    /* Personnalisation des boutons Streamlit */
-    button[kind="primary"] {
-        background: linear-gradient(45deg, #ff00cc, #3333ff) !important;
-        border: none !important;
-        color: white !important;
-        font-weight: bold !important;
-    }
+
+    /* Nettoyage Uploaders Sidebar */
+    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] div div { display: none !important; }
+    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] { border: none !important; background: transparent !important; padding: 0 !important; }
+    [data-testid="stSidebar"] .st-key-logo_clean button div:before { content: "Changer le Logo" !important; }
+    [data-testid="stSidebar"] .st-key-imgs_up button div:before { content: "Ajouter des Photos" !important; }
+    [data-testid="stSidebar"] button div { font-size: 0 !important; }
+    [data-testid="stSidebar"] button div:before { font-size: 14px !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -110,16 +102,26 @@ if est_admin:
         pwd_actuel = f.read().strip()
 
     with st.sidebar:
-        # LOGO + TITRE TABLEAU DE BORD
-        if os.path.exists(LOGO_FILE):
-            st.image(LOGO_FILE, use_container_width=True)
+        # 1. TITRE EN PREMIER
         st.markdown('<p class="sidebar-title">Tableau de Bord</p>', unsafe_allow_html=True)
         
+        # 2. LOGO JUSTE EN DESSOUS
+        if os.path.exists(LOGO_FILE):
+            st.image(LOGO_FILE, use_container_width=True)
+        
+        st.divider()
         st.header("🔑 Sécurité")
-        input_pwd = st.text_input("Code Secret", type="password")
+        input_pwd = st.text_input("Saisir le Code Secret", type="password")
         
         if input_pwd == pwd_actuel:
-            st.success("Mode Expert Actif")
+            # --- AFFICHAGE DU MESSAGE DE BIENVENUE SEULEMENT SI LOGUÉ ---
+            st.markdown("""
+                <div class="welcome-header">
+                    <span class="welcome-text">🚀 Bienvenue sur votre Espace de Gestion</span>
+                </div>
+            """, unsafe_allow_html=True)
+
+            st.success("Accès Maître Actif")
             st.divider()
             
             # CONFIGURATION LOGO
@@ -135,7 +137,7 @@ if est_admin:
             new_txt = st.text_area("Texte", config["texte"])
             new_clr = st.color_picker("Couleur", config["couleur"])
             new_siz = st.slider("Taille", 20, 150, int(config["taille"]))
-            if st.button("🚀 Appliquer", kind="primary"):
+            if st.button("🚀 Appliquer les réglages", key="btn_msg"):
                 pd.DataFrame([{"texte": new_txt, "couleur": new_clr, "taille": new_siz}]).to_csv(MSG_FILE, index=False)
                 st.rerun()
 
@@ -149,32 +151,31 @@ if est_admin:
                 st.rerun()
 
             st.divider()
-            with st.expander("⚙️ Paramètres"):
+            with st.expander("⚙️ Paramètres Avancés"):
                 new_pwd = st.text_input("Nouveau MDP", type="password")
-                if st.button("💾 Sauver"):
+                if st.button("💾 Sauver nouveau code"):
                     with open(PWD_FILE, "w") as f: f.write(new_pwd); st.rerun()
-                if st.button("♻️ Reset Usine"):
+                if st.button("♻️ Réinitialisation d'usine"):
                     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD); st.rerun()
         else:
             st.stop()
 
-    # --- MESSAGE DE BIENVENUE EN HAUT À DROITE ---
-    st.markdown('<div class="welcome-header"><span class="welcome-text">Bienvenue sur votre Espace de Gestion</span></div>', unsafe_allow_html=True)
-
     # --- CORPS DE LA PAGE ---
-    st.subheader("🗑️ Gestion du Flux")
+    st.subheader("🗑️ Gestion du Flux en Direct")
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-    cols = st.columns(6)
-    for i, p in enumerate(imgs):
-        with cols[i%6]:
-            st.image(p, use_container_width=True)
-            if st.button("Supprimer", key=f"del_{i}"):
-                os.remove(p); st.rerun()
+    if not imgs:
+        st.info("Attente de nouvelles photos des participants...")
+    else:
+        cols = st.columns(6)
+        for i, p in enumerate(imgs):
+            with cols[i%6]:
+                st.image(p, use_container_width=True)
+                if st.button("🗑️ Supprimer", key=f"del_{i}"):
+                    os.remove(p); st.rerun()
 
-# --- 4. MODE LIVE (SOCIAL WALL) ---
+# --- 4. MODE LIVE (Identique) ---
 elif not mode_vote:
-    # (Le code du mode Live reste identique à vos précédentes validations)
-    st.markdown("""<style>.stApp {background:black !important;}</style>""", unsafe_allow_html=True)
+    st.markdown("""<style>.stApp {background:black !important;} [data-testid="stHeader"] {display:none !important;}</style>""", unsafe_allow_html=True)
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=30000, key="wall_refresh")
@@ -188,7 +189,6 @@ elif not mode_vote:
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-
     valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
     photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(30/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
 
