@@ -43,14 +43,12 @@ def get_timestamped_name(prefix):
 if est_admin:
     # --- BARRE LATÉRALE ---
     with st.sidebar:
-        # LOGO EN HAUT ET CENTRÉ
+        # LOGO EN HAUT - PLEINE LARGEUR
         if os.path.exists(LOGO_FILE):
-            # Conteneur pour centrer l'image
-            col_l, col_c, col_r = st.columns([1, 3, 1])
-            with col_c:
-                st.image(LOGO_FILE, use_container_width=True)
+            st.image(LOGO_FILE, use_container_width=True)
+            st.markdown("<br>", unsafe_allow_html=True) # Petit espace sous le logo
         
-        st.markdown("<h2 style='text-align: center; margin-top: -10px;'>⚙️ Régie Live</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center;'>⚙️ Régie Live</h2>", unsafe_allow_html=True)
         
         # Authentification
         pwd_input = st.text_input("Code Secret Admin", type="password")
@@ -61,7 +59,7 @@ if est_admin:
         
         # Configuration Logo (Toujours présente)
         st.subheader("🖼️ Identité Visuelle")
-        ul_logo = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'])
+        ul_logo = st.file_uploader("Remplacer le logo actuel", type=['png', 'jpg', 'jpeg'])
         if ul_logo:
             with open(LOGO_FILE, "wb") as f: f.write(ul_logo.getbuffer())
             st.rerun()
@@ -182,4 +180,4 @@ else:
     f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out: out.write(f.getbuffer())
-        st.success("✅ C'est envoyé !")
+        st.success("✅ Photo envoyée !")
