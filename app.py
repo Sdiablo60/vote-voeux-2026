@@ -5,7 +5,7 @@ import glob
 import random
 import base64
 
-# --- CONFIGURATION ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Social Wall 2026", layout="wide", initial_sidebar_state="collapsed")
 
 GALLERY_DIR = "galerie_images"
@@ -20,7 +20,7 @@ def get_b64(path):
     except: return ""
     return ""
 
-# --- LOGIQUE ---
+# --- 2. LOGIQUE ACCÈS ---
 params = st.query_params
 est_admin = params.get("admin") == "true"
 
@@ -44,10 +44,11 @@ if est_admin:
         st.rerun()
 
 else:
-    # --- MODE LIVE ---
+    # --- 3. MODE LIVE ---
     logo_data = get_b64(LOGO_FILE)
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
+    # CSS PUR (SANS VARIABLES PYTHON POUR ÉVITER LES ERREURS)
     st.markdown("""
         <style>
             [data-testid="stHeader"], footer, header {display:none !important;}
@@ -80,49 +81,34 @@ else:
                 position: absolute; top: 60%; left: 50%;
                 transform: translate(-50%, -50%);
                 width: 250px; height: 250px;
-                display: flex; justify-content: center; align-items: center;
+                z-index: 10000;
             }
 
             .center-logo {
-                width: 100%; height: 100%; object-fit: contain;
-                z-index: 10000; filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
+                width: 250px; height: 250px; object-fit: contain;
+                filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
             }
 
-            /* Conteneur de l'orbite pour éviter l'effet "trait" */
-            .orbit-wrapper {
-                position: absolute;
-                width: 800px; height: 800px; /* Diamètre de l'orbite */
-                animation: rotate-all 30s linear infinite;
-                display: flex; justify-content: center; align-items: center;
-            }
-
-            @keyframes rotate-all {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(360deg); }
-            }
-
-            .photo-bubble {
-                position: absolute;
-                width: 160px; height: 160px;
-                border-radius: 50%;
-                border: 4px solid white;
-                object-fit: cover;
+            .orbit-photo {
+                position: absolute; top: 50%; left: 50%;
+                width: 150px; height: 150px; margin-top: -75px; margin-left: -75px;
+                border-radius: 50%; border: 3px solid white; object-fit: cover;
                 box-shadow: 0 0 25px rgba(255,255,255,0.5);
-                /* On contre-pivote l'image pour qu'elle reste droite */
-                animation: counter-rotate 30s linear infinite;
+                animation: orbit-animation 25s linear infinite;
             }
 
-            @keyframes counter-rotate {
-                from { transform: rotate(0deg); }
-                to { transform: rotate(-360deg); }
+            @keyframes orbit-animation {
+                from { transform: rotate(0deg) translateX(360px) rotate(0deg); }
+                to { transform: rotate(360deg) translateX(360px) rotate(-360deg); }
             }
         </style>
     """, unsafe_allow_html=True)
 
+    # CONSTRUCTION DU CONTENU
     html_content = '<div class="main-container">'
     
-    # Étoiles
-    for _ in range(70):
+    # Etoiles
+    for _ in range(60):
         x, y = random.randint(0, 100), random.randint(0, 100)
         s = random.randint(1, 3)
         html_content += f'<div class="star" style="left:{x}vw; top:{y}vh; width:{s}px; height:{s}px;"></div>'
@@ -136,16 +122,11 @@ else:
     
     # Photos
     if imgs:
-        display_imgs = imgs[-10:] # Max 10 photos pour la clarté
-        for i, path in enumerate(display_imgs):
+        shuffled = imgs[-10:]
+        for i, path in enumerate(shuffled):
             img_b64 = get_b64(path)
-            angle = (360 / len(display_imgs)) * i
-            # On place chaque photo sur le bord du cercle de 800px (rayon 400px)
-            html_content += f'''
-                <div class="orbit-wrapper" style="transform: rotate({angle}deg);">
-                    <img src="data:image/png;base64,{img_b64}" class="photo-bubble" style="top: 0;">
-                </div>
-            '''
+            delay = -(i * (25 / len(shuffled)))
+            html_content += f'<img src="data:image/png;base64,{img_b64}" class="orbit-photo" style="animation-delay:{delay}s;">'
     
     html_content += '</div></div>'
     
