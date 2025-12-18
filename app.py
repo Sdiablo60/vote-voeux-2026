@@ -16,11 +16,9 @@ LOGO_FILE = "logo_entreprise.png"
 MSG_FILE = "live_config.csv"
 PWD_FILE = "admin_pwd.txt"
 
-# Création des dossiers si nécessaire
 if not os.path.exists(GALLERY_DIR):
     os.makedirs(GALLERY_DIR)
 
-# Initialisation du mot de passe par défaut
 if not os.path.exists(PWD_FILE):
     with open(PWD_FILE, "w") as f:
         f.write("ADMIN_VOEUX_2026")
@@ -50,65 +48,48 @@ mode_vote = params.get("mode") == "vote"
 # --- 3. INTERFACE ADMIN ---
 if est_admin:
     st.title("🛠️ Console Régie Master")
-    
     with open(PWD_FILE, "r") as f:
         pwd_actuel = f.read().strip()
-        
     with st.sidebar:
         st.header("🔑 Connexion")
         input_pwd = st.text_input("Code Secret", type="password")
-        st.info("Par défaut : ADMIN_VOEUX_2026")
-    
     if input_pwd != pwd_actuel:
         st.warning("Veuillez saisir le code secret dans la barre latérale.")
         st.stop() 
 
     config = get_config()
-    t1, t2 = st.tabs(["💬 Configuration Message", "🖼️ Gestion Médias"])
-    
+    t1, t2 = st.tabs(["💬 Message", "🖼️ Médias"])
     with t1:
-        col1, col2 = st.columns(2)
-        txt = col1.text_area("Message à afficher", config["texte"])
-        clr = col2.color_picker("Couleur du texte", config["couleur"])
-        siz = col2.slider("Taille du texte", 20, 120, int(config["taille"]))
-        if st.button("🚀 Mettre à jour le Mur"):
+        txt = st.text_area("Texte", config["texte"])
+        clr = st.color_picker("Couleur", config["couleur"])
+        siz = st.slider("Taille", 20, 120, int(config["taille"]))
+        if st.button("Enregistrer"):
             pd.DataFrame([{"texte": txt, "couleur": clr, "taille": siz}]).to_csv(MSG_FILE, index=False)
-            st.success("Configuration enregistrée !")
             st.rerun()
-            
     with t2:
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader("Logo Central")
-            ul = st.file_uploader("Upload Logo (PNG/JPG)", type=['png','jpg','jpeg'])
+            ul = st.file_uploader("Logo Central", type=['png','jpg','jpeg'])
             if ul:
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
         with c2:
-            st.subheader("Ajouter des Photos")
-            uf = st.file_uploader("Sélectionnez des images", type=['png','jpg','jpeg'], accept_multiple_files=True)
+            uf = st.file_uploader("Ajouter Photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
             if uf:
                 for f in uf:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
-        
         st.divider()
-        st.subheader("🗑️ Nettoyage de la Galerie")
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-        if not imgs:
-            st.info("La galerie est vide.")
-        else:
-            cols = st.columns(6)
-            for i, p in enumerate(imgs):
-                with cols[i%6]:
-                    st.image(p, use_container_width=True)
-                    if st.button("Supprimer", key=f"del_{i}"):
-                        os.remove(p)
-                        st.rerun()
+        cols = st.columns(6)
+        for i, p in enumerate(imgs):
+            with cols[i%6]:
+                st.image(p, use_container_width=True)
+                if st.button("🗑️", key=f"del_{i}"):
+                    os.remove(p); st.rerun()
 
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
-    # Auto-refresh toutes les 30 secondes pour charger les nouvelles photos
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=30000, key="wall_refresh")
 
@@ -116,14 +97,12 @@ elif not mode_vote:
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
-    # Génération QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Préparation du contenu visuel
-    stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}%; left:{random.randint(0,100)}%; width:2px; height:2px; animation-delay:{random.random()*3}s;"></div>' for _ in range(70)])
+    stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}%; left:{random.randint(0,100)}%; width:2px; height:2px; animation-delay:{random.random()*3}s;"></div>' for _ in range(60)])
     
     valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
     photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(30/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
@@ -132,24 +111,25 @@ elif not mode_vote:
     <html>
     <head>
         <style>
-            body, html {{ margin: 0; padding: 0; background-color: #050505; color: white; overflow: hidden; font-family: 'Segoe UI', sans-serif; height: 100%; width: 100%; }}
-            .wall {{ position: relative; width: 100vw; height: 100vh; overflow: hidden; background: radial-gradient(circle at center, #111 0%, #050505 100%); }}
+            body, html {{ margin: 0; padding: 0; background-color: #050505; color: white; overflow: hidden; font-family: sans-serif; height: 100%; width: 100%; }}
+            .wall {{ position: relative; width: 100vw; height: 100vh; overflow: hidden; }}
             .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: twi 2s infinite alternate; }}
             @keyframes twi {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
+            .title {{ position: absolute; top: 1%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}; z-index: 100; }}
             
-            .title {{ position: absolute; top: 2%; width: 100%; text-align: center; font-weight: 900; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}99; z-index: 100; letter-spacing: 2px; }}
+            /* CENTRE REMONTÉ À 38% */
+            .center-container {{ position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
+            .logo {{ width: 170px; height: 170px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); z-index: 10; }}
             
-            .center-container {{ position: absolute; top: 43%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
-            .logo {{ width: 190px; height: 190px; object-fit: contain; filter: drop-shadow(0 0 20px {config['couleur']}66); z-index: 10; }}
+            /* PHOTOS À 120PX */
+            .photo {{ position: absolute; width: 120px; height: 120px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3); animation: orb 30s linear infinite; }}
             
-            .photo {{ position: absolute; width: 135px; height: 135px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 25px rgba(255,255,255,0.3); animation: orb 30s linear infinite; }}
-            
+            /* RAYON RESSERRÉ À 230PX */
             @keyframes orb {{ 
-                from {{ transform: rotate(0deg) translateX(270px) rotate(0deg); }} 
-                to {{ transform: rotate(360deg) translateX(270px) rotate(-360deg); }} 
+                from {{ transform: rotate(0deg) translateX(230px) rotate(0deg); }} 
+                to {{ transform: rotate(360deg) translateX(230px) rotate(-360deg); }} 
             }}
-            
-            .qr {{ position: absolute; bottom: 30px; right: 30px; background: white; padding: 12px; border-radius: 15px; text-align: center; color: black; z-index: 200; box-shadow: 0 0 20px rgba(255,255,255,0.1); }}
+            .qr {{ position: absolute; bottom: 25px; right: 25px; background: white; padding: 10px; border-radius: 12px; text-align: center; color: black; z-index: 200; }}
         </style>
     </head>
     <body>
@@ -161,32 +141,23 @@ elif not mode_vote:
                 {photos_html}
             </div>
             <div class="qr">
-                <img src="data:image/png;base64,{qr_b64}" width="100"><br>
-                <span style="font-size:11px; font-weight:bold; font-family: sans-serif;">SCANNEZ POUR PARTICIPER</span>
+                <img src="data:image/png;base64,{qr_b64}" width="95"><br>
+                <span style="font-size:10px; font-weight:bold;">SCANNEZ POUR PARTICIPER</span>
             </div>
         </div>
     </body>
     </html>
     """
     
-    st.markdown("""
-        <style>
-            [data-testid="stHeader"], footer {display:none !important;}
-            .stApp {background:black !important; overflow: hidden !important;}
-            iframe {border: none !important;}
-            .block-container {padding: 0 !important; max-width: 100% !important;}
-        </style>
-    """, unsafe_allow_html=True)
-    
-    components.html(html_code, height=1000, scrolling=False)
+    st.markdown("""<style>[data-testid="stHeader"], footer {display:none !important;} .stApp {background:black !important; overflow: hidden !important;} iframe {border: none !important;} .block-container {padding: 0 !important; max-width: 100% !important;}</style>""", unsafe_allow_html=True)
+    components.html(html_code, height=980, scrolling=False)
 
-# --- 5. MODE VOTE / PARTICIPATION ---
+# --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participez au Social Wall")
-    st.write("Envoyez vos photos pour les voir apparaître en direct !")
-    uploaded_file = st.file_uploader("Choisissez une photo", type=['jpg', 'jpeg', 'png'])
-    if uploaded_file is not None:
-        with open(os.path.join(GALLERY_DIR, uploaded_file.name), "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        st.success("Photo envoyée ! Regardez l'écran géant ✨")
+    uf = st.file_uploader("Envoyez votre photo ✨", type=['jpg', 'jpeg', 'png'])
+    if uf:
+        with open(os.path.join(GALLERY_DIR, uf.name), "wb") as f:
+            f.write(uf.getbuffer())
+        st.success("Photo envoyée ! Regardez l'écran géant.")
         st.balloons()
