@@ -39,7 +39,7 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 4. INTERFACE ADMIN ---
 if est_admin:
-    st.title("🛠️ Console Régie Master")
+    st.title("🛠️ Console Régie")
     pwd_input = st.sidebar.text_input("Code Admin", type="password")
     if pwd_input == (open(PASS_FILE).read().strip() if os.path.exists(PASS_FILE) else DEFAULT_PASSWORD):
         t1, t2 = st.tabs(["✨ Configuration", "🖼️ Photos"])
@@ -67,7 +67,7 @@ if est_admin:
     else:
         st.info("Veuillez entrer le code dans la barre latérale.")
 
-# --- 5. MODE LIVE (VERSION SÉCURISÉE) ---
+# --- 5. MODE LIVE ---
 elif not mode_vote:
     msg = get_msg()
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
@@ -78,10 +78,8 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Génération statique des étoiles
+    # Étoiles et Photos
     stars_html = "".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; animation-duration:{random.randint(3,6)}s;"></div>' for _ in range(60)])
-
-    # Génération des photos
     photos_html = ""
     if imgs:
         shuffled = imgs[-10:]
@@ -90,71 +88,63 @@ elif not mode_vote:
             delay = -(i * (20 / len(shuffled)))
             photos_html += f'<img src="data:image/png;base64,{p_b64}" class="photo-orbit" style="animation-delay:{delay}s;">'
 
-    # Injection du Style avec doubles accolades pour échapper le f-string
-    st.markdown(f"""
+    # INJECTION CSS SÉPARÉE POUR ÉVITER LE F-STRING BUG
+    st.markdown("""
     <style>
-        /* CACHER TOUT L'INTERFACE STREAMLIT */
-        #root > div:nth-child(1) > div > div > div > div > section > div {{ padding: 0; }}
-        header, footer, [data-testid="stSidebar"], [data-testid="stHeader"] {{ display: none !important; }}
-        .stApp {{ background: #050505 !important; }}
-
-        .live-container {{
+        header, footer, .stAppHeader, [data-testid="stHeader"] { display: none !important; }
+        .stApp { background-color: #050505 !important; }
+        .main { background-color: #050505 !important; }
+        
+        .live-container {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             background: #050505; z-index: 9999; overflow: hidden;
-        }}
+        }
+        .star { position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%; animation: twinkle infinite alternate; }
+        @keyframes twinkle { from { opacity: 0.1; } to { opacity: 0.8; } }
         
-        .star {{
-            position: absolute; width: 2px; height: 2px; background: white; border-radius: 50%;
-            animation: twinkle infinite alternate;
-        }}
-        @keyframes twinkle {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
-
-        .welcome-msg {{
+        .welcome-msg {
             position: absolute; top: 10%; width: 100%; text-align: center;
-            color: {msg['couleur']}; font-size: {msg['taille']}px; font-weight: bold; font-family: sans-serif;
-            animation: pulse 4s ease-in-out infinite; z-index: 10001;
-        }}
-        @keyframes pulse {{
-            0% {{ transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}55; }}
-            50% {{ transform: scale(1.02); text-shadow: 0 0 30px {msg['couleur']}; }}
-            100% {{ transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}55; }}
-        }}
-
-        .logo-center {{
+            font-weight: bold; font-family: sans-serif; z-index: 10001;
+            animation: pulse 4s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.02); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+        .logo-center {
             position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%);
-            width: 200px; z-index: 10000; filter: drop-shadow(0 0 30px {msg['couleur']}88);
-        }}
-
-        .photo-orbit {{
+            width: 200px; z-index: 10000;
+        }
+        .photo-orbit {
             position: absolute; top: 55%; left: 50%; width: 140px; height: 140px;
             margin-top: -70px; margin-left: -70px; border-radius: 50%;
             border: 3px solid white; object-fit: cover;
             animation: orbit 20s linear infinite; z-index: 9999;
-        }}
-        @keyframes orbit {{
-            from {{ transform: rotate(0deg) translateX(320px) rotate(0deg); }}
-            to {{ transform: rotate(360deg) translateX(320px) rotate(-360deg); }}
-        }}
-
-        .qr-zone {{
-            position: fixed; bottom: 30px; right: 30px; background: white;
-            padding: 10px; border-radius: 12px; text-align: center; z-index: 10002;
-        }}
+        }
+        @keyframes orbit {
+            from { transform: rotate(0deg) translateX(320px) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(320px) rotate(-360deg); }
+        }
+        .qr-zone { position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 12px; text-align: center; z-index: 10002; color: black; }
     </style>
+    """, unsafe_allow_html=True)
 
+    # AFFICHAGE DU CONTENU
+    st.markdown(f"""
     <div class="live-container">
         {stars_html}
-        <div class="welcome-msg">{msg['texte']}</div>
-        {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-center'>" if logo_b64 else ""}
+        <div class="welcome-msg" style="color:{msg['couleur']}; font-size:{msg['taille']}px; text-shadow: 0 0 20px {msg['couleur']};">
+            {msg['texte']}
+        </div>
+        {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-center' style='filter: drop-shadow(0 0 30px "+msg['couleur']+"88);'>" if logo_b64 else ""}
         {photos_html}
         <div class="qr-zone">
             <img src="data:image/png;base64,{qr_b64}" width="100"><br>
-            <small style="color:black; font-family:sans-serif; font-weight:bold;">VOTER ICI</small>
+            <small><b>VOTER ICI</b></small>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-# --- 6. MODE VOTE ---
 else:
     st.title("🗳️ Vote & Présence")
-    st.write("Bienvenue !")
