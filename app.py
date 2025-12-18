@@ -17,34 +17,30 @@ MSG_FILE = "live_config.csv"
 
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- STYLE CSS RADICAL (TUE LE SCROLL) ---
+# --- STYLE CSS (PURGE TOTALE DU BLANC) ---
 st.markdown("""
     <style>
-    /* 1. Bloque le scroll sur tous les niveaux de Streamlit */
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .stApp {
-        background-color: #000000 !important;
+    /* On force le noir sur la racine absolue */
+    :root { background-color: black !important; }
+    
+    html, body, .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: black !important;
+        background: black !important;
         overflow: hidden !important;
         height: 100vh !important;
-        width: 100vw !important;
         margin: 0 !important;
         padding: 0 !important;
     }
-    
-    /* 2. Supprime spécifiquement le padding blanc/gris en haut */
-    .main .block-container {
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        max-width: 100% !important;
-    }
 
-    /* 3. Masque la barre de défilement même si elle veut apparaître */
-    ::-webkit-scrollbar {
-        display: none !important;
-    }
-
+    .main .block-container { padding: 0 !important; }
     #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
+    
+    /* On s'assure que l'iframe du mur occupe tout l'espace sans créer de scroll */
+    iframe {
+        border: none !important;
+        width: 100vw !important;
+        height: 100vh !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -69,17 +65,23 @@ mode_vote = params.get("mode") == "vote"
 if est_admin:
     st.markdown("<style>html, body, .stApp { overflow: auto !important; }</style>", unsafe_allow_html=True)
     st.title("⚙️ Régie")
-    pwd = st.text_input("Code", type="password")
+    pwd = st.text_input("Code Master", type="password")
     if pwd == "ADMIN_LIVE_MASTER":
+        st.success("Accès validé")
         config = get_config()
         t = st.text_input("Message", config["texte"])
-        if st.button("Enregistrer"):
+        if st.button("Mettre à jour"):
             pd.DataFrame([{"texte": t, "couleur": "#FFFFFF", "taille": 50}]).to_csv(MSG_FILE, index=False)
             st.rerun()
-        up = st.file_uploader("Photos", accept_multiple_files=True)
+        
+        up = st.file_uploader("Ajouter Photos", accept_multiple_files=True)
         if up:
             for f in up:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
+            st.rerun()
+        
+        if st.button("🗑️ Vider la galerie"):
+            for f in glob.glob(os.path.join(GALLERY_DIR, "*")): os.remove(f)
             st.rerun()
     else: st.stop()
 
@@ -87,7 +89,7 @@ if est_admin:
 elif not mode_vote:
     try:
         from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(interval=25000, key="wall_refresh")
+        st_autorefresh(interval=20000, key="wall_refresh")
     except: pass
 
     config = get_config()
@@ -104,39 +106,28 @@ elif not mode_vote:
         b64 = get_b64(img_path)
         if b64:
             size = random.randint(150, 230)
-            top, left = random.randint(5, 75), random.randint(5, 80)
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(7,12)}s; animation-delay:-{random.uniform(0,10)}s;">'
+            top, left = random.randint(5, 70), random.randint(5, 80)
+            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(8,15)}s; animation-delay:-{random.uniform(0,10)}s;">'
 
     html_code = f"""
     <!DOCTYPE html>
-    <html>
-    <head>
+    <html style="background: black;">
+    <body style="margin: 0; padding: 0; background: black; overflow: hidden;">
         <style>
-            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-            body, html {{ 
-                background-color: black !important; 
-                overflow: hidden !important; 
-                height: 100vh; 
-                width: 100vw; 
-                font-family: sans-serif; 
-            }}
-            .wall {{ position: relative; width: 100vw; height: 100vh; background: black; }}
+            .wall {{ position: relative; width: 100vw; height: 100vh; background: black; font-family: sans-serif; overflow: hidden; }}
             .title {{ position: absolute; top: 4%; width: 100%; text-align: center; color: white; font-size: {config['taille']}px; font-weight: bold; z-index: 100; text-shadow: 0 0 15px rgba(255,255,255,0.7); }}
-            .center-zone {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; display: flex; flex-direction: column; align-items: center; }}
-            .logo {{ max-width: 250px; margin-bottom: 20px; filter: drop-shadow(0 0 10px white); }}
-            .qr-box {{ background: white; padding: 12px; border-radius: 15px; display: inline-block; box-shadow: 0 0 30px rgba(255,255,255,0.4); }}
+            .center {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; }}
+            .logo {{ max-width: 240px; margin-bottom: 20px; filter: drop-shadow(0 0 10px white); }}
+            .qr-box {{ background: white; padding: 10px; border-radius: 15px; display: inline-block; }}
             .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: float alternate infinite ease-in-out; opacity: 0.9; }}
-            @keyframes float {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 80px) rotate(8deg); }} }}
+            @keyframes float {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(50px, 70px) rotate(8deg); }} }}
         </style>
-    </head>
-    <body>
         <div class="wall">
             <div class="title">{config['texte']}</div>
-            <div class="center-zone">
+            <div class="center">
                 {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
                 <div class="qr-box">
-                    <img src="data:image/png;base64,{qr_b64}" width="120">
-                    <p style="color:black; font-size:11px; font-weight:bold; margin-top:5px;">PARTICIPER</p>
+                    <img src="data:image/png;base64,{qr_b64}" width="110">
                 </div>
             </div>
             {photos_html}
@@ -144,28 +135,14 @@ elif not mode_vote:
     </body>
     </html>
     """
-    # Le secret : on utilise calc(100vh - 5px) pour être sûr que le conteneur ne déborde jamais
-    components.html(html_code, height=None, scrolling=False)
-    
-    # CSS pour forcer le composant iframe à prendre toute la place
-    st.markdown("""
-        <style>
-        iframe {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw !important;
-            height: 100vh !important;
-            border: none !important;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    # Hauteur définie à 100vh via CSS pour éviter le scroll
+    components.html(html_code, height=2000) # Hauteur virtuelle large mais bridée par le CSS
 
 # --- 5. MODE VOTE ---
 else:
-    st.title("📸 Envoyez votre photo")
-    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
+    st.title("📸 Photo")
+    f = st.file_uploader("Envoyer une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
-        st.success("C'est envoyé !")
+        st.success("Reçu !")
