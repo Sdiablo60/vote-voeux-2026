@@ -87,28 +87,27 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
+    # Préparation des éléments
     stars_html = "".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; width:{random.randint(1,2)}px; height:{random.randint(1,2)}px;"></div>' for _ in range(50)])
     
     photos_html = ""
-    valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
+    valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
     for i, b64 in enumerate(valid_photos):
         delay = -(i * (25 / max(len(valid_photos), 1)))
-        photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="animation-delay:{delay}s;">'
+        photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-orbit" style="animation-delay:{delay}s;">'
 
-    # INJECTION MASSIVE ET NETTOYAGE DES CONTENEURS
+    # INJECTION CSS (Version Corrigée pour l'affichage des images)
     st.markdown(f"""
     <style>
-        /* NETTOYAGE RADICAL DES CONTENEURS STREAMLIT */
-        [data-testid="stVerticalBlock"] > div:has(div.stMarkdown) {{ padding: 0 !important; margin: 0 !important; }}
-        .element-container, .stMarkdown {{ display: none; }} /* Cache tout par défaut */
-        .visible-wall {{ display: block !important; }} /* Ne montre que notre mur */
-
+        /* Cache Streamlit mais autorise notre conteneur spécifique */
+        [data-testid="stVerticalBlock"] > div:not(:last-child) {{ display: none !important; }}
         header, footer, .stAppHeader {{ display:none !important; }}
         .stApp {{ background-color: #050505 !important; overflow: hidden; }}
         
-        .wall {{ 
+        .wall-final {{ 
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
-            background: #050505; z-index: 9999; overflow: hidden; display: block !important;
+            background: #050505; z-index: 9999; overflow: hidden;
+            display: block !important;
         }}
         .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twi 3s infinite alternate; }}
         @keyframes twi {{ from {{ opacity: 0.2; }} to {{ opacity: 0.8; }} }}
@@ -116,19 +115,19 @@ elif not mode_vote:
         @keyframes pul {{ 0%, 100% {{ transform: scale(1); }} 50% {{ transform: scale(1.02); }} }}
         .hub {{ position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%); width: 1px; height: 1px; z-index: 10000; }}
         .logo {{ position: absolute; transform: translate(-50%, -50%); width: 200px; height: 200px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); }}
-        .photo {{ position: absolute; width: 125px; height: 125px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 20px rgba(255,255,255,0.4); animation: orb 25s linear infinite; }}
-        @keyframes orb {{ from {{ transform: rotate(0deg) translateX(250px) rotate(0deg); }} to {{ transform: rotate(360deg) translateX(250px) rotate(-360deg); }} }}
+        .photo-orbit {{ position: absolute; width: 130px; height: 130px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 20px rgba(255,255,255,0.4); animation: orb 25s linear infinite; display: block !important; }}
+        @keyframes orb {{ from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }} to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }} }}
         .qr {{ position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px; border-radius: 15px; text-align: center; z-index: 10002; }}
     </style>
     
-    <div class="wall visible-wall">
+    <div class="wall-final">
         {stars_html}
-        <div class="msg visible-wall">{config['texte']}</div>
-        <div class="hub visible-wall">
-            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo visible-wall'>" if logo_b64 else ""}
+        <div class="msg">{config['texte']}</div>
+        <div class="hub">
+            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}
             {photos_html}
         </div>
-        <div class="qr visible-wall">
+        <div class="qr">
             <img src="data:image/png;base64,{qr_b64}" width="100"><br>
             <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
         </div>
@@ -138,4 +137,4 @@ elif not mode_vote:
 # --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participation")
-    st.write("Interface mobile.")
+    st.write("Interface mobile active.")
