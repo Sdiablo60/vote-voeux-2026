@@ -21,46 +21,51 @@ if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 if not os.path.exists(PWD_FILE):
     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD)
 
-# --- STYLE CSS RADICAL (BLOQUE LE SCROLL + DESIGN) ---
+# --- STYLE CSS "ZERO MARGE" (SUPPRIME BARRE BLANCHE ET SCROLL) ---
 st.markdown("""
     <style>
-    /* Masquer les éléments Streamlit */
-    #MainMenu, header, footer {display: none !important;}
-    [data-testid="stHeader"] {display:none !important;}
-    
-    /* BLOQUE LE SCROLL VERTICAL SUR LE CLOUD */
-    section.main { overflow: hidden !important; padding: 0 !important; }
-    .block-container { padding: 0 !important; max-width: 100% !important; }
-    [data-testid="stAppViewContainer"] { overflow: hidden !important; }
+    /* 1. SUPPRESSION TOTALE DES ÉLÉMENTS DE STRUCTURE STREAMLIT */
+    #MainMenu, footer, [data-testid="stHeader"], [data-testid="stDecoration"] {
+        display: none !important;
+    }
 
-    /* Titre Tableau de Bord Sidebar */
+    /* 2. FORCE LE FOND NOIR ET SUPPRIME LE PADDING (BARRE BLANCHE) */
+    .stApp {
+        background-color: black !important;
+    }
+
+    [data-testid="stAppViewContainer"] {
+        background-color: black !important;
+    }
+
+    /* Supprime les marges de sécurité en haut de page */
+    .main .block-container {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: 100% !important;
+    }
+
+    /* 3. BLOQUE LE SCROLL ABSOLU */
+    html, body, [data-testid="stAppViewContainer"], section.main {
+        overflow: hidden !important;
+        height: 100vh !important;
+    }
+
+    /* Style Sidebar (Tableau de Bord) */
     .sidebar-title {
-        text-align: center;
-        font-size: 22px;
-        font-weight: 900;
+        text-align: center; font-size: 22px; font-weight: 900;
         background: linear-gradient(45deg, #ff00cc, #3333ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin-bottom: 20px;
-        text-transform: uppercase;
-    }
-
-    /* Badge Bienvenue Fixe */
-    .welcome-header {
-        position: fixed;
-        top: 20px;
-        right: 30px;
-        padding: 10px 25px;
-        background: rgba(0, 0, 0, 0.85);
-        border-radius: 50px;
-        border: 2px solid #ff00cc;
-        z-index: 9999;
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        margin-bottom: 20px; text-transform: uppercase;
     }
     
-    /* Nettoyage Uploaders Sidebar */
-    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] div div { display: none !important; }
-    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] { border: none !important; background: transparent !important; padding: 0 !important; }
-    [data-testid="stSidebar"] button div:before { font-size: 14px !important; }
+    .welcome-header {
+        position: fixed; top: 20px; right: 30px; padding: 10px 25px;
+        background: rgba(0, 0, 0, 0.85); border-radius: 50px;
+        border: 2px solid #ff00cc; z-index: 9999;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -147,7 +152,7 @@ elif not mode_vote:
     <html>
     <head>
         <style>
-            body, html {{ margin: 0; padding: 0; background: #050505; color: white; overflow: hidden !important; height: 100vh; width: 100vw; }}
+            body, html {{ margin: 0; padding: 0; background: #000000; color: white; overflow: hidden !important; height: 100vh; width: 100vw; }}
             .wall {{ position: relative; width: 100vw; height: 100vh; overflow: hidden !important; }}
             .title {{ position: absolute; top: 2%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}; z-index: 100; }}
             .center-container {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
@@ -155,18 +160,11 @@ elif not mode_vote:
             .photo {{ position: absolute; width: 160px; height: 160px; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: orb 40s linear infinite; }}
             @keyframes orb {{ from {{ transform: rotate(0deg) translateX(320px) rotate(0deg); }} to {{ transform: rotate(360deg) translateX(320px) rotate(-360deg); }} }}
             
-            /* QR CODE EN HAUT A DROITE FIXE */
             .qr-fixed {{ 
-                position: fixed !important; 
-                top: 25px !important; 
-                right: 25px !important; 
-                background: white !important; 
-                padding: 10px !important; 
-                border-radius: 15px !important; 
-                text-align: center !important; 
-                color: black !important; 
-                z-index: 9999 !important; 
-                box-shadow: 0 0 20px rgba(255,255,255,0.3) !important;
+                position: fixed !important; top: 25px !important; right: 25px !important; 
+                background: white !important; padding: 10px !important; border-radius: 15px !important; 
+                text-align: center !important; color: black !important; z-index: 9999 !important; 
+                box-shadow: 0 0 20px rgba(255,255,255,0.3) !important; font-family: sans-serif;
             }}
         </style>
     </head>
@@ -174,7 +172,7 @@ elif not mode_vote:
         <div class="wall">
             <div class="qr-fixed">
                 <img src="data:image/png;base64,{qr_b64}" width="110">
-                <div style="font-size:10px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ POUR PARTICIPER</div>
+                <div style="font-size:10px; font-weight:bold; margin-top:5px;">SCANNEZ POUR PARTICIPER</div>
             </div>
             <div class="title">{config['texte']}</div>
             <div class="center-container">
@@ -185,7 +183,8 @@ elif not mode_vote:
     </body>
     </html>
     """
-    components.html(html_code, height=1200, scrolling=False)
+    # On affiche le composant sur toute la hauteur disponible
+    components.html(html_code, height=1000, scrolling=False)
 
 # --- 5. MODE VOTE ---
 else:
