@@ -21,50 +21,17 @@ if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 if not os.path.exists(PWD_FILE):
     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD)
 
-# --- STYLE CSS "ZERO MARGE" (SUPPRIME BARRE BLANCHE ET SCROLL) ---
+# --- STYLE CSS (PLEIN ÉCRAN TOTAL) ---
 st.markdown("""
     <style>
-    /* 1. SUPPRESSION TOTALE DES ÉLÉMENTS DE STRUCTURE STREAMLIT */
-    #MainMenu, footer, [data-testid="stHeader"], [data-testid="stDecoration"] {
-        display: none !important;
-    }
-
-    /* 2. FORCE LE FOND NOIR ET SUPPRIME LE PADDING (BARRE BLANCHE) */
-    .stApp {
+    #MainMenu, footer, [data-testid="stHeader"], [data-testid="stDecoration"] { display: none !important; }
+    .stApp { background-color: black !important; }
+    [data-testid="stAppViewContainer"] { background-color: black !important; background: black !important; }
+    .main .block-container { padding: 0 !important; max-width: 100% !important; }
+    html, body, [data-testid="stAppViewContainer"], section.main { 
+        overflow: hidden !important; 
+        height: 100vh !important; 
         background-color: black !important;
-    }
-
-    [data-testid="stAppViewContainer"] {
-        background-color: black !important;
-    }
-
-    /* Supprime les marges de sécurité en haut de page */
-    .main .block-container {
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-        padding-left: 0 !important;
-        padding-right: 0 !important;
-        max-width: 100% !important;
-    }
-
-    /* 3. BLOQUE LE SCROLL ABSOLU */
-    html, body, [data-testid="stAppViewContainer"], section.main {
-        overflow: hidden !important;
-        height: 100vh !important;
-    }
-
-    /* Style Sidebar (Tableau de Bord) */
-    .sidebar-title {
-        text-align: center; font-size: 22px; font-weight: 900;
-        background: linear-gradient(45deg, #ff00cc, #3333ff);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-        margin-bottom: 20px; text-transform: uppercase;
-    }
-    
-    .welcome-header {
-        position: fixed; top: 20px; right: 30px; padding: 10px 25px;
-        background: rgba(0, 0, 0, 0.85); border-radius: 50px;
-        border: 2px solid #ff00cc; z-index: 9999;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -90,38 +57,28 @@ mode_vote = params.get("mode") == "vote"
 if est_admin:
     with open(PWD_FILE, "r") as f: pwd_actuel = f.read().strip()
     with st.sidebar:
-        st.markdown('<p class="sidebar-title">Tableau de Bord</p>', unsafe_allow_html=True)
-        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, use_container_width=True)
-        st.divider()
-        input_pwd = st.text_input("Code Secret", type="password")
+        st.title("Admin Wall")
+        input_pwd = st.text_input("Code", type="password")
         if input_pwd == pwd_actuel:
-            st.markdown('<div class="welcome-header"><span style="color:white;font-weight:bold;">🚀 Bienvenue sur votre Espace de Gestion</span></div>', unsafe_allow_html=True)
-            
-            st.header("🖼️ Logo")
-            ul = st.file_uploader("", type=['png','jpg','jpeg'], key="logo_clean")
+            st.success("Connecté")
+            config = get_config()
+            new_txt = st.text_area("Message", config["texte"])
+            new_clr = st.color_picker("Couleur", config["couleur"])
+            new_siz = st.slider("Taille", 20, 150, int(config["taille"]))
+            if st.button("Appliquer"):
+                pd.DataFrame([{"texte": new_txt, "couleur": new_clr, "taille": new_siz}]).to_csv(MSG_FILE, index=False)
+                st.rerun()
+            ul = st.file_uploader("Logo", type=['png','jpg','jpeg'])
             if ul: 
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
-
-            st.header("💬 Message Mur")
-            config = get_config()
-            new_txt = st.text_area("Texte", config["texte"])
-            new_clr = st.color_picker("Couleur", config["couleur"])
-            new_siz = st.slider("Taille", 20, 150, int(config["taille"]))
-            if st.button("🚀 Appliquer"):
-                pd.DataFrame([{"texte": new_txt, "couleur": new_clr, "taille": new_siz}]).to_csv(MSG_FILE, index=False)
-                st.rerun()
-
-            st.header("📸 Ajouter Photos")
-            uf = st.file_uploader("", type=['png','jpg','jpeg'], accept_multiple_files=True, key="imgs_up")
+            uf = st.file_uploader("Photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
             if uf:
                 for f in uf:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
-        else:
-            st.stop()
+        else: st.stop()
     
-    st.subheader("🗑️ Gestion du Flux")
     imgs = sorted(glob.glob(os.path.join(GALLERY_DIR, "*")), key=os.path.getmtime, reverse=True)
     cols = st.columns(6)
     for i, p in enumerate(imgs):
@@ -129,7 +86,7 @@ if est_admin:
             st.image(p, use_container_width=True)
             if st.button("🗑️", key=f"del_{i}"): os.remove(p); st.rerun()
 
-# --- 4. MODE LIVE (SOCIAL WALL) ---
+# --- 4. MODE LIVE (PHOTO ALÉATOIRE + CENTRE FIXE) ---
 elif not mode_vote:
     try:
         from streamlit_autorefresh import st_autorefresh
@@ -138,53 +95,74 @@ elif not mode_vote:
 
     config = get_config()
     logo_b64 = get_b64(LOGO_FILE)
-    img_list = sorted(glob.glob(os.path.join(GALLERY_DIR, "*")), key=os.path.getmtime)
+    img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    valid_photos = [get_b64(p) for p in img_list[-15:] if get_b64(p)]
-    photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(30/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
+    # Génération des photos flottantes
+    photos_html = ""
+    for i, img_path in enumerate(img_list[-25:]):
+        b64 = get_b64(img_path)
+        if b64:
+            size = random.randint(130, 220)
+            top = random.randint(5, 80)
+            left = random.randint(5, 85)
+            duration = random.randint(20, 40)
+            delay = random.uniform(0, 15)
+            
+            photos_html += f"""<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s; animation-delay:-{delay}s;">"""
 
     html_code = f"""
     <html>
     <head>
         <style>
-            body, html {{ margin: 0; padding: 0; background: #000000; color: white; overflow: hidden !important; height: 100vh; width: 100vw; }}
-            .wall {{ position: relative; width: 100vw; height: 100vh; overflow: hidden !important; }}
-            .title {{ position: absolute; top: 2%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}; z-index: 100; }}
-            .center-container {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
-            .logo {{ width: 220px; height: 220px; object-fit: contain; z-index: 10; filter: drop-shadow(0 0 15px rgba(255,255,255,0.2)); }}
-            .photo {{ position: absolute; width: 160px; height: 160px; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: orb 40s linear infinite; }}
-            @keyframes orb {{ from {{ transform: rotate(0deg) translateX(320px) rotate(0deg); }} to {{ transform: rotate(360deg) translateX(320px) rotate(-360deg); }} }}
+            body, html {{ margin: 0; padding: 0; background: #000; color: white; overflow: hidden; height: 100vh; width: 100vw; font-family: sans-serif; }}
+            .wall {{ position: relative; width: 100vw; height: 100vh; background: #000; }}
             
-            .qr-fixed {{ 
-                position: fixed !important; top: 25px !important; right: 25px !important; 
-                background: white !important; padding: 10px !important; border-radius: 15px !important; 
-                text-align: center !important; color: black !important; z-index: 9999 !important; 
-                box-shadow: 0 0 20px rgba(255,255,255,0.3) !important; font-family: sans-serif;
+            .title {{ position: absolute; top: 2%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 20px {config['couleur']}aa; z-index: 100; }}
+            
+            /* BLOC CENTRAL LOGO + QR */
+            .center-block {{ 
+                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                display: flex; flex-direction: column; align-items: center; justify-content: center; 
+                z-index: 1000; gap: 10px;
+            }}
+            .logo {{ width: 250px; height: auto; filter: drop-shadow(0 0 20px rgba(255,255,255,0.4)); }}
+            .qr-zone {{ background: white; padding: 10px; border-radius: 12px; text-align: center; width: 110px; box-shadow: 0 0 30px rgba(255,255,255,0.2); }}
+
+            .photo {{ 
+                position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; 
+                box-shadow: 0 0 20px rgba(0,0,0,0.5); animation: floatAround linear infinite; 
+                opacity: 0.8; z-index: 10;
+            }}
+
+            @keyframes floatAround {{
+                0% {{ transform: translate(0,0) rotate(0deg); }}
+                33% {{ transform: translate(30px, -50px) rotate(5deg); }}
+                66% {{ transform: translate(-30px, 20px) rotate(-5deg); }}
+                100% {{ transform: translate(0,0) rotate(0deg); }}
             }}
         </style>
     </head>
     <body>
         <div class="wall">
-            <div class="qr-fixed">
-                <img src="data:image/png;base64,{qr_b64}" width="110">
-                <div style="font-size:10px; font-weight:bold; margin-top:5px;">SCANNEZ POUR PARTICIPER</div>
-            </div>
             <div class="title">{config['texte']}</div>
-            <div class="center-container">
+            <div class="center-block">
                 {"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}
-                {photos_html}
+                <div class="qr-zone">
+                    <img src="data:image/png;base64,{qr_b64}" width="100">
+                    <div style="color:black; font-size:9px; font-weight:bold; margin-top:4px;">SCANNEZ MOI</div>
+                </div>
             </div>
+            {photos_html}
         </div>
     </body>
     </html>
     """
-    # On affiche le composant sur toute la hauteur disponible
-    components.html(html_code, height=1000, scrolling=False)
+    components.html(html_code, height=1200, scrolling=False)
 
 # --- 5. MODE VOTE ---
 else:
@@ -193,5 +171,5 @@ else:
     if uf:
         fname = f"img_{random.randint(1000,9999)}.jpg"
         with open(os.path.join(GALLERY_DIR, fname), "wb") as f: f.write(uf.getbuffer())
-        st.success("Photo envoyée !")
+        st.success("Envoyé !")
         st.balloons()
