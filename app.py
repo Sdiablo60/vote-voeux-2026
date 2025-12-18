@@ -16,43 +16,28 @@ LOGO_FILE = "logo_entreprise.png"
 
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- STYLE CSS & JS POUR TUER LE SCROLL SOURIS ---
+# --- STYLE CSS ANTI-SCROLL SOURIS ---
 st.markdown("""
     <style>
-    /* Bloque le scroll sur tous les conteneurs Streamlit */
-    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .stApp {
+    /* Cache tout ce qui dépasse et bloque le défilement */
+    html, body, [data-testid="stAppViewContainer"], .stApp {
         background-color: black !important;
-        overflow: hidden !important; /* Empêche le scroll CSS */
+        overflow: hidden !important;
         height: 100vh !important;
         width: 100vw !important;
-        position: fixed !important; /* Empêche le rebond sur mobile/trackpad */
+        position: fixed !important;
     }
     
     .main .block-container { padding: 0 !important; margin: 0 !important; }
-    #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
+    #MainMenu, footer, [data-testid="stHeader"], [data-testid="stDecoration"] { display: none !important; }
     
-    /* L'iframe doit être une vitre fixe sur l'écran */
+    /* Force l'iframe à rester dans les clous */
     iframe {
-        position: fixed;
-        top: 0;
-        left: 0;
+        border: none !important;
         width: 100vw !important;
         height: 100vh !important;
-        border: none !important;
-        z-index: 1;
     }
     </style>
-    
-    <script>
-    /* Désactive le scroll à la roulette au niveau du navigateur */
-    window.addEventListener('wheel', function(e) {
-        e.preventDefault();
-    }, { passive: false });
-    
-    window.addEventListener('touchmove', function(e) {
-        e.preventDefault();
-    }, { passive: false });
-    </script>
 """, unsafe_allow_html=True)
 
 def get_b64(path):
@@ -68,11 +53,11 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 2. INTERFACE ADMIN ---
 if est_admin:
-    st.markdown("<style>body, html, .stApp { overflow: auto !important; position: relative !important; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>html, body, .stApp { overflow: auto !important; position: relative !important; }</style>", unsafe_allow_html=True)
     st.title("🛠 Administration")
     if st.text_input("Code Secret", type="password") == "ADMIN_LIVE_MASTER":
         st.success("Accès autorisé")
-        ul = st.file_uploader("Changer le Logo Central", type=['png', 'jpg'])
+        ul = st.file_uploader("Logo Central (PNG/JPG)", type=['png', 'jpg'])
         if ul:
             with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
             st.rerun()
@@ -99,45 +84,35 @@ elif not mode_vote:
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
     photos_html = ""
-    for img_path in img_list[-18:]:
+    # On limite à 15 photos pour éviter de saturer le navigateur
+    for img_path in img_list[-15:]:
         b64 = get_b64(img_path)
         if b64:
             size = random.randint(150, 230)
-            top, left = random.randint(5, 75), random.randint(5, 85)
-            duration = random.uniform(5, 12)
+            top, left = random.randint(5, 75), random.randint(5, 80)
+            duration = random.uniform(6, 12)
             photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
 
     html_code = f"""
     <!DOCTYPE html>
-    <html style="background: black; overflow: hidden;">
-    <body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw;">
+    <html style="background: black;">
+    <body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh;">
         <style>
             .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }}
             .center-stack {{ 
-                position: absolute; top: 50%; left: 50%; 
-                transform: translate(-50%, -50%); 
-                z-index: 1000; 
-                display: flex; flex-direction: column; 
-                align-items: center; justify-content: center;
-                gap: 15px; 
+                position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+                z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 10px; 
             }}
             .logo {{ max-width: 250px; filter: drop-shadow(0 0 15px white); }}
-            .qr-box {{ 
-                background: white; padding: 10px; border-radius: 12px; 
-                box-shadow: 0 0 25px rgba(255,255,255,0.3); text-align: center;
-            }}
-            .photo {{ 
-                position: absolute; border-radius: 50%; border: 4px solid white; 
-                object-fit: cover; animation: move alternate infinite linear; opacity: 0.9; 
-            }}
-            @keyframes move {{ from {{ transform: translate(0,0); }} to {{ transform: translate(60px, 80px); }} }}
+            .qr-box {{ background: white; padding: 8px; border-radius: 12px; text-align: center; }}
+            .photo {{ position: absolute; border-radius: 50%; border: 3px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
+            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(50px, 60px) rotate(5deg); }} }}
         </style>
         <div class="container">
             <div class="center-stack">
-                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else '<div style="color:white; font-size:40px; font-weight:bold;">SOCIAL WALL</div>'}
+                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else '<div style="color:white; font-size:30px;">SOCIAL WALL</div>'}
                 <div class="qr-box">
-                    <img src="data:image/png;base64,{qr_b64}" width="110">
-                    <p style="color:black; font-size:9px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ MOI</p>
+                    <img src="data:image/png;base64,{qr_b64}" width="100">
                 </div>
             </div>
             {photos_html}
@@ -145,13 +120,14 @@ elif not mode_vote:
     </body>
     </html>
     """
-    components.html(html_code, height=2000) # La hauteur de l'iframe est neutralisée par le CSS 'position: fixed'
+    # Utilisation d'une hauteur fixe sûre
+    components.html(html_code, height=800, scrolling=False)
 
 # --- 4. MODE VOTE ---
 else:
-    st.title("📸 Photo")
+    st.title("📸 Envoyez votre photo")
     f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
-        st.success("Envoyé !")
+        st.success("Photo envoyée !")
