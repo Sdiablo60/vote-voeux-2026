@@ -28,7 +28,6 @@ if est_admin:
         html, body, .stApp { background-color: white !important; color: black !important; }
         * { color: black !important; }
         
-        /* En-tête admin épuré */
         .admin-header { 
             display: flex; 
             justify-content: space-between; 
@@ -38,7 +37,6 @@ if est_admin:
             margin-bottom: 30px; 
         }
         
-        /* Logo flottant à droite */
         .logo-top-right {
             max-width: 150px;
             max-height: 80px;
@@ -47,11 +45,19 @@ if est_admin:
 
         [data-testid="stSidebar"] { min-width: 350px !important; }
         [data-testid="stHeader"] { display: block !important; }
+        
+        /* Style pour la zone d'ajout centrale */
+        .upload-box {
+            background-color: #f0f2f6;
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px dashed #bfc5d3;
+            margin-bottom: 20px;
+        }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
-        # Logo en haut de sidebar (toujours présent)
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
         
@@ -62,19 +68,12 @@ if est_admin:
         if pwd == "ADMIN_LIVE_MASTER":
             st.success("Accès autorisé")
             
-            # --- SECTION UPLOADS ---
-            st.subheader("📤 Imports")
-            ul = st.file_uploader("Nouveau Logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
-            if ul:
-                with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
+            st.subheader("🖼️ Logo")
+            ul_sidebar = st.file_uploader("Changer le logo", type=['png', 'jpg', 'jpeg'], key="logo_side")
+            if ul_sidebar:
+                with open(LOGO_FILE, "wb") as f: f.write(ul_sidebar.getbuffer())
                 st.rerun()
-                
-            up = st.file_uploader("Nouvelles Photos", accept_multiple_files=True, key="ph_up")
-            if up:
-                for f in up:
-                    with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
-                st.rerun()
-            
+
             st.divider()
             if st.button("🧨 VIDER TOUTE LA GALERIE", use_container_width=True):
                 imgs_to_del = glob.glob(os.path.join(GALLERY_DIR, "*"))
@@ -85,29 +84,42 @@ if est_admin:
 
     # --- ÉCRAN CENTRAL ---
     if pwd == "ADMIN_LIVE_MASTER":
-        # HEADER AVEC TITRE À GAUCHE ET LOGO À DROITE
+        # LOGO HAUT DROITE
         logo_html = ""
         if os.path.exists(LOGO_FILE):
-            # Encodage b64 pour l'injecter dans le HTML personnalisé
             with open(LOGO_FILE, "rb") as f:
                 data = base64.b64encode(f.read()).decode()
             logo_html = f'<img src="data:image/png;base64,{data}" class="logo-top-right">'
         
         st.markdown(f"""
             <div class="admin-header">
-                <div style="text-align: left;">
-                    <h1 style="margin:0;">Console d'Administration</h1>
-                    <p style="margin:0; opacity: 0.7;">Gestion de la galerie en temps réel</p>
-                </div>
                 <div>
-                    {logo_html}
+                    <h1 style="margin:0;">Console d'Administration</h1>
+                    <p style="margin:0; opacity: 0.7;">Gestion du direct</p>
                 </div>
+                <div>{logo_html}</div>
             </div>
         """, unsafe_allow_html=True)
         
-        # BOUTON D'ACCÈS AU MUR (Centralisé et visible)
+        # BOUTON DU MUR
         url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
         st.link_button("🖥️ OUVRIR LE MUR EN PLEIN ÉCRAN", url_mur, type="primary", use_container_width=True)
+
+        st.divider()
+
+        # --- NOUVEAU : AJOUT DE PHOTOS DEPUIS LE CENTRE ---
+        st.subheader("📥 Ajouter des photos manuellement")
+        with st.container():
+            up_center = st.file_uploader("Glissez vos images ici ou cliquez pour parcourir", 
+                                        accept_multiple_files=True, 
+                                        key="ph_center")
+            if up_center:
+                for f in up_center:
+                    with open(os.path.join(GALLERY_DIR, f.name), "wb") as file:
+                        file.write(f.getbuffer())
+                st.toast(f"{len(up_center)} photo(s) ajoutée(s) !")
+                time.sleep(1)
+                st.rerun()
 
         st.divider()
 
@@ -116,9 +128,8 @@ if est_admin:
         st.header(f"🖼️ Modération des Photos ({len(imgs)})")
         
         if not imgs:
-            st.info("La galerie est vide. Ajoutez des photos via le menu de gauche.")
+            st.info("La galerie est vide. Ajoutez des photos ci-dessus.")
         else:
-            # Affichage en grille de 4 colonnes
             cols = st.columns(4)
             for i, img_path in enumerate(reversed(imgs)):
                 with cols[i % 4]:
@@ -127,11 +138,10 @@ if est_admin:
                         os.remove(img_path)
                         st.rerun()
     else:
-        st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1><p>Veuillez entrer le mot de passe dans la barre latérale.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1><p>Entrez le mot de passe à gauche.</p></div>', unsafe_allow_html=True)
 
 # --- 4. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
-    # (Le code du mur reste identique pour garantir la stabilité)
     st.markdown("""
         <style>
         :root { background-color: #000000 !important; }
