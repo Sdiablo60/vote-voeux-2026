@@ -54,7 +54,6 @@ def add_vote_session(pseudo, choix_list):
     if pseudo not in participants:
         participants.append(pseudo)
         with open(PARTICIPANTS_FILE, "w") as f: json.dump(participants, f)
-    
     votes = get_votes()
     for c in choix_list:
         votes[c] = votes.get(c, 0) + 1
@@ -65,28 +64,24 @@ query_params = st.query_params
 est_admin = query_params.get("admin") == "true"
 est_utilisateur = query_params.get("mode") == "vote"
 
-# --- 4. ADMIN (CONSOLE AVEC BOUTONS COLORÉS) ---
+# --- 4. ADMIN (FORÇAGE COULEURS) ---
 if est_admin:
-    # CSS pour forcer les couleurs des boutons spécifiques
+    # Injection CSS Ultra-Précise pour forcer les couleurs
     st.markdown("""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-        html, body, [data-testid="stAppViewContainer"] { font-family: 'Roboto', sans-serif; }
+        /* Bouton Bleu - Mise à jour */
+        div.stButton > button:first-child[data-testid="baseButton-primary"] {
+            background-color: #0000FF !important;
+            color: white !important;
+            border: 1px solid #0000FF !important;
+        }
+        /* Bouton Rouge - Réinitialiser */
+        div.stButton > button:first-child[data-testid="baseButton-secondary"] {
+            background-color: #FF0000 !important;
+            color: white !important;
+            border: 1px solid #FF0000 !important;
+        }
         .main-header { border-bottom: 3px solid #E2001A; padding: 10px; }
-        
-        /* Style Bouton Bleu (Mise à jour) */
-        div[st-sidebar] button[kind="primary"] {
-            background-color: #007bff !important;
-            border-color: #007bff !important;
-            color: white !important;
-        }
-        
-        /* Style Bouton Rouge (Reset) */
-        .stButton > button[style*="secondary"] {
-            background-color: #dc3545 !important;
-            color: white !important;
-            border: none !important;
-        }
         </style>
     """, unsafe_allow_html=True)
     
@@ -100,15 +95,15 @@ if est_admin:
             nouveau_titre = st.text_input("Sous-titre :", value=config.get("titre_mur"))
             new_mode = st.radio("Mode Mur :", ["Photos", "Votes"], index=0 if config["mode_affichage"]=="photos" else 1)
             
-            # BOUTON BLEU
+            # BOUTON BLEU (Primary)
             if st.button("Mettre à jour le Mur", type="primary", use_container_width=True):
                 save_config(new_mode.lower(), nouveau_titre, VOTE_VERSION)
                 st.rerun()
             
             st.divider()
             st.subheader("Zone de Danger")
-            # BOUTON ROUGE (via injection de style inline ou type spécifique)
-            if st.button("🧨 RÉINITIALISER LES VOTES", use_container_width=True, key="reset_btn", help="Action irréversible"):
+            # BOUTON ROUGE (Secondary par défaut)
+            if st.button("🧨 RÉINITIALISER LES VOTES", use_container_width=True):
                 new_v = VOTE_VERSION + 1
                 save_config(config["mode_affichage"], config["titre_mur"], new_v)
                 with open(VOTES_FILE, "w") as f: json.dump({}, f)
@@ -123,7 +118,7 @@ if est_admin:
         st.metric("Participants", get_participants_count())
         st.bar_chart(get_votes())
 
-# --- 5. UTILISATEUR / 6. MUR LIVE (Inchangés pour conserver la stabilité) ---
+# --- 5. UTILISATEUR / 6. MUR LIVE (RESTENT IDENTIQUES) ---
 elif est_utilisateur:
     st.title("🗳️ Vote Transdev")
     components.html(f"<script>if(localStorage.getItem('transdev_voted_v{VOTE_VERSION}')){{window.parent.postMessage({{type:'voted'}},'*');}}</script>", height=0)
@@ -139,7 +134,6 @@ elif est_utilisateur:
                 components.html(f"<script>localStorage.setItem('transdev_voted_v{VOTE_VERSION}', 'true');window.parent.location.reload();</script>", height=0)
                 st.session_state["has_voted"] = True
             else: st.error("Erreur de saisie.")
-
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'] { display: none; }</style>", unsafe_allow_html=True)
     nb = get_participants_count()
