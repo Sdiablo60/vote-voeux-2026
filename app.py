@@ -72,7 +72,7 @@ if est_admin:
             cols[i].markdown(f"<div style='background:#f0f2f6;padding:15px;border-radius:10px;text-align:center;border-top:5px solid #E2001A;'><b>{i+1}er: {name}</b><br>{score} pts</div>", unsafe_allow_html=True)
         st.bar_chart(v_data)
 
-# --- 4. UTILISATEUR (FIX SELECTION MOBILE) ---
+# --- 4. UTILISATEUR (CORRECTIF RÉCAPITULATIF BLOC UNIQUE) ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
@@ -83,7 +83,6 @@ elif est_utilisateur:
     if st.session_state.get("voted_final") or st.session_state.get("voted_check"):
         st.balloons()
         st.success("✅ Votre Top 3 a été enregistré !")
-        st.info("Merci ! Les résultats seront sur le mur.")
     else:
         if "user_pseudo" not in st.session_state:
             with st.form("pseudo"):
@@ -100,14 +99,25 @@ elif est_utilisateur:
                 try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=5000, key="m_ref")
                 except: pass
             else:
-                st.write(f"Bonjour {st.session_state['user_pseudo']}, faites votre choix :")
+                st.write(f"Bonjour **{st.session_state['user_pseudo']}**, sélectionnez vos 3 favoris :")
                 options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
                 
-                # UTILISATION DU MULTISELECT SANS FORM POUR ÉVITER LES BUGS DE RAFRAÎCHISSEMENT
-                choix = st.multiselect("Sélectionnez vos 3 vidéos préférées (DANS L'ORDRE) :", options, max_selections=3)
+                choix = st.multiselect("Cliquez sur 3 vidéos (l'ordre définit les points) :", options, max_selections=3)
                 
+                # --- RÉCAPITULATIF EN UN SEUL BLOC HTML POUR ÉVITER LES BUGS ---
                 if len(choix) > 0:
-                    st.info(f"1er (5 pts) : {choix[0]}" + (f"\n\n2ème (3 pts) : {choix[1]}" if len(choix)>1 else "") + (f"\n\n3ème (1 pt) : {choix[2]}" if len(choix)>2 else ""))
+                    c1 = choix[0]
+                    c2 = choix[1] if len(choix) > 1 else "---"
+                    c3 = choix[2] if len(choix) > 2 else "---"
+                    
+                    st.markdown(f"""
+                        <div style="background: #222; padding: 15px; border-radius: 10px; border: 1px solid #E2001A; margin: 15px 0;">
+                            <h3 style="color: white; margin-top: 0;">Votre Podium :</h3>
+                            <p style="color: white; margin: 5px 0;">🥇 <b>5 pts</b> : {c1}</p>
+                            <p style="color: white; margin: 5px 0;">🥈 <b>3 pts</b> : {c2}</p>
+                            <p style="color: white; margin: 5px 0;">🥉 <b>1 pt</b> : {c3}</p>
+                        </div>
+                    """, unsafe_allow_html=True)
 
                 if st.button("VALIDER MON VOTE DÉFINITIF", use_container_width=True, type="primary"):
                     if len(choix) == 3:
@@ -121,7 +131,7 @@ elif est_utilisateur:
                         st.session_state["voted_final"] = True
                         st.rerun()
                     else:
-                        st.error("⚠️ Veuillez sélectionner exactement 3 vidéos.")
+                        st.error("⚠️ Sélectionnez exactement 3 vidéos.")
 
 # --- 5. MUR SOCIAL ---
 else:
@@ -160,7 +170,7 @@ else:
         img_list = glob.glob(os.path.join(ADMIN_DIR, "*")) + (glob.glob(os.path.join(GALLERY_DIR, "*")) if config["mode_affichage"]=="live" else [])
         if img_list:
             photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" class="photo" style="width:280px;top:{random.randint(45,75)}%;left:{random.randint(5,85)}%;animation-duration:{random.uniform(10,15)}s;">' for p in img_list[-12:]])
-            components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; box-shadow: 5px 5px 15px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(40px,40px) rotate(3deg); }} }}</style><div style="width:100%; height:450px; position:relative;">{photos_html}</div>""", height=500)
+            components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; box-shadow: 5px 5px 15px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(30px,30px) rotate(3deg); }} }}</style><div style="width:100%; height:450px; position:relative;">{photos_html}</div>""", height=500)
 
     try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=5000, key="w_ref")
     except: pass
