@@ -16,32 +16,33 @@ LOGO_FILE = "logo_entreprise.png"
 
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- STYLE CSS (OCCUPATION TOTALE) ---
+# --- STYLE CSS RADICAL : FORCE L'AFFICHAGE EN HAUT ET BLOQUE TOUT ---
 st.markdown("""
     <style>
-    /* Force le noir sur l'arrière-plan Streamlit */
-    .stApp {
+    /* 1. Fond noir et suppression du scroll sur la page parente */
+    html, body, [data-testid="stAppViewContainer"], .stApp {
         background-color: black !important;
-    }
-    
-    /* Supprime les marges et bloque le scroll */
-    .main .block-container {
-        padding: 0 !important;
-        margin: 0 !important;
-        max-width: 100% !important;
-    }
-
-    /* Masque les éléments d'interface */
-    #MainMenu, footer, [data-testid="stHeader"], [data-testid="stDecoration"] { 
-        display: none !important; 
-    }
-
-    /* Empêche le défilement de la page parente */
-    html, body {
         overflow: hidden !important;
         height: 100vh !important;
-        background-color: black !important;
+        width: 100vw !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
+
+    /* 2. On cible l'iframe (le mur) pour le forcer à monter tout en haut */
+    iframe {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        border: none !important;
+        z-index: 9999;
+    }
+
+    /* 3. Masquer les éléments Streamlit résiduels */
+    [data-testid="stHeader"], footer, #MainMenu { display: none !important; }
+    .main .block-container { padding: 0 !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -58,8 +59,9 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 2. INTERFACE ADMIN ---
 if est_admin:
-    st.markdown("<style>html, body { overflow: auto !important; }</style>", unsafe_allow_html=True)
-    st.title("🛠 Administration")
+    # On réactive le scroll seulement pour l'admin
+    st.markdown("<style>html, body, .stApp { overflow: auto !important; position: relative !important; }</style>", unsafe_allow_html=True)
+    st.title("⚙️ Administration")
     if st.text_input("Code Secret", type="password") == "ADMIN_LIVE_MASTER":
         ul = st.file_uploader("Logo Central", type=['png', 'jpg'])
         if ul:
@@ -92,31 +94,31 @@ elif not mode_vote:
         b64 = get_b64(img_path)
         if b64:
             size = random.randint(150, 250)
-            # On utilise des pourcentages pour le placement
             top, left = random.randint(5, 75), random.randint(5, 85)
-            duration = random.uniform(6, 12)
+            duration = random.uniform(5, 10)
             photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
 
     html_code = f"""
     <!DOCTYPE html>
-    <html style="background: black; margin: 0; padding: 0;">
+    <html style="background: black;">
     <body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw;">
         <style>
             .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }}
             .center-stack {{ 
                 position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 10px; 
+                z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 15px; 
             }}
             .logo {{ max-width: 250px; filter: drop-shadow(0 0 15px white); }}
-            .qr-box {{ background: white; padding: 8px; border-radius: 10px; text-align: center; }}
-            .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
-            @keyframes move {{ from {{ transform: translate(0,0); }} to {{ transform: translate(50px, 60px); }} }}
+            .qr-box {{ background: white; padding: 10px; border-radius: 12px; text-align: center; }}
+            .photo {{ position: absolute; border-radius: 50%; border: 3px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
+            @keyframes move {{ from {{ transform: translate(0,0); }} to {{ transform: translate(80px, 100px); }} }}
         </style>
         <div class="container">
             <div class="center-stack">
-                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else '<div style="color:white; font-size:30px;">SOCIAL WALL</div>'}
+                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else '<div style="color:white; font-size:40px; font-weight:bold;">SOCIAL WALL</div>'}
                 <div class="qr-box">
-                    <img src="data:image/png;base64,{qr_b64}" width="100">
+                    <img src="data:image/png;base64,{qr_b64}" width="120">
+                    <p style="color:black; font-size:10px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ MOI</p>
                 </div>
             </div>
             {photos_html}
@@ -124,14 +126,13 @@ elif not mode_vote:
     </body>
     </html>
     """
-    # On définit une hauteur fixe très grande (ex: 1200) pour remplir l'écran,
-    # mais le CSS parent masquera ce qui dépasse.
-    components.html(html_code, height=1200, scrolling=False)
+    # Le height=100 ici n'a plus d'importance car le CSS 'iframe' ci-dessus prend le dessus
+    components.html(html_code, height=100)
 
 # --- 4. MODE VOTE ---
 else:
     st.title("📸 Envoyez votre photo")
-    f = st.file_uploader("Choisir une image", type=['jpg', 'jpeg', 'png'])
+    f = st.file_uploader("Image", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
