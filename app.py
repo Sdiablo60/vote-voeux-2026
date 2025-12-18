@@ -17,7 +17,7 @@ GALLERY_DIR = "galerie_images"
 LOGO_FILE = "logo_entreprise.png"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- 2. GESTION DE LA SESSION (Pour rester connecté) ---
+# --- 2. GESTION DE LA SESSION ---
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
@@ -43,25 +43,26 @@ def get_timestamped_name(prefix):
 if est_admin:
     # --- BARRE LATÉRALE ---
     with st.sidebar:
-        # 1. LOGO PLEINE LARGEUR EN HAUT
+        # LOGO PLEINE LARGEUR EN HAUT
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
             st.markdown("<br>", unsafe_allow_html=True)
         
-        st.markdown("<h2 style='text-align: center;'>⚙️ Régie Live</h2>", unsafe_allow_html=True)
+        st.markdown("<h2 style='text-align: center; margin-top:-20px;'>⚙️ Régie</h2>", unsafe_allow_html=True)
         
-        # 2. GESTION DU MOT DE PASSE
+        # --- GESTION DU MOT DE PASSE ---
         pwd_input = st.text_input("Code Secret Admin", type="password")
         if pwd_input == "ADMIN_LIVE_MASTER":
             st.session_state["authenticated"] = True
-            st.success("Accès déverrouillé")
+            st.success("Accès autorisé")
         else:
             st.session_state["authenticated"] = False
-            st.warning("Code requis")
+            if pwd_input:
+                st.error("Code incorrect")
 
         st.divider()
         
-        # 3. OPTIONS (Toujours visibles)
+        # OPTIONS DE CONFIGURATION
         st.subheader("🖼️ Identité Visuelle")
         ul_logo = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'])
         if ul_logo:
@@ -72,7 +73,7 @@ if est_admin:
         if st.button("🔄 Actualiser la galerie", use_container_width=True):
             st.rerun()
 
-        # 4. ACTIONS CRITIQUES (Si authentifié)
+        # ACTIONS CRITIQUES (SI AUTHENTIFIÉ)
         if st.session_state["authenticated"]:
             if st.button("🧨 VIDER TOUT LE MUR", use_container_width=True):
                 for f in glob.glob(os.path.join(GALLERY_DIR, "*")):
@@ -80,9 +81,9 @@ if est_admin:
                     except: pass
                 st.rerun()
 
-    # --- ZONE CENTRALE (Protégée) ---
+    # --- ZONE CENTRALE (PROTÉGÉE) ---
     if st.session_state["authenticated"]:
-        # Header avec Logo Large
+        # Header
         logo_b64 = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f: logo_b64 = base64.b64encode(f.read()).decode()
@@ -150,9 +151,9 @@ if est_admin:
         if selected_photos:
             c3.download_button(f"📥 Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True)
     else:
-        st.warning("Veuillez saisir le code secret dans la barre latérale.")
+        st.warning("Veuillez saisir le code secret dans la barre latérale pour débloquer la régie.")
 
-# --- 6. MODE LIVE (MUR NOIR) ---
+# --- 6. MODE LIVE (Identique) ---
 elif not mode_vote:
     st.markdown("""<style>:root { background-color: black; } [data-testid="stAppViewContainer"], .stApp { background-color: black !important; } [data-testid="stHeader"], footer { display: none !important; } </style>""", unsafe_allow_html=True)
     try:
@@ -180,7 +181,7 @@ elif not mode_vote:
 # --- 7. MODE VOTE ---
 else:
     st.title("📸 Envoyez votre photo !")
-    f = st.file_uploader("Choisir une image", type=['jpg', 'jpeg', 'png'])
+    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out: out.write(f.getbuffer())
         st.success("✅ Photo envoyée !")
