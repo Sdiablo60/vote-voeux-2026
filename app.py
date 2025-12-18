@@ -29,9 +29,9 @@ if est_admin:
         .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #eee; margin-bottom: 20px; }
         .logo-top-right { max-width: 100px; max-height: 50px; object-fit: contain; }
         [data-testid="column"] { min-width: 0px !important; flex-basis: 0 !important; flex-grow: 1 !important; }
-        .stCheckbox { margin-bottom: -15px; }
-        /* Alignement vertical des boutons sur la ligne modération */
         div[data-testid="stHorizontalBlock"] { align-items: center; }
+        /* Style spécifique pour le bouton sélection */
+        div.stDownloadButton > button { border-color: #ff4b4b !important; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -40,7 +40,6 @@ if est_admin:
             st.image(LOGO_FILE, use_container_width=True)
         st.title("⚙️ Régie")
         pwd = st.text_input("Code Secret Admin", type="password")
-        
         if pwd == "ADMIN_LIVE_MASTER":
             st.divider()
             if st.button("🧨 VIDER LA GALERIE", use_container_width=True):
@@ -56,7 +55,6 @@ if est_admin:
             logo_html = f'<img src="data:image/png;base64,{data}" class="logo-top-right">'
         
         st.markdown(f'<div class="admin-header"><div><h2 style="margin:0;">Console Régie</h2></div><div>{logo_html}</div></div>', unsafe_allow_html=True)
-        
         st.link_button("🖥️ PROJETER LE MUR", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
 
         with st.expander("➕ Ajouter des photos manuellement"):
@@ -68,39 +66,37 @@ if est_admin:
 
         st.divider()
 
-        # --- GESTION DE LA GALERIE ---
+        # --- PRÉ-CALCUL DES DONNÉES ---
         all_files = glob.glob(os.path.join(GALLERY_DIR, "*"))
         imgs = [f for f in all_files if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        sorted_imgs = sorted(imgs, key=os.path.getmtime, reverse=True)
+
+        # --- LIGNE DE CONTRÔLE UNIQUE ---
+        # On définit les colonnes pour tout aligner
+        c_titre, c_zip_all, c_zip_sel, c_vue = st.columns([1.5, 1, 1, 1])
         
-        # --- LIGNE MODÉRATION AVEC BOUTON TÉLÉCHARGER ---
-        col_titre, col_download, col_radio = st.columns([2, 1, 1])
-        
-        with col_titre:
+        with c_titre:
             st.subheader(f"🖼️ Modération ({len(imgs)})")
         
-        with col_download:
+        with c_zip_all:
             if imgs:
                 buf = BytesIO()
                 with zipfile.ZipFile(buf, "w") as z:
-                    for f in imgs:
-                        z.write(f, os.path.basename(f))
-                st.download_button(
-                    label="📥 Tout charger (ZIP)",
-                    data=buf.getvalue(),
-                    file_name="galerie_complete.zip",
-                    mime="application/zip",
-                    use_container_width=True
-                )
+                    for f in imgs: z.write(f, os.path.basename(f))
+                st.download_button(label="📥 Tout (ZIP)", data=buf.getvalue(), file_name="galerie_complete.zip", use_container_width=True)
         
-        with col_radio:
+        # Zone pour le bouton de sélection (gérée dynamiquement plus bas via un placeholder ou affichée ici)
+        # Pour que la sélection fonctionne en un clic, nous devons capturer l'état des checkbox
+        # Streamlit exécute du haut vers le bas, donc on initialise la liste
+        selected_photos = []
+
+        with c_vue:
             mode_vue = st.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
 
+        # --- AFFICHAGE DE LA GALERIE ---
         if not imgs:
             st.info("Aucune photo.")
         else:
-            sorted_imgs = sorted(imgs, key=os.path.getmtime, reverse=True)
-            selected_photos = []
-            
             if mode_vue == "Vignettes":
                 for i in range(0, len(sorted_imgs), 8):
                     cols = st.columns(8)
@@ -116,8 +112,7 @@ if est_admin:
                                         os.remove(img_p)
                                         st.rerun()
                                 except: st.error("ERR")
-
-            else: # MODE LISTE
+            else:
                 for i in range(0, len(sorted_imgs), 4):
                     cols = st.columns(4)
                     for j in range(4):
@@ -136,28 +131,19 @@ if est_admin:
                                         os.remove(img_p)
                                         st.rerun()
 
-            # --- BOUTON EXPORT SÉLECTION (APPARAIT SEULEMENT SI COCHÉ) ---
-            if selected_photos:
-                st.divider()
+        # --- INJECTION DU BOUTON SÉLECTION DANS LA LIGNE DU HAUT ---
+        if selected_photos:
+            with c_zip_sel:
                 buf_sel = BytesIO()
                 with zipfile.ZipFile(buf_sel, "w") as z_sel:
-                    for f_sel in selected_photos:
-                        z_sel.write(f_sel, os.path.basename(f_sel))
-                
-                st.download_button(
-                    label=f"📥 TÉLÉCHARGER LA SÉLECTION ({len(selected_photos)} photos)",
-                    data=buf_sel.getvalue(),
-                    file_name="ma_selection.zip",
-                    mime="application/zip",
-                    type="primary",
-                    use_container_width=True
-                )
+                    for f_sel in selected_photos: z_sel.write(f_sel, os.path.basename(f_sel))
+                st.download_button(label=f"📥 Sélection ({len(selected_photos)})", data=buf_sel.getvalue(), file_name="selection.zip", use_container_width=True)
+
     else:
         st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1></div>', unsafe_allow_html=True)
 
-# --- 4. MODE LIVE & 5. VOTE (Inchangés pour la stabilité) ---
+# --- 4. MODE LIVE (Identique) ---
 elif not mode_vote:
-    # ... (Le reste du code reste identique)
     st.markdown("""<style>:root { background-color: #000000 !important; } html, body, [data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; overflow: hidden !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; } [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; } iframe { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; border: none !important; background-color: #000000 !important; z-index: 9999; }</style>""", unsafe_allow_html=True)
     try:
         from streamlit_autorefresh import st_autorefresh
