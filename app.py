@@ -27,22 +27,36 @@ if est_admin:
         html, body, .stApp { background-color: white !important; color: black !important; }
         * { color: black !important; }
         .admin-welcome { text-align: center; margin-top: 60px; font-family: sans-serif; }
-        [data-testid="stSidebar"] { min-width: 400px !important; max-width: 450px !important; }
-        [data-testid="stHeader"] { display: block !important; }
         
-        /* Centrage forcé des images dans la sidebar */
+        /* Ajustement Sidebar pour logo plein écran */
+        [data-testid="stSidebar"] { 
+            min-width: 350px !important; 
+        }
+        
+        /* Supprime les marges en haut du logo pour qu'il soit collé au bord */
         [data-testid="stSidebar"] [data-testid="stImage"] {
             display: flex;
             justify-content: center;
-            margin-bottom: 20px;
+            margin: 0 !important;
+            padding: 0 !important;
         }
+        
+        /* Force l'image à prendre toute la largeur disponible */
+        [data-testid="stSidebar"] [data-testid="stImage"] img {
+            width: 100% !important;
+            height: auto !important;
+            border-radius: 0px !important;
+        }
+
+        [data-testid="stHeader"] { display: block !important; }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
-        # --- LOGO EN HAUT ET CENTRÉ ---
+        # --- LOGO EN HAUT - PLEINE LARGEUR ---
         if os.path.exists(LOGO_FILE):
-            st.image(LOGO_FILE, width=150)
+            # On utilise use_container_width pour remplir l'espace
+            st.image(LOGO_FILE, use_container_width=True)
         
         st.title("⚙️ Régie Social Wall")
         pwd = st.sidebar.text_input("Code Secret Admin", type="password")
