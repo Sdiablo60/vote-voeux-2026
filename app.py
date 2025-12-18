@@ -36,7 +36,7 @@ if est_admin:
     with st.sidebar:
         input_pwd = st.text_input("Code Secret", type="password")
     if input_pwd != pwd_actuel:
-        st.warning("Code requis dans la sidebar.")
+        st.warning("Code requis.")
         st.stop()
 
     config = {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 45}
@@ -51,16 +51,15 @@ if est_admin:
             pd.DataFrame([{"texte": txt, "couleur": clr, "taille": siz}]).to_csv(MSG_FILE, index=False)
             st.rerun()
     with t2:
-        ul = st.file_uploader("Logo Central", type=['png','jpg'])
+        ul = st.file_uploader("Logo", type=['png','jpg'])
         if ul:
             with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
             st.rerun()
-        uf = st.file_uploader("Ajouter des photos", type=['png','jpg'], accept_multiple_files=True)
+        uf = st.file_uploader("Photos", type=['png','jpg'], accept_multiple_files=True)
         if uf:
             for f in uf:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
             st.rerun()
-        st.divider()
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
         cols = st.columns(6)
         for i, p in enumerate(imgs):
@@ -83,6 +82,9 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
+    # Génération des étoiles
+    stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}vh; left:{random.randint(0,100)}vw; width:{random.randint(1,3)}px; height:{random.randint(1,3)}px; animation-delay:{random.random()*3}s;"></div>' for _ in range(80)])
+    
     # Génération des photos
     photos_html = ""
     valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
@@ -90,54 +92,77 @@ elif not mode_vote:
         delay = -(i * (25 / max(len(valid_photos), 1)))
         photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-bubble" style="animation-delay:{delay}s;">'
 
-    # INJECTION UNIQUE ET SOUDÉE (Plus aucun bloc Markdown séparé)
-    content = f"""
+    # INJECTION CSS & HTML (CORRECTION CADRE BLANC)
+    st.markdown(f"""
     <style>
-        header, footer, .stAppHeader, [data-testid="stHeader"] {{ visibility: hidden !important; display: none !important; }}
-        .stApp {{ background-color: #050505 !important; }}
-        .planetarium {{
+        /* Supprime les marges de Streamlit et force le noir */
+        [data-testid="stAppViewContainer"], .stApp {{
+            background-color: #050505 !important;
+            padding: 0 !important;
+        }}
+        header, footer, [data-testid="stHeader"] {{ display: none !important; }}
+
+        .wall-container {{
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: #050505; z-index: 99999; overflow: hidden;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background-color: #050505; z-index: 9999; overflow: hidden;
         }}
-        .wall-title {{
-            position: absolute; top: 10%; width: 100%; text-align: center;
-            font-family: sans-serif; font-weight: bold; z-index: 1000;
+
+        .star {{
+            position: absolute; background: white; border-radius: 50%;
+            opacity: 0.3; animation: twinkle 2s infinite alternate;
         }}
-        .orbit-zone {{ position: relative; width: 1px; height: 1px; display: flex; justify-content: center; align-items: center; }}
-        .main-logo {{ width: 220px; height: 220px; object-fit: contain; z-index: 50; }}
+        @keyframes twinkle {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
+
+        .title-text {{
+            position: absolute; top: 8%; width: 100%; text-align: center;
+            font-family: sans-serif; font-weight: bold; z-index: 100;
+            color: {config['couleur']}; font-size: {config['taille']}px;
+            text-shadow: 0 0 20px {config['couleur']}aa;
+        }}
+
+        .center-hub {{
+            position: absolute; top: 55%; left: 50%;
+            transform: translate(-50%, -50%); width: 1px; height: 1px;
+        }}
+
+        .logo-img {{
+            position: absolute; transform: translate(-50%, -50%);
+            width: 200px; height: 200px; object-fit: contain;
+            filter: drop-shadow(0 0 15px {config['couleur']}55);
+        }}
+
         .photo-bubble {{
-            position: absolute; width: 130px; height: 130px; border-radius: 50%;
-            border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3);
-            animation: moveOrbit 25s linear infinite;
-        }}
-        @keyframes moveOrbit {{
+            position: absolute; width: 130px; height: 130px;
+            border-radius: 50%; border: 3px solid white; object-fit: cover;
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            animation: orbitAnim 25s linear infinite;
+        }
+
+        @keyframes orbitAnim {{
             from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }}
             to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }}
         }}
+
         .qr-anchor {{
-            position: fixed; bottom: 30px; right: 30px; background: white;
-            padding: 10px; border-radius: 12px; text-align: center; z-index: 200;
+            position: fixed; bottom: 30px; right: 30px;
+            background: white; padding: 10px; border-radius: 12px;
+            text-align: center; z-index: 200;
         }}
     </style>
-    
-    <div class="planetarium">
-        <div class="wall-title" style="color:{config['couleur']}; font-size:{config['taille']}px; text-shadow: 0 0 20px {config['couleur']}99;">
-            {config['texte']}
-        </div>
-        
-        <div class="orbit-zone">
-            {"<img src='data:image/png;base64," + logo_b64 + "' class='main-logo' style='filter:drop-shadow(0 0 15px "+config['couleur']+"77);'>" if logo_b64 else ""}
+
+    <div class="wall-container">
+        {stars_html}
+        <div class="title-text">{config['texte']}</div>
+        <div class="center-hub">
+            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-img'>" if logo_b64 else ""}
             {photos_html}
         </div>
-
         <div class="qr-anchor">
-            <img src="data:image/png;base64,{qr_b64}" width="105"><br>
-            <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
+            <img src="data:image/png;base64,{qr_b64}" width="100"><br>
+            <b style="color:black; font-family:sans-serif; font-size:10px;">SCANEZ POUR VOTER</b>
         </div>
     </div>
-    """
-    st.components.v1.html(content, height=1000, scrolling=False)
+    """, unsafe_allow_html=True)
 
 else:
     st.title("🗳️ Participation")
