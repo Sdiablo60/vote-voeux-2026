@@ -1,13 +1,11 @@
 import streamlit as st
-import pandas as pd
 import os
 import glob
-import random
 import base64
 import qrcode
 import time
+import zipfile
 from io import BytesIO
-from PIL import Image # Ajout de PIL pour vérification
 import streamlit.components.v1 as components
 
 # --- 1. CONFIGURATION INITIALE ---
@@ -30,31 +28,41 @@ if est_admin:
         * { color: black !important; }
         .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #eee; margin-bottom: 20px; }
         .logo-top-right { max-width: 100px; max-height: 50px; object-fit: contain; }
-        [data-testid="stSidebar"] { min-width: 300px !important; }
         [data-testid="column"] { min-width: 0px !important; flex-basis: 0 !important; flex-grow: 1 !important; }
+        .stCheckbox { margin-bottom: -15px; }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
         if os.path.exists(LOGO_FILE):
-            try: st.image(LOGO_FILE, use_container_width=True)
-            except: os.remove(LOGO_FILE)
+            st.image(LOGO_FILE, use_container_width=True)
         st.title("⚙️ Régie")
         pwd = st.text_input("Code Secret Admin", type="password")
-        st.divider()
-
+        
         if pwd == "ADMIN_LIVE_MASTER":
-            st.success("Admin connecté")
-            st.subheader("🖼️ Logo")
-            ul_sidebar = st.file_uploader("Changer le logo", type=['png', 'jpg', 'jpeg'], key="logo_side")
-            if ul_sidebar:
-                with open(LOGO_FILE, "wb") as f: f.write(ul_sidebar.getbuffer())
-                st.rerun()
+            st.divider()
+            st.subheader("📦 Exportation")
+            
+            # --- FONCTION ZIP ---
+            all_files = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+            if all_files:
+                buf = BytesIO()
+                with zipfile.ZipFile(buf, "w") as z:
+                    for f in all_files:
+                        z.write(f, os.path.basename(f))
+                
+                st.download_button(
+                    label="📥 TELECHARGER TOUTE LA GALERIE (ZIP)",
+                    data=buf.getvalue(),
+                    file_name="social_wall_complet.zip",
+                    mime="application/zip",
+                    use_container_width=True
+                )
+            
+            st.divider()
             if st.button("🧨 VIDER LA GALERIE", use_container_width=True):
                 for f in glob.glob(os.path.join(GALLERY_DIR, "*")): os.remove(f)
                 st.rerun()
-        else:
-            st.warning("Identification requise.")
 
     if pwd == "ADMIN_LIVE_MASTER":
         # HEADER
@@ -78,7 +86,6 @@ if est_admin:
         st.divider()
 
         # --- GESTION DE LA GALERIE ---
-        # Filtre uniquement les extensions d'images valides
         all_files = glob.glob(os.path.join(GALLERY_DIR, "*"))
         imgs = [f for f in all_files if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         
@@ -89,10 +96,13 @@ if est_admin:
             mode_vue = st.radio("Affichage :", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
 
         if not imgs:
-            st.info("Aucune photo valide détectée.")
+            st.info("Aucune photo.")
         else:
             sorted_imgs = sorted(imgs, key=os.path.getmtime, reverse=True)
-
+            
+            # --- SYSTEME DE SELECTION ---
+            selected_photos = []
+            
             if mode_vue == "Vignettes":
                 for i in range(0, len(sorted_imgs), 8):
                     cols = st.columns(8)
@@ -100,66 +110,78 @@ if est_admin:
                         if i + j < len(sorted_imgs):
                             img_p = sorted_imgs[i + j]
                             with cols[j]:
+                                if st.checkbox("Sél.", key=f"sel_{i+j}"):
+                                    selected_photos.append(img_p)
                                 try:
                                     st.image(img_p, use_container_width=True)
-                                    if st.button("🗑️", key=f"vign_{i+j}"):
+                                    if st.button("🗑️", key=f"del_{i+j}"):
                                         os.remove(img_p)
                                         st.rerun()
-                                except:
-                                    st.error("Fichier corrompu")
-                                    if st.button("Supprimer", key=f"err_{i+j}"):
-                                        os.remove(img_p)
-                                        st.rerun()
+                                except: st.error("ERR")
 
-            else:
+            else: # MODE LISTE
                 for i in range(0, len(sorted_imgs), 4):
                     cols = st.columns(4)
                     for j in range(4):
                         if i + j < len(sorted_imgs):
                             img_p = sorted_imgs[i + j]
                             with cols[j]:
-                                c1, c2 = st.columns([1, 3])
+                                c1, c2, c3 = st.columns([1, 1, 3])
                                 with c1:
-                                    try: st.image(img_p, width=40)
-                                    except: st.warning("ERR")
+                                    if st.checkbox("", key=f"sel_l_{i+j}"):
+                                        selected_photos.append(img_p)
                                 with c2:
-                                    if st.button(f"Suppr. {len(sorted_imgs)-(i+j)}", key=f"list_{i+j}", use_container_width=True):
+                                    try: st.image(img_p, width=35)
+                                    except: st.warning("!")
+                                with c3:
+                                    if st.button(f"Suppr.", key=f"dl_{i+j}", use_container_width=True):
                                         os.remove(img_p)
                                         st.rerun()
+
+            # --- BOUTON EXPORT SELECTION ---
+            if selected_photos:
+                st.divider()
+                buf_sel = BytesIO()
+                with zipfile.ZipFile(buf_sel, "w") as z_sel:
+                    for f_sel in selected_photos:
+                        z_sel.write(f_sel, os.path.basename(f_sel))
+                
+                st.download_button(
+                    label=f"📥 TÉLÉCHARGER LA SÉLECTION ({len(selected_photos)} photos)",
+                    data=buf_sel.getvalue(),
+                    file_name="ma_selection_photos.zip",
+                    mime="application/zip",
+                    type="primary"
+                )
+
     else:
         st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1></div>', unsafe_allow_html=True)
 
-# --- 4. MODE LIVE (Identique avec sécurité) ---
+# --- 4. MODE LIVE (Identique) ---
 elif not mode_vote:
     st.markdown("""<style>:root { background-color: #000000 !important; } html, body, [data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; overflow: hidden !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; } [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; } iframe { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; border: none !important; background-color: #000000 !important; z-index: 9999; }</style>""", unsafe_allow_html=True)
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=25000, key="wall_refresh")
     except: pass
-    
     def get_b64(path):
         if os.path.exists(path) and os.path.getsize(path) > 0:
             try:
                 with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
             except: return None
         return None
-
-    all_files = glob.glob(os.path.join(GALLERY_DIR, "*"))
-    img_list = [f for f in all_files if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-    
     logo_b64 = get_b64(LOGO_FILE)
+    img_list = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-    
     photos_html = ""
     for img_path in img_list[-15:]:
         b64 = get_b64(img_path)
         if b64:
             size, top, left = random.randint(180, 260), random.randint(10, 70), random.randint(5, 80)
             photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(8, 14)}s;">'
-    
     html_code = f"""<!DOCTYPE html><html style="background: black;"><body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw; opacity: 0; animation: fadeIn 1.5s forwards;"><style>@keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }} .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }} .main-title {{ position: absolute; top: 40px; width: 100%; text-align: center; color: white; font-family: sans-serif; font-size: 55px; font-weight: bold; z-index: 1001; text-shadow: 0 0 20px rgba(255,255,255,0.7); }} .center-stack {{ position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 20px; }} .logo {{ max-width: 300px; filter: drop-shadow(0 0 15px white); }} .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; }} .photo {{ position: absolute; border-radius: 50%; border: 5px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.95; box-shadow: 0 0 20px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 80px) rotate(8deg); }} }} </style><div class="container"><div class="main-title">MEILLEURS VŒUX 2026</div><div class="center-stack">{f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="130"></div></div>{photos_html}</div></body></html>"""
     components.html(html_code)
 
