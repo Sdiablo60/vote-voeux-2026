@@ -48,40 +48,33 @@ def get_participants_count():
         with open(PARTICIPANTS_FILE, "r") as f: return len(json.load(f))
     except: return 0
 
-def add_vote_session(pseudo, choix_list):
-    with open(PARTICIPANTS_FILE, "r") as f:
-        participants = json.load(f)
-    if pseudo not in participants:
-        participants.append(pseudo)
-        with open(PARTICIPANTS_FILE, "w") as f: json.dump(participants, f)
-    votes = get_votes()
-    for c in choix_list:
-        votes[c] = votes.get(c, 0) + 1
-    with open(VOTES_FILE, "w") as f: json.dump(votes, f)
-
 # --- 3. NAVIGATION ---
 query_params = st.query_params
 est_admin = query_params.get("admin") == "true"
 est_utilisateur = query_params.get("mode") == "vote"
 
-# --- 4. ADMIN (FORÇAGE COULEURS) ---
+# --- 4. ADMIN (FORÇAGE DES COULEURS VIA CSS INJECTÉ) ---
 if est_admin:
-    # Injection CSS Ultra-Précise pour forcer les couleurs
+    # On utilise des sélecteurs encore plus larges pour être sûr de gagner contre le thème
     st.markdown("""
         <style>
         /* Bouton Bleu - Mise à jour */
-        div.stButton > button:first-child[data-testid="baseButton-primary"] {
+        div[data-testid="stSidebar"] button[kind="primary"] {
             background-color: #0000FF !important;
             color: white !important;
-            border: 1px solid #0000FF !important;
+            border: none !important;
+            font-weight: bold !important;
         }
-        /* Bouton Rouge - Réinitialiser */
-        div.stButton > button:first-child[data-testid="baseButton-secondary"] {
+        /* Bouton Rouge - Reset */
+        div[data-testid="stSidebar"] button[kind="secondary"] {
             background-color: #FF0000 !important;
             color: white !important;
-            border: 1px solid #FF0000 !important;
+            border: none !important;
+            font-weight: bold !important;
         }
-        .main-header { border-bottom: 3px solid #E2001A; padding: 10px; }
+        /* Hover effects */
+        div[data-testid="stSidebar"] button[kind="primary"]:hover { background-color: #0000CC !important; }
+        div[data-testid="stSidebar"] button[kind="secondary"]:hover { background-color: #CC0000 !important; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -102,8 +95,8 @@ if est_admin:
             
             st.divider()
             st.subheader("Zone de Danger")
-            # BOUTON ROUGE (Secondary par défaut)
-            if st.button("🧨 RÉINITIALISER LES VOTES", use_container_width=True):
+            # BOUTON ROUGE (Secondary)
+            if st.button("🧨 RÉINITIALISER LES VOTES", type="secondary", use_container_width=True):
                 new_v = VOTE_VERSION + 1
                 save_config(config["mode_affichage"], config["titre_mur"], new_v)
                 with open(VOTES_FILE, "w") as f: json.dump({}, f)
@@ -118,7 +111,7 @@ if est_admin:
         st.metric("Participants", get_participants_count())
         st.bar_chart(get_votes())
 
-# --- 5. UTILISATEUR / 6. MUR LIVE (RESTENT IDENTIQUES) ---
+# --- 5. UTILISATEUR / 6. MUR LIVE (RESTENT IDENTIQUES POUR LA STABILITÉ) ---
 elif est_utilisateur:
     st.title("🗳️ Vote Transdev")
     components.html(f"<script>if(localStorage.getItem('transdev_voted_v{VOTE_VERSION}')){{window.parent.postMessage({{type:'voted'}},'*');}}</script>", height=0)
@@ -130,7 +123,13 @@ elif est_utilisateur:
         choix = st.multiselect("Votre Top 3 :", options, max_selections=3)
         if st.button("Confirmer le vote"):
             if pseudo and (0 < len(choix) <= 3):
-                add_vote_session(pseudo, choix)
+                with open(PARTICIPANTS_FILE, "r") as f: participants = json.load(f)
+                if pseudo not in participants:
+                    participants.append(pseudo)
+                    with open(PARTICIPANTS_FILE, "w") as f: json.dump(participants, f)
+                votes = get_votes()
+                for c in choix: votes[c] = votes.get(c, 0) + 1
+                with open(VOTES_FILE, "w") as f: json.dump(votes, f)
                 components.html(f"<script>localStorage.setItem('transdev_voted_v{VOTE_VERSION}', 'true');window.parent.location.reload();</script>", height=0)
                 st.session_state["has_voted"] = True
             else: st.error("Erreur de saisie.")
