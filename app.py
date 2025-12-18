@@ -20,7 +20,17 @@ params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
-# --- 3. INTERFACE ADMINISTRATION ---
+# --- 3. FONCTIONS UTILES ---
+def create_zip(file_list):
+    """Génère un fichier ZIP en mémoire à partir d'une liste de chemins."""
+    buf = BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        for f in file_list:
+            if os.path.exists(f):
+                z.write(f, os.path.basename(f))
+    return buf.getvalue()
+
+# --- 4. INTERFACE ADMINISTRATION ---
 if est_admin:
     st.markdown("""
         <style>
@@ -30,8 +40,6 @@ if est_admin:
         .logo-top-right { max-width: 100px; max-height: 50px; object-fit: contain; }
         [data-testid="column"] { min-width: 0px !important; flex-basis: 0 !important; flex-grow: 1 !important; }
         div[data-testid="stHorizontalBlock"] { align-items: center; }
-        /* Style spécifique pour le bouton sélection */
-        div.stDownloadButton > button { border-color: #ff4b4b !important; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -47,7 +55,7 @@ if est_admin:
                 st.rerun()
 
     if pwd == "ADMIN_LIVE_MASTER":
-        # HEADER
+        # LOGO HAUT DROITE
         logo_html = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f:
@@ -55,46 +63,37 @@ if est_admin:
             logo_html = f'<img src="data:image/png;base64,{data}" class="logo-top-right">'
         
         st.markdown(f'<div class="admin-header"><div><h2 style="margin:0;">Console Régie</h2></div><div>{logo_html}</div></div>', unsafe_allow_html=True)
-        st.link_button("🖥️ PROJETER LE MUR", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
+        
+        # BARRE DE CONTRÔLE
+        all_files = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        sorted_imgs = sorted(all_files, key=os.path.getmtime, reverse=True)
+        
+        c_titre, c_zip_all, c_zip_sel, c_vue = st.columns([1.5, 1, 1, 1])
+        
+        with c_titre:
+            st.subheader(f"🖼️ Modération ({len(all_files)})")
+        
+        with c_zip_all:
+            if all_files:
+                zip_data = create_zip(all_files)
+                st.download_button(label="📥 Tout (ZIP)", data=zip_data, file_name="galerie_complete.zip", mime="application/zip", use_container_width=True)
+        
+        with c_vue:
+            mode_vue = st.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
 
+        # EXPANDER D'AJOUT
         with st.expander("➕ Ajouter des photos manuellement"):
-            up_center = st.file_uploader("Fichiers", accept_multiple_files=True, key="ph_center")
-            if up_center:
-                for f in up_center:
+            up = st.file_uploader("Fichiers", accept_multiple_files=True, key="ph_center")
+            if up:
+                for f in up:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
 
         st.divider()
 
-        # --- PRÉ-CALCUL DES DONNÉES ---
-        all_files = glob.glob(os.path.join(GALLERY_DIR, "*"))
-        imgs = [f for f in all_files if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
-        sorted_imgs = sorted(imgs, key=os.path.getmtime, reverse=True)
-
-        # --- LIGNE DE CONTRÔLE UNIQUE ---
-        # On définit les colonnes pour tout aligner
-        c_titre, c_zip_all, c_zip_sel, c_vue = st.columns([1.5, 1, 1, 1])
-        
-        with c_titre:
-            st.subheader(f"🖼️ Modération ({len(imgs)})")
-        
-        with c_zip_all:
-            if imgs:
-                buf = BytesIO()
-                with zipfile.ZipFile(buf, "w") as z:
-                    for f in imgs: z.write(f, os.path.basename(f))
-                st.download_button(label="📥 Tout (ZIP)", data=buf.getvalue(), file_name="galerie_complete.zip", use_container_width=True)
-        
-        # Zone pour le bouton de sélection (gérée dynamiquement plus bas via un placeholder ou affichée ici)
-        # Pour que la sélection fonctionne en un clic, nous devons capturer l'état des checkbox
-        # Streamlit exécute du haut vers le bas, donc on initialise la liste
+        # GALERIE ET SÉLECTION
         selected_photos = []
-
-        with c_vue:
-            mode_vue = st.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
-
-        # --- AFFICHAGE DE LA GALERIE ---
-        if not imgs:
+        if not all_files:
             st.info("Aucune photo.")
         else:
             if mode_vue == "Vignettes":
@@ -121,8 +120,7 @@ if est_admin:
                             with cols[j]:
                                 c1, c2, c3 = st.columns([1, 1, 3])
                                 with c1:
-                                    if st.checkbox("", key=f"sel_l_{i+j}"):
-                                        selected_photos.append(img_p)
+                                    if st.checkbox("", key=f"sel_l_{i+j}"): selected_photos.append(img_p)
                                 with c2:
                                     try: st.image(img_p, width=35)
                                     except: st.warning("!")
@@ -131,44 +129,43 @@ if est_admin:
                                         os.remove(img_p)
                                         st.rerun()
 
-        # --- INJECTION DU BOUTON SÉLECTION DANS LA LIGNE DU HAUT ---
+        # BOUTON SÉLECTION (Dans la ligne du haut)
         if selected_photos:
             with c_zip_sel:
-                buf_sel = BytesIO()
-                with zipfile.ZipFile(buf_sel, "w") as z_sel:
-                    for f_sel in selected_photos: z_sel.write(f_sel, os.path.basename(f_sel))
-                st.download_button(label=f"📥 Sélection ({len(selected_photos)})", data=buf_sel.getvalue(), file_name="selection.zip", use_container_width=True)
-
+                zip_sel_data = create_zip(selected_photos)
+                st.download_button(label=f"📥 Sélection ({len(selected_photos)})", data=zip_sel_data, file_name="selection.zip", mime="application/zip", use_container_width=True)
     else:
         st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1></div>', unsafe_allow_html=True)
 
-# --- 4. MODE LIVE (Identique) ---
+# --- 5. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
     st.markdown("""<style>:root { background-color: #000000 !important; } html, body, [data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; overflow: hidden !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; } [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; } iframe { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; border: none !important; background-color: #000000 !important; z-index: 9999; }</style>""", unsafe_allow_html=True)
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=25000, key="wall_refresh")
     except: pass
-    def get_b64(path):
-        if os.path.exists(path) and os.path.getsize(path) > 0:
-            try:
-                with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
-            except: return None
-        return None
-    logo_b64 = get_b64(LOGO_FILE)
+    
     img_list = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+    
+    # Logo b64
+    logo_b64 = None
+    if os.path.exists(LOGO_FILE):
+        with open(LOGO_FILE, "rb") as f: logo_b64 = base64.b64encode(f.read()).decode()
+
     photos_html = ""
     for img_path in img_list[-15:]:
-        b64 = get_b64(img_path)
-        if b64:
-            size, top, left = random.randint(180, 260), random.randint(10, 70), random.randint(5, 80)
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(8, 14)}s;">'
+        with open(img_path, "rb") as f: b64 = base64.b64encode(f.read()).decode()
+        size, top, left = random.randint(180, 260), random.randint(10, 70), random.randint(5, 80)
+        photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(8, 14)}s;">'
+    
     html_code = f"""<!DOCTYPE html><html style="background: black;"><body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw; opacity: 0; animation: fadeIn 1.5s forwards;"><style>@keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }} .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }} .main-title {{ position: absolute; top: 40px; width: 100%; text-align: center; color: white; font-family: sans-serif; font-size: 55px; font-weight: bold; z-index: 1001; text-shadow: 0 0 20px rgba(255,255,255,0.7); }} .center-stack {{ position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 20px; }} .logo {{ max-width: 300px; filter: drop-shadow(0 0 15px white); }} .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; }} .photo {{ position: absolute; border-radius: 50%; border: 5px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.95; box-shadow: 0 0 20px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 80px) rotate(8deg); }} }} </style><div class="container"><div class="main-title">MEILLEURS VŒUX 2026</div><div class="center-stack">{f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="130"></div></div>{photos_html}</div></body></html>"""
     components.html(html_code)
+
+# --- 6. MODE VOTE ---
 else:
     st.title("📸 Envoyez votre photo !")
     f = st.file_uploader("Choisir", type=['jpg', 'jpeg', 'png'])
