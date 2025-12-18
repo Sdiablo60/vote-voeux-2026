@@ -86,13 +86,11 @@ elif not mode_vote:
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
-    # QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Préparation HTML dynamique
     stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}vh; left:{random.randint(0,100)}vw; width:{random.randint(1,3)}px; height:{random.randint(1,3)}px; animation-delay:{random.random()*3}s;"></div>' for _ in range(80)])
     
     photos_html = ""
@@ -101,18 +99,33 @@ elif not mode_vote:
         delay = -(i * (25 / max(len(valid_photos), 1)))
         photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-bubble" style="animation-delay:{delay}s;">'
 
-    # INJECTION CSS (Notez les doubles {{ }} pour le CSS et simples { } pour les variables)
+    # INJECTION CSS AVEC NETTOYAGE CHIRURGICAL
     st.markdown(f"""
     <style>
-        [data-testid="stAppViewContainer"], .stApp {{
+        /* 1. CACHE ABSOLUMENT TOUT LE CONTENU NATIF DE STREAMLIT */
+        [data-testid="stVerticalBlock"] > div {{
+            display: none !important;
+        }}
+        
+        /* 2. FORCE LE FOND NOIR SUR TOUTE LA PAGE */
+        .stApp, [data-testid="stAppViewContainer"] {{
             background-color: #050505 !important;
             padding: 0 !important;
         }}
-        header, footer, [data-testid="stHeader"] {{ display: none !important; }}
 
-        .wall-container {{
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #050505; z-index: 9999; overflow: hidden;
+        header, footer, [data-testid="stHeader"], [data-testid="stStatusWidget"] {{
+            display: none !important;
+        }}
+
+        /* 3. NOTRE MUR (LUI SEUL EST AFFICHÉ) */
+        .master-wall {{
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            background-color: #050505;
+            z-index: 999999;
+            display: block !important;
+            overflow: hidden;
         }}
 
         .star {{
@@ -123,15 +136,14 @@ elif not mode_vote:
 
         .title-text {{
             position: absolute; top: 8%; width: 100%; text-align: center;
-            font-family: sans-serif; font-weight: bold; z-index: 10001;
+            font-family: sans-serif; font-weight: bold; z-index: 1000;
             color: {config['couleur']}; font-size: {config['taille']}px;
             text-shadow: 0 0 20px {config['couleur']}aa;
         }}
 
         .center-hub {{
-            position: absolute; top: 55%; left: 50%;
+            position: absolute; top: 58%; left: 50%;
             transform: translate(-50%, -50%); width: 1px; height: 1px;
-            z-index: 10000;
         }}
 
         .logo-img {{
@@ -155,11 +167,11 @@ elif not mode_vote:
         .qr-anchor {{
             position: fixed; bottom: 30px; right: 30px;
             background: white; padding: 10px; border-radius: 12px;
-            text-align: center; z-index: 10002;
+            text-align: center; z-index: 1001;
         }}
     </style>
 
-    <div class="wall-container">
+    <div class="master-wall">
         {stars_html}
         <div class="title-text">{config['texte']}</div>
         <div class="center-hub">
@@ -173,7 +185,5 @@ elif not mode_vote:
     </div>
     """, unsafe_allow_html=True)
 
-# --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participation")
-    st.write("Interface mobile active.")
