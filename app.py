@@ -12,7 +12,13 @@ VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE = "votes.json", "participants.json", 
 for d in [GALLERY_DIR, ADMIN_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
-default_config = {"mode_affichage": "attente", "titre_mur": "CONCOURS VIDÉO 2026", "vote_version": 1, "session_ouverte": False, "reveal_resultats": False}
+default_config = {
+    "mode_affichage": "attente", 
+    "titre_mur": "CONCOURS VIDÉO 2026", 
+    "vote_version": 1, 
+    "session_ouverte": False, 
+    "reveal_resultats": False
+}
 
 if os.path.exists(CONFIG_FILE):
     try:
@@ -55,40 +61,12 @@ if est_admin:
         st.bar_chart(v_data)
     except: pass
 
-# --- 4. UTILISATEUR (SUPPRESSION TOTALE DU MESSAGE ANGLAIS) ---
+# --- 4. UTILISATEUR (ZÉRO ANGLAIS) ---
 elif est_utilisateur:
-    # 1. Injection CSS + JS pour tuer le message anglais
-    st.markdown("""
-        <style>
-        .stApp { background-color: black !important; color: white !important; }
-        /* Cacher tout type de notification Streamlit (anglais) */
-        [data-testid="stNotification"], .stAlert, div[role="alert"] {
-            display: none !important;
-        }
-        .stMultiSelect span { color: white !important; }
-        label { color: white !important; font-size: 1.1rem !important; }
-        </style>
-        
-        <script>
-        // Script pour supprimer les messages d'erreur de limite en temps réel
-        const observer = new MutationObserver(((mutations) => {
-            for (const mutation of mutations) {
-                const alerts = document.querySelectorAll('[data-testid="stNotification"]');
-                alerts.forEach(alert => {
-                    if (alert.innerText.includes("select up to")) {
-                        alert.style.display = 'none';
-                    }
-                });
-            }
-        }));
-        observer.observe(document.body, { childList: true, subtree: true });
-        </script>
-    """, unsafe_allow_html=True)
-    
+    st.markdown("<style>.stApp { background-color: black !important; color: white !important; } .stMultiSelect span { color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
     vote_key = f"transdev_v{VOTE_VERSION}"
     
-    # Vérification localStorage
     components.html(f'<script>if(localStorage.getItem("{vote_key}")){{ window.parent.postMessage({{type: "streamlit:setComponentValue", value: true, key: "voted_check"}}, "*"); }}</script>', height=0)
 
     if st.session_state.get("voted_final") or st.session_state.get("voted_check"):
@@ -112,24 +90,27 @@ elif est_utilisateur:
                 st.write(f"Bonjour **{st.session_state['user_pseudo']}**")
                 options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
                 
-                choix = st.multiselect("Sélectionnez vos 3 vidéos préférées (l'ordre compte) :", options, max_selections=3)
+                # Pas de max_selections ici pour éviter le message en anglais
+                choix = st.multiselect("Sélectionnez vos 3 vidéos préférées (l'ordre compte) :", options)
                 
-                # --- AFFICHAGE DES POINTS IMMÉDIATS ---
                 if len(choix) > 0:
                     st.markdown("---")
                     labels = ["🥇 **+5 points**", "🥈 **+3 points**", "🥉 **+1 point**"]
-                    for i in range(len(choix)):
+                    for i in range(min(len(choix), 3)):
                         st.write(f"{labels[i]} pour : **{choix[i]}**")
+                    
+                    if len(choix) > 3:
+                        st.error(f"⚠️ Trop de choix ! Veuillez en retirer {len(choix)-3}.")
                     st.markdown("---")
 
                 if len(choix) == 3:
                     if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
                         vts = json.load(open(VOTES_FILE))
-                        for v, pts in zip(choix, [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
+                        for v, pts in zip(choix[:3], [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
                         with open(VOTES_FILE, "w") as f: json.dump(vts, f)
                         components.html(f'<script>localStorage.setItem("{vote_key}", "true"); setTimeout(() => {{ window.parent.location.reload(); }}, 300);</script>', height=0)
                         st.session_state["voted_final"] = True; st.rerun()
-                elif len(choix) > 0:
+                elif len(choix) > 0 and len(choix) < 3:
                     st.info(f"Encore {3-len(choix)} choix à faire...")
 
 # --- 5. MUR SOCIAL ---
