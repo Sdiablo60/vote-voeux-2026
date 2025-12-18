@@ -44,19 +44,33 @@ est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
 if est_admin:
-    # CSS POUR FIGER LE HAUT ET STYLE
+    # --- CSS PERSONNALISÉ (TYPOGRAPHIE ET COULEURS) ---
     st.markdown("""
         <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+        
+        html, body, [data-testid="stAppViewContainer"] {
+            font-family: 'Roboto', sans-serif;
+        }
+        
         .main-header-sticky {
             position: sticky;
             top: 0px;
             background-color: white;
             z-index: 1000;
-            padding: 10px 0;
-            border-bottom: 2px solid #f0f2f6;
+            padding: 20px 0;
+            border-bottom: 3px solid #E2001A; /* Rouge Transdev par défaut */
         }
+        
+        h1, h2, h3 {
+            color: #4D4D4D; /* Gris foncé typique */
+        }
+        
         [data-testid="column"] { min-width: 0px !important; }
-        .stButton button { border-radius: 5px; }
+        
+        .stButton button {
+            border-radius: 4px;
+        }
         </style>
     """, unsafe_allow_html=True)
 
@@ -91,24 +105,29 @@ if est_admin:
                     try: os.remove(f)
                     except: pass
                 st.rerun()
-        else:
-            st.info("Veuillez vous authentifier.")
 
     if st.session_state["authenticated"]:
-        # --- EN-TÊTE FIGÉ ---
+        # --- EN-TÊTE FIGÉ AVEC LOGO AGRANDI ---
         st.markdown('<div class="main-header-sticky">', unsafe_allow_html=True)
         
-        c_title, c_logo_h = st.columns([4, 1])
-        c_title.title("Modération des médias")
-        if os.path.exists(LOGO_FILE):
-            c_logo_h.image(LOGO_FILE, width=80)
+        # Structure de l'en-tête : Logo à gauche (plus grand), Titre à droite
+        c_logo_main, c_title_main = st.columns([1, 2])
         
-        st.link_button("🖥️ VOIR LE MUR EN DIRECT", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
+        if os.path.exists(LOGO_FILE):
+            # Logo agrandi au centre
+            c_logo_main.image(LOGO_FILE, width=250) # Taille augmentée
+        
+        with c_title_main:
+            st.markdown("<h1 style='margin-bottom:0;'>Console de Modération</h1>", unsafe_allow_html=True)
+            st.caption("Gestion de la galerie en temps réel")
+
+        st.link_button("🖥️ ACCÉDER AU MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
 
         all_imgs = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         sorted_imgs = sorted(all_imgs, key=os.path.getmtime, reverse=True)
         selected_photos = []
 
+        # Barre de contrôle
         ctrl1, ctrl2, ctrl3, ctrl4, ctrl5 = st.columns([1.2, 0.8, 1, 1, 1])
         ctrl1.write(f"📊 **{len(all_imgs)} fichiers**")
         
@@ -125,7 +144,7 @@ if est_admin:
         
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- AJOUT MANUEL ---
+        # --- CONTENU ---
         with st.expander("➕ Importer des fichiers"):
             up = st.file_uploader("Upload", accept_multiple_files=True, key="manual_up")
             if up:
@@ -133,12 +152,10 @@ if est_admin:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as out: out.write(f.getbuffer())
                 st.rerun()
 
-        # --- GALERIE ---
         if not all_imgs:
             st.info("La galerie est vide.")
         else:
             if mode_vue == "Vignettes":
-                # Mosaïque 8 colonnes
                 for i in range(0, len(sorted_imgs), 8):
                     cols = st.columns(8)
                     for j in range(8):
@@ -149,11 +166,8 @@ if est_admin:
                                 is_checked = st.checkbox("Sél.", value=st.session_state["all_selected"], key=f"v_{img_p}_{idx}")
                                 if is_checked: selected_photos.append(img_p)
                                 st.image(img_p, use_container_width=True)
-                                if st.button("🗑️", key=f"del_{img_p}_{idx}"): 
-                                    os.remove(img_p)
-                                    st.rerun()
+                                if st.button("🗑️", key=f"del_{img_p}_{idx}"): os.remove(img_p); st.rerun()
             else:
-                # Mode Liste 4 colonnes (Aperçus légèrement réduits)
                 for i in range(0, len(sorted_imgs), 4):
                     cols = st.columns(4)
                     for j in range(4):
@@ -162,20 +176,16 @@ if est_admin:
                             img_p = sorted_imgs[idx]
                             with cols[j]:
                                 with st.container(border=True):
-                                    # Structure interne : marge pour réduire l'image
                                     c_check, c_preview, c_margin = st.columns([1, 6, 1])
                                     with c_check:
                                         is_checked = st.checkbox("", value=st.session_state["all_selected"], key=f"l_chk_{img_p}_{idx}", label_visibility="collapsed")
                                         if is_checked: selected_photos.append(img_p)
                                     with c_preview:
                                         st.image(img_p, use_container_width=True)
-                                    
                                     st.caption(f"ID: {os.path.basename(img_p)[:20]}")
                                     if st.button("Supprimer", key=f"btn_l_{img_p}_{idx}", use_container_width=True):
-                                        os.remove(img_p)
-                                        st.rerun()
+                                        os.remove(img_p); st.rerun()
 
-        # Bouton sélection (Sticky ctrl4)
         if selected_photos:
             with ctrl4:
                 st.download_button(f"📥 ZIP Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True, type="primary")
@@ -210,4 +220,4 @@ else:
     f = st.file_uploader("Image", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out: out.write(f.getbuffer())
-        st.success("✅ C'est en ligne !")
+        st.success("✅ Photo envoyée !")
