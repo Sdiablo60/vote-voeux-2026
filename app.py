@@ -27,14 +27,34 @@ if est_admin:
         <style>
         html, body, .stApp { background-color: white !important; color: black !important; }
         * { color: black !important; }
-        .admin-header { text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 15px; margin-bottom: 30px; }
+        
+        /* En-tête admin épuré */
+        .admin-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 20px; 
+            border-bottom: 2px solid #f0f2f6; 
+            margin-bottom: 30px; 
+        }
+        
+        /* Logo flottant à droite */
+        .logo-top-right {
+            max-width: 150px;
+            max-height: 80px;
+            object-fit: contain;
+        }
+
         [data-testid="stSidebar"] { min-width: 350px !important; }
         [data-testid="stHeader"] { display: block !important; }
-        .stImage { border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
+        # Logo en haut de sidebar (toujours présent)
+        if os.path.exists(LOGO_FILE):
+            st.image(LOGO_FILE, use_container_width=True)
+        
         st.title("⚙️ Configuration")
         pwd = st.text_input("Code Secret Admin", type="password")
         st.divider()
@@ -65,30 +85,33 @@ if est_admin:
 
     # --- ÉCRAN CENTRAL ---
     if pwd == "ADMIN_LIVE_MASTER":
-        # 1. EN-TÊTE ET BIENVENUE
-        st.markdown('<div class="admin-header"><h1>Bienvenue dans votre Console d\'Administration</h1><p>Gérez votre événement en temps réel</p></div>', unsafe_allow_html=True)
+        # HEADER AVEC TITRE À GAUCHE ET LOGO À DROITE
+        logo_html = ""
+        if os.path.exists(LOGO_FILE):
+            # Encodage b64 pour l'injecter dans le HTML personnalisé
+            with open(LOGO_FILE, "rb") as f:
+                data = base64.b64encode(f.read()).decode()
+            logo_html = f'<img src="data:image/png;base64,{data}" class="logo-top-right">'
         
-        # 2. RÉSUMÉ ET RACCOURCIS
-        c1, c2 = st.columns([1, 2])
-        with c1:
-            st.subheader("🖼️ Logo Actuel")
-            if os.path.exists(LOGO_FILE):
-                st.image(LOGO_FILE, width=150)
-                if st.button("Supprimer le logo"):
-                    os.remove(LOGO_FILE)
-                    st.rerun()
-            else:
-                st.info("Aucun logo chargé.")
+        st.markdown(f"""
+            <div class="admin-header">
+                <div style="text-align: left;">
+                    <h1 style="margin:0;">Console d'Administration</h1>
+                    <p style="margin:0; opacity: 0.7;">Gestion de la galerie en temps réel</p>
+                </div>
+                <div>
+                    {logo_html}
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         
-        with c2:
-            st.subheader("🖥️ Lien du Mur")
-            url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
-            st.write("Le mur de photos est actif. Vous pouvez le projeter via ce bouton :")
-            st.link_button("OUVRIR LE MUR EN PLEIN ÉCRAN", url_mur, type="primary")
+        # BOUTON D'ACCÈS AU MUR (Centralisé et visible)
+        url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
+        st.link_button("🖥️ OUVRIR LE MUR EN PLEIN ÉCRAN", url_mur, type="primary", use_container_width=True)
 
         st.divider()
 
-        # 3. GALERIE DE MODÉRATION
+        # GALERIE DE MODÉRATION
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
         st.header(f"🖼️ Modération des Photos ({len(imgs)})")
         
@@ -104,10 +127,11 @@ if est_admin:
                         os.remove(img_path)
                         st.rerun()
     else:
-        st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1><p>Veuillez entrer le mot de passe dans la barre latérale pour accéder aux réglages.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1><p>Veuillez entrer le mot de passe dans la barre latérale.</p></div>', unsafe_allow_html=True)
 
 # --- 4. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
+    # (Le code du mur reste identique pour garantir la stabilité)
     st.markdown("""
         <style>
         :root { background-color: #000000 !important; }
@@ -116,27 +140,22 @@ elif not mode_vote:
         iframe { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; border: none !important; background-color: #000000 !important; z-index: 9999; }
         </style>
     """, unsafe_allow_html=True)
-
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=25000, key="wall_refresh")
     except: pass
-
     def get_b64(path):
         if os.path.exists(path) and os.path.getsize(path) > 0:
             try:
                 with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
             except: return None
         return None
-
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
-    
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-
     photos_html = ""
     for img_path in img_list[-15:]:
         b64 = get_b64(img_path)
@@ -145,7 +164,6 @@ elif not mode_vote:
             top, left = random.randint(10, 70), random.randint(5, 80)
             duration = random.uniform(8, 14)
             photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
-
     html_code = f"""
     <!DOCTYPE html>
     <html style="background: black;">
