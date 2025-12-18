@@ -27,77 +27,84 @@ if est_admin:
         <style>
         html, body, .stApp { background-color: white !important; color: black !important; }
         * { color: black !important; }
-        .admin-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f0f2f6; padding-bottom: 20px; }
+        .admin-header { text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 15px; margin-bottom: 30px; }
         [data-testid="stSidebar"] { min-width: 350px !important; }
         [data-testid="stHeader"] { display: block !important; }
-        /* Style pour les cartes photos au centre */
-        .img-card { border: 1px solid #ddd; border-radius: 10px; padding: 5px; background: #f9f9f9; }
+        .stImage { border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
-        if os.path.exists(LOGO_FILE):
-            st.image(LOGO_FILE, use_container_width=True)
-        
-        st.title("⚙️ Régie Social Wall")
+        st.title("⚙️ Configuration")
         pwd = st.text_input("Code Secret Admin", type="password")
         st.divider()
 
         if pwd == "ADMIN_LIVE_MASTER":
-            st.success("✅ Accès autorisé")
+            st.success("Accès autorisé")
             
-            url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
-            st.link_button("🖥️ OUVRIR LE MUR (PLEIN ÉCRAN)", url_mur)
-            
-            st.divider()
-            st.subheader("🖼️ Configuration Logo")
-            ul = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
+            # --- SECTION UPLOADS ---
+            st.subheader("📤 Imports")
+            ul = st.file_uploader("Nouveau Logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
             if ul:
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
-            if os.path.exists(LOGO_FILE):
-                if st.button("🗑️ Supprimer le logo"):
-                    os.remove(LOGO_FILE)
-                    st.rerun()
-
-            st.divider()
-            st.subheader("📤 Ajout Photos")
-            up = st.file_uploader("Importer des images", accept_multiple_files=True, key="ph_up")
+                
+            up = st.file_uploader("Nouvelles Photos", accept_multiple_files=True, key="ph_up")
             if up:
                 for f in up:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
             
-            if st.button("🧨 VIDER TOUTE LA GALERIE"):
+            st.divider()
+            if st.button("🧨 VIDER TOUTE LA GALERIE", use_container_width=True):
                 imgs_to_del = glob.glob(os.path.join(GALLERY_DIR, "*"))
                 for f in imgs_to_del: os.remove(f)
                 st.rerun()
         else:
-            st.warning("Veuillez vous identifier.")
+            st.warning("Identifiez-vous à gauche.")
 
-    # --- ÉCRAN CENTRAL : GESTION DE LA GALERIE ---
+    # --- ÉCRAN CENTRAL ---
     if pwd == "ADMIN_LIVE_MASTER":
-        st.markdown('<div class="admin-header"><h1>🖼️ Gestion de la Galerie Live</h1></div>', unsafe_allow_html=True)
+        # 1. EN-TÊTE ET BIENVENUE
+        st.markdown('<div class="admin-header"><h1>Bienvenue dans votre Console d\'Administration</h1><p>Gérez votre événement en temps réel</p></div>', unsafe_allow_html=True)
         
+        # 2. RÉSUMÉ ET RACCOURCIS
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            st.subheader("🖼️ Logo Actuel")
+            if os.path.exists(LOGO_FILE):
+                st.image(LOGO_FILE, width=150)
+                if st.button("Supprimer le logo"):
+                    os.remove(LOGO_FILE)
+                    st.rerun()
+            else:
+                st.info("Aucun logo chargé.")
+        
+        with c2:
+            st.subheader("🖥️ Lien du Mur")
+            url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
+            st.write("Le mur de photos est actif. Vous pouvez le projeter via ce bouton :")
+            st.link_button("OUVRIR LE MUR EN PLEIN ÉCRAN", url_mur, type="primary")
+
+        st.divider()
+
+        # 3. GALERIE DE MODÉRATION
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+        st.header(f"🖼️ Modération des Photos ({len(imgs)})")
+        
         if not imgs:
-            st.info("La galerie est actuellement vide. Utilisez le menu à gauche pour ajouter des photos.")
+            st.info("La galerie est vide. Ajoutez des photos via le menu de gauche.")
         else:
-            st.write(f"Il y a actuellement **{len(imgs)}** photos en rotation.")
-            
-            # Affichage en grille de 4 colonnes au centre
+            # Affichage en grille de 4 colonnes
             cols = st.columns(4)
             for i, img_path in enumerate(reversed(imgs)):
                 with cols[i % 4]:
                     st.image(img_path, use_container_width=True)
-                    if st.button(f"Supprimer #{i}", key=f"del_{i}"):
+                    if st.button(f"Supprimer #{len(imgs)-i}", key=f"del_{i}"):
                         os.remove(img_path)
                         st.rerun()
     else:
-        st.markdown('<div class="admin-welcome" style="text-align:center; margin-top:100px;">', unsafe_allow_html=True)
-        st.title("🔒 Console d'Administration Verrouillée")
-        st.write("Saisissez le code dans la barre latérale pour gérer la galerie.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1><p>Veuillez entrer le mot de passe dans la barre latérale pour accéder aux réglages.</p></div>', unsafe_allow_html=True)
 
 # --- 4. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
@@ -178,4 +185,3 @@ else:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
         st.success("✅ C'est envoyé !")
-        st.balloons()
