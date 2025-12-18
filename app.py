@@ -1,7 +1,3 @@
-# --- FORCE RESET TEMPORAIRE ---
-# Copiez cette ligne juste après l'import des bibliothèques
-with open("admin_pwd.txt", "w") as f: 
-    f.write("ADMIN_LIVE_MASTER")
 import streamlit as st
 import pandas as pd
 import os
@@ -118,7 +114,7 @@ if est_admin:
         input_pwd = st.text_input("Saisir le Code Secret", type="password")
         
         if input_pwd == pwd_actuel:
-            # --- AFFICHAGE DU MESSAGE DE BIENVENUE SEULEMENT SI LOGUÉ ---
+            # --- AFFICHAGE DU MESSAGE DE BIENVENUE ---
             st.markdown("""
                 <div class="welcome-header">
                     <span class="welcome-text">🚀 Bienvenue sur votre Espace de Gestion</span>
@@ -164,11 +160,10 @@ if est_admin:
         else:
             st.stop()
 
-    # --- CORPS DE LA PAGE ---
     st.subheader("🗑️ Gestion du Flux en Direct")
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     if not imgs:
-        st.info("Attente de nouvelles photos des participants...")
+        st.info("Attente de nouvelles photos...")
     else:
         cols = st.columns(6)
         for i, p in enumerate(imgs):
@@ -177,7 +172,7 @@ if est_admin:
                 if st.button("🗑️ Supprimer", key=f"del_{i}"):
                     os.remove(p); st.rerun()
 
-# --- 4. MODE LIVE (Identique) ---
+# --- 4. MODE LIVE (MUR PUBLIC) ---
 elif not mode_vote:
     st.markdown("""<style>.stApp {background:black !important;} [data-testid="stHeader"] {display:none !important;}</style>""", unsafe_allow_html=True)
     try:
@@ -189,10 +184,12 @@ elif not mode_vote:
     config = get_config()
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
+    
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+
     valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
     photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(30/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
 
@@ -215,11 +212,12 @@ elif not mode_vote:
     """
     components.html(html_code, height=980, scrolling=False)
 
-# --- 5. MODE VOTE ---
+# --- 5. MODE VOTE (INTERFACE INVITÉS) ---
 else:
-    st.title("🗳️ Participez")
+    st.title("🗳️ Participez au Social Wall")
+    st.write("Envoyez votre photo pour la voir s'afficher sur l'écran géant !")
     uf = st.file_uploader("Prenez une photo ✨", type=['jpg', 'jpeg', 'png'])
     if uf:
         with open(os.path.join(GALLERY_DIR, uf.name), "wb") as f: f.write(uf.getbuffer())
-        st.success("Photo envoyée !")
-
+        st.success("C'est envoyé ! Regardez l'écran géant.")
+        st.balloons()
