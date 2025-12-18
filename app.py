@@ -1,3 +1,7 @@
+# --- FORCE RESET TEMPORAIRE ---
+# Copiez cette ligne juste après l'import des bibliothèques
+with open("admin_pwd.txt", "w") as f: 
+    f.write("ADMIN_LIVE_MASTER")
 import streamlit as st
 import pandas as pd
 import os
@@ -218,3 +222,4 @@ else:
     if uf:
         with open(os.path.join(GALLERY_DIR, uf.name), "wb") as f: f.write(uf.getbuffer())
         st.success("Photo envoyée !")
+
