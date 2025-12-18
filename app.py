@@ -9,41 +9,79 @@ from io import BytesIO
 import streamlit.components.v1 as components
 
 # --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Social Wall 2026", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Social Wall Pro", layout="wide", initial_sidebar_state="collapsed")
 
 GALLERY_DIR = "galerie_images"
 LOGO_FILE = "logo_entreprise.png"
 MSG_FILE = "live_config.csv"
 PWD_FILE = "admin_pwd.txt"
-DEFAULT_PWD = "ADMIN_VOEUX_2026"
+DEFAULT_PWD = "ADMIN_LIVE_MASTER"
 
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 if not os.path.exists(PWD_FILE):
     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD)
 
-# --- CSS POUR NETTOYER L'UPLOADER DE LOGO ---
-# Ce bloc supprime "Drag and drop", la limite de taille et renomme le bouton
+# --- STYLE CSS "SEXY & FLASHY" ---
 st.markdown("""
     <style>
-    /* Masquer le texte "Drag and drop" et la limite de taille dans la sidebar */
-    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] div div {
-        display: none !important;
+    /* Masquage des éléments Streamlit */
+    #MainMenu, header, footer {display: none !important;}
+    
+    /* Nettoyage des uploaders */
+    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] div div { display: none !important; }
+    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] { border: none !important; background: transparent !important; padding: 0 !important; }
+    [data-testid="stSidebar"] .st-key-logo_clean button div:before { content: "Nouveau Logo" !important; }
+    [data-testid="stSidebar"] .st-key-imgs_up button div:before { content: "Ajouter des Photos" !important; }
+    [data-testid="stSidebar"] button div { font-size: 0 !important; }
+    [data-testid="stSidebar"] button div:before { font-size: 14px !important; }
+
+    /* Titre Tableau de Bord sous le logo */
+    .sidebar-title {
+        text-align: center;
+        font-size: 22px;
+        font-weight: 800;
+        background: linear-gradient(45deg, #ff00cc, #3333ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-top: -10px;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
-    /* Supprimer la bordure et le fond gris du cadre d'upload pour qu'il soit transparent */
-    [data-testid="stSidebar"] section[data-testid="stFileUploadDropzone"] {
+
+    /* Message de bienvenue Flashy en haut à droite */
+    .welcome-header {
+        position: fixed;
+        top: 15px;
+        right: 25px;
+        padding: 10px 25px;
+        background: rgba(10, 10, 10, 0.8);
+        border-radius: 50px;
+        border: 2px solid #ff00cc;
+        box-shadow: 0 0 15px #ff00cc66, inset 0 0 10px #3333ff66;
+        z-index: 1000;
+        animation: glow 3s infinite alternate;
+    }
+    
+    .welcome-text {
+        font-weight: 700;
+        background: linear-gradient(90deg, #fff, #ff00cc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 16px;
+    }
+
+    @keyframes glow {
+        from { border-color: #ff00cc; box-shadow: 0 0 10px #ff00cc66; }
+        to { border-color: #3333ff; box-shadow: 0 0 20px #3333ff88; }
+    }
+    
+    /* Personnalisation des boutons Streamlit */
+    button[kind="primary"] {
+        background: linear-gradient(45deg, #ff00cc, #3333ff) !important;
         border: none !important;
-        background: transparent !important;
-        padding: 0 !important;
-    }
-    /* Modifier le texte du bouton "Browse files" */
-    [data-testid="stSidebar"] button[kind="secondary"] div:before {
-        content: "Importer un nouveau logo" !important;
-    }
-    [data-testid="stSidebar"] button[kind="secondary"] div {
-        font-size: 0 !important;
-    }
-    [data-testid="stSidebar"] button[kind="secondary"] div:before {
-        font-size: 16px !important;
+        color: white !important;
+        font-weight: bold !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -72,55 +110,59 @@ if est_admin:
         pwd_actuel = f.read().strip()
 
     with st.sidebar:
-        # 1. LOGO EN PREMIER (VISUEL)
+        # LOGO + TITRE TABLEAU DE BORD
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
+        st.markdown('<p class="sidebar-title">Tableau de Bord</p>', unsafe_allow_html=True)
         
-        # 2. BOUTON D'IMPORTATION ÉPURÉ (SANS TEXTES PAR DÉFAUT)
-        ul = st.file_uploader("", type=['png','jpg','jpeg'], key="logo_clean")
-        if ul:
-            with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
-            st.rerun()
-
-        st.divider()
-        
-        # 3. SÉCURITÉ
         st.header("🔑 Sécurité")
         input_pwd = st.text_input("Code Secret", type="password")
         
         if input_pwd == pwd_actuel:
-            st.success("Déverrouillé")
-            
+            st.success("Mode Expert Actif")
             st.divider()
-            st.header("💬 Message")
+            
+            # CONFIGURATION LOGO
+            st.header("🖼️ Logo Central")
+            ul = st.file_uploader("", type=['png','jpg','jpeg'], key="logo_clean")
+            if ul:
+                with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer()); st.rerun()
+
+            st.divider()
+            # CONFIGURATION MESSAGE
+            st.header("💬 Message Mur")
             config = get_config()
             new_txt = st.text_area("Texte", config["texte"])
             new_clr = st.color_picker("Couleur", config["couleur"])
             new_siz = st.slider("Taille", 20, 150, int(config["taille"]))
-            if st.button("🚀 Appliquer"):
+            if st.button("🚀 Appliquer", kind="primary"):
                 pd.DataFrame([{"texte": new_txt, "couleur": new_clr, "taille": new_siz}]).to_csv(MSG_FILE, index=False)
                 st.rerun()
 
             st.divider()
-            st.header("📸 Photos")
-            uf = st.file_uploader("Ajouter Photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
+            # AJOUT PHOTOS
+            st.header("📸 Galerie")
+            uf = st.file_uploader("", type=['png','jpg','jpeg'], accept_multiple_files=True, key="imgs_up")
             if uf:
                 for f in uf:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
 
             st.divider()
-            with st.expander("⚙️ Options"):
+            with st.expander("⚙️ Paramètres"):
                 new_pwd = st.text_input("Nouveau MDP", type="password")
                 if st.button("💾 Sauver"):
                     with open(PWD_FILE, "w") as f: f.write(new_pwd); st.rerun()
-                st.info(f"Défaut: {DEFAULT_PWD}")
-                if st.button("♻️ Reset"):
+                if st.button("♻️ Reset Usine"):
                     with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD); st.rerun()
         else:
             st.stop()
 
-    st.subheader("🗑️ Galerie Live")
+    # --- MESSAGE DE BIENVENUE EN HAUT À DROITE ---
+    st.markdown('<div class="welcome-header"><span class="welcome-text">Bienvenue sur votre Espace de Gestion</span></div>', unsafe_allow_html=True)
+
+    # --- CORPS DE LA PAGE ---
+    st.subheader("🗑️ Gestion du Flux")
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     cols = st.columns(6)
     for i, p in enumerate(imgs):
@@ -131,8 +173,8 @@ if est_admin:
 
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
-    st.markdown("""<style>#MainMenu, header, footer {display: none !important;} .stApp {background:black !important;}</style>""", unsafe_allow_html=True)
-    
+    # (Le code du mode Live reste identique à vos précédentes validations)
+    st.markdown("""<style>.stApp {background:black !important;}</style>""", unsafe_allow_html=True)
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=30000, key="wall_refresh")
@@ -142,7 +184,6 @@ elif not mode_vote:
     config = get_config()
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
-    
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
@@ -173,7 +214,7 @@ elif not mode_vote:
 # --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participez")
-    uf = st.file_uploader("Photo ✨", type=['jpg', 'jpeg', 'png'])
+    uf = st.file_uploader("Prenez une photo ✨", type=['jpg', 'jpeg', 'png'])
     if uf:
         with open(os.path.join(GALLERY_DIR, uf.name), "wb") as f: f.write(uf.getbuffer())
-        st.success("Envoyé !")
+        st.success("Photo envoyée !")
