@@ -29,10 +29,6 @@ if os.path.exists(CONFIG_FILE):
 
 VOTE_VERSION = config.get("vote_version", 1)
 
-# Initialisation fichiers
-if not os.path.exists(VOTES_FILE): json.dump({}, open(VOTES_FILE, "w"))
-if not os.path.exists(PARTICIPANTS_FILE): json.dump([], open(PARTICIPANTS_FILE, "w"))
-
 # --- 2. NAVIGATION ---
 query_params = st.query_params
 est_admin = query_params.get("admin") == "true"
@@ -58,24 +54,71 @@ if est_admin:
                 config["session_ouverte"] = session_active
                 with open(CONFIG_FILE, "w") as f: json.dump(config, f)
                 st.rerun()
-            
-            st.divider()
-            if st.button("🔴 RESET COMPLET", type="secondary", use_container_width=True):
-                config["vote_version"] += 1
-                config["session_ouverte"] = False
-                with open(CONFIG_FILE, "w") as f: json.dump(config, f)
-                json.dump({}, open(VOTES_FILE, "w"))
-                json.dump([], open(PARTICIPANTS_FILE, "w"))
-                st.rerun()
 
-    if st.session_state.get("auth"):
-        st.title("Console de Régie")
-        st.metric("Nombre de participants connectés", len(json.load(open(PARTICIPANTS_FILE))))
-        st.bar_chart(json.load(open(VOTES_FILE)))
+# --- 4. MUR SOCIAL (MISE EN PAGE ET COMPTEUR) ---
+elif not est_utilisateur:
+    st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
+    
+    qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
+    qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
+    qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+    try:
+        with open(PARTICIPANTS_FILE, "r") as f: nb_p = len(json.load(f))
+    except: nb_p = 0
 
-# --- 4. INTERFACE UTILISATEUR (TÉLÉPHONE) ---
-elif est_utilisateur:
-    st.markdown("<style>.stApp { background-color: white !important; }</style>", unsafe_allow_html=True)
+    attente_html = ""
+    if not config.get("session_ouverte", False):
+        attente_html = f"""
+        <div style="display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 25px;">
+            <div style="background: white; padding: 8px; border-radius: 10px; border: 3px solid #E2001A;">
+                <img src="data:image/png;base64,{qr_b64}" width="110">
+            </div>
+            <div style="background:#E2001A; color:white; padding:15px 40px; border-radius:12px; font-size:32px; font-weight:bold; border:3px solid white; animation: blinker 1.5s linear infinite;">
+                ⌛ En attente ouverture des votes...
+            </div>
+            <div style="background: white; padding: 8px; border-radius: 10px; border: 3px solid #E2001A;">
+                <img src="data:image/png;base64,{qr_b64}" width="110">
+            </div>
+        </div>
+        """
+
+    st.markdown(f"""
+        <style>@keyframes blinker {{ 50% {{ opacity: 0; }} }}</style>
+        <div style="text-align:center; padding-top:20px; font-family:sans-serif;">
+            <p style="color:#E2001A; font-size:30px; font-weight:bold; margin:0;">MUR PHOTO LIVE</p>
+            <div style="background: white; display: inline-block; padding: 8px 30px; border-radius: 25px; margin: 15px 0; border: 3px solid #E2001A;">
+                <p style="color: black; font-size: 26px; font-weight: bold; margin: 0;">{nb_p} PARTICIPANTS CONNECTÉS</p>
+            </div>
+            <h1 style="color:white; font-size:58px; margin:5px 0;">{config.get('titre_mur')}</h1>
+            {attente_html}
+        </div>
+    """, unsafe_allow_html=True)
+
+    if config["mode_affichage"] == "votes":
+        v_data = json.load(open(VOTES_FILE))
+        if any(v > 0 for v in v_data.values()): st.bar_chart(v_data)
+    else:
+        img_list = glob.glob(os.path.join(ADMIN_DIR, "*"))
+        if config["mode_affichage"] == "live": img_list += glob.glob(os.path.join(GALLERY_DIR, "*"))
+        photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" class="photo" style="width:280px; top:{random.randint(45,75)}%; left:{random.randint(5,85)}%; animation-duration:{random.uniform(10,15)}s;">' for p in img_list[-12:]])
+        components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; box-shadow: 5px 5px 15px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(40px,40px) rotate(3deg); }} }}</style><div style="width:100%; height:400px; position:relative;">{photos_html}</div>""", height=450)
+
+    try:
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(interval=5000, key="wall_refresh")
+    except: pass
+
+# --- 5. UTILISATEUR (FOND NOIR & TEXTE BLANC) ---
+else:
+    st.markdown("""
+        <style>
+        .stApp { background-color: black !important; color: white !important; }
+        .stTextInput label, .stMultiSelect label, p { color: white !important; }
+        div[data-baseweb="input"] { background-color: #333 !important; }
+        input { color: white !important; }
+        </style>
+    """, unsafe_allow_html=True)
+    
     st.title("🗳️ Vote Transdev")
     vote_key = f"transdev_v{VOTE_VERSION}"
     components.html(f'<script>if(localStorage.getItem("{vote_key}")){{window.parent.postMessage({{type:"voted"}},"*");}}</script>', height=0)
@@ -97,7 +140,12 @@ elif est_utilisateur:
                     else: st.error("Pseudo requis.")
         else:
             if not config.get("session_ouverte", False):
-                st.markdown(f"<div style='text-align:center; padding:40px; border:2px dashed #E2001A; border-radius:15px; margin-top:20px;'><h2 style='color:#E2001A;'>⌛ En attente ouverture des votes...</h2><p>Bienvenue {st.session_state['user_pseudo']}. Le formulaire apparaîtra bientôt.</p></div>", unsafe_allow_html=True)
+                st.markdown(f"""
+                    <div style='text-align:center; padding:40px; border:2px dashed #E2001A; border-radius:15px; margin-top:20px;'>
+                        <h2 style='color:#E2001A;'>⌛ En attente ouverture des votes...</h2>
+                        <p style='color:white;'>Bienvenue {st.session_state['user_pseudo']}. Le formulaire apparaîtra bientôt.</p>
+                    </div>
+                """, unsafe_allow_html=True)
                 if st.button("Actualiser"): st.rerun()
             else:
                 with st.form("vote_real"):
@@ -112,61 +160,3 @@ elif est_utilisateur:
                             st.session_state["voted"] = True
                             st.rerun()
                         else: st.error("Choisissez au moins 1 option.")
-
-# --- 5. MUR SOCIAL ---
-else:
-    st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
-    
-    # Génération du QR Code
-    qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
-    qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
-    qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-
-    # BANDEAU DOUBLE QR CODE (Attente)
-    attente_html = ""
-    if not config.get("session_ouverte", False):
-        attente_html = f"""
-        <div style="display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 25px;">
-            <div style="background: white; padding: 10px; border-radius: 10px; border: 3px solid #E2001A;">
-                <img src="data:image/png;base64,{qr_b64}" width="100">
-            </div>
-            <div style="background:#E2001A; color:white; padding:15px 40px; border-radius:12px; font-size:35px; font-weight:bold; border:3px solid white; animation: blinker 1.5s linear infinite;">
-                ⌛ En attente ouverture des votes...
-            </div>
-            <div style="background: white; padding: 10px; border-radius: 10px; border: 3px solid #E2001A;">
-                <img src="data:image/png;base64,{qr_b64}" width="100">
-            </div>
-        </div>
-        <style>@keyframes blinker {{ 50% {{ opacity: 0; }} }}</style>
-        """
-
-    st.markdown(f"""
-        <div style="text-align:center; padding-top:20px; font-family:sans-serif;">
-            <p style="color:#E2001A; font-size:30px; font-weight:bold; margin:0;">MUR PHOTO LIVE</p>
-            <h1 style="color:white; font-size:55px; margin:0;">{config.get('titre_mur')}</h1>
-            {attente_html}
-        </div>
-    """, unsafe_allow_html=True)
-
-    # Photos ou Votes
-    if config["mode_affichage"] == "votes":
-        st.bar_chart(json.load(open(VOTES_FILE)))
-    else:
-        img_list = glob.glob(os.path.join(ADMIN_DIR, "*"))
-        if config["mode_affichage"] == "live": img_list += glob.glob(os.path.join(GALLERY_DIR, "*"))
-        
-        photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" class="photo" style="width:280px; top:{random.randint(35,65)}%; left:{random.randint(5,80)}%; animation-duration:{random.uniform(10,15)}s;">' for p in img_list[-12:]])
-        components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(40px,40px) rotate(3deg); }} }}</style><div style="width:100%; height:450px; position:relative;">{photos_html}</div>""", height=500)
-
-    # Bas de page avec Compteur
-    nb_p = len(json.load(open(PARTICIPANTS_FILE)))
-    st.markdown(f"""
-        <div style="position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:white; padding:10px 30px; border-radius:15px; border:5px solid #E2001A; text-align:center; z-index:1000;">
-            <p style="margin:0; font-weight:bold; font-size:24px; color:black; font-family:sans-serif;">{nb_p} PARTICIPANTS CONNECTÉS</p>
-        </div>
-    """, unsafe_allow_html=True)
-
-    try:
-        from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(interval=5000, key="wall_refresh")
-    except: pass
