@@ -16,20 +16,20 @@ LOGO_FILE = "logo_entreprise.png"
 
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- STYLE CSS RADICAL : FORCE L'AFFICHAGE EN HAUT ET BLOQUE TOUT ---
+# --- STYLE CSS CRITIQUE ---
 st.markdown("""
     <style>
-    /* 1. Fond noir et suppression du scroll sur la page parente */
-    html, body, [data-testid="stAppViewContainer"], .stApp {
-        background-color: black !important;
+    /* Force le noir sur la racine et les conteneurs Streamlit */
+    :root { background-color: #000000 !important; }
+    [data-testid="stAppViewContainer"], .stApp, html, body {
+        background-color: #000000 !important;
         overflow: hidden !important;
         height: 100vh !important;
         width: 100vw !important;
         margin: 0 !important;
         padding: 0 !important;
     }
-
-    /* 2. On cible l'iframe (le mur) pour le forcer à monter tout en haut */
+    /* Fixation de l'iframe pour éviter tout saut visuel */
     iframe {
         position: fixed !important;
         top: 0 !important;
@@ -37,12 +37,10 @@ st.markdown("""
         width: 100vw !important;
         height: 100vh !important;
         border: none !important;
+        background-color: #000000 !important;
         z-index: 9999;
     }
-
-    /* 3. Masquer les éléments Streamlit résiduels */
     [data-testid="stHeader"], footer, #MainMenu { display: none !important; }
-    .main .block-container { padding: 0 !important; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -59,7 +57,6 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 2. INTERFACE ADMIN ---
 if est_admin:
-    # On réactive le scroll seulement pour l'admin
     st.markdown("<style>html, body, .stApp { overflow: auto !important; position: relative !important; }</style>", unsafe_allow_html=True)
     st.title("⚙️ Administration")
     if st.text_input("Code Secret", type="password") == "ADMIN_LIVE_MASTER":
@@ -90,28 +87,31 @@ elif not mode_vote:
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
     photos_html = ""
-    for img_path in img_list[-20:]:
+    # On affiche les 15 dernières photos
+    for img_path in img_list[-15:]:
         b64 = get_b64(img_path)
         if b64:
-            size = random.randint(150, 250)
+            size = random.randint(160, 240)
             top, left = random.randint(5, 75), random.randint(5, 85)
-            duration = random.uniform(5, 10)
+            duration = random.uniform(6, 12)
             photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
 
     html_code = f"""
     <!DOCTYPE html>
     <html style="background: black;">
-    <body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw;">
+    <body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw; opacity: 0; animation: fadeIn 1s forwards;">
         <style>
+            @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+            
             .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }}
             .center-stack {{ 
                 position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
-                z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 15px; 
+                z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 20px; 
             }}
-            .logo {{ max-width: 250px; filter: drop-shadow(0 0 15px white); }}
-            .qr-box {{ background: white; padding: 10px; border-radius: 12px; text-align: center; }}
-            .photo {{ position: absolute; border-radius: 50%; border: 3px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
-            @keyframes move {{ from {{ transform: translate(0,0); }} to {{ transform: translate(80px, 100px); }} }}
+            .logo {{ max-width: 260px; filter: drop-shadow(0 0 15px white); }}
+            .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; box-shadow: 0 0 30px rgba(255,255,255,0.4); }}
+            .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
+            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(70px, 90px) rotate(10deg); }} }}
         </style>
         <div class="container">
             <div class="center-stack">
@@ -126,8 +126,7 @@ elif not mode_vote:
     </body>
     </html>
     """
-    # Le height=100 ici n'a plus d'importance car le CSS 'iframe' ci-dessus prend le dessus
-    components.html(html_code, height=100)
+    components.html(html_code)
 
 # --- 4. MODE VOTE ---
 else:
