@@ -72,19 +72,18 @@ if est_admin:
             cols[i].markdown(f"<div style='background:#f0f2f6;padding:15px;border-radius:10px;text-align:center;border-top:5px solid #E2001A;'><b>{i+1}er: {name}</b><br>{score} pts</div>", unsafe_allow_html=True)
         st.bar_chart(v_data)
 
-# --- 4. UTILISATEUR (CORRECTIF VALIDATION) ---
+# --- 4. UTILISATEUR (FIX SELECTION MOBILE) ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
     vote_key = f"transdev_v{VOTE_VERSION}"
     
-    # Vérification initiale du vote (localStorage)
     components.html(f"""<script>if(localStorage.getItem("{vote_key}")){{ window.parent.postMessage({{type: 'streamlit:setComponentValue', value: true, key: 'voted_check'}}, '*'); }}</script>""", height=0)
 
     if st.session_state.get("voted_final") or st.session_state.get("voted_check"):
         st.balloons()
-        st.success("✅ Votre Top 3 a été enregistré avec succès !")
-        st.info("Merci de votre participation. Le résultat sera annoncé sur le mur principal.")
+        st.success("✅ Votre Top 3 a été enregistré !")
+        st.info("Merci ! Les résultats seront sur le mur.")
     else:
         if "user_pseudo" not in st.session_state:
             with st.form("pseudo"):
@@ -101,25 +100,28 @@ elif est_utilisateur:
                 try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=5000, key="m_ref")
                 except: pass
             else:
+                st.write(f"Bonjour {st.session_state['user_pseudo']}, faites votre choix :")
                 options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
-                with st.form("vote_real", clear_on_submit=False):
-                    v1 = st.selectbox("1er Choix (5 pts) :", [""] + options)
-                    v2 = st.selectbox("2ème Choix (3 pts) :", [""] + [o for o in options if o != v1])
-                    v3 = st.selectbox("3ème Choix (1 pt) :", [""] + [o for o in options if o not in [v1, v2]])
-                    
-                    if st.form_submit_button("VALIDER MON TOP 3", use_container_width=True):
-                        if v1 and v2 and v3 and v1 != "" and v2 != "" and v3 != "":
-                            # Enregistrement
-                            vts = json.load(open(VOTES_FILE))
-                            for v, pts in zip([v1, v2, v3], [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
-                            with open(VOTES_FILE, "w") as f: json.dump(vts, f)
-                            
-                            # Verrouillage côté navigateur
-                            components.html(f"""<script>localStorage.setItem("{vote_key}", "true"); setTimeout(() => {{ window.parent.location.reload(); }}, 300);</script>""", height=0)
-                            st.session_state["voted_final"] = True
-                            st.rerun()
-                        else:
-                            st.error("⚠️ Veuillez sélectionner 3 vidéos différentes avant de valider.")
+                
+                # UTILISATION DU MULTISELECT SANS FORM POUR ÉVITER LES BUGS DE RAFRAÎCHISSEMENT
+                choix = st.multiselect("Sélectionnez vos 3 vidéos préférées (DANS L'ORDRE) :", options, max_selections=3)
+                
+                if len(choix) > 0:
+                    st.info(f"1er (5 pts) : {choix[0]}" + (f"\n\n2ème (3 pts) : {choix[1]}" if len(choix)>1 else "") + (f"\n\n3ème (1 pt) : {choix[2]}" if len(choix)>2 else ""))
+
+                if st.button("VALIDER MON VOTE DÉFINITIF", use_container_width=True, type="primary"):
+                    if len(choix) == 3:
+                        vts = json.load(open(VOTES_FILE))
+                        points = [5, 3, 1]
+                        for idx, v in enumerate(choix):
+                            vts[v] = vts.get(v, 0) + points[idx]
+                        with open(VOTES_FILE, "w") as f: json.dump(vts, f)
+                        
+                        components.html(f"""<script>localStorage.setItem("{vote_key}", "true"); setTimeout(() => {{ window.parent.location.reload(); }}, 300);</script>""", height=0)
+                        st.session_state["voted_final"] = True
+                        st.rerun()
+                    else:
+                        st.error("⚠️ Veuillez sélectionner exactement 3 vidéos.")
 
 # --- 5. MUR SOCIAL ---
 else:
@@ -158,7 +160,7 @@ else:
         img_list = glob.glob(os.path.join(ADMIN_DIR, "*")) + (glob.glob(os.path.join(GALLERY_DIR, "*")) if config["mode_affichage"]=="live" else [])
         if img_list:
             photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" class="photo" style="width:280px;top:{random.randint(45,75)}%;left:{random.randint(5,85)}%;animation-duration:{random.uniform(10,15)}s;">' for p in img_list[-12:]])
-            components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; box-shadow: 5px 5px 15px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(35px,35px) rotate(3deg); }} }}</style><div style="width:100%; height:450px; position:relative;">{photos_html}</div>""", height=500)
+            components.html(f"""<style>.photo {{ position:absolute; border:5px solid white; border-radius:15px; animation:move alternate infinite ease-in-out; box-shadow: 5px 5px 15px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform:rotate(-3deg); }} to {{ transform:translate(40px,40px) rotate(3deg); }} }}</style><div style="width:100%; height:450px; position:relative;">{photos_html}</div>""", height=500)
 
     try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=5000, key="w_ref")
     except: pass
