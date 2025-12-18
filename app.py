@@ -27,27 +27,17 @@ if est_admin:
         <style>
         html, body, .stApp { background-color: white !important; color: black !important; }
         * { color: black !important; }
-        .admin-welcome { text-align: center; margin-top: 60px; font-family: sans-serif; }
+        .admin-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #f0f2f6; padding-bottom: 20px; }
         [data-testid="stSidebar"] { min-width: 350px !important; }
-        [data-testid="stSidebar"] [data-testid="stImage"] { display: flex; justify-content: center; margin: 0 !important; padding: 0 !important; }
-        [data-testid="stSidebar"] [data-testid="stImage"] img { width: 100% !important; height: auto !important; }
         [data-testid="stHeader"] { display: block !important; }
+        /* Style pour les cartes photos au centre */
+        .img-card { border: 1px solid #ddd; border-radius: 10px; padding: 5px; background: #f9f9f9; }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
-        # --- LOGO ACTUEL ---
         if os.path.exists(LOGO_FILE):
-            try:
-                st.image(LOGO_FILE, use_container_width=True)
-                if st.button("🗑️ Supprimer le logo actuel"):
-                    os.remove(LOGO_FILE)
-                    st.rerun()
-            except:
-                st.error("Logo corrompu. Veuillez le supprimer.")
-                if st.button("Forcer la suppression"):
-                    os.remove(LOGO_FILE)
-                    st.rerun()
+            st.image(LOGO_FILE, use_container_width=True)
         
         st.title("⚙️ Régie Social Wall")
         pwd = st.text_input("Code Secret Admin", type="password")
@@ -58,57 +48,56 @@ if est_admin:
             
             url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
             st.link_button("🖥️ OUVRIR LE MUR (PLEIN ÉCRAN)", url_mur)
-            st.divider()
             
-            # --- GESTION DU LOGO (CORRIGÉE) ---
-            st.subheader("🖼️ Gestion du Logo")
-            ul = st.file_uploader("Charger un logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
-            if ul is not None:
-                try:
-                    with open(LOGO_FILE, "wb") as f:
-                        f.write(ul.getbuffer())
-                    st.toast("Logo enregistré !")
-                    time.sleep(0.5) # Pause de sécurité
+            st.divider()
+            st.subheader("🖼️ Configuration Logo")
+            ul = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
+            if ul:
+                with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
+                st.rerun()
+            if os.path.exists(LOGO_FILE):
+                if st.button("🗑️ Supprimer le logo"):
+                    os.remove(LOGO_FILE)
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Erreur d'écriture : {e}")
 
             st.divider()
-            
-            # Gestion des Photos
-            st.subheader("📸 Ajouter des photos")
-            up = st.file_uploader("Images", accept_multiple_files=True, key="ph_up")
+            st.subheader("📤 Ajout Photos")
+            up = st.file_uploader("Importer des images", accept_multiple_files=True, key="ph_up")
             if up:
                 for f in up:
-                    try:
-                        with open(os.path.join(GALLERY_DIR, f.name), "wb") as file:
-                            file.write(f.getbuffer())
-                    except: pass
+                    with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
             
-            st.divider()
-            imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-            if st.button("🗑️ VIDER LA GALERIE"):
-                for f in imgs: os.remove(f)
+            if st.button("🧨 VIDER TOUTE LA GALERIE"):
+                imgs_to_del = glob.glob(os.path.join(GALLERY_DIR, "*"))
+                for f in imgs_to_del: os.remove(f)
                 st.rerun()
+        else:
+            st.warning("Veuillez vous identifier.")
 
-            if imgs:
-                st.subheader(f"Galerie ({len(imgs)})")
-                for i, img_path in enumerate(imgs):
+    # --- ÉCRAN CENTRAL : GESTION DE LA GALERIE ---
+    if pwd == "ADMIN_LIVE_MASTER":
+        st.markdown('<div class="admin-header"><h1>🖼️ Gestion de la Galerie Live</h1></div>', unsafe_allow_html=True)
+        
+        imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
+        if not imgs:
+            st.info("La galerie est actuellement vide. Utilisez le menu à gauche pour ajouter des photos.")
+        else:
+            st.write(f"Il y a actuellement **{len(imgs)}** photos en rotation.")
+            
+            # Affichage en grille de 4 colonnes au centre
+            cols = st.columns(4)
+            for i, img_path in enumerate(reversed(imgs)):
+                with cols[i % 4]:
                     st.image(img_path, use_container_width=True)
-                    if st.button(f"Supprimer {i}", key=f"del_{i}"):
+                    if st.button(f"Supprimer #{i}", key=f"del_{i}"):
                         os.remove(img_path)
                         st.rerun()
-        else:
-            st.warning("Entrez le code pour voir les outils.")
-
-    st.markdown('<div class="admin-welcome">', unsafe_allow_html=True)
-    st.title("Bienvenue dans votre console d'administration")
-    if pwd == "ADMIN_LIVE_MASTER":
-        st.success("Système opérationnel")
-        if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=200)
-    else: st.error("🔒 Accès restreint")
-    st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="admin-welcome" style="text-align:center; margin-top:100px;">', unsafe_allow_html=True)
+        st.title("🔒 Console d'Administration Verrouillée")
+        st.write("Saisissez le code dans la barre latérale pour gérer la galerie.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 4. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
@@ -145,9 +134,9 @@ elif not mode_vote:
     for img_path in img_list[-15:]:
         b64 = get_b64(img_path)
         if b64:
-            size = random.randint(160, 240)
-            top, left = random.randint(10, 70), random.randint(5, 85)
-            duration = random.uniform(7, 13)
+            size = random.randint(180, 260)
+            top, left = random.randint(10, 70), random.randint(5, 80)
+            duration = random.uniform(8, 14)
             photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
 
     html_code = f"""
@@ -157,19 +146,20 @@ elif not mode_vote:
         <style>
             @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
             .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }}
-            .main-title {{ position: absolute; top: 30px; width: 100%; text-align: center; color: white; font-family: sans-serif; font-size: 55px; font-weight: bold; z-index: 1001; text-shadow: 0 0 20px rgba(255,255,255,0.7); }}
+            .main-title {{ position: absolute; top: 40px; width: 100%; text-align: center; color: white; font-family: sans-serif; font-size: 55px; font-weight: bold; z-index: 1001; text-shadow: 0 0 20px rgba(255,255,255,0.7); }}
             .center-stack {{ position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 20px; }}
-            .logo {{ max-width: 280px; filter: drop-shadow(0 0 15px white); }}
+            .logo {{ max-width: 300px; filter: drop-shadow(0 0 15px white); }}
             .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; }}
-            .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.9; }}
-            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(70px, 90px) rotate(10deg); }} }}
+            .photo {{ position: absolute; border-radius: 50%; border: 5px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.95; box-shadow: 0 0 20px rgba(0,0,0,0.5); }}
+            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 80px) rotate(8deg); }} }}
         </style>
         <div class="container">
             <div class="main-title">MEILLEURS VŒUX 2026</div>
             <div class="center-stack">
                 {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
                 <div class="qr-box">
-                    <img src="data:image/png;base64,{qr_b64}" width="120">
+                    <img src="data:image/png;base64,{qr_b64}" width="130">
+                    <p style="color:black; font-size:12px; font-weight:bold; margin-top:5px; font-family:sans-serif;">SCANNEZ POUR PARTICIPER</p>
                 </div>
             </div>
             {photos_html}
@@ -183,8 +173,9 @@ elif not mode_vote:
 else:
     st.markdown("<style>html, body, .stApp { background-color: #111 !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("📸 Partagez votre photo !")
-    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
+    f = st.file_uploader("Choisir une image", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
-        st.success("✅ C'est en ligne !")
+        st.success("✅ C'est envoyé !")
+        st.balloons()
