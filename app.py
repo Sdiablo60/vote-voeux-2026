@@ -55,7 +55,6 @@ if est_admin:
 
     if not auth_ok:
         st.title("🔐 En attente de connexion...")
-        st.info("Saisissez le code dans la barre latérale pour déverrouiller la régie.")
     else:
         st.title("🛠️ Console Régie Master")
         t1, t2 = st.tabs(["✨ Message & Logo", "🖼️ Gestion Photos"])
@@ -67,83 +66,79 @@ if est_admin:
                 nc = c1.color_picker("Couleur", m["couleur"])
                 ns = c2.slider("Taille", 20, 100, int(m["taille"]))
                 nf = c3.selectbox("Police", ["sans-serif", "serif", "cursive", "monospace"])
-                if st.form_submit_button("Mettre à jour le Live"):
+                if st.form_submit_button("Mettre à jour"):
                     save_msg(nt, nc, ns, nf); st.rerun()
-            st.divider()
             if os.path.exists(LOGO_FILE):
                 st.image(LOGO_FILE, width=150)
-                if st.button("Supprimer logo central"): os.remove(LOGO_FILE); st.rerun()
+                if st.button("Supprimer logo"): os.remove(LOGO_FILE); st.rerun()
             else:
-                ul = st.file_uploader("Importer le Logo Central", type=['png','jpg','jpeg'])
+                ul = st.file_uploader("Logo Central", type=['png','jpg','jpeg'])
                 if ul: Image.open(ul).save(LOGO_FILE); st.rerun()
         with t2:
             uf = st.file_uploader("Ajouter des photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
             if uf:
                 for f in uf: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
                 st.rerun()
-            st.divider()
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-            if imgs:
-                cols = st.columns(5)
-                for i, p in enumerate(imgs):
-                    with cols[i%5]:
-                        st.image(p, use_container_width=True)
-                        if st.button("🗑️", key=f"del_{i}"): os.remove(p); st.rerun()
+            cols = st.columns(5)
+            for i, p in enumerate(imgs):
+                with cols[i%5]:
+                    st.image(p, use_container_width=True); st.button("🗑️", key=f"del_{i}", on_click=lambda p=p: os.remove(p))
 
-# --- 5. MODE LIVE (SOCIAL WALL) ---
+# --- 5. MODE LIVE (SOCIAL WALL CORRIGÉ) ---
 elif not mode_vote:
     msg = get_msg()
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     logo_b64 = img_to_base64(LOGO_FILE)
 
-    # Fond étoilé
     stars_html = "".join([f'<div style="position:absolute; left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; width:{random.randint(1,2)}px; height:{random.randint(1,2)}px; background:white; border-radius:50%; opacity:0.5; animation: twinkle {random.randint(2,5)}s infinite alternate;"></div>' for _ in range(120)])
 
     st.markdown(f"""
         <style>
         [data-testid="stSidebar"] {{ display: none; }}
         [data-testid="stHeader"] {{ display: none; }}
-        [data-testid="stAppViewBlockContainer"] {{ padding: 0 !important; max-width: 100vw !important; }}
         .main {{ background-color: #050505; overflow: hidden; height: 100vh; width: 100vw; position: fixed; top:0; left:0; }}
         
         @keyframes twinkle {{ from {{ opacity: 0.1; }} to {{ opacity: 0.9; }} }}
         
         @keyframes pulse {{
-            0% {{ opacity: 0.7; transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}; }}
-            50% {{ opacity: 1; transform: scale(1.02); text-shadow: 0 0 30px {msg['couleur']}; }}
-            100% {{ opacity: 0.7; transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}; }}
+            0% {{ opacity: 0.8; transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}; }}
+            50% {{ opacity: 1; transform: scale(1.05); text-shadow: 0 0 30px {msg['couleur']}; }}
+            100% {{ opacity: 0.8; transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}; }}
         }}
         
+        /* CORRECTION ORBITE : Utilisation de rotate sur le parent et translation inverse sur l'image */
         @keyframes orbit {{
-            from {{ transform: rotate(0deg) translateX(min(32vw, 380px)) rotate(0deg); }}
-            to {{ transform: rotate(360deg) translateX(min(32vw, 380px)) rotate(-360deg); }}
+            from {{ transform: rotate(0deg) translateX(350px) rotate(0deg); }}
+            to {{ transform: rotate(360deg) translateX(350px) rotate(-360deg); }}
         }}
 
         .welcome-container {{
-            position: absolute; top: 12%; width: 100%; text-align: center; z-index: 20;
+            position: absolute; top: 8%; width: 100%; text-align: center; z-index: 20;
         }}
         .welcome-text {{
             color: {msg['couleur']}; font-size: {msg['taille']}px; font-family: {msg['font']};
             animation: pulse 4s ease-in-out infinite;
-            padding: 0 60px;
         }}
 
         .center-logo {{
-            position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%);
-            width: 240px; height: 240px; z-index: 5; border-radius: 50%;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 250px; z-index: 5; border-radius: 50%;
             filter: drop-shadow(0 0 40px {msg['couleur']}66);
-            object-fit: contain;
         }}
 
         .photo-orbit {{
-            position: absolute; top: 46%; left: 46%; width: 150px; height: 150px;
-            border-radius: 50%; border: 3px solid rgba(255,255,255,0.9); object-fit: cover;
-            box-shadow: 0 0 25px rgba(255,255,255,0.4); animation: orbit var(--dur)s linear infinite;
+            position: absolute; top: 50%; left: 50%; 
+            margin-top: -75px; margin-left: -75px; /* Centrage par rapport au centre du logo */
+            width: 150px; height: 150px;
+            border-radius: 50%; border: 3px solid white; object-fit: cover;
+            box-shadow: 0 0 20px rgba(255,255,255,0.4); 
+            animation: orbit var(--dur)s linear infinite;
         }}
 
         .qr-box {{
-            position: fixed; bottom: 35px; right: 35px; background: white; padding: 14px;
-            border-radius: 18px; text-align: center; z-index: 100; box-shadow: 0 15px 50px rgba(0,0,0,0.6);
+            position: fixed; bottom: 30px; right: 30px; background: white; padding: 10px;
+            border-radius: 15px; text-align: center; z-index: 100;
         }}
         </style>
         
@@ -153,18 +148,20 @@ elif not mode_vote:
     """, unsafe_allow_html=True)
 
     if imgs:
+        # On affiche les 12 dernières photos importées
         for i, path in enumerate(imgs[-12:]):
             b64 = img_to_base64(path)
-            st.markdown(f'<img src="data:image/png;base64,{b64}" class="photo-orbit" style="--dur:{22+(i*4)}s; animation-delay:-{i*5}s;">', unsafe_allow_html=True)
+            # On décale le départ de chaque photo pour qu'elles soient réparties sur le cercle
+            delay = -(i * (25 / 12)) 
+            st.markdown(f'<img src="data:image/png;base64,{b64}" class="photo-orbit" style="--dur:25s; animation-delay:{delay}s;">', unsafe_allow_html=True)
 
+    # QR Code
     qr_url = f"https://{st.context.headers.get('Host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_img = base64.b64encode(qr_buf.getvalue()).decode()
-    st.markdown(f'<div class="qr-box"><img src="data:image/png;base64,{qr_img}" width="115"><br><b style="color:black; font-size:12px; font-family:sans-serif;">SCANNEZ POUR VOTER</b></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="qr-box"><img src="data:image/png;base64,{qr_img}" width="100"><br><b style="color:black; font-size:10px;">VOTER ICI</b></div>', unsafe_allow_html=True)
 
     time.sleep(10); st.rerun()
 
-# --- 6. MODE VOTE ---
 else:
     st.title("🗳️ Vote & Présence")
-    st.write("Bienvenue sur le système de vote !")
