@@ -17,8 +17,7 @@ GALLERY_DIR = "galerie_images"
 LOGO_FILE = "logo_entreprise.png"
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- 2. GESTION DE LA MÉMOIRE (SESSION STATE) ---
-# Cela permet de rester connecté même après un refresh
+# --- 2. GESTION DE LA SESSION ---
 if "authenticated" not in st.session_state:
     st.session_state["authenticated"] = False
 
@@ -42,83 +41,87 @@ def get_timestamped_name(prefix):
 
 # --- 5. INTERFACE ADMINISTRATION ---
 if est_admin:
-    # --- BARRE LATÉRALE TOUJOURS PRÉSENTE ---
+    # --- BARRE LATÉRALE ---
     with st.sidebar:
-        st.header("⚙️ Régie")
+        # LOGO EN HAUT ET CENTRÉ
+        if os.path.exists(LOGO_FILE):
+            # Conteneur pour centrer l'image
+            col_l, col_c, col_r = st.columns([1, 3, 1])
+            with col_c:
+                st.image(LOGO_FILE, use_container_width=True)
         
-        # Champ de mot de passe qui met à jour l'état de session
+        st.markdown("<h2 style='text-align: center; margin-top: -10px;'>⚙️ Régie Live</h2>", unsafe_allow_html=True)
+        
+        # Authentification
         pwd_input = st.text_input("Code Secret Admin", type="password")
         if pwd_input == "ADMIN_LIVE_MASTER":
             st.session_state["authenticated"] = True
         
         st.divider()
         
-        # Logo (toujours visible si existe)
-        if os.path.exists(LOGO_FILE):
-            st.image(LOGO_FILE, use_container_width=True)
-        
-        st.subheader("🖼️ Configuration Logo")
-        ul_logo = st.file_uploader("Remplacer le logo", type=['png', 'jpg', 'jpeg'])
+        # Configuration Logo (Toujours présente)
+        st.subheader("🖼️ Identité Visuelle")
+        ul_logo = st.file_uploader("Modifier le logo", type=['png', 'jpg', 'jpeg'])
         if ul_logo:
             with open(LOGO_FILE, "wb") as f: f.write(ul_logo.getbuffer())
             st.rerun()
 
         st.divider()
-        if st.button("🔄 Rafraîchir l'affichage", use_container_width=True):
+        if st.button("🔄 Actualiser la galerie", use_container_width=True):
             st.rerun()
 
         if st.session_state["authenticated"]:
-            if st.button("🧨 VIDER TOUTE LA GALERIE", use_container_width=True):
+            if st.button("🧨 VIDER TOUT LE MUR", use_container_width=True):
                 for f in glob.glob(os.path.join(GALLERY_DIR, "*")):
                     try: os.remove(f)
                     except: pass
                 st.rerun()
 
-    # --- ZONE CENTRALE (Protégée par l'état de session) ---
+    # --- ZONE CENTRALE ---
     if st.session_state["authenticated"]:
-        # Header
+        # Header stable
         logo_b64 = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f: logo_b64 = base64.b64encode(f.read()).decode()
         
         st.markdown(f"""
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px;">
-                <h1>Console de Modération</h1>
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #eee; padding-bottom:10px; margin-bottom:20px;">
+                <h1 style="margin:0;">Console de Modération</h1>
                 {f'<img src="data:image/png;base64,{logo_b64}" style="max-height:60px;">' if logo_b64 else ''}
             </div>
         """, unsafe_allow_html=True)
         
-        st.link_button("🖥️ OUVRIR LE MUR LIVE", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
+        st.link_button("🖥️ ACCÉDER AU MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True, type="primary")
 
         # Import manuel
         with st.expander("➕ Ajouter des photos manuellement"):
-            up = st.file_uploader("Sélectionner des images", accept_multiple_files=True, key="manual_up")
+            up = st.file_uploader("Fichiers images", accept_multiple_files=True, key="manual_up")
             if up:
                 for f in up:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as out:
                         out.write(f.getbuffer())
-                st.success("Photos ajoutées avec succès !")
+                st.success("Importation réussie !")
                 time.sleep(1)
                 st.rerun()
 
         st.divider()
 
-        # Galerie
+        # Galerie et Données
         all_imgs = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         sorted_imgs = sorted(all_imgs, key=os.path.getmtime, reverse=True)
 
-        # Contrôles
+        # Contrôles de Galerie
         c1, c2, c3, c4 = st.columns([1.5, 1, 1, 1])
         c1.subheader(f"Photos ({len(sorted_imgs)})")
         
         if sorted_imgs:
-            c2.download_button("📥 Tout (ZIP)", data=create_zip(sorted_imgs), file_name=get_timestamped_name("galerie_complete"), use_container_width=True)
+            c2.download_button("📥 Tout (ZIP)", data=create_zip(sorted_imgs), file_name=get_timestamped_name("complet"), use_container_width=True)
         
         mode_vue = c4.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
 
         selected_photos = []
         if not sorted_imgs:
-            st.info("La galerie est vide.")
+            st.info("Aucun média dans la galerie.")
         else:
             if mode_vue == "Vignettes":
                 for i in range(0, len(sorted_imgs), 8):
@@ -142,10 +145,11 @@ if est_admin:
                         os.remove(img_p)
                         st.rerun()
 
+        # Export de sélection
         if selected_photos:
             c3.download_button(f"📥 Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True)
     else:
-        st.warning("Veuillez entrer le mot de passe dans la barre latérale pour accéder à la régie.")
+        st.warning("Veuillez saisir le code secret dans la barre latérale.")
 
 # --- 6. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
@@ -174,8 +178,8 @@ elif not mode_vote:
 
 # --- 7. MODE VOTE ---
 else:
-    st.title("📸 Partagez votre photo !")
-    f = st.file_uploader("Choisir une image", type=['jpg', 'jpeg', 'png'])
+    st.title("📸 Envoyez votre photo !")
+    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out: out.write(f.getbuffer())
-        st.success("✅ Photo envoyée au mur !")
+        st.success("✅ C'est envoyé !")
