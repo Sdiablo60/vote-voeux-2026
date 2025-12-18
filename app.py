@@ -22,70 +22,77 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 3. INTERFACE ADMINISTRATION ---
 if est_admin:
-    # Style spécifique pour rendre l'admin lisible
     st.markdown("""
         <style>
         html, body, .stApp { background-color: white !important; color: black !important; }
         * { color: black !important; }
-        [data-testid="stSidebar"], [data-testid="stHeader"] { display: block !important; }
-        .stTextInput input { background-color: #f0f2f6 !important; }
-        section[data-testid="stSidebar"] > div { width: 450px !important; } /* Élargir un peu la barre */
+        /* Force les éléments de la sidebar à ne pas déborder */
+        [data-testid="stSidebar"] { 
+            min-width: 400px !important; 
+            max-width: 450px !important; 
+        }
+        [data-testid="stSidebar"] .stMarkdown, [data-testid="stSidebar"] .stButton, [data-testid="stSidebar"] .stFileUploader {
+            width: 100% !important;
+        }
+        [data-testid="stHeader"] { display: block !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    # TOUT EST DANS LA BARRE LATÉRALE
+    # --- TOUTE LA LOGIQUE DANS LA SIDEBAR ---
     with st.sidebar:
         st.title("⚙️ Régie Social Wall")
-        pwd = st.text_input("Code Secret Admin", type="password")
-        st.divider()
+        # On utilise st.sidebar pour CHAQUE élément par sécurité
+        pwd = st.sidebar.text_input("Code Secret Admin", type="password")
+        st.sidebar.divider()
 
         if pwd == "ADMIN_LIVE_MASTER":
-            st.success("✅ Accès autorisé")
+            st.sidebar.success("✅ Accès autorisé")
             
             # 1. Gestion du Logo
-            st.subheader("🖼️ Logo Central")
-            ul = st.file_uploader("Changer le logo", type=['png', 'jpg', 'jpeg'])
+            st.sidebar.subheader("🖼️ Logo Central")
+            ul = st.sidebar.file_uploader("Changer le logo", type=['png', 'jpg', 'jpeg'], key="logo_up")
             if ul:
                 with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
                 st.rerun()
             
-            st.divider()
+            st.sidebar.divider()
             
             # 2. Ajout de photos
-            st.subheader("📸 Ajouter des photos")
-            up = st.file_uploader("Sélectionner des images", accept_multiple_files=True)
+            st.sidebar.subheader("📸 Ajouter des photos")
+            up = st.sidebar.file_uploader("Sélectionner des images", accept_multiple_files=True, key="photos_up")
             if up:
                 for f in up:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
             
-            st.divider()
+            st.sidebar.divider()
             
             # 3. Nettoyage
             imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-            if st.button("🗑️ VIDER TOUTE LA GALERIE"):
+            if st.sidebar.button("🗑️ VIDER TOUTE LA GALERIE"):
                 for f in imgs: os.remove(f)
                 st.rerun()
 
-            st.divider()
+            st.sidebar.divider()
             
-            # 4. Petite Galerie de prévisualisation dans la sidebar
+            # 4. Galerie de prévisualisation dans la sidebar
             if imgs:
-                st.subheader(f"Galerie ({len(imgs)})")
+                st.sidebar.subheader(f"Galerie ({len(imgs)})")
                 for i, img_path in enumerate(imgs):
-                    st.image(img_path, use_container_width=True)
-                    if st.button(f"Supprimer", key=f"del_{i}"):
+                    st.sidebar.image(img_path, use_container_width=True)
+                    if st.sidebar.button(f"Supprimer la photo {i}", key=f"del_{i}"):
                         os.remove(img_path)
                         st.rerun()
         else:
-            st.warning("Entrez le code pour voir les outils.")
+            st.sidebar.warning("Entrez le code pour voir les outils.")
 
-    # Message au centre de l'écran
+    # --- MESSAGE ÉCRAN CENTRAL ---
     st.title("Console d'Administration")
     if pwd == "ADMIN_LIVE_MASTER":
-        st.info("👈 Tous vos outils de gestion sont maintenant disponibles dans la barre latérale à gauche.")
+        st.info("🚀 Le système est prêt. Gérez tout depuis le panneau à gauche.")
+        st.write("Le mur de photos est disponible sur l'URL principale (sans le paramètre admin).")
     else:
-        st.error("🔒 Accès restreint. Utilisez la barre latérale pour vous connecter.")
+        st.error("🔒 Accès restreint. Veuillez utiliser la barre latérale pour vous connecter.")
 
 # --- 4. MODE LIVE (MUR DE PHOTOS) ---
 elif not mode_vote:
@@ -166,7 +173,6 @@ elif not mode_vote:
                 {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
                 <div class="qr-box">
                     <img src="data:image/png;base64,{qr_b64}" width="120">
-                    <p style="color:black; font-size:10px; font-weight:bold; margin-top:5px;">SCANNEZ POUR PARTICIPER</p>
                 </div>
             </div>
             {photos_html}
@@ -180,9 +186,8 @@ elif not mode_vote:
 else:
     st.markdown("<style>html, body, .stApp { background-color: #111 !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("📸 Partagez votre photo !")
-    f = st.file_uploader("Choisir une image", type=['jpg', 'jpeg', 'png'])
+    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
             out.write(f.getbuffer())
-        st.success("✅ Photo envoyée !")
-        st.balloons()
+        st.success("✅ Reçu !")
