@@ -17,8 +17,7 @@ VOTES_FILE = "votes.json"
 PARTICIPANTS_FILE = "participants.json"
 CONFIG_FILE = "config_mur.json"
 
-for d in [GALLERY_DIR]:
-    if not os.path.exists(d): os.makedirs(d)
+if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
 if not os.path.exists(CONFIG_FILE):
     with open(CONFIG_FILE, "w") as f: 
@@ -53,28 +52,15 @@ query_params = st.query_params
 est_admin = query_params.get("admin") == "true"
 est_utilisateur = query_params.get("mode") == "vote"
 
-# --- 4. ADMIN (FORÇAGE DES COULEURS VIA CSS INJECTÉ) ---
+# --- 4. ADMIN (FIXÉ : LOGO À DROITE / COULEURS) ---
 if est_admin:
-    # On utilise des sélecteurs encore plus larges pour être sûr de gagner contre le thème
+    # Injection CSS pour le Header et forcer les bordures de couleurs si le fond ne change pas
     st.markdown("""
         <style>
-        /* Bouton Bleu - Mise à jour */
-        div[data-testid="stSidebar"] button[kind="primary"] {
-            background-color: #0000FF !important;
-            color: white !important;
-            border: none !important;
-            font-weight: bold !important;
-        }
-        /* Bouton Rouge - Reset */
-        div[data-testid="stSidebar"] button[kind="secondary"] {
-            background-color: #FF0000 !important;
-            color: white !important;
-            border: none !important;
-            font-weight: bold !important;
-        }
-        /* Hover effects */
-        div[data-testid="stSidebar"] button[kind="primary"]:hover { background-color: #0000CC !important; }
-        div[data-testid="stSidebar"] button[kind="secondary"]:hover { background-color: #CC0000 !important; }
+        .stButton>button { border-radius: 5px; height: 3em; width: 100%; font-weight: bold; }
+        /* Bordures pour aider la distinction si le background échoue */
+        div[data-testid="stSidebar"] .stButton:nth-of-type(1) button { border: 3px solid #0000FF !important; }
+        div[data-testid="stSidebar"] .stButton:nth-of-type(2) button { border: 3px solid #FF0000 !important; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -88,15 +74,16 @@ if est_admin:
             nouveau_titre = st.text_input("Sous-titre :", value=config.get("titre_mur"))
             new_mode = st.radio("Mode Mur :", ["Photos", "Votes"], index=0 if config["mode_affichage"]=="photos" else 1)
             
-            # BOUTON BLEU (Primary)
-            if st.button("Mettre à jour le Mur", type="primary", use_container_width=True):
+            # BOUTON BLEU (via Emoji et texte)
+            st.markdown("---")
+            if st.button("🔵 VALIDER : MISE À JOUR MUR", use_container_width=True):
                 save_config(new_mode.lower(), nouveau_titre, VOTE_VERSION)
                 st.rerun()
             
             st.divider()
             st.subheader("Zone de Danger")
-            # BOUTON ROUGE (Secondary)
-            if st.button("🧨 RÉINITIALISER LES VOTES", type="secondary", use_container_width=True):
+            # BOUTON ROUGE (via Emoji et texte)
+            if st.button("🔴 RESET : RÉINITIALISER TOUT", use_container_width=True):
                 new_v = VOTE_VERSION + 1
                 save_config(config["mode_affichage"], config["titre_mur"], new_v)
                 with open(VOTES_FILE, "w") as f: json.dump({}, f)
@@ -106,12 +93,15 @@ if est_admin:
 
     if st.session_state.get("auth"):
         c1, c2 = st.columns([2, 1])
-        c1.title("Console de Régie")
-        if os.path.exists(LOGO_FILE): c2.image(LOGO_FILE, width=250)
-        st.metric("Participants", get_participants_count())
+        with c1:
+            st.title("Console de Régie")
+            st.metric("Participants", get_participants_count())
+        with c2:
+            if os.path.exists(LOGO_FILE): st.image(LOGO_FILE, width=250)
+        
         st.bar_chart(get_votes())
 
-# --- 5. UTILISATEUR / 6. MUR LIVE (RESTENT IDENTIQUES POUR LA STABILITÉ) ---
+# --- 5. UTILISATEUR / 6. MUR LIVE ---
 elif est_utilisateur:
     st.title("🗳️ Vote Transdev")
     components.html(f"<script>if(localStorage.getItem('transdev_voted_v{VOTE_VERSION}')){{window.parent.postMessage({{type:'voted'}},'*');}}</script>", height=0)
@@ -134,6 +124,7 @@ elif est_utilisateur:
                 st.session_state["has_voted"] = True
             else: st.error("Erreur de saisie.")
 else:
+    # (Le code du mur reste identique car il fonctionne parfaitement)
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'] { display: none; }</style>", unsafe_allow_html=True)
     nb = get_participants_count()
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
