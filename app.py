@@ -26,7 +26,7 @@ st.set_page_config(page_title="Social Wall 2026", layout="wide", initial_sidebar
 # --- 2. FONCTIONS ---
 def get_msg():
     if os.path.exists(MSG_FILE): return pd.read_csv(MSG_FILE).iloc[0].to_dict()
-    return {"texte": "✨ Bienvenue à la Grande Soirée des Vœux 2026 ! Partagez vos moments en direct.", 
+    return {"texte": "✨ Bienvenue à la Grande Soirée des Vœux 2026 !", 
             "couleur": "#FFFFFF", "taille": 45, "font": "sans-serif"}
 
 def save_msg(t, c, s, f):
@@ -77,7 +77,7 @@ if est_admin:
                 ul = st.file_uploader("Importer le Logo Central", type=['png','jpg','jpeg'])
                 if ul: Image.open(ul).save(LOGO_FILE); st.rerun()
         with t2:
-            uf = st.file_uploader("Ajouter des photos au Social Wall", type=['png','jpg','jpeg'], accept_multiple_files=True)
+            uf = st.file_uploader("Ajouter des photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
             if uf:
                 for f in uf: Image.open(f).save(os.path.join(GALLERY_DIR, f.name))
                 st.rerun()
@@ -90,41 +90,34 @@ if est_admin:
                         st.image(p, use_container_width=True)
                         if st.button("🗑️", key=f"del_{i}"): os.remove(p); st.rerun()
 
-# --- 5. MODE LIVE (SOCIAL WALL ORBITAL & PULSATION) ---
+# --- 5. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
     msg = get_msg()
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     logo_b64 = img_to_base64(LOGO_FILE)
 
-    # Fond étoilé dynamique
+    # Fond étoilé
     stars_html = "".join([f'<div style="position:absolute; left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; width:{random.randint(1,2)}px; height:{random.randint(1,2)}px; background:white; border-radius:50%; opacity:0.5; animation: twinkle {random.randint(2,5)}s infinite alternate;"></div>' for _ in range(120)])
 
     st.markdown(f"""
         <style>
-        /* Nettoyage total de l'interface Streamlit */
-        [data-testid="stSidebar"] {{display: none;}}
-        [data-testid="stHeader"] {{display: none;}}
-        [data-testid="stAppViewBlockContainer"] {{padding: 0 !important; max-width: 100vw !important;}}
-        .main {{background-color: #050505; overflow: hidden; height: 100vh; width: 100vw; position: fixed; top:0; left:0;}}
+        [data-testid="stSidebar"] {{ display: none; }}
+        [data-testid="stHeader"] {{ display: none; }}
+        [data-testid="stAppViewBlockContainer"] {{ padding: 0 !important; max-width: 100vw !important; }}
+        .main {{ background-color: #050505; overflow: hidden; height: 100vh; width: 100vw; position: fixed; top:0; left:0; }}
         
-        /* Animation Etoiles Scintillantes */
-        @keyframes twinkle {{ from {{opacity: 0.1;}} to {{opacity: 0.9;}} }}
+        @keyframes twinkle {{ from {{ opacity: 0.1; }} to {{ opacity: 0.9; }} }}
         
-        /* Animation Message Pulsation */
         @keyframes pulse {{
-            0% {{ opacity: 0.7; transform: scale(1); filter: blur(0px); }}
-            50% {{ opacity: 1; transform: scale(1.02); filter: blur(1px); text-shadow: 0 0 30px {msg['couleur']}; }}
-            100% {{ opacity: 0.7; transform: scale(1); filter: blur(0px); }}
+            0% {{ opacity: 0.7; transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}; }}
+            50% {{ opacity: 1; transform: scale(1.02); text-shadow: 0 0 30px {msg['couleur']}; }}
+            100% {{ opacity: 0.7; transform: scale(1); text-shadow: 0 0 10px {msg['couleur']}; }}
         }}
         
-        /* Animation Orbite des photos */
         @keyframes orbit {{
             from {{ transform: rotate(0deg) translateX(min(32vw, 380px)) rotate(0deg); }}
-            to {{ transform: rotate(360deg) translateX(320vw, 380px) rotate(-360deg); }}
-            /* Correction de l'orbite pour Streamlit Cloud */
-            from {{ transform: rotate(0deg) translateX(min(32vw, 380px)) rotate(0deg); }}
             to {{ transform: rotate(360deg) translateX(min(32vw, 380px)) rotate(-360deg); }}
-        }
+        }}
 
         .welcome-container {{
             position: absolute; top: 12%; width: 100%; text-align: center; z-index: 20;
@@ -155,21 +148,15 @@ elif not mode_vote:
         </style>
         
         <div class="stars-container">{stars_html}</div>
-        
-        <div class="welcome-container">
-            <div class="welcome-text">{msg['texte']}</div>
-        </div>
-
+        <div class="welcome-container"><div class="welcome-text">{msg['texte']}</div></div>
         {"<img src='data:image/png;base64," + logo_b64 + "' class='center-logo'>" if logo_b64 else ""}
     """, unsafe_allow_html=True)
 
     if imgs:
-        # Affichage orbital unique (pas de doublons)
         for i, path in enumerate(imgs[-12:]):
             b64 = img_to_base64(path)
             st.markdown(f'<img src="data:image/png;base64,{b64}" class="photo-orbit" style="--dur:{22+(i*4)}s; animation-delay:-{i*5}s;">', unsafe_allow_html=True)
 
-    # QR Code
     qr_url = f"https://{st.context.headers.get('Host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_img = base64.b64encode(qr_buf.getvalue()).decode()
@@ -180,4 +167,4 @@ elif not mode_vote:
 # --- 6. MODE VOTE ---
 else:
     st.title("🗳️ Vote & Présence")
-    st.write("Bienvenue ! Connectez-vous pour apparaître sur l'écran.")
+    st.write("Bienvenue sur le système de vote !")
