@@ -7,7 +7,7 @@ import base64
 import qrcode
 from io import BytesIO
 
-# --- 1. CONFIGURATION ---
+# --- CONFIGURATION ---
 st.set_page_config(page_title="Social Wall 2026", layout="wide", initial_sidebar_state="collapsed")
 
 GALLERY_DIR = "galerie_images"
@@ -24,19 +24,18 @@ def get_b64(path):
     except: return None
     return None
 
-# --- 2. LOGIQUE ---
+# --- LOGIQUE ACCÈS ---
 params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
-# --- 3. INTERFACE ADMIN ---
+# --- INTERFACE ADMIN ---
 if est_admin:
     st.title("🛠️ Console Régie Master")
-    current_pwd = open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEUX_2026"
+    pwd_actuel = open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEUX_2026"
     with st.sidebar:
         input_pwd = st.text_input("Code Secret", type="password")
-    
-    if input_pwd != current_pwd:
+    if input_pwd != pwd_actuel:
         st.warning("Code requis dans la sidebar.")
         st.stop()
 
@@ -52,15 +51,16 @@ if est_admin:
             pd.DataFrame([{"texte": txt, "couleur": clr, "taille": siz}]).to_csv(MSG_FILE, index=False)
             st.rerun()
     with t2:
-        ul = st.file_uploader("Logo", type=['png','jpg'])
+        ul = st.file_uploader("Logo Central", type=['png','jpg'])
         if ul:
             with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
             st.rerun()
-        uf = st.file_uploader("Photos", type=['png','jpg'], accept_multiple_files=True)
+        uf = st.file_uploader("Ajouter des photos", type=['png','jpg'], accept_multiple_files=True)
         if uf:
             for f in uf:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
             st.rerun()
+        st.divider()
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
         cols = st.columns(6)
         for i, p in enumerate(imgs):
@@ -68,96 +68,65 @@ if est_admin:
                 st.image(p)
                 if st.button("🗑️", key=f"del_{i}"): os.remove(p); st.rerun()
 
-# --- 4. MODE LIVE (SOCIAL WALL) ---
+# --- MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
     config = {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 45}
-    if os.path.exists(MSG_FILE): 
+    if os.path.exists(MSG_FILE):
         try: config = pd.read_csv(MSG_FILE).iloc[0].to_dict()
         except: pass
     
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
-    # QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Préparation des photos (limité à 8 pour la fluidité)
-    photos_html = ""
-    last_photos = img_list[-8:]
-    for i, p_path in enumerate(last_photos):
-        b64 = get_b64(p_path)
-        if b64:
-            delay = -(i * (20 / max(len(last_photos), 1)))
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-bubble" style="animation-delay:{delay}s;">'
-
-    # INJECTION DIRECTE SANS f-string POUR LE CSS (Évite les bugs d'accolades)
+    # 1. CSS PUR (SANS VARIABLES PYTHON - AUCUN RISQUE DE RECTANGLE BLANC)
     st.markdown("""
     <style>
-        /* Masquage des éléments Streamlit */
         header, footer, .stAppHeader, [data-testid="stHeader"] { visibility: hidden !important; }
         .stApp { background-color: #050505 !important; }
 
-        /* Conteneur principal Social Wall */
         .planetarium {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            background: radial-gradient(circle at center, #1a1a1a 0%, #050505 100%);
-            z-index: 999999;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #050505; z-index: 99999; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-
         .wall-title {
-            position: absolute; top: 10%;
-            font-family: 'Segoe UI', sans-serif;
-            font-weight: 800;
-            text-align: center;
-            z-index: 100;
+            position: absolute; top: 10%; width: 100%; text-align: center;
+            font-family: sans-serif; font-weight: bold; z-index: 1000;
+            animation: pulse-title 4s infinite;
         }
-
-        .orbit-zone {
-            position: relative;
-            width: 1px; height: 1px;
-            display: flex; justify-content: center; align-items: center;
-        }
-
-        .main-logo {
-            width: 200px; height: 200px;
-            object-fit: contain;
-            z-index: 50;
-        }
-
+        @keyframes pulse-title { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+        
+        .orbit-zone { position: relative; width: 1px; height: 1px; display: flex; justify-content: center; align-items: center; }
+        .main-logo { width: 220px; height: 220px; object-fit: contain; z-index: 50; }
         .photo-bubble {
-            position: absolute;
-            width: 130px; height: 130px;
-            border-radius: 50%;
-            border: 3px solid white;
-            object-fit: cover;
-            box-shadow: 0 0 15px rgba(255,255,255,0.3);
-            animation: moveOrbit 20s linear infinite;
+            position: absolute; width: 130px; height: 130px; border-radius: 50%;
+            border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3);
+            animation: moveOrbit 25s linear infinite;
         }
-
         @keyframes moveOrbit {
-            from { transform: rotate(0deg) translateX(250px) rotate(0deg); }
-            to { transform: rotate(360deg) translateX(250px) rotate(-360deg); }
+            from { transform: rotate(0deg) translateX(260px) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(260px) rotate(-360deg); }
         }
-
         .qr-anchor {
-            position: fixed; bottom: 30px; right: 30px;
-            background: white; padding: 10px; border-radius: 12px;
-            text-align: center; z-index: 150;
+            position: fixed; bottom: 30px; right: 30px; background: white;
+            padding: 10px; border-radius: 12px; text-align: center; z-index: 200;
         }
     </style>
     """, unsafe_allow_html=True)
 
-    # Rendu du contenu avec les variables Python
+    # 2. GÉNÉRATION DES PHOTOS
+    photos_html = ""
+    valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
+    for i, b64 in enumerate(valid_photos):
+        delay = -(i * (25 / max(len(valid_photos), 1)))
+        photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-bubble" style="animation-delay:{delay}s;">'
+
+    # 3. HTML DYNAMIQUE (VARIABLES INJECTÉES DANS LE "STYLE=" EN LIGNE)
     st.markdown(f"""
     <div class="planetarium">
         <div class="wall-title" style="color:{config['couleur']}; font-size:{config['taille']}px; text-shadow: 0 0 20px {config['couleur']}99;">
@@ -165,12 +134,12 @@ elif not mode_vote:
         </div>
         
         <div class="orbit-zone">
-            {"<img src='data:image/png;base64," + logo_b64 + "' class='main-logo'>" if logo_b64 else ""}
+            {"<img src='data:image/png;base64," + logo_b64 + "' class='main-logo' style='filter:drop-shadow(0 0 15px "+config['couleur']+"77);'>" if logo_b64 else ""}
             {photos_html}
         </div>
 
         <div class="qr-anchor">
-            <img src="data:image/png;base64,{qr_b64}" width="100"><br>
+            <img src="data:image/png;base64,{qr_b64}" width="105"><br>
             <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
         </div>
     </div>
@@ -178,3 +147,4 @@ elif not mode_vote:
 
 else:
     st.title("🗳️ Participation")
+    st.write("Interface mobile active.")
