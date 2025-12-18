@@ -20,8 +20,7 @@ if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 def get_b64(path):
     try:
         if os.path.exists(path) and os.path.getsize(path) > 0:
-            with open(path, "rb") as f:
-                return base64.b64encode(f.read()).decode()
+            with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
     except: return None
     return None
 
@@ -87,112 +86,90 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Préparation des éléments
     stars_html = "".join([f'<div class="star" style="left:{random.randint(0,100)}vw; top:{random.randint(0,100)}vh; width:{random.randint(1,2)}px; height:{random.randint(1,2)}px;"></div>' for _ in range(50)])
     
+    # On prépare les photos
+    valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
     photos_html = ""
-    # On force la récupération des 10 dernières images
-    valid_photos = []
-    for p in img_list[-10:]:
-        data = get_b64(p)
-        if data: valid_photos.append(data)
-
     for i, b64 in enumerate(valid_photos):
         delay = -(i * (25 / max(len(valid_photos), 1)))
         photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-node" style="animation-delay:{delay}s;">'
 
-    # INJECTION CSS & HTML UNIQUE (STRATÉGIE OVERLAY TOTAL)
+    # INJECTION CSS ULTIME : On cible les classes internes de Streamlit
     st.markdown(f"""
     <style>
-        /* Supprime toute trace d'interface Streamlit */
-        header, footer, .stAppHeader, [data-testid="stHeader"] {{ display:none !important; visibility: hidden !important; }}
-        
-        /* Force le fond noir absolu sur l'application */
-        .stApp {{ 
-            background-color: #050505 !important; 
+        /* 1. ON FORCE TOUT L'ÉCRAN EN NOIR DÈS LE DÉBUT */
+        html, body, [data-testid="stAppViewContainer"], .stApp {{
+            background-color: #050505 !important;
+            color: white !important;
+            overflow: hidden !important;
         }}
 
-        /* Cache les conteneurs de widgets Streamlit qui créent le carré blanc */
-        [data-testid="stVerticalBlock"] > div {{
-            background-color: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
+        /* 2. ON CACHE LES ÉLÉMENTS QUI CRÉENT LE CARRÉ BLANC (MODALS & TOOLTIPS) */
+        iframe, [data-testid="stHeader"], footer, .stAppHeader, 
+        [data-testid="stNotification"], [data-testid="stStatusWidget"],
+        button {{
+            display: none !important;
+            visibility: hidden !important;
         }}
 
-        /* Le Mur Social qui recouvre TOUT */
-        .wall-overlay {{ 
-            position: fixed; 
-            top: 0; left: 0; 
-            width: 100vw; height: 100vh; 
-            background: #050505; 
-            z-index: 999999; 
-            overflow: hidden;
-            display: block !important;
+        /* 3. NOTRE STRUCTURE SOCIAL WALL */
+        .wall-layer {{
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #050505; z-index: 999999;
         }}
-
         .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.5; animation: twi 3s infinite alternate; }}
         @keyframes twi {{ from {{ opacity: 0.2; }} to {{ opacity: 0.8; }} }}
         
-        .title-wall {{ 
-            position: absolute; top: 8%; width: 100%; text-align: center; 
-            font-family: sans-serif; font-weight: bold; z-index: 1000001; 
-            color: {config['couleur']}; font-size: {config['taille']}px; 
+        .welcome-msg {{
+            position: absolute; top: 10%; width: 100%; text-align: center;
+            font-family: 'Arial', sans-serif; font-weight: bold;
+            color: {config['couleur']}; font-size: {config['taille']}px;
             text-shadow: 0 0 20px {config['couleur']};
-            animation: pulse-text 4s infinite;
+            animation: pulse-wall 4s infinite;
         }}
-        @keyframes pulse-text {{ 0%, 100% {{ transform: scale(1); }} 50% {{ transform: scale(1.02); }} }}
+        @keyframes pulse-wall {{ 0%, 100% {{ transform: scale(1); }} 50% {{ transform: scale(1.02); }} }}
 
-        .orbit-container {{ 
-            position: absolute; top: 58%; left: 50%; 
-            transform: translate(-50%, -50%); 
-            width: 1px; height: 1px; 
-            z-index: 1000000; 
+        .hub-center {{
+            position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%);
+            width: 1px; height: 1px;
         }}
-
-        .logo-main {{ 
-            position: absolute; transform: translate(-50%, -50%); 
-            width: 220px; height: 220px; object-fit: contain; 
-            filter: drop-shadow(0 0 15px {config['couleur']}77); 
+        .logo-img {{
+            position: absolute; transform: translate(-50%, -50%);
+            width: 200px; height: 200px; object-fit: contain;
+            filter: drop-shadow(0 0 15px {config['couleur']}77);
         }}
-
-        .photo-node {{ 
-            position: absolute; 
-            width: 135px; height: 135px; 
-            border-radius: 50%; 
-            border: 3px solid white; 
-            object-fit: cover; 
-            box-shadow: 0 0 20px rgba(255,255,255,0.4); 
-            animation: orbit-animation 25s linear infinite;
-            display: block !important;
+        .photo-node {{
+            position: absolute; width: 130px; height: 130px; border-radius: 50%;
+            border: 3px solid white; object-fit: cover;
+            box-shadow: 0 0 20px rgba(255,255,255,0.4);
+            animation: orbit-wall 25s linear infinite;
         }}
-
-        @keyframes orbit-animation {{ 
-            from {{ transform: rotate(0deg) translateX(270px) rotate(0deg); }} 
-            to {{ transform: rotate(360deg) translateX(270px) rotate(-360deg); }} 
+        @keyframes orbit-wall {{
+            from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }}
+            to {{ transform: rotate(360deg) translateX(260px) rotate(-360deg); }}
         }}
-
-        .qr-box {{ 
-            position: fixed; bottom: 30px; right: 30px; 
-            background: white; padding: 10px; border-radius: 15px; 
-            text-align: center; z-index: 1000002; 
+        .qr-box {{
+            position: fixed; bottom: 30px; right: 30px;
+            background: white; padding: 10px; border-radius: 12px;
+            text-align: center; box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }}
     </style>
-    
-    <div class="wall-overlay">
+
+    <div class="wall-layer">
         {stars_html}
-        <div class="title-wall">{config['texte']}</div>
-        <div class="orbit-container">
-            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-main'>" if logo_b64 else ""}
+        <div class="welcome-msg">{config['texte']}</div>
+        <div class="hub-center">
+            {"<img src='data:image/png;base64," + logo_b64 + "' class='logo-img'>" if logo_b64 else ""}
             {photos_html}
         </div>
         <div class="qr-box">
-            <img src="data:image/png;base64,{qr_b64}" width="105"><br>
-            <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
+            <img src="data:image/png;base64,{qr_b64}" width="100"><br>
+            <small style="color:black; font-family:sans-serif; font-weight:bold;">VOTER ICI</small>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-# --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participation")
     st.write("Interface mobile active.")
