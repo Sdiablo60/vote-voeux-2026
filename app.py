@@ -30,15 +30,20 @@ if est_admin:
         .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #eee; margin-bottom: 20px; }
         .logo-top-right { max-width: 100px; max-height: 50px; object-fit: contain; }
         [data-testid="stSidebar"] { min-width: 300px !important; }
-        /* Style liste compacte */
-        .liste-item { display: flex; align-items: center; gap: 20px; padding: 5px; border-bottom: 1px solid #eee; }
+        
+        /* Force les colonnes à ne pas s'empiler sur une seule ligne (Responsive OFF) */
+        [data-testid="column"] {
+            min-width: 0px !important;
+            flex-basis: 0 !important;
+            flex-grow: 1 !important;
+        }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
-        st.title("⚙️ Réglages")
+        st.title("⚙️ Régie")
         pwd = st.text_input("Code Secret Admin", type="password")
         st.divider()
 
@@ -76,7 +81,7 @@ if est_admin:
 
         st.divider()
 
-        # --- SÉLECTEUR DE MODE D'AFFICHAGE ---
+        # --- GESTION DE LA GALERIE ---
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
         col_t, col_s = st.columns([2, 1])
         with col_t:
@@ -87,34 +92,42 @@ if est_admin:
         if not imgs:
             st.info("Aucune photo.")
         else:
-            # --- MODE VIGNETTES (GRILLE) ---
-            if mode_vue == "Vignettes":
-                cols = st.columns(6) # Grille encore plus petite (6 colonnes)
-                for i, img_path in enumerate(reversed(imgs)):
-                    with cols[i % 6]:
-                        st.image(img_path, use_container_width=True)
-                        if st.button("Suppr.", key=f"vign_{i}"):
-                            os.remove(img_path)
-                            st.rerun()
+            sorted_imgs = sorted(imgs, key=os.path.getmtime, reverse=True)
 
-            # --- MODE LISTE (LIGNES COMPACTES) ---
+            # --- MODE VIGNETTES (FORCE 8 COLONNES) ---
+            if mode_vue == "Vignettes":
+                # On utilise une boucle pour créer des rangées de 8
+                for i in range(0, len(sorted_imgs), 8):
+                    cols = st.columns(8)
+                    for j in range(8):
+                        if i + j < len(sorted_imgs):
+                            img_p = sorted_imgs[i + j]
+                            with cols[j]:
+                                st.image(img_p, use_container_width=True)
+                                if st.button("🗑️", key=f"vign_{i+j}"):
+                                    os.remove(img_p)
+                                    st.rerun()
+
+            # --- MODE LISTE (FORCE 4 COLONNES) ---
             else:
-                for i, img_path in enumerate(reversed(imgs)):
-                    col_img, col_txt, col_btn = st.columns([1, 4, 1])
-                    with col_img:
-                        st.image(img_path, width=60)
-                    with col_txt:
-                        st.text(os.path.basename(img_path))
-                    with col_btn:
-                        if st.button("Supprimer", key=f"list_{i}"):
-                            os.remove(img_path)
-                            st.rerun()
+                for i in range(0, len(sorted_imgs), 4):
+                    cols = st.columns(4)
+                    for j in range(4):
+                        if i + j < len(sorted_imgs):
+                            img_p = sorted_imgs[i + j]
+                            with cols[j]:
+                                # Mini ligne compacte
+                                c1, c2 = st.columns([1, 3])
+                                with c1: st.image(img_p, width=40)
+                                with c2:
+                                    if st.button(f"Suppr. {len(sorted_imgs)-(i+j)}", key=f"list_{i+j}", use_container_width=True):
+                                        os.remove(img_p)
+                                        st.rerun()
     else:
         st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1></div>', unsafe_allow_html=True)
 
 # --- 4. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
-    # Le code du mur reste identique pour la stabilité
     st.markdown("""<style>:root { background-color: #000000 !important; } html, body, [data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; overflow: hidden !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; } [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; } iframe { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; border: none !important; background-color: #000000 !important; z-index: 9999; }</style>""", unsafe_allow_html=True)
     try:
         from streamlit_autorefresh import st_autorefresh
