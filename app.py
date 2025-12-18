@@ -44,7 +44,7 @@ est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
 if est_admin:
-    # CSS POUR FIGER LE HAUT ET STYLE DES CARTES
+    # CSS POUR FIGER LE HAUT ET STYLE
     st.markdown("""
         <style>
         .main-header-sticky {
@@ -56,20 +56,15 @@ if est_admin:
             border-bottom: 2px solid #f0f2f6;
         }
         [data-testid="column"] { min-width: 0px !important; }
-        .list-card {
-            border: 1px solid #ddd;
-            border-radius: 10px;
-            padding: 10px;
-            background: #fafafa;
-        }
+        .stButton button { border-radius: 5px; }
         </style>
     """, unsafe_allow_html=True)
 
     with st.sidebar:
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
-        st.markdown("<h2 style='text-align: center;'>⚙️ Régie Live</h2>", unsafe_allow_html=True)
-        pwd_input = st.text_input("Accès Régie (Code)", type="password", key="main_login_input")
+        st.markdown("<h3 style='text-align: center;'>Régie Social Wall</h3>", unsafe_allow_html=True)
+        pwd_input = st.text_input("Code Accès", type="password", key="main_login_input")
         
         if pwd_input == st.session_state["admin_password"]:
             st.session_state["authenticated"] = True
@@ -79,42 +74,43 @@ if est_admin:
         st.divider()
 
         if st.session_state["authenticated"]:
-            st.success("✅ Connecté")
-            with st.expander("🔑 Changer le mot de passe"):
+            with st.expander("🔑 Sécurité"):
                 new_pwd = st.text_input("Nouveau code", type="password")
-                if st.button("Enregistrer"):
+                if st.button("Modifier"):
                     st.session_state["admin_password"] = new_pwd
                     st.rerun()
-            st.divider()
+            
+            st.subheader("🖼️ Identité")
             ul_logo = st.file_uploader("Logo", type=['png', 'jpg', 'jpeg'])
             if ul_logo:
                 with open(LOGO_FILE, "wb") as f: f.write(ul_logo.getbuffer())
                 st.rerun()
-            if st.button("🧨 VIDER TOUT LE MUR", use_container_width=True):
+            
+            if st.button("🧨 VIDER LE MUR", use_container_width=True, type="primary"):
                 for f in glob.glob(os.path.join(GALLERY_DIR, "*")):
                     try: os.remove(f)
                     except: pass
                 st.rerun()
         else:
-            st.warning("🔒 Entrez le code à gauche")
+            st.info("Veuillez vous authentifier.")
 
     if st.session_state["authenticated"]:
         # --- EN-TÊTE FIGÉ ---
         st.markdown('<div class="main-header-sticky">', unsafe_allow_html=True)
         
         c_title, c_logo_h = st.columns([4, 1])
-        c_title.title("Console de Modération")
+        c_title.title("Modération des médias")
         if os.path.exists(LOGO_FILE):
-            c_logo_h.image(LOGO_FILE, width=100)
+            c_logo_h.image(LOGO_FILE, width=80)
         
-        st.link_button("🖥️ ACCÉDER AU MUR PLEIN ÉCRAN", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
+        st.link_button("🖥️ VOIR LE MUR EN DIRECT", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
 
         all_imgs = [f for f in glob.glob(os.path.join(GALLERY_DIR, "*")) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         sorted_imgs = sorted(all_imgs, key=os.path.getmtime, reverse=True)
         selected_photos = []
 
-        ctrl1, ctrl2, ctrl3, ctrl4, ctrl5 = st.columns([1.5, 1, 1, 1, 1])
-        ctrl1.write(f"**Photos : {len(all_imgs)}**")
+        ctrl1, ctrl2, ctrl3, ctrl4, ctrl5 = st.columns([1.2, 0.8, 1, 1, 1])
+        ctrl1.write(f"📊 **{len(all_imgs)} fichiers**")
         
         if ctrl2.button("✅/⬜ Tout" , use_container_width=True):
             st.session_state["all_selected"] = not st.session_state["all_selected"]
@@ -122,26 +118,27 @@ if est_admin:
 
         if all_imgs:
             with ctrl3:
-                st.download_button("📥 Tout (ZIP)", data=create_zip(all_imgs), file_name=get_timestamped_name("complet"), use_container_width=True)
+                st.download_button("📥 ZIP Complet", data=create_zip(all_imgs), file_name=get_timestamped_name("complet"), use_container_width=True)
         
         with ctrl5:
-            mode_vue = st.radio("Vue", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
+            mode_vue = st.radio("Format", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
         
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # --- CONTENU ---
-        with st.expander("➕ Ajouter des photos manuellement"):
-            up = st.file_uploader("Images", accept_multiple_files=True, key="manual_up")
+        # --- AJOUT MANUEL ---
+        with st.expander("➕ Importer des fichiers"):
+            up = st.file_uploader("Upload", accept_multiple_files=True, key="manual_up")
             if up:
                 for f in up:
                     with open(os.path.join(GALLERY_DIR, f.name), "wb") as out: out.write(f.getbuffer())
                 st.rerun()
 
+        # --- GALERIE ---
         if not all_imgs:
             st.info("La galerie est vide.")
         else:
             if mode_vue == "Vignettes":
-                # Mosaïque 8 COLONNES (Compacte)
+                # Mosaïque 8 colonnes
                 for i in range(0, len(sorted_imgs), 8):
                     cols = st.columns(8)
                     for j in range(8):
@@ -156,7 +153,7 @@ if est_admin:
                                     os.remove(img_p)
                                     st.rerun()
             else:
-                # Mode Liste 4 COLONNES (Aperçus agrandis)
+                # Mode Liste 4 colonnes (Aperçus légèrement réduits)
                 for i in range(0, len(sorted_imgs), 4):
                     cols = st.columns(4)
                     for j in range(4):
@@ -165,26 +162,26 @@ if est_admin:
                             img_p = sorted_imgs[idx]
                             with cols[j]:
                                 with st.container(border=True):
-                                    # Ligne supérieure : Checkbox + Image large
-                                    c_check, c_preview = st.columns([1, 4])
+                                    # Structure interne : marge pour réduire l'image
+                                    c_check, c_preview, c_margin = st.columns([1, 6, 1])
                                     with c_check:
                                         is_checked = st.checkbox("", value=st.session_state["all_selected"], key=f"l_chk_{img_p}_{idx}", label_visibility="collapsed")
                                         if is_checked: selected_photos.append(img_p)
                                     with c_preview:
                                         st.image(img_p, use_container_width=True)
                                     
-                                    # Infos et Action sous l'image
-                                    st.caption(f"📄 {os.path.basename(img_p)[:25]}")
+                                    st.caption(f"ID: {os.path.basename(img_p)[:20]}")
                                     if st.button("Supprimer", key=f"btn_l_{img_p}_{idx}", use_container_width=True):
                                         os.remove(img_p)
                                         st.rerun()
 
+        # Bouton sélection (Sticky ctrl4)
         if selected_photos:
             with ctrl4:
-                st.download_button(f"📥 Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True, type="primary")
+                st.download_button(f"📥 ZIP Sél. ({len(selected_photos)})", data=create_zip(selected_photos), file_name=get_timestamped_name("selection"), use_container_width=True, type="primary")
 
     else:
-        st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Console Verrouillée</h1><p>Saisissez le code dans la barre latérale.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; margin-top:100px;"><h2>🔒 Console Verrouillée</h2><p>Veuillez entrer le mot de passe dans le menu latéral.</p></div>', unsafe_allow_html=True)
 
 # --- 5. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
@@ -213,4 +210,4 @@ else:
     f = st.file_uploader("Image", type=['jpg', 'jpeg', 'png'])
     if f:
         with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out: out.write(f.getbuffer())
-        st.success("✅ Photo envoyée !")
+        st.success("✅ C'est en ligne !")
