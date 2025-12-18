@@ -1,5 +1,5 @@
 import streamlit as st
-import pandas as pd
+import pd
 import os
 import glob
 import random
@@ -48,7 +48,7 @@ else:
     logo_data = get_b64(LOGO_FILE)
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
-    # CSS PUR (SANS VARIABLES PYTHON POUR ÉVITER LES ERREURS)
+    # CSS PUR
     st.markdown("""
         <style>
             [data-testid="stHeader"], footer, header {display:none !important;}
@@ -67,44 +67,46 @@ else:
 
             .welcome-title {
                 position: absolute; top: 8%; width: 100%; text-align: center;
-                color: white; font-family: sans-serif; font-size: 55px; font-weight: bold;
+                color: white; font-family: sans-serif; font-size: 50px; font-weight: bold;
                 text-shadow: 0 0 20px rgba(255,255,255,0.6); z-index: 10001;
                 animation: pulse-text 4s ease-in-out infinite;
+                padding: 0 20px;
             }
             @keyframes pulse-text {
                 0% { transform: scale(1); opacity: 0.8; }
-                50% { transform: scale(1.03); opacity: 1; }
+                50% { transform: scale(1.02); opacity: 1; }
                 100% { transform: scale(1); opacity: 0.8; }
             }
 
+            /* Centre abaissé à 65% pour libérer le haut */
             .center-point {
-                position: absolute; top: 60%; left: 50%;
+                position: absolute; top: 65%; left: 50%;
                 transform: translate(-50%, -50%);
-                width: 250px; height: 250px;
+                width: 200px; height: 200px;
                 z-index: 10000;
             }
 
             .center-logo {
-                width: 250px; height: 250px; object-fit: contain;
+                width: 200px; height: 200px; object-fit: contain;
                 filter: drop-shadow(0 0 20px rgba(255,255,255,0.3));
             }
 
             .orbit-photo {
                 position: absolute; top: 50%; left: 50%;
-                width: 150px; height: 150px; margin-top: -75px; margin-left: -75px;
+                width: 130px; height: 130px; margin-top: -65px; margin-left: -65px;
                 border-radius: 50%; border: 3px solid white; object-fit: cover;
-                box-shadow: 0 0 25px rgba(255,255,255,0.5);
+                box-shadow: 0 0 25px rgba(255,255,255,0.4);
                 animation: orbit-animation 25s linear infinite;
             }
 
+            /* Rayon resserré à 280px */
             @keyframes orbit-animation {
-                from { transform: rotate(0deg) translateX(360px) rotate(0deg); }
-                to { transform: rotate(360deg) translateX(360px) rotate(-360deg); }
+                from { transform: rotate(0deg) translateX(280px) rotate(0deg); }
+                to { transform: rotate(360deg) translateX(280px) rotate(-360deg); }
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # CONSTRUCTION DU CONTENU
     html_content = '<div class="main-container">'
     
     # Etoiles
