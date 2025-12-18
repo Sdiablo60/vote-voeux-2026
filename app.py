@@ -90,8 +90,11 @@ if est_admin:
 
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=30000, key="wall_refresh")
+    try:
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(interval=30000, key="wall_refresh")
+    except:
+        st.warning("Module autorefresh manquant. Rafraîchissez manuellement (F5).")
 
     config = get_config()
     logo_b64 = get_b64(LOGO_FILE)
@@ -115,16 +118,16 @@ elif not mode_vote:
             .wall {{ position: relative; width: 100vw; height: 100vh; overflow: hidden; }}
             .star {{ position: absolute; background: white; border-radius: 50%; opacity: 0.3; animation: twi 2s infinite alternate; }}
             @keyframes twi {{ from {{ opacity: 0.1; }} to {{ opacity: 0.8; }} }}
-            .title {{ position: absolute; top: 1%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}; z-index: 100; }}
+            
+            /* TITRE COLLÉ EN HAUT (0.5%) */
+            .title {{ position: absolute; top: 0.5%; width: 100%; text-align: center; font-weight: bold; font-size: {config['taille']}px; color: {config['couleur']}; text-shadow: 0 0 25px {config['couleur']}; z-index: 100; }}
             
             /* CENTRE REMONTÉ À 38% */
             .center-container {{ position: absolute; top: 38%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; }}
             .logo {{ width: 170px; height: 170px; object-fit: contain; filter: drop-shadow(0 0 15px {config['couleur']}77); z-index: 10; }}
             
-            /* PHOTOS À 120PX */
             .photo {{ position: absolute; width: 120px; height: 120px; border-radius: 50%; border: 3px solid white; object-fit: cover; box-shadow: 0 0 15px rgba(255,255,255,0.3); animation: orb 30s linear infinite; }}
             
-            /* RAYON RESSERRÉ À 230PX */
             @keyframes orb {{ 
                 from {{ transform: rotate(0deg) translateX(230px) rotate(0deg); }} 
                 to {{ transform: rotate(360deg) translateX(230px) rotate(-360deg); }} 
@@ -152,12 +155,13 @@ elif not mode_vote:
     st.markdown("""<style>[data-testid="stHeader"], footer {display:none !important;} .stApp {background:black !important; overflow: hidden !important;} iframe {border: none !important;} .block-container {padding: 0 !important; max-width: 100% !important;}</style>""", unsafe_allow_html=True)
     components.html(html_code, height=980, scrolling=False)
 
-# --- 5. MODE VOTE ---
+# --- 5. MODE VOTE / UPLOAD ---
 else:
     st.title("🗳️ Participez au Social Wall")
-    uf = st.file_uploader("Envoyez votre photo ✨", type=['jpg', 'jpeg', 'png'])
+    st.write("Envoyez une photo pour l'afficher sur le mur !")
+    uf = st.file_uploader("Choisissez une photo ✨", type=['jpg', 'jpeg', 'png'])
     if uf:
         with open(os.path.join(GALLERY_DIR, uf.name), "wb") as f:
             f.write(uf.getbuffer())
-        st.success("Photo envoyée ! Regardez l'écran géant.")
+        st.success("C'est envoyé ! Regardez l'écran géant.")
         st.balloons()
