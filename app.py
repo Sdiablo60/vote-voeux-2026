@@ -72,7 +72,7 @@ if est_admin:
             cols[i].markdown(f"<div style='background:#f0f2f6;padding:15px;border-radius:10px;text-align:center;border-top:5px solid #E2001A;'><b>{i+1}er: {name}</b><br>{score} pts</div>", unsafe_allow_html=True)
         st.bar_chart(v_data)
 
-# --- 4. UTILISATEUR (CORRECTIF RÉCAPITULATIF BLOC UNIQUE) ---
+# --- 4. UTILISATEUR (POINTS À CHAQUE SÉLECTION) ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
@@ -99,42 +99,45 @@ elif est_utilisateur:
                 try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=5000, key="m_ref")
                 except: pass
             else:
-                st.write(f"Bonjour **{st.session_state['user_pseudo']}**, sélectionnez vos 3 favoris :")
+                st.write(f"Bonjour **{st.session_state['user_pseudo']}**")
                 options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
                 
-                choix = st.multiselect("Cliquez sur 3 vidéos (l'ordre définit les points) :", options, max_selections=3)
+                choix = st.multiselect("Sélectionnez vos 3 favoris :", options, max_selections=3)
                 
-                # --- RÉCAPITULATIF EN UN SEUL BLOC HTML POUR ÉVITER LES BUGS ---
+                # --- BLOC DE RÉCAPITULATIF AVEC POINTS EN TEMPS RÉEL ---
                 if len(choix) > 0:
-                    c1 = choix[0]
-                    c2 = choix[1] if len(choix) > 1 else "---"
-                    c3 = choix[2] if len(choix) > 2 else "---"
-                    
+                    # Attribution dynamique
+                    pts_txt = ["🥇 <b>+5 pts</b>", "🥈 <b>+3 pts</b>", "🥉 <b>+1 pt</b>"]
+                    lignes_html = ""
+                    for i in range(3):
+                        label_pts = pts_txt[i]
+                        nom_service = choix[i] if len(choix) > i else "<span style='color:#666;'>...en attente...</span>"
+                        lignes_html += f"<p style='font-size:18px; margin:10px 0;'>{label_pts} : {nom_service}</p>"
+
                     st.markdown(f"""
-                        <div style="background: #222; padding: 15px; border-radius: 10px; border: 1px solid #E2001A; margin: 15px 0;">
-                            <h3 style="color: white; margin-top: 0;">Votre Podium :</h3>
-                            <p style="color: white; margin: 5px 0;">🥇 <b>5 pts</b> : {c1}</p>
-                            <p style="color: white; margin: 5px 0;">🥈 <b>3 pts</b> : {c2}</p>
-                            <p style="color: white; margin: 5px 0;">🥉 <b>1 pt</b> : {c3}</p>
+                        <div style="background: #111; padding: 20px; border-radius: 15px; border: 2px solid #E2001A; margin-top: 20px;">
+                            <h4 style="margin-top:0; color:#E2001A;">Récapitulatif de vos points :</h4>
+                            {lignes_html}
                         </div>
                     """, unsafe_allow_html=True)
 
                 if st.button("VALIDER MON VOTE DÉFINITIF", use_container_width=True, type="primary"):
                     if len(choix) == 3:
                         vts = json.load(open(VOTES_FILE))
-                        points = [5, 3, 1]
+                        pts_map = [5, 3, 1]
                         for idx, v in enumerate(choix):
-                            vts[v] = vts.get(v, 0) + points[idx]
+                            vts[v] = vts.get(v, 0) + pts_map[idx]
                         with open(VOTES_FILE, "w") as f: json.dump(vts, f)
                         
                         components.html(f"""<script>localStorage.setItem("{vote_key}", "true"); setTimeout(() => {{ window.parent.location.reload(); }}, 300);</script>""", height=0)
                         st.session_state["voted_final"] = True
                         st.rerun()
                     else:
-                        st.error("⚠️ Sélectionnez exactement 3 vidéos.")
+                        st.error("⚠️ Vous devez choisir 3 services pour valider.")
 
 # --- 5. MUR SOCIAL ---
 else:
+    # (Le reste du code du mur social reste inchangé)
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
