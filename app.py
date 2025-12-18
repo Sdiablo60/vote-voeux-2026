@@ -14,31 +14,40 @@ st.set_page_config(page_title="Social Wall Pro", layout="wide", initial_sidebar_
 GALLERY_DIR = "galerie_images"
 LOGO_FILE = "logo_entreprise.png"
 MSG_FILE = "live_config.csv"
-PWD_FILE = "admin_pwd.txt"
 
 if not os.path.exists(GALLERY_DIR): os.makedirs(GALLERY_DIR)
 
-# --- STYLE CSS ANTI-ÉCRAN NOIR ---
+# --- STYLE CSS CRITIQUE (ANTI-SCROLL & ANTI-FLASH) ---
 st.markdown("""
     <style>
-    html, body, .stApp, [data-testid="stAppViewContainer"] {
-        background-color: black !important;
+    /* Force le noir absolu sur toutes les couches de Streamlit */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"], .stApp {
+        background-color: #000000 !important;
         overflow: hidden !important;
+        height: 100vh !important;
+        width: 100vw !important;
     }
-    .main .block-container { padding: 0 !important; }
-    #MainMenu, footer, [data-testid="stHeader"] { display: none !important; }
+    /* Supprime les marges qui créent le scroll */
+    .main .block-container {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    /* Masque les outils Streamlit */
+    #MainMenu, footer, [data-testid="stDecoration"] { display: none !important; }
     </style>
 """, unsafe_allow_html=True)
 
 def get_b64(path):
     if os.path.exists(path):
-        with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
+        try:
+            with open(path, "rb") as f: return base64.b64encode(f.read()).decode()
+        except: return None
     return None
 
 def get_config():
     if os.path.exists(MSG_FILE):
         return pd.read_csv(MSG_FILE).iloc[0].to_dict()
-    return {"texte": "✨ EN ATTENTE DE PHOTOS ✨", "couleur": "#FFFFFF", "taille": 50}
+    return {"texte": "✨ ENVOYEZ VOS PHOTOS ! ✨", "couleur": "#FFFFFF", "taille": 50}
 
 params = st.query_params
 est_admin = params.get("admin") == "true"
@@ -46,33 +55,26 @@ mode_vote = params.get("mode") == "vote"
 
 # --- 3. INTERFACE ADMIN ---
 if est_admin:
-    st.title("⚙️ Administration")
-    pwd = st.text_input("Mot de passe", type="password")
+    st.title("⚙️ Régie")
+    pwd = st.text_input("Code", type="password")
     if pwd == "ADMIN_LIVE_MASTER":
         config = get_config()
-        new_txt = st.text_input("Message", config["texte"])
-        if st.button("Mettre à jour"):
-            pd.DataFrame([{"texte": new_txt, "couleur": "#FFFFFF", "taille": 50}]).to_csv(MSG_FILE, index=False)
+        t = st.text_input("Message", config["texte"])
+        if st.button("Enregistrer"):
+            pd.DataFrame([{"texte": t, "couleur": "#FFFFFF", "taille": 50}]).to_csv(MSG_FILE, index=False)
             st.rerun()
-        
-        up = st.file_uploader("Ajouter des photos", accept_multiple_files=True)
+        up = st.file_uploader("Photos", accept_multiple_files=True)
         if up:
             for f in up:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
             st.rerun()
-        
-        imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-        for p in imgs:
-            if st.button(f"Supprimer {os.path.basename(p)}"):
-                os.remove(p)
-                st.rerun()
     else: st.stop()
 
 # --- 4. MODE LIVE ---
 elif not mode_vote:
     try:
         from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(interval=30000, key="refresh")
+        st_autorefresh(interval=25000, key="wall_refresh")
     except: pass
 
     config = get_config()
@@ -85,44 +87,47 @@ elif not mode_vote:
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
     photos_html = ""
-    for img_path in img_list[-15:]:
+    # On limite à 12 photos pour la fluidité
+    for img_path in img_list[-12:]:
         b64 = get_b64(img_path)
         if b64:
-            size, top, left = random.randint(150, 220), random.randint(10, 70), random.randint(10, 80)
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.randint(5,10)}s;">'
+            size = random.randint(160, 240)
+            top, left = random.randint(5, 75), random.randint(5, 80)
+            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(6,12)}s; animation-delay:-{random.uniform(0,10)}s;">'
 
     html_code = f"""
     <html>
     <head>
         <style>
-            body {{ background: black; color: white; margin: 0; overflow: hidden; font-family: sans-serif; }}
-            .wall {{ position: relative; width: 100vw; height: 100vh; }}
-            .title {{ position: absolute; top: 5%; width: 100%; text-align: center; font-size: {config['taille']}px; z-index: 100; }}
-            .center {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; }}
-            .qr {{ background: white; padding: 10px; border-radius: 10px; margin-top: 10px; display: inline-block; }}
-            .photo {{ position: absolute; border-radius: 50%; border: 3px solid white; animation: move alternate infinite ease-in-out; }}
-            @keyframes move {{ from {{ transform: translate(0,0); }} to {{ transform: translate(50px, 50px); }} }}
+            /* LE NOIR DOIT ÊTRE DÉFINI ICI AUSSI */
+            * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+            body, html {{ background-color: black !important; overflow: hidden; height: 100vh; width: 100vw; font-family: sans-serif; }}
+            
+            .wall {{ position: relative; width: 100vw; height: 100vh; background: black; }}
+            .title {{ position: absolute; top: 4%; width: 100%; text-align: center; color: white; font-size: {config['taille']}px; font-weight: bold; z-index: 100; text-shadow: 0 0 15px rgba(255,255,255,0.5); }}
+            
+            .center-zone {{ position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; text-align: center; }}
+            .logo {{ width: 240px; margin-bottom: 15px; filter: drop-shadow(0 0 15px white); }}
+            .qr-box {{ background: white; padding: 10px; border-radius: 15px; display: inline-block; box-shadow: 0 0 20px rgba(255,255,255,0.3); }}
+            
+            .photo {{ position: absolute; border-radius: 50%; border: 4px solid white; object-fit: cover; animation: float alternate infinite ease-in-out; opacity: 0.9; }}
+            @keyframes float {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(70px, 90px) rotate(10deg); }} }}
         </style>
     </head>
     <body>
         <div class="wall">
             <div class="title">{config['texte']}</div>
-            <div class="center">
-                {f'<img src="data:image/png;base64,{logo_b64}" width="200">' if logo_b64 else ''}
-                <div class="qr"><img src="data:image/png;base64,{qr_b64}" width="100"><br><b style="color:black; font-size:10px;">PARTICIPER</b></div>
+            <div class="center-zone">
+                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
+                <div class="qr-box">
+                    <img src="data:image/png;base64,{qr_b64}" width="110">
+                    <div style="color:black; font-size:10px; font-weight:bold; margin-top:5px;">SCANNEZ MOI</div>
+                </div>
             </div>
             {photos_html}
         </div>
     </body>
     </html>
     """
-    components.html(html_code, height=1000)
-
-# --- 5. MODE VOTE ---
-else:
-    st.title("📸 Envoyez votre photo !")
-    f = st.file_uploader("Prendre une photo", type=['jpg', 'png'])
-    if f:
-        with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1,999)}.jpg"), "wb") as img_file:
-            img_file.write(f.getbuffer())
-        st.success("Reçu ! Regardez l'écran !")
+    # Le secret est ici : on utilise une hauteur fixe légèrement plus petite que 100vh
+    components.html(html_code, height=900, scrolling=False)
