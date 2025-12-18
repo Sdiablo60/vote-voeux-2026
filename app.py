@@ -7,7 +7,7 @@ import base64
 import qrcode
 from io import BytesIO
 
-# --- CONFIGURATION ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Social Wall 2026", layout="wide", initial_sidebar_state="collapsed")
 
 GALLERY_DIR = "galerie_images"
@@ -24,78 +24,86 @@ def get_b64(path):
     except: return None
     return None
 
-# --- LOGIQUE ---
+def get_config():
+    if os.path.exists(MSG_FILE):
+        try: return pd.read_csv(MSG_FILE).iloc[0].to_dict()
+        except: pass
+    return {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 45}
+
+# --- 2. LOGIQUE ---
 params = st.query_params
 est_admin = params.get("admin") == "true"
 mode_vote = params.get("mode") == "vote"
 
-# --- INTERFACE ADMIN ---
+# --- 3. INTERFACE ADMIN ---
 if est_admin:
     st.title("🛠️ Console Régie Master")
     pwd_actuel = open(PWD_FILE).read().strip() if os.path.exists(PWD_FILE) else "ADMIN_VOEUX_2026"
     with st.sidebar:
         input_pwd = st.text_input("Code Secret", type="password")
-    if input_pwd != pwd_actuel:
-        st.warning("Code requis.")
-        st.stop()
-
-    config = {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 45}
-    if os.path.exists(MSG_FILE): config = pd.read_csv(MSG_FILE).iloc[0].to_dict()
     
-    t1, t2 = st.tabs(["💬 Config", "🖼️ Galerie"])
+    if input_pwd != pwd_actuel:
+        st.warning("Veuillez saisir le code dans la barre latérale.")
+        st.stop() 
+
+    config = get_config()
+    t1, t2 = st.tabs(["💬 Configuration", "🖼️ Galerie & Logo"])
+    
     with t1:
-        txt = st.text_area("Message", config["texte"])
-        clr = st.color_picker("Couleur", config["couleur"])
-        siz = st.slider("Taille", 20, 100, int(config["taille"]))
-        if st.button("Enregistrer"):
+        col1, col2 = st.columns(2)
+        txt = col1.text_area("Message", config["texte"])
+        clr = col2.color_picker("Couleur", config["couleur"])
+        siz = col2.slider("Taille", 20, 100, int(config["taille"]))
+        if st.button("🚀 Enregistrer"):
             pd.DataFrame([{"texte": txt, "couleur": clr, "taille": siz}]).to_csv(MSG_FILE, index=False)
             st.rerun()
+            
     with t2:
-        ul = st.file_uploader("Logo", type=['png','jpg'])
+        c1, c2 = st.columns(2)
+        ul = c1.file_uploader("Logo", type=['png','jpg','jpeg'])
         if ul:
             with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
             st.rerun()
-        uf = st.file_uploader("Photos", type=['png','jpg'], accept_multiple_files=True)
+        uf = c2.file_uploader("Ajouter des photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
         if uf:
             for f in uf:
                 with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
             st.rerun()
+        
+        st.divider()
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
         cols = st.columns(6)
         for i, p in enumerate(imgs):
             with cols[i%6]:
-                st.image(p)
-                if st.button("🗑️", key=f"del_{i}"): os.remove(p); st.rerun()
+                st.image(p, use_container_width=True)
+                if st.button("🗑️", key=f"del_{i}"):
+                    os.remove(p)
+                    st.rerun()
 
-# --- MODE LIVE (SOCIAL WALL) ---
+# --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
-    config = {"texte": "✨ BIENVENUE ✨", "couleur": "#FFFFFF", "taille": 45}
-    if os.path.exists(MSG_FILE):
-        try: config = pd.read_csv(MSG_FILE).iloc[0].to_dict()
-        except: pass
-    
+    config = get_config()
     logo_b64 = get_b64(LOGO_FILE)
     img_list = glob.glob(os.path.join(GALLERY_DIR, "*"))
     
+    # QR Code
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO()
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-    # Génération des étoiles
+    # Préparation HTML dynamique
     stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}vh; left:{random.randint(0,100)}vw; width:{random.randint(1,3)}px; height:{random.randint(1,3)}px; animation-delay:{random.random()*3}s;"></div>' for _ in range(80)])
     
-    # Génération des photos
     photos_html = ""
     valid_photos = [get_b64(p) for p in img_list[-10:] if get_b64(p)]
     for i, b64 in enumerate(valid_photos):
         delay = -(i * (25 / max(len(valid_photos), 1)))
         photos_html += f'<img src="data:image/png;base64,{b64}" class="photo-bubble" style="animation-delay:{delay}s;">'
 
-    # INJECTION CSS & HTML (CORRECTION CADRE BLANC)
+    # INJECTION CSS (Notez les doubles {{ }} pour le CSS et simples { } pour les variables)
     st.markdown(f"""
     <style>
-        /* Supprime les marges de Streamlit et force le noir */
         [data-testid="stAppViewContainer"], .stApp {{
             background-color: #050505 !important;
             padding: 0 !important;
@@ -115,7 +123,7 @@ elif not mode_vote:
 
         .title-text {{
             position: absolute; top: 8%; width: 100%; text-align: center;
-            font-family: sans-serif; font-weight: bold; z-index: 100;
+            font-family: sans-serif; font-weight: bold; z-index: 10001;
             color: {config['couleur']}; font-size: {config['taille']}px;
             text-shadow: 0 0 20px {config['couleur']}aa;
         }}
@@ -123,6 +131,7 @@ elif not mode_vote:
         .center-hub {{
             position: absolute; top: 55%; left: 50%;
             transform: translate(-50%, -50%); width: 1px; height: 1px;
+            z-index: 10000;
         }}
 
         .logo-img {{
@@ -136,7 +145,7 @@ elif not mode_vote:
             border-radius: 50%; border: 3px solid white; object-fit: cover;
             box-shadow: 0 0 15px rgba(255,255,255,0.3);
             animation: orbitAnim 25s linear infinite;
-        }
+        }}
 
         @keyframes orbitAnim {{
             from {{ transform: rotate(0deg) translateX(260px) rotate(0deg); }}
@@ -146,7 +155,7 @@ elif not mode_vote:
         .qr-anchor {{
             position: fixed; bottom: 30px; right: 30px;
             background: white; padding: 10px; border-radius: 12px;
-            text-align: center; z-index: 200;
+            text-align: center; z-index: 10002;
         }}
     </style>
 
@@ -159,10 +168,12 @@ elif not mode_vote:
         </div>
         <div class="qr-anchor">
             <img src="data:image/png;base64,{qr_b64}" width="100"><br>
-            <b style="color:black; font-family:sans-serif; font-size:10px;">SCANEZ POUR VOTER</b>
+            <b style="color:black; font-family:sans-serif; font-size:10px;">SCANNEZ POUR VOTER</b>
         </div>
     </div>
     """, unsafe_allow_html=True)
 
+# --- 5. MODE VOTE ---
 else:
     st.title("🗳️ Participation")
+    st.write("Interface mobile active.")
