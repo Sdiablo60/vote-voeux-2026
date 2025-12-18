@@ -55,10 +55,9 @@ if est_admin:
                 with open(CONFIG_FILE, "w") as f: json.dump(config, f)
                 st.rerun()
 
-# --- 4. MUR SOCIAL (MISE EN PAGE ET COMPTEUR) ---
+# --- 4. MUR SOCIAL ---
 elif not est_utilisateur:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
-    
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
@@ -70,18 +69,11 @@ elif not est_utilisateur:
     if not config.get("session_ouverte", False):
         attente_html = f"""
         <div style="display: flex; align-items: center; justify-content: center; gap: 40px; margin-top: 25px;">
-            <div style="background: white; padding: 8px; border-radius: 10px; border: 3px solid #E2001A;">
-                <img src="data:image/png;base64,{qr_b64}" width="110">
-            </div>
-            <div style="background:#E2001A; color:white; padding:15px 40px; border-radius:12px; font-size:32px; font-weight:bold; border:3px solid white; animation: blinker 1.5s linear infinite;">
-                ⌛ En attente ouverture des votes...
-            </div>
-            <div style="background: white; padding: 8px; border-radius: 10px; border: 3px solid #E2001A;">
-                <img src="data:image/png;base64,{qr_b64}" width="110">
-            </div>
+            <div style="background: white; padding: 8px; border-radius: 10px; border: 3px solid #E2001A;"><img src="data:image/png;base64,{qr_b64}" width="110"></div>
+            <div style="background:#E2001A; color:white; padding:15px 40px; border-radius:12px; font-size:32px; font-weight:bold; border:3px solid white; animation: blinker 1.5s linear infinite;">⌛ En attente ouverture des votes...</div>
+            <div style="background: white; padding: 8px; border-radius: 10px; border: 3px solid #E2001A;"><img src="data:image/png;base64,{qr_b64}" width="110"></div>
         </div>
         """
-
     st.markdown(f"""
         <style>@keyframes blinker {{ 50% {{ opacity: 0; }} }}</style>
         <div style="text-align:center; padding-top:20px; font-family:sans-serif;">
@@ -108,19 +100,13 @@ elif not est_utilisateur:
         st_autorefresh(interval=5000, key="wall_refresh")
     except: pass
 
-# --- 5. UTILISATEUR (FOND NOIR & TEXTE BLANC) ---
+# --- 5. UTILISATEUR (AUTO-REFRESH AJOUTÉ) ---
 else:
-    st.markdown("""
-        <style>
-        .stApp { background-color: black !important; color: white !important; }
-        .stTextInput label, .stMultiSelect label, p { color: white !important; }
-        div[data-baseweb="input"] { background-color: #333 !important; }
-        input { color: white !important; }
-        </style>
-    """, unsafe_allow_html=True)
-    
+    st.markdown("""<style>.stApp { background-color: black !important; color: white !important; }</style>""", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
     vote_key = f"transdev_v{VOTE_VERSION}"
+    
+    # Sécurité Vote
     components.html(f'<script>if(localStorage.getItem("{vote_key}")){{window.parent.postMessage({{type:"voted"}},"*");}}</script>', height=0)
 
     if st.session_state.get("voted"):
@@ -134,19 +120,23 @@ else:
                         st.session_state["user_pseudo"] = p
                         parts = json.load(open(PARTICIPANTS_FILE))
                         if p not in parts:
-                            parts.append(p)
-                            json.dump(parts, open(PARTICIPANTS_FILE, "w"))
+                            parts.append(p); json.dump(parts, open(PARTICIPANTS_FILE, "w"))
                         st.rerun()
                     else: st.error("Pseudo requis.")
         else:
             if not config.get("session_ouverte", False):
+                # AJOUT DE L'AUTO-REFRESH SUR LE TÉLÉPHONE (Invisible)
+                try:
+                    from streamlit_autorefresh import st_autorefresh
+                    st_autorefresh(interval=5000, key="mobile_check")
+                except: pass
+
                 st.markdown(f"""
                     <div style='text-align:center; padding:40px; border:2px dashed #E2001A; border-radius:15px; margin-top:20px;'>
                         <h2 style='color:#E2001A;'>⌛ En attente ouverture des votes...</h2>
-                        <p style='color:white;'>Bienvenue {st.session_state['user_pseudo']}. Le formulaire apparaîtra bientôt.</p>
+                        <p style='color:white;'>Bienvenue {st.session_state['user_pseudo']}.<br><b>Ne fermez pas cette page</b>, le vote va apparaître tout seul.</p>
                     </div>
                 """, unsafe_allow_html=True)
-                if st.button("Actualiser"): st.rerun()
             else:
                 with st.form("vote_real"):
                     options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
