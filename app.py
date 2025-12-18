@@ -27,117 +27,95 @@ if est_admin:
         <style>
         html, body, .stApp { background-color: white !important; color: black !important; }
         * { color: black !important; }
-        
-        .admin-header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            padding: 15px 20px; 
-            border-bottom: 1px solid #eee; 
-            margin-bottom: 20px; 
-        }
-        
-        .logo-top-right {
-            max-width: 120px;
-            max-height: 60px;
-            object-fit: contain;
-        }
-
+        .admin-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+        .logo-top-right { max-width: 100px; max-height: 50px; object-fit: contain; }
         [data-testid="stSidebar"] { min-width: 300px !important; }
-        [data-testid="stHeader"] { display: block !important; }
-        
-        /* Discrétion de l'expander */
-        .stDetails { border: none !important; background-color: #f9f9f9 !important; border-radius: 10px !important; }
+        /* Style liste compacte */
+        .liste-item { display: flex; align-items: center; gap: 20px; padding: 5px; border-bottom: 1px solid #eee; }
         </style>
     """, unsafe_allow_html=True)
     
     with st.sidebar:
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
-        
         st.title("⚙️ Réglages")
         pwd = st.text_input("Code Secret Admin", type="password")
         st.divider()
 
         if pwd == "ADMIN_LIVE_MASTER":
             st.success("Admin connecté")
-            
             st.subheader("🖼️ Logo")
             ul_sidebar = st.file_uploader("Changer le logo", type=['png', 'jpg', 'jpeg'], key="logo_side")
             if ul_sidebar:
                 with open(LOGO_FILE, "wb") as f: f.write(ul_sidebar.getbuffer())
                 st.rerun()
-
-            st.divider()
             if st.button("🧨 VIDER LA GALERIE", use_container_width=True):
-                imgs_to_del = glob.glob(os.path.join(GALLERY_DIR, "*"))
-                for f in imgs_to_del: os.remove(f)
+                for f in glob.glob(os.path.join(GALLERY_DIR, "*")): os.remove(f)
                 st.rerun()
         else:
             st.warning("Identification requise.")
 
-    # --- ÉCRAN CENTRAL ---
     if pwd == "ADMIN_LIVE_MASTER":
-        # HEADER ÉPURÉ
+        # HEADER
         logo_html = ""
         if os.path.exists(LOGO_FILE):
             with open(LOGO_FILE, "rb") as f:
                 data = base64.b64encode(f.read()).decode()
             logo_html = f'<img src="data:image/png;base64,{data}" class="logo-top-right">'
         
-        st.markdown(f"""
-            <div class="admin-header">
-                <div><h2 style="margin:0;">Console Régie</h2></div>
-                <div>{logo_html}</div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div class="admin-header"><div><h2 style="margin:0;">Console Régie</h2></div><div>{logo_html}</div></div>', unsafe_allow_html=True)
         
-        # BOUTON DU MUR (Moins imposant)
-        url_mur = f"https://{st.context.headers.get('host', 'localhost')}/"
-        st.link_button("🖥️ PROJETER LE MUR", url_mur, use_container_width=True)
+        st.link_button("🖥️ PROJETER LE MUR", f"https://{st.context.headers.get('host', 'localhost')}/", use_container_width=True)
 
-        # --- BOUTON DISCRET D'AJOUT (EXPANDER) ---
         with st.expander("➕ Ajouter des photos manuellement"):
-            up_center = st.file_uploader("Sélectionnez vos fichiers", 
-                                        accept_multiple_files=True, 
-                                        key="ph_center")
+            up_center = st.file_uploader("Fichiers", accept_multiple_files=True, key="ph_center")
             if up_center:
                 for f in up_center:
-                    with open(os.path.join(GALLERY_DIR, f.name), "wb") as file:
-                        file.write(f.getbuffer())
-                st.success(f"{len(up_center)} photo(s) ajoutée(s) !")
-                time.sleep(1)
+                    with open(os.path.join(GALLERY_DIR, f.name), "wb") as file: file.write(f.getbuffer())
                 st.rerun()
 
         st.divider()
 
-        # GALERIE DE MODÉRATION
+        # --- SÉLECTEUR DE MODE D'AFFICHAGE ---
         imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
-        st.subheader(f"🖼️ Modération ({len(imgs)} photos)")
-        
+        col_t, col_s = st.columns([2, 1])
+        with col_t:
+            st.subheader(f"🖼️ Modération ({len(imgs)} photos)")
+        with col_s:
+            mode_vue = st.radio("Affichage :", ["Vignettes", "Liste"], horizontal=True, label_visibility="collapsed")
+
         if not imgs:
-            st.info("Aucune photo sur le mur.")
+            st.info("Aucune photo.")
         else:
-            cols = st.columns(5) # 5 colonnes pour voir plus de photos
-            for i, img_path in enumerate(reversed(imgs)):
-                with cols[i % 5]:
-                    st.image(img_path, use_container_width=True)
-                    if st.button("Supprimer", key=f"del_{i}"):
-                        os.remove(img_path)
-                        st.rerun()
+            # --- MODE VIGNETTES (GRILLE) ---
+            if mode_vue == "Vignettes":
+                cols = st.columns(6) # Grille encore plus petite (6 colonnes)
+                for i, img_path in enumerate(reversed(imgs)):
+                    with cols[i % 6]:
+                        st.image(img_path, use_container_width=True)
+                        if st.button("Suppr.", key=f"vign_{i}"):
+                            os.remove(img_path)
+                            st.rerun()
+
+            # --- MODE LISTE (LIGNES COMPACTES) ---
+            else:
+                for i, img_path in enumerate(reversed(imgs)):
+                    col_img, col_txt, col_btn = st.columns([1, 4, 1])
+                    with col_img:
+                        st.image(img_path, width=60)
+                    with col_txt:
+                        st.text(os.path.basename(img_path))
+                    with col_btn:
+                        if st.button("Supprimer", key=f"list_{i}"):
+                            os.remove(img_path)
+                            st.rerun()
     else:
         st.markdown('<div style="text-align:center; margin-top:100px;"><h1>🔒 Accès Réservé</h1></div>', unsafe_allow_html=True)
 
 # --- 4. MODE LIVE (MUR NOIR) ---
 elif not mode_vote:
-    st.markdown("""
-        <style>
-        :root { background-color: #000000 !important; }
-        html, body, [data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; overflow: hidden !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; }
-        [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; }
-        iframe { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; border: none !important; background-color: #000000 !important; z-index: 9999; }
-        </style>
-    """, unsafe_allow_html=True)
+    # Le code du mur reste identique pour la stabilité
+    st.markdown("""<style>:root { background-color: #000000 !important; } html, body, [data-testid="stAppViewContainer"], .stApp { background-color: #000000 !important; overflow: hidden !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; } [data-testid="stHeader"], footer, #MainMenu, [data-testid="stDecoration"] { display: none !important; } iframe { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; border: none !important; background-color: #000000 !important; z-index: 9999; }</style>""", unsafe_allow_html=True)
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(interval=25000, key="wall_refresh")
@@ -158,45 +136,15 @@ elif not mode_vote:
     for img_path in img_list[-15:]:
         b64 = get_b64(img_path)
         if b64:
-            size = random.randint(180, 260)
-            top, left = random.randint(10, 70), random.randint(5, 80)
-            duration = random.uniform(8, 14)
-            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{duration}s;">'
-    html_code = f"""
-    <!DOCTYPE html>
-    <html style="background: black;">
-    <body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw; opacity: 0; animation: fadeIn 1.5s forwards;">
-        <style>
-            @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
-            .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }}
-            .main-title {{ position: absolute; top: 40px; width: 100%; text-align: center; color: white; font-family: sans-serif; font-size: 55px; font-weight: bold; z-index: 1001; text-shadow: 0 0 20px rgba(255,255,255,0.7); }}
-            .center-stack {{ position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 20px; }}
-            .logo {{ max-width: 300px; filter: drop-shadow(0 0 15px white); }}
-            .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; }}
-            .photo {{ position: absolute; border-radius: 50%; border: 5px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.95; box-shadow: 0 0 20px rgba(0,0,0,0.5); }}
-            @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 80px) rotate(8deg); }} }}
-        </style>
-        <div class="container">
-            <div class="main-title">MEILLEURS VŒUX 2026</div>
-            <div class="center-stack">
-                {f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}
-                <div class="qr-box">
-                    <img src="data:image/png;base64,{qr_b64}" width="130">
-                </div>
-            </div>
-            {photos_html}
-        </div>
-    </body>
-    </html>
-    """
+            size, top, left = random.randint(180, 260), random.randint(10, 70), random.randint(5, 80)
+            photos_html += f'<img src="data:image/png;base64,{b64}" class="photo" style="width:{size}px; height:{size}px; top:{top}%; left:{left}%; animation-duration:{random.uniform(8, 14)}s;">'
+    html_code = f"""<!DOCTYPE html><html style="background: black;"><body style="margin: 0; padding: 0; background: black; overflow: hidden; height: 100vh; width: 100vw; opacity: 0; animation: fadeIn 1.5s forwards;"><style>@keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }} .container {{ position: relative; width: 100vw; height: 100vh; background: black; overflow: hidden; }} .main-title {{ position: absolute; top: 40px; width: 100%; text-align: center; color: white; font-family: sans-serif; font-size: 55px; font-weight: bold; z-index: 1001; text-shadow: 0 0 20px rgba(255,255,255,0.7); }} .center-stack {{ position: absolute; top: 55%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; display: flex; flex-direction: column; align-items: center; gap: 20px; }} .logo {{ max-width: 300px; filter: drop-shadow(0 0 15px white); }} .qr-box {{ background: white; padding: 12px; border-radius: 15px; text-align: center; }} .photo {{ position: absolute; border-radius: 50%; border: 5px solid white; object-fit: cover; animation: move alternate infinite ease-in-out; opacity: 0.95; box-shadow: 0 0 20px rgba(0,0,0,0.5); }} @keyframes move {{ from {{ transform: translate(0,0) rotate(0deg); }} to {{ transform: translate(60px, 80px) rotate(8deg); }} }} </style><div class="container"><div class="main-title">MEILLEURS VŒUX 2026</div><div class="center-stack">{f'<img src="data:image/png;base64,{logo_b64}" class="logo">' if logo_b64 else ''}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="130"></div></div>{photos_html}</div></body></html>"""
     components.html(html_code)
 
 # --- 5. MODE VOTE ---
 else:
-    st.markdown("<style>html, body, .stApp { background-color: #111 !important; color: white !important; }</style>", unsafe_allow_html=True)
-    st.title("📸 Partagez votre photo !")
-    f = st.file_uploader("Prendre une photo", type=['jpg', 'jpeg', 'png'])
+    st.title("📸 Envoyez votre photo !")
+    f = st.file_uploader("Choisir", type=['jpg', 'jpeg', 'png'])
     if f:
-        with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out:
-            out.write(f.getbuffer())
-        st.success("✅ C'est en ligne !")
+        with open(os.path.join(GALLERY_DIR, f"img_{random.randint(1000,9999)}.jpg"), "wb") as out: out.write(f.getbuffer())
+        st.success("✅ Reçu !")
