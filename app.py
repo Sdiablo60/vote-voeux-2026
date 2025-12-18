@@ -47,40 +47,40 @@ if est_admin:
         pwd_actuel = f.read().strip()
 
     with st.sidebar:
-        # 1. LOGO EN PREMIER
+        # 1. LOGO EN PREMIER (TOUJOURS VISIBLE)
         if os.path.exists(LOGO_FILE):
             st.image(LOGO_FILE, use_container_width=True)
         else:
             st.info("Aucun logo chargé")
         
+        # Uploader de logo (Toujours accessible pour l'admin)
+        ul = st.file_uploader("Charger/Modifier le Logo", type=['png','jpg','jpeg'], key="logo_fix")
+        if ul:
+            with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
+            st.rerun()
+
         st.divider()
         
         # 2. SÉCURITÉ ET MOT DE PASSE
         st.header("🔑 Accès Régie")
         input_pwd = st.text_input("Saisir le Code Secret", type="password")
         
+        # Section protégée
         if input_pwd == pwd_actuel:
             st.success("Console Déverrouillée")
             
             st.divider()
-            # 3. CONFIGURATION MESSAGE
             st.header("💬 Message Live")
             config = get_config()
             new_txt = st.text_area("Texte", config["texte"])
             new_clr = st.color_picker("Couleur", config["couleur"])
             new_siz = st.slider("Taille", 20, 150, int(config["taille"]))
-            if st.button("🚀 Mettre à jour le Mur"):
+            if st.button("🚀 Appliquer"):
                 pd.DataFrame([{"texte": new_txt, "couleur": new_clr, "taille": new_siz}]).to_csv(MSG_FILE, index=False)
                 st.rerun()
 
             st.divider()
-            # 4. GESTION LOGO ET PHOTOS
-            st.header("🖼️ Médias")
-            ul = st.file_uploader("Nouveau Logo", type=['png','jpg','jpeg'])
-            if ul:
-                with open(LOGO_FILE, "wb") as f: f.write(ul.getbuffer())
-                st.rerun()
-                
+            st.header("📸 Photos")
             uf = st.file_uploader("Ajouter Photos", type=['png','jpg','jpeg'], accept_multiple_files=True)
             if uf:
                 for f in uf:
@@ -88,25 +88,18 @@ if est_admin:
                 st.rerun()
 
             st.divider()
-            # 5. PARAMÈTRES AVANCÉS (CHANGER PWD)
-            with st.expander("⚙️ Sécurité Avancée"):
-                new_pwd = st.text_input("Nouveau mot de passe", type="password")
-                if st.button("💾 Enregistrer nouveau code"):
-                    if new_pwd:
-                        with open(PWD_FILE, "w") as f: f.write(new_pwd)
-                        st.success("Code modifié !")
-                        st.rerun()
-                
-                st.divider()
-                st.warning("Aide-mémoire : Année de l'événement en majuscules")
-                if st.button("♻️ Réinitialiser d'usine"):
-                    with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD)
-                    st.rerun()
+            with st.expander("⚙️ Paramètres"):
+                new_pwd = st.text_input("Changer MDP", type="password")
+                if st.button("💾 Sauver MDP"):
+                    with open(PWD_FILE, "w") as f: f.write(new_pwd); st.rerun()
+                st.info(f"Défaut: {DEFAULT_PWD}")
+                if st.button("♻️ Reset Usine"):
+                    with open(PWD_FILE, "w") as f: f.write(DEFAULT_PWD); st.rerun()
         else:
             st.stop()
 
-    # Corps de la page : Galerie de gestion
-    st.subheader("🗑️ Gestion de la Galerie Live")
+    # Galerie de suppression (Corps de page)
+    st.subheader("🗑️ Gestion de la Galerie")
     imgs = glob.glob(os.path.join(GALLERY_DIR, "*"))
     cols = st.columns(6)
     for i, p in enumerate(imgs):
@@ -117,7 +110,6 @@ if est_admin:
 
 # --- 4. MODE LIVE (SOCIAL WALL) ---
 elif not mode_vote:
-    # Nettoyage visuel complet du mode Live
     st.markdown("""<style>#MainMenu, header, footer {display: none !important;} [data-testid="stHeader"] {display:none !important;} .stApp {background:black !important;}</style>""", unsafe_allow_html=True)
     
     try:
@@ -135,6 +127,7 @@ elif not mode_vote:
     qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
+    # HTML/CSS du Mur (Inchangé)
     stars_html = "".join([f'<div class="star" style="top:{random.randint(0,100)}%; left:{random.randint(0,100)}%; width:2px; height:2px; animation-delay:{random.random()*3}s;"></div>' for _ in range(60)])
     valid_photos = [get_b64(p) for p in img_list[-12:] if get_b64(p)]
     photos_html = "".join([f'<img src="data:image/png;base64,{b}" class="photo" style="animation-delay:{-(i*(30/max(len(valid_photos),1)))}s;">' for i, b in enumerate(valid_photos)])
@@ -155,29 +148,15 @@ elif not mode_vote:
             .qr {{ position: absolute; bottom: 25px; right: 25px; background: white; padding: 10px; border-radius: 12px; text-align: center; color: black; z-index: 200; }}
         </style>
     </head>
-    <body>
-        <div class="wall">
-            {stars_html}
-            <div class="title">{config['texte']}</div>
-            <div class="center-container">
-                {"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}
-                {photos_html}
-            </div>
-            <div class="qr">
-                <img src="data:image/png;base64,{qr_b64}" width="95"><br>
-                <span style="font-size:10px; font-weight:bold;">SCANNEZ POUR PARTICIPER</span>
-            </div>
-        </div>
-    </body>
+    <body><div class="wall">{stars_html}<div class="title">{config['texte']}</div><div class="center-container">{"<img src='data:image/png;base64," + logo_b64 + "' class='logo'>" if logo_b64 else ""}{photos_html}</div><div class="qr"><img src="data:image/png;base64,{qr_b64}" width="95"><br><span style="font-size:10px; font-weight:bold;">SCANNEZ POUR PARTICIPER</span></div></div></body>
     </html>
     """
     components.html(html_code, height=980, scrolling=False)
 
 # --- 5. MODE VOTE ---
 else:
-    st.title("🗳️ Participez au Social Wall")
-    uf = st.file_uploader("Envoyez votre photo ✨", type=['jpg', 'jpeg', 'png'])
+    st.title("🗳️ Participez")
+    uf = st.file_uploader("Photo ✨", type=['jpg', 'jpeg', 'png'])
     if uf:
         with open(os.path.join(GALLERY_DIR, uf.name), "wb") as f: f.write(uf.getbuffer())
-        st.success("C'est envoyé ! Regardez l'écran géant.")
-        st.balloons()
+        st.success("Envoyé !")
