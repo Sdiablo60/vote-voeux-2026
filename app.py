@@ -173,9 +173,10 @@ def inject_visual_effect(effect_name, intensity, speed):
         setInterval(draw, {refresh});
         </script>"""
     
+    js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- 2. GENERATEUR HTML DE TV RETRO (PREVIEW ADMIN) ---
+# --- 2. GENERATEUR HTML DE TV RETRO ---
 def get_tv_html(effect_js):
     return f"""
     <html>
@@ -265,22 +266,31 @@ est_utilisateur = st.query_params.get("mode") == "vote"
 
 # --- ADMINISTRATION ---
 if est_admin:
-    # CSS POUR FIGER LES TITRES (STICKY)
+    # CSS POUR FIGER LES TITRES (STICKY) SANS MOUVEMENT
     st.markdown("""
         <style>
-            /* Cible tous les titres h1 (st.title) pour les figer */
-            div[data-testid="stVerticalBlock"] > div:has(h1) {
-                position: sticky;
-                top: 0;
-                background-color: white;
-                z-index: 1000;
-                padding: 1rem 0;
-                border-bottom: 2px solid #f0f2f6;
+            /* Supprime les marges de Streamlit qui font "sauter" le titre */
+            .main .block-container {
+                padding-top: 2rem !important;
             }
+            
+            /* Cible tous les titres h1 (st.title) pour les figer radicalement */
+            div[data-testid="stVerticalBlock"] > div:has(h1) {
+                position: sticky !important;
+                top: 0 !important;
+                background-color: white !important;
+                z-index: 1000 !important;
+                padding-top: 10px !important;
+                padding-bottom: 15px !important;
+                margin-top: -15px !important;
+                border-bottom: 3px solid #E2001A !important;
+            }
+            
+            /* Mode sombre */
             @media (prefers-color-scheme: dark) {
                 div[data-testid="stVerticalBlock"] > div:has(h1) {
-                    background-color: #0e1117;
-                    border-bottom: 2px solid #262730;
+                    background-color: #0e1117 !important;
+                    border-bottom: 3px solid #E2001A !important;
                 }
             }
         </style>
