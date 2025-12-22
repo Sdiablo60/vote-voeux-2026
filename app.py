@@ -62,11 +62,9 @@ def save_config():
 def process_image_upload(uploaded_file):
     try:
         img = Image.open(uploaded_file)
-        # Conversion en RGBA pour gérer la transparence si c'est un PNG
         if img.mode != "RGBA": img = img.convert("RGBA")
         img.thumbnail((200, 200))
         buffered = BytesIO()
-        # Sauvegarde explicite en PNG pour garder la transparence
         img.save(buffered, format="PNG", quality=85)
         return base64.b64encode(buffered.getvalue()).decode()
     except: return None
@@ -163,6 +161,7 @@ if est_admin:
             t1, t2 = st.tabs(["Identité", "Gestion Questions"])
             
             with t1:
+                # Titre géré proprement
                 new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"], key=f"titre_{st.session_state.refresh_id}")
                 if new_t != st.session_state.config["titre_mur"]:
                     if st.button("Sauver Titre"):
@@ -259,7 +258,6 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
     if cfg.get("logo_b64"):
-        # Ajout de background:transparent pour le mobile aussi
         st.markdown(f"""<div style="text-align:center; margin-bottom:20px; background:transparent;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto; background:transparent;"></div>""", unsafe_allow_html=True)
     
     st.title("🗳️ Vote Transdev")
@@ -318,7 +316,6 @@ else:
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
     logo_html = ""
-    # AJOUT DE background: transparent explicitement
     if config.get("logo_b64"): 
         logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
 
@@ -326,7 +323,6 @@ else:
     if config["mode_affichage"] != "attente":
         counter_html = f'<div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold; margin-top:15px; font-size:18px;">👥 {nb_p} CONNECTÉS</div>'
 
-    # AJOUT DE background-color: transparent !important sur le conteneur principal
     st.markdown(f"""
     <div style="text-align:center; color:white; background-color: transparent !important;">
     {logo_html}
