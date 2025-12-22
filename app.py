@@ -35,9 +35,13 @@ def load_json(file, default):
         except: return default
     return default
 
-# Chargement initial
+# --- GESTION ÉTAT SESSION (CORRECTION DU BUG DE RAFRAICHISSEMENT) ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
+
+# Ce compteur sert à forcer le re-rendu des widgets (champs textes)
+if "refresh_id" not in st.session_state:
+    st.session_state.refresh_id = 0
 
 # Sécurités
 if "candidats" not in st.session_state.config: st.session_state.config["candidats"] = DEFAULT_CANDIDATS
@@ -46,67 +50,16 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
-# --- FONCTIONS UTILITAIRES (CALLBACKS) ---
+# --- FONCTIONS CRITIQUES ---
+
+def force_refresh():
+    """Incrémente le compteur pour obliger Streamlit à tout redessiner"""
+    st.session_state.refresh_id += 1
+    save_config()
 
 def save_config():
-    """Sauvegarde l'état actuel dans le fichier JSON"""
     with open(CONFIG_FILE, "w") as f:
         json.dump(st.session_state.config, f)
-
-def force_clear_cache():
-    """Force l'oubli des valeurs des champs textes pour éviter les doublons visuels"""
-    keys_to_clear = [k for k in st.session_state.keys() if k.startswith("input_name_")]
-    for k in keys_to_clear:
-        del st.session_state[k]
-
-def action_monter(idx):
-    """Callback pour monter un élément"""
-    c_list = st.session_state.config["candidats"]
-    if idx > 0:
-        # Echange dans la liste
-        c_list[idx], c_list[idx-1] = c_list[idx-1], c_list[idx]
-        save_config()
-        force_clear_cache() # IMPORTANT : On vide le cache visuel
-
-def action_descendre(idx):
-    """Callback pour descendre un élément"""
-    c_list = st.session_state.config["candidats"]
-    if idx < len(c_list) - 1:
-        c_list[idx], c_list[idx+1] = c_list[idx+1], c_list[idx]
-        save_config()
-        force_clear_cache() # IMPORTANT
-
-def action_supprimer(idx):
-    """Callback pour supprimer un élément"""
-    nom = st.session_state.config["candidats"][idx]
-    if nom in st.session_state.config["candidats_images"]:
-        del st.session_state.config["candidats_images"][nom]
-    st.session_state.config["candidats"].pop(idx)
-    save_config()
-    force_clear_cache() # IMPORTANT
-
-def action_renommer(idx, old_name):
-    """Callback quand le texte change"""
-    key = f"input_name_{idx}"
-    # Vérification que la clé existe (sécurité)
-    if key in st.session_state:
-        new_name = st.session_state[key]
-        if new_name != old_name:
-            if old_name in st.session_state.config["candidats_images"]:
-                st.session_state.config["candidats_images"][new_name] = st.session_state.config["candidats_images"].pop(old_name)
-            
-            st.session_state.config["candidats"][idx] = new_name
-            save_config()
-            st.toast(f"✅ Renommé en : {new_name}")
-
-def action_ajouter():
-    """Callback ajout"""
-    new_val = st.session_state.new_cand_input
-    if new_val and new_val not in st.session_state.config["candidats"]:
-        st.session_state.config["candidats"].append(new_val)
-        save_config()
-        st.session_state.new_cand_input = ""
-        force_clear_cache()
 
 def process_image_upload(uploaded_file):
     try:
@@ -116,7 +69,7 @@ def process_image_upload(uploaded_file):
         buffered = BytesIO()
         img.save(buffered, format="JPEG", quality=85)
         return base64.b64encode(buffered.getvalue()).decode()
-    except Exception as e: return None
+    except: return None
 
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -153,13 +106,13 @@ if est_admin:
             m, vo, re = cfg["mode_affichage"], cfg["session_ouverte"], cfg["reveal_resultats"]
 
             if c1.button("1. ACCUEIL", use_container_width=True, type="primary" if m=="attente" else "secondary"):
-                cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); save_config(); st.rerun()
+                cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); force_refresh(); st.rerun()
             if c2.button("2. VOTES ON", use_container_width=True, type="primary" if (m=="votes" and vo) else "secondary"):
-                cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); save_config(); st.rerun()
+                cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); force_refresh(); st.rerun()
             if c3.button("3. VOTES OFF", use_container_width=True, type="primary" if (m=="votes" and not vo and not re) else "secondary"):
-                cfg.update({"session_ouverte": False}); save_config(); st.rerun()
+                cfg.update({"session_ouverte": False}); force_refresh(); st.rerun()
             if c4.button("4. PODIUM", use_container_width=True, type="primary" if re else "secondary"):
-                cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); save_config(); st.rerun()
+                cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); force_refresh(); st.rerun()
 
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
@@ -177,33 +130,41 @@ if est_admin:
             t1, t2 = st.tabs(["Identité", "Gestion Questions"])
             
             with t1:
-                new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"])
-                if st.button("Sauver Titre"):
-                    st.session_state.config["titre_mur"] = new_t; save_config(); st.success("OK")
+                # Utilisation d'une clé dynamique pour le titre aussi
+                new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"], key=f"titre_{st.session_state.refresh_id}")
+                if new_t != st.session_state.config["titre_mur"]:
+                    if st.button("Sauver Titre"):
+                        st.session_state.config["titre_mur"] = new_t; force_refresh(); st.rerun()
                 
                 up_l = st.file_uploader("Logo", type=["png", "jpg"])
                 if up_l:
                     b64 = process_image_upload(up_l)
                     if b64:
-                        st.session_state.config["logo_b64"] = b64; save_config(); st.success("Logo OK"); st.rerun()
+                        st.session_state.config["logo_b64"] = b64; force_refresh(); st.success("Logo OK"); st.rerun()
 
             with t2:
                 # Ajout
                 c_add1, c_add2 = st.columns([3, 1])
-                c_add1.text_input("Nouveau candidat", key="new_cand_input", label_visibility="collapsed", placeholder="Nom...")
-                c_add2.button("➕ Ajouter", on_click=action_ajouter, use_container_width=True)
+                # Key dynamique pour vider le champ après ajout
+                new_cand = c_add1.text_input("Nouveau candidat", key=f"new_cand_{st.session_state.refresh_id}", label_visibility="collapsed", placeholder="Nom...")
+                if c_add2.button("➕ Ajouter", use_container_width=True):
+                    if new_cand and new_cand not in st.session_state.config["candidats"]:
+                        st.session_state.config["candidats"].append(new_cand)
+                        force_refresh()
+                        st.rerun()
                 
                 st.markdown("---")
                 
                 if not st.session_state.config["candidats"]:
                     st.warning("Liste vide.")
                 else:
-                    # En-tête
-                    cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5])
-                    cols[0].markdown("**Img**")
-                    cols[1].markdown("**Nom (Éditable)**")
+                    cols_head = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5])
+                    cols_head[0].markdown("**Img**")
+                    cols_head[1].markdown("**Nom (Éditable)**")
                     
-                    # BOUCLE SUR LA LISTE
+                    # On utilise l'ID de rafraîchissement dans TOUTES les clés
+                    rid = st.session_state.refresh_id
+                    
                     for i, cand in enumerate(st.session_state.config["candidats"]):
                         cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5], vertical_alignment="center")
                         
@@ -213,47 +174,59 @@ if est_admin:
                                 st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][cand])), width=40)
                             else: st.write("⚪")
                         
-                        # 2. Input Nom (CALLBACK)
+                        # 2. Input Nom (KEY DYNAMIQUE = SOLUTION)
                         with cols[1]:
-                            st.text_input(
-                                "Nom", 
-                                value=cand, 
-                                key=f"input_name_{i}", 
-                                label_visibility="collapsed",
-                                on_change=action_renommer,
-                                args=(i, cand)
-                            )
+                            val_edit = st.text_input("Nom", value=cand, key=f"n_{i}_{rid}", label_visibility="collapsed")
+                            # Si l'utilisateur a changé le texte et pressé entrée (ou clic ailleurs)
+                            if val_edit != cand:
+                                # Migration image
+                                if cand in st.session_state.config["candidats_images"]:
+                                    st.session_state.config["candidats_images"][val_edit] = st.session_state.config["candidats_images"].pop(cand)
+                                st.session_state.config["candidats"][i] = val_edit
+                                force_refresh() # Sauve et incrémente l'ID pour le prochain rendu
+                                st.rerun()
                         
-                        # 3. Monter (CALLBACK + CLEAR CACHE)
+                        # 3. Monter
                         with cols[2]:
                             if i > 0:
-                                st.button("⬆️", key=f"u{i}", on_click=action_monter, args=(i,))
+                                if st.button("⬆️", key=f"u_{i}_{rid}"):
+                                    st.session_state.config["candidats"][i], st.session_state.config["candidats"][i-1] = st.session_state.config["candidats"][i-1], st.session_state.config["candidats"][i]
+                                    force_refresh()
+                                    st.rerun()
                         
-                        # 4. Descendre (CALLBACK + CLEAR CACHE)
+                        # 4. Descendre
                         with cols[3]:
                             if i < len(st.session_state.config["candidats"]) - 1:
-                                st.button("⬇️", key=f"d{i}", on_click=action_descendre, args=(i,))
+                                if st.button("⬇️", key=f"d_{i}_{rid}"):
+                                    st.session_state.config["candidats"][i], st.session_state.config["candidats"][i+1] = st.session_state.config["candidats"][i+1], st.session_state.config["candidats"][i]
+                                    force_refresh()
+                                    st.rerun()
 
                         # 5. Photo Popover
                         with cols[4]:
                             with st.popover("🖼️"):
-                                st.write(cand)
-                                up_p = st.file_uploader("Img", type=["png", "jpg"], key=f"up_{i}")
+                                st.write(f"**{cand}**")
+                                up_p = st.file_uploader("Fichier", type=["png", "jpg"], key=f"up_{i}_{rid}")
                                 if up_p:
                                     b64 = process_image_upload(up_p)
                                     if b64:
                                         st.session_state.config["candidats_images"][cand] = b64
-                                        save_config()
+                                        force_refresh()
                                         st.rerun()
-                                if st.button("Suppr Photo", key=f"di_{i}"):
-                                    if cand in st.session_state.config["candidats_images"]:
+                                
+                                if cand in st.session_state.config["candidats_images"]:
+                                    if st.button("Supprimer Photo", key=f"di_{i}_{rid}"):
                                         del st.session_state.config["candidats_images"][cand]
-                                        save_config()
+                                        force_refresh()
                                         st.rerun()
 
-                        # 6. Supprimer Ligne (CALLBACK + CLEAR CACHE)
+                        # 6. Supprimer Ligne
                         with cols[5]:
-                            st.button("🗑️", key=f"del{i}", on_click=action_supprimer, args=(i,))
+                            if st.button("🗑️", key=f"del_{i}_{rid}"):
+                                st.session_state.config["candidats"].pop(i)
+                                if cand in st.session_state.config["candidats_images"]: del st.session_state.config["candidats_images"][cand]
+                                force_refresh()
+                                st.rerun()
 
         elif menu == "📸 Médiathèque":
             st.write("Gestion fichiers...")
@@ -316,7 +289,6 @@ else:
             
             st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 VOTES OUVERTS</div></div><style>@keyframes blink{{50%{{opacity:0.5;}}}}</style>', unsafe_allow_html=True)
             
-            # Affichage dynamique
             cands = config["candidats"]
             mid = (len(cands) + 1) // 2
             
