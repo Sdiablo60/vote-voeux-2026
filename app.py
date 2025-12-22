@@ -80,7 +80,7 @@ def save_live_photo(uploaded_file):
         filepath = os.path.join(LIVE_DIR, filename)
         
         img = Image.open(uploaded_file)
-        try:
+        try: # Rotation EXIF
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -337,34 +337,46 @@ if est_admin:
 # --- 4. UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("""<style>.block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; } .stApp { background-color: black !important; color: white !important; } [data-testid="stHeader"] { display: none !important; } h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; } .stTabs [data-baseweb="tab-list"] { justify-content: center; } div[data-testid="stCameraInput"] button { width: 100%; }</style>""", unsafe_allow_html=True)
+    st.markdown("""
+    <style>
+        .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
+        .stApp { background-color: black !important; color: white !important; }
+        [data-testid="stHeader"] { display: none !important; }
+        h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
+        .stTabs [data-baseweb="tab-list"] { justify-content: center; }
+        div[data-testid="stCameraInput"] button { width: 100%; }
+        
+        /* CSS POUR ENCADRER LA LISTE DÉROULANTE */
+        .stMultiSelect div[data-baseweb="select"] > div {
+            border: 2px solid white !important;
+            border-radius: 5px !important;
+            background-color: #333 !important;
+        }
+        .stMultiSelect span {
+            color: white !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
     
-    # 1. RECUPERATION COOKIE (Mouchard LocalStorage via paramètre URL fictif pour contourner la session)
-    # L'astuce : On ne peut pas lire le localStorage directement en Python.
-    # On va utiliser une sécurité par SessionState "Forte".
+    # 1. BLOCAGE ULTRA-AGRESSIF JS SI DÉJÀ VOTÉ
+    # Ce script s'exécute AVANT le reste. Si le cookie existe, il écrase toute la page.
+    # C'est la seule façon fiable de bloquer le navigateur si l'utilisateur change d'ID.
     
+    if cfg["mode_affichage"] != "photos_live": # On ne bloque pas pour les photos live
+        components.html("""
+        <script>
+            if (localStorage.getItem('transdev_voted') === 'true') {
+                document.body.innerHTML = '';
+                document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:black;color:white;font-family:sans-serif;text-align:center;"><div><h1 style="font-size:3rem;">🚫</h1><h2>Vous avez déjà voté.</h2><p>Le vote est limité à une fois par appareil.</p></div></div>');
+            }
+        </script>
+        """, height=0)
+
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
         with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
         st.session_state["participant_recorded"] = True
-
-    # Vérification : Si l'utilisateur a le cookie "voted" dans son navigateur, on le bloque.
-    # On injecte un script JS qui vérifie le localStorage et cache le contenu si besoin.
-    check_vote_script = """
-    <script>
-        const hasVoted = localStorage.getItem('transdev_voted');
-        if (hasVoted === 'true') {
-            const params = new URLSearchParams(window.location.search);
-            if (!params.has('blocked')) {
-                // On ajoute un paramètre pour que Python sache qu'il doit bloquer
-                window.location.search += '&blocked=true';
-            }
-        }
-    </script>
-    """
-    # Ce composant JS s'exécute au chargement
-    components.html(check_vote_script, height=0)
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
@@ -383,21 +395,16 @@ elif est_utilisateur:
 
     # --- MODE VOTE ---
     else:
-        # 2. BLOCAGE SI DEJA VOTE (Basé sur le retour du script JS ci-dessus)
-        is_blocked = st.query_params.get("blocked") == "true"
-        
-        # Cas 1 : Déjà voté (bloqué par cookie/JS)
-        if is_blocked or st.session_state.get("a_vote", False):
+        # Check session Python en plus du JS
+        if st.session_state.get("a_vote", False):
             st.balloons()
             st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1><p>Vote enregistré.</p></div>""", unsafe_allow_html=True)
         
-        # Cas 2 : Votes fermés
         elif not cfg["session_ouverte"]:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
             st.warning("⌛ Votes clos ou attente.")
             
-        # Cas 3 : Peut voter
         else:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
@@ -409,7 +416,6 @@ elif est_utilisateur:
                     if len(nom) > 2:
                         clean_id = nom.strip().lower()
                         voters = load_json(VOTERS_FILE, [])
-                        # Double sécurité : JSON (Serveur) + Cookie (Client)
                         if clean_id in voters: st.error("Ce nom a déjà voté.")
                         else: st.session_state.user_id = clean_id; st.rerun()
                     else: st.warning("Nom invalide.")
@@ -425,11 +431,8 @@ elif est_utilisateur:
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                     
                     st.session_state["a_vote"] = True
-                    
-                    # 3. POSE DU MOUCHARD (Cookie LocalStorage)
-                    # On injecte le script qui marque le navigateur comme "a voté"
+                    # Pose du cookie de blocage
                     components.html("""<script>localStorage.setItem('transdev_voted', 'true');</script>""", height=0)
-                    
                     time.sleep(1)
                     st.rerun()
                 elif len(choix) > 3: st.error("Max 3 !")
