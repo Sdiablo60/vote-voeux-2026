@@ -116,12 +116,14 @@ if est_admin:
             with st.expander("🗑️ OPTIONS DE RÉINITIALISATION (Zone de danger)"):
                 col_rst, col_info = st.columns([1, 2])
                 with col_rst:
-                    if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet les scores à 0 mais garde les participants"):
+                    if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet les scores et les participants à 0"):
+                        # Suppression des deux fichiers pour un vrai reset
                         if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
-                        st.toast("✅ Votes réinitialisés !")
+                        if os.path.exists(PARTICIPANTS_FILE): os.remove(PARTICIPANTS_FILE)
+                        st.toast("✅ Session entièrement réinitialisée !")
                         time.sleep(1); st.rerun()
                 with col_info:
-                    st.info("Efface les scores pour redémarrer une session. Les participants restent connectés.")
+                    st.info("Efface les scores ET le compteur de participants.")
 
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
@@ -246,21 +248,29 @@ if est_admin:
 # --- 4. UTILISATEUR ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
+    
+    cfg = load_json(CONFIG_FILE, default_config)
+    
+    # 1. AFFICHAGE DU LOGO SUR MOBILE (NOUVEAU)
+    if cfg.get("logo_b64"):
+        st.markdown(f"""
+        <div style="text-align:center; margin-bottom:20px;">
+            <img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;">
+        </div>
+        """, unsafe_allow_html=True)
+    
     st.title("🗳️ Vote Transdev")
     
-    # 1. ENREGISTREMENT DU PARTICIPANT (FIX COMPTEUR)
+    # Enregistrement Participant
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
-        # On ajoute simplement une entrée pour compter (pas d'ID complexe pour rester simple)
         parts.append(time.time())
         with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
         st.session_state["participant_recorded"] = True
 
-    cfg = load_json(CONFIG_FILE, default_config)
-    
-    # Si l'utilisateur a déjà voté, on affiche l'écran de remerciement
+    # Écran de fin si déjà voté
     if st.session_state.get("a_vote", False):
-        st.balloons() # L'effet ballons !
+        st.balloons()
         st.markdown("""
         <div style="text-align:center; padding-top:50px;">
             <div style="font-size:80px;">👏</div>
@@ -268,12 +278,10 @@ elif est_utilisateur:
             <p style="font-size:20px;">Votre vote a bien été pris en compte.</p>
         </div>
         """, unsafe_allow_html=True)
-        # Optionnel : bouton pour revoter si besoin
-        if st.button("Modifier mon vote (Nouveau vote)"):
+        if st.button("Modifier mon vote"):
              st.session_state["a_vote"] = False
              st.rerun()
     
-    # Sinon, on affiche le formulaire
     elif not cfg["session_ouverte"]: 
         st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
     else:
@@ -287,9 +295,8 @@ elif est_utilisateur:
                 for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                 json.dump(vts, open(VOTES_FILE, "w"))
                 
-                # Marquer comme voté pour changer d'écran au refresh
                 st.session_state["a_vote"] = True
-                st.rerun() # Refresh pour afficher l'écran de fin
+                st.rerun()
         elif len(choix) > 3: st.error("Maximum 3 choix !")
 
 # --- 5. MUR SOCIAL ---
@@ -358,13 +365,4 @@ else:
             ranks = ["🥇", "🥈", "🥉"]
             colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
             for i, (name, score) in enumerate(sorted_v):
-                img_p = ""
-                if name in config.get("candidats_images", {}):
-                     img_p = f'<img src="data:image/png;base64,{config["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; border:4px solid {colors[i]}; display:block; margin:0 auto 15px auto;">'
-                cols[i].markdown(f"""<div style="background:#1a1a1a; padding:30px; border:4px solid {colors[i]}; text-align:center; color:white; margin-top:30px; border-radius:20px;"><h2>{ranks[i]}</h2>{img_p}<h1>{name}</h1><p>{score} pts</p></div>""", unsafe_allow_html=True)
-            components.html('<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>confetti({particleCount:100,spread:70,origin:{y:0.6}});</script>', height=0)
-
-    try:
-        from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(5000, key="wall_ref")
-    except: pass
+                img_p =
