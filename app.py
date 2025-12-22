@@ -45,6 +45,7 @@ if "config" not in st.session_state:
 if "refresh_id" not in st.session_state: st.session_state.refresh_id = 0
 if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 if "confirm_delete" not in st.session_state: st.session_state.confirm_delete = False
+if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
 
 # Sécurités structure
 if "candidats" not in st.session_state.config: st.session_state.config["candidats"] = DEFAULT_CANDIDATS
@@ -330,50 +331,32 @@ elif est_utilisateur:
     </style>
     """, unsafe_allow_html=True)
     
-    # --- SECURITÉ JS OVERLAY (BLOQUE TOUT CLIC) ---
+    # --- SECURITÉ JS OVERLAY ---
     if cfg["mode_affichage"] != "photos_live": 
         components.html("""
         <script>
-            // 1. Vérifie si le cookie de vote existe
             var voted = localStorage.getItem('transdev_final_secure_v2');
-            
             if (voted === 'true') {
-                // 2. CREATION D'UN OVERLAY QUI BLOQUE TOUT L'ECRAN (Z-INDEX INFINI)
                 var overlay = document.createElement('div');
-                overlay.style.position = 'fixed';
-                overlay.style.top = '0';
-                overlay.style.left = '0';
-                overlay.style.width = '100%';
-                overlay.style.height = '100%';
-                overlay.style.backgroundColor = 'rgba(0,0,0,0.95)'; // Fond presque noir
-                overlay.style.zIndex = '2147483647'; // Maximum possible
-                overlay.style.display = 'flex';
-                overlay.style.flexDirection = 'column';
-                overlay.style.justifyContent = 'center';
-                overlay.style.alignItems = 'center';
-                overlay.style.color = 'white';
-                overlay.style.fontFamily = 'sans-serif';
-                overlay.style.textAlign = 'center';
-                
-                // Contenu du message
+                overlay.style.position = 'fixed'; overlay.style.top = '0'; overlay.style.left = '0';
+                overlay.style.width = '100%'; overlay.style.height = '100%';
+                overlay.style.backgroundColor = 'rgba(0,0,0,0.95)'; overlay.style.zIndex = '2147483647';
+                overlay.style.display = 'flex'; overlay.style.flexDirection = 'column';
+                overlay.style.justifyContent = 'center'; overlay.style.alignItems = 'center';
+                overlay.style.color = 'white'; overlay.style.fontFamily = 'sans-serif'; overlay.style.textAlign = 'center';
                 overlay.innerHTML = '<h1 style="font-size:4rem; margin:0;">🚫</h1><h2 style="color:#E2001A; margin-top:20px;">Vote Déjà Enregistré</h2><p style="font-size:1.2rem;">Vous avez déjà soumis votre participation.</p>';
-                
-                // Injection dans le corps du document parent (pour couvrir Streamlit)
                 window.parent.document.body.appendChild(overlay);
-                
-                // On floute l'arrière plan pour le style
                 var app = window.parent.document.querySelector('.stApp');
                 if (app) app.style.filter = 'blur(10px)';
             }
         </script>
         """, height=0)
 
-    # COMPTEUR CONNECTES (Fenêtre 30s)
-    parts = load_json(PARTICIPANTS_FILE, [])
-    now = time.time()
-    parts = [t for t in parts if now - t < 30]
-    parts.append(now)
-    with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
+    if "participant_recorded" not in st.session_state:
+        parts = load_json(PARTICIPANTS_FILE, [])
+        parts.append(time.time())
+        with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
+        st.session_state["participant_recorded"] = True
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
@@ -390,22 +373,25 @@ elif est_utilisateur:
             if photo_web:
                 if save_live_photo(photo_web): st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(0.5); st.rerun()
 
-    # --- MODE VOTE ---
+    # --- MODE VOTE (LOGIQUE) ---
     else:
+        # 1. MESSAGE SUCCÈS SI VOTE DANS LA SESSION
         if st.session_state.get("a_vote", False):
             st.balloons()
-            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1><p>Vote enregistré.</p></div>""", unsafe_allow_html=True)
+            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">✅</div><h1 style="color:#E2001A;">Votre vote a été enregistré</h1><p>Merci d'avoir participé !</p></div>""", unsafe_allow_html=True)
         
+        # 2. VOTE FERMÉ
         elif not cfg["session_ouverte"]:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
             st.warning("⌛ Votes clos ou attente.")
             
+        # 3. ÉTAPES VOTE
         else:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
             
-            if "user_id" not in st.session_state: st.session_state.user_id = None
+            # ETAPE 1 : IDENTIFICATION
             if not st.session_state.user_id:
                 nom = st.text_input("Votre Pseudo / Nom :")
                 if st.button("Commencer"):
@@ -415,9 +401,35 @@ elif est_utilisateur:
                         if clean_id in voters: st.error("Ce nom a déjà voté.")
                         else: st.session_state.user_id = clean_id; st.rerun()
                     else: st.warning("Nom invalide.")
+            
+            # ETAPE 2 : RÈGLES & POINTS (NOUVEAU)
+            elif not st.session_state.rules_accepted:
+                st.markdown("""<div style="background:#222; padding:20px; border-radius:10px; border:2px solid #E2001A; margin-bottom:20px;">
+                <h3 style="color:#E2001A; margin-top:0;">📜 RÈGLES DU JEU</h3>
+                <ul>
+                    <li>Vous ne pouvez voter qu'<strong>UNE SEULE FOIS</strong>.</li>
+                    <li>Vous devez sélectionner <strong>3 CHOIX</strong> exactement.</li>
+                </ul>
+                <hr style="border-color:#555;">
+                <h3 style="color:white; margin-top:10px;">🏆 ATTRIBUTION DES POINTS</h3>
+                """, unsafe_allow_html=True)
+                
+                pts = cfg.get("points_ponderation", [5, 3, 1])
+                st.markdown(f"""
+                * 🥇 **1er Choix :** {pts[0]} Points
+                * 🥈 **2ème Choix :** {pts[1]} Points
+                * 🥉 **3ème Choix :** {pts[2]} Points
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("✅ J'AI COMPRIS, PASSER AU VOTE", type="primary", use_container_width=True):
+                    st.session_state.rules_accepted = True
+                    st.rerun()
+
+            # ETAPE 3 : FORMULAIRE DE VOTE
             else:
-                choix = st.multiselect("Top 3 :", cfg["candidats"])
-                if len(choix) == 3 and st.button("VALIDER"):
+                choix = st.multiselect("Sélectionnez vos 3 favoris (dans l'ordre) :", cfg["candidats"])
+                if len(choix) == 3 and st.button("VALIDER MON VOTE", type="primary", use_container_width=True):
                     vts = load_json(VOTES_FILE, {})
                     pts = cfg.get("points_ponderation", [5, 3, 1])
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
@@ -430,14 +442,14 @@ elif est_utilisateur:
                     # Injection de la marque de vote
                     components.html("""<script>localStorage.setItem('transdev_final_secure_v2', 'true'); location.reload();</script>""", height=0)
                     time.sleep(1)
-                elif len(choix) > 3: st.error("Max 3 !")
+                elif len(choix) > 3: st.error("⚠️ Vous ne pouvez choisir que 3 candidats maximum !")
+                elif len(choix) > 0 and len(choix) < 3: st.warning(f"Encore {3-len(choix)} choix à faire.")
 
 # --- 5. MUR SOCIAL ---
 else:
     st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; } img { background-color: transparent !important; }</style>""", unsafe_allow_html=True)
     config = load_json(CONFIG_FILE, default_config)
     
-    # LECTURE ET NETTOYAGE DU COMPTEUR
     parts = load_json(PARTICIPANTS_FILE, [])
     now = time.time()
     nb_p = len([t for t in parts if now - t < 30])
