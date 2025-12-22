@@ -80,7 +80,7 @@ def save_live_photo(uploaded_file):
         filepath = os.path.join(LIVE_DIR, filename)
         
         img = Image.open(uploaded_file)
-        try: # Rotation EXIF
+        try:
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -313,42 +313,21 @@ if est_admin:
         elif menu == "📊 Data & Exports":
             st.title("📊 Data & Exports")
             st.subheader("1️⃣ Export des Résultats (Votes)")
-            
-            # --- PARTIE EXPORT CSV DES VOTES (NOUVEAU) ---
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in st.session_state.config["candidats"]}
                 if valid:
                     df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points'])
                     df = df.sort_values('Points', ascending=False)
-                    
                     st.dataframe(df, hide_index=True, use_container_width=True)
-                    
                     csv = df.to_csv(index=False).encode('utf-8')
-                    st.download_button(
-                        label="📥 Télécharger les résultats en CSV",
-                        data=csv,
-                        file_name=f"resultats_votes_{int(time.time())}.csv",
-                        mime="text/csv",
-                        type="primary"
-                    )
-                else:
-                    st.info("Aucun vote valide enregistré.")
-            else:
-                st.info("La base de votes est vide.")
+                    st.download_button(label="📥 Télécharger les résultats en CSV", data=csv, file_name=f"resultats_votes_{int(time.time())}.csv", mime="text/csv", type="primary")
+                else: st.info("Aucun vote valide enregistré.")
+            else: st.info("La base de votes est vide.")
 
             st.divider()
-            
-            # --- PARTIE RESET USINE ---
             st.subheader("⚠️ Zone de Danger (Réinitialisation)")
-            st.markdown("""
-            <div style="border: 1px solid red; padding: 15px; border-radius: 5px; background-color: #fff5f5; color: #8b0000;">
-                <strong>ATTENTION :</strong> Le bouton ci-dessous efface <strong>TOUTES</strong> les données (Scores, Participants, Historique, Photos Live). 
-                À utiliser uniquement pour remettre le système à neuf avant un nouvel événement.
-            </div>
-            <br>
-            """, unsafe_allow_html=True)
-            
+            st.markdown("""<div style="border: 1px solid red; padding: 15px; border-radius: 5px; background-color: #fff5f5; color: #8b0000;"><strong>ATTENTION :</strong> Le bouton ci-dessous efface <strong>TOUTES</strong> les données.</div><br>""", unsafe_allow_html=True)
             if st.button("🔥 RESET TOUT (REMISE À ZÉRO)", type="primary"):
                  for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
                      if os.path.exists(f): os.remove(f)
@@ -360,12 +339,34 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("""<style>.block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; } .stApp { background-color: black !important; color: white !important; } [data-testid="stHeader"] { display: none !important; } h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; } .stTabs [data-baseweb="tab-list"] { justify-content: center; } div[data-testid="stCameraInput"] button { width: 100%; }</style>""", unsafe_allow_html=True)
     
+    # 1. RECUPERATION COOKIE (Mouchard LocalStorage via paramètre URL fictif pour contourner la session)
+    # L'astuce : On ne peut pas lire le localStorage directement en Python.
+    # On va utiliser une sécurité par SessionState "Forte".
+    
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
         with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
         st.session_state["participant_recorded"] = True
 
+    # Vérification : Si l'utilisateur a le cookie "voted" dans son navigateur, on le bloque.
+    # On injecte un script JS qui vérifie le localStorage et cache le contenu si besoin.
+    check_vote_script = """
+    <script>
+        const hasVoted = localStorage.getItem('transdev_voted');
+        if (hasVoted === 'true') {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('blocked')) {
+                // On ajoute un paramètre pour que Python sache qu'il doit bloquer
+                window.location.search += '&blocked=true';
+            }
+        }
+    </script>
+    """
+    # Ce composant JS s'exécute au chargement
+    components.html(check_vote_script, height=0)
+
+    # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
         st.markdown("<h1 style='color:#E2001A;'>📸 MUR PHOTO LIVE</h1>", unsafe_allow_html=True)
         if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:60px; width:auto;"></div>', unsafe_allow_html=True)
@@ -380,24 +381,38 @@ elif est_utilisateur:
             if photo_web:
                 if save_live_photo(photo_web): st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(0.5); st.rerun()
 
+    # --- MODE VOTE ---
     else:
-        st.title("🗳️ Vote Transdev")
-        if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
-        if "user_id" not in st.session_state: st.session_state.user_id = None
-        if not st.session_state.user_id:
-            nom = st.text_input("Votre Nom / Matricule :")
-            if st.button("Commencer"):
-                if len(nom) > 2:
-                    clean_id = nom.strip().lower()
-                    voters = load_json(VOTERS_FILE, [])
-                    if clean_id in voters: st.error("Déjà voté.")
-                    else: st.session_state.user_id = clean_id; st.rerun()
-                else: st.warning("Nom invalide.")
+        # 2. BLOCAGE SI DEJA VOTE (Basé sur le retour du script JS ci-dessus)
+        is_blocked = st.query_params.get("blocked") == "true"
+        
+        # Cas 1 : Déjà voté (bloqué par cookie/JS)
+        if is_blocked or st.session_state.get("a_vote", False):
+            st.balloons()
+            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1><p>Vote enregistré.</p></div>""", unsafe_allow_html=True)
+        
+        # Cas 2 : Votes fermés
+        elif not cfg["session_ouverte"]:
+            st.title("🗳️ Vote Transdev")
+            if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
+            st.warning("⌛ Votes clos ou attente.")
+            
+        # Cas 3 : Peut voter
         else:
-            if st.session_state.get("a_vote", False):
-                st.balloons()
-                st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1></div>""", unsafe_allow_html=True)
-            elif not cfg["session_ouverte"]: st.warning("⌛ Votes clos ou attente.")
+            st.title("🗳️ Vote Transdev")
+            if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
+            
+            if "user_id" not in st.session_state: st.session_state.user_id = None
+            if not st.session_state.user_id:
+                nom = st.text_input("Votre Nom / Matricule :")
+                if st.button("Commencer"):
+                    if len(nom) > 2:
+                        clean_id = nom.strip().lower()
+                        voters = load_json(VOTERS_FILE, [])
+                        # Double sécurité : JSON (Serveur) + Cookie (Client)
+                        if clean_id in voters: st.error("Ce nom a déjà voté.")
+                        else: st.session_state.user_id = clean_id; st.rerun()
+                    else: st.warning("Nom invalide.")
             else:
                 choix = st.multiselect("Top 3 :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER"):
@@ -408,7 +423,15 @@ elif est_utilisateur:
                     voters = load_json(VOTERS_FILE, [])
                     voters.append(st.session_state.user_id)
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
-                    st.session_state["a_vote"] = True; st.rerun()
+                    
+                    st.session_state["a_vote"] = True
+                    
+                    # 3. POSE DU MOUCHARD (Cookie LocalStorage)
+                    # On injecte le script qui marque le navigateur comme "a voté"
+                    components.html("""<script>localStorage.setItem('transdev_voted', 'true');</script>""", height=0)
+                    
+                    time.sleep(1)
+                    st.rerun()
                 elif len(choix) > 3: st.error("Max 3 !")
 
 # --- 5. MUR SOCIAL ---
@@ -430,17 +453,7 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-        st.markdown(f"""
-        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
-            <div style="margin-bottom:10px;">{logo_html}</div>
-            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
-                <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
-            </div>
-            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
-                📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;"><div style="margin-bottom:10px;">{logo_html}</div><div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);"><img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;"></div><div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !</div></div>""", unsafe_allow_html=True)
 
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
