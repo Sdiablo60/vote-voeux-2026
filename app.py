@@ -181,8 +181,6 @@ if est_admin:
 
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
-            
-            # --- MONITORING MIS A JOUR ---
             voters_list = load_json(VOTERS_FILE, [])
             st.metric("👥 Participants Validés", len(voters_list))
             
@@ -250,8 +248,7 @@ if est_admin:
             else:
                 c_sel_all, c_dl, c_del = st.columns([1, 1.5, 1.5], vertical_alignment="center")
                 with c_sel_all: select_all = st.checkbox("✅ Tout sélectionner", value=False)
-                final_selection = files if select_all else []
-
+                
                 with c_dl:
                     if select_all:
                         zip_buffer = BytesIO()
@@ -344,7 +341,6 @@ elif est_utilisateur:
     </style>
     """, unsafe_allow_html=True)
     
-    # --- SECURITÉ JS OVERLAY ---
     if cfg["mode_affichage"] != "photos_live": 
         components.html(f"""
         <script>
@@ -369,7 +365,6 @@ elif est_utilisateur:
     else:
         components.html("""<script>window.parent.document.querySelector('.stApp').style.visibility = 'visible';</script>""", height=0)
 
-    # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
         st.markdown("<h1 style='color:#E2001A;'>📸 MUR PHOTO LIVE</h1>", unsafe_allow_html=True)
         if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:60px; width:auto;"></div>', unsafe_allow_html=True)
@@ -384,7 +379,6 @@ elif est_utilisateur:
             if photo_web:
                 if save_live_photo(photo_web): st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(0.5); st.rerun()
 
-    # --- MODE VOTE ---
     else:
         if st.session_state.get("a_vote", False):
             st.balloons()
@@ -399,7 +393,6 @@ elif est_utilisateur:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
             
-            # ETAPE 1 : IDENTIFICATION
             if not st.session_state.user_id:
                 nom = st.text_input("Votre Pseudo / Nom :")
                 if st.button("Commencer"):
@@ -410,7 +403,6 @@ elif est_utilisateur:
                         else: st.session_state.user_id = clean_id; st.rerun()
                     else: st.warning("Nom invalide.")
             
-            # ETAPE 2 : RÈGLES
             elif not st.session_state.rules_accepted:
                 st.markdown("""<div style="background:#222; padding:20px; border-radius:10px; border:2px solid #E2001A; margin-bottom:20px;">
                 <h3 style="color:#E2001A; margin-top:0;">📜 RÈGLES DU JEU</h3>
@@ -421,7 +413,6 @@ elif est_utilisateur:
                 if st.button("✅ J'AI COMPRIS, PASSER AU VOTE", type="primary", use_container_width=True):
                     st.session_state.rules_accepted = True; st.rerun()
 
-            # ETAPE 3 : VOTE
             else:
                 choix = st.multiselect("Sélectionnez vos 3 favoris :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER MON VOTE", type="primary", use_container_width=True):
@@ -441,18 +432,53 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
-    st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; } img { background-color: transparent !important; }</style>""", unsafe_allow_html=True)
-    config = load_json(CONFIG_FILE, default_config)
+    # CSS GLOBAL POUR BLOQUER LE SCROLL ET AJUSTER LES BADGES
+    st.markdown("""
+    <style>
+        body, .stApp { background-color: black !important; overflow: hidden; height: 100vh; } 
+        [data-testid='stHeader'], footer { display: none !important; } 
+        .block-container { padding-top: 1rem !important; padding-bottom: 0 !important; max-width: 98% !important; }
+        
+        /* STYLE BADGES PARTICIPANTS */
+        .participant-badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.1);
+            color: #ccc;
+            border: 1px solid #444;
+            border-radius: 15px;
+            padding: 4px 12px;
+            margin: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        
+        /* CONTENEUR SCROLLABLE POUR LES BADGES */
+        .badges-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-height: 25vh; /* Limite hauteur pour ne pas tout manger */
+            overflow-y: auto;
+            margin-top: 10px;
+            padding: 10px;
+            /* Scrollbar invisible pour propreté */
+            scrollbar-width: none; 
+        }
+        .badges-container::-webkit-scrollbar { display: none; }
+    </style>
+    """, unsafe_allow_html=True)
     
-    # COMPTAGE CUMULATIF (VRAIS PARTICIPANTS)
+    config = load_json(CONFIG_FILE, default_config)
     voters_list = load_json(VOTERS_FILE, [])
     nb_p = len(voters_list)
     
     logo_html = ""
-    if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
+    if config.get("logo_b64"): 
+        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
 
     if config["mode_affichage"] != "photos_live":
-        st.markdown(f'<div style="text-align:center; color:white; background:transparent;">{logo_html}<h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align:center; color:white;">{logo_html}<h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
 
     if config["mode_affichage"] == "attente":
         st.markdown(f"""<div style="text-align:center; color:white; margin-top:80px;"><div style="{BADGE_CSS}">✨ BIENVENUE ✨</div><h2 style="font-size:50px; margin-top:40px; font-weight:lighter;">L'événement va commencer...</h2></div>""", unsafe_allow_html=True)
@@ -462,7 +488,17 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-        st.markdown(f"""<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;"><div style="margin-bottom:10px;">{logo_html}</div><div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);"><img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;"></div><div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
+            <div style="margin-bottom:10px;">{logo_html}</div>
+            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
+                <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
+            </div>
+            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
+                📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
@@ -495,33 +531,36 @@ else:
         """, height=900)
 
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
-        st.markdown(f'<div style="text-align:center; margin-top:10px;"><div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold;">👥 {nb_p} PARTICIPANTS</div></div>', unsafe_allow_html=True)
+        # --- COMPTEUR REDUIT ---
+        st.markdown(f'<div style="text-align:center; margin-top:5px; margin-bottom:5px;"><div style="background:white; display:inline-block; padding:2px 15px; border-radius:15px; color:black; font-weight:bold; font-size:16px;">👥 {nb_p} PARTICIPANTS</div></div>', unsafe_allow_html=True)
         
-        # --- LISTE DES PSEUDOS (BADGES) ---
+        # --- BADGES PSEUDOS (Nouveau Container Flex) ---
         if voters_list:
-            # On inverse la liste pour voir les derniers en premier
-            voters_badges = "".join([f'<span style="display:inline-block; background:#333; color:white; padding:5px 10px; margin:5px; border-radius:15px; border:1px solid #555; font-size:14px;">{v}</span>' for v in voters_list[::-1]])
-            st.markdown(f'<div style="text-align:center; margin-top:10px; max-height:100px; overflow-y:hidden; opacity:0.8;">{voters_badges}</div>', unsafe_allow_html=True)
+            badges_html = "".join([f'<div class="participant-badge">{v}</div>' for v in voters_list[::-1]])
+            st.markdown(f'<div class="badges-container">{badges_html}</div>', unsafe_allow_html=True)
 
         if config["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 VOTES OUVERTS</div></div>', unsafe_allow_html=True)
+            
             cands = config["candidats"]
             mid = (len(cands) + 1) // 2
+            
             def get_item_html(label):
                 img_html = '<span style="font-size:30px; margin-right:15px;">🎥</span>'
                 if label in config.get("candidats_images", {}):
                     b64 = config["candidats_images"][label]
-                    img_html = f'<img src="data:image/png;base64,{b64}" style="width:60px; height:60px; object-fit:cover; border-radius:10px; margin-right:15px; border:2px solid #E2001A;">'
-                return f'<div style="background:#222; color:white; padding:10px; margin-bottom:12px; border-left:6px solid #E2001A; font-weight:bold; font-size:22px; display:flex; align-items:center;">{img_html}{label}</div>'
-            st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
-            c1, c2, c3 = st.columns([1, 0.7, 1])
+                    img_html = f'<img src="data:image/png;base64,{b64}" style="width:50px; height:50px; object-fit:cover; border-radius:8px; margin-right:10px; border:2px solid #E2001A;">'
+                return f'<div style="background:#222; color:white; padding:8px; margin-bottom:8px; border-left:4px solid #E2001A; font-weight:bold; font-size:18px; display:flex; align-items:center;">{img_html}{label}</div>'
+            
+            st.markdown("<div style='margin-top:20px;'>", unsafe_allow_html=True)
+            c1, c2, c3 = st.columns([1, 0.6, 1])
             with c1:
                 for c in cands[:mid]: st.markdown(get_item_html(c), unsafe_allow_html=True)
             with c2:
-                st.markdown(f'<div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;"><img src="data:image/png;base64,{qr_b64}" width="180" style="display:block;"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;"><img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p></div>', unsafe_allow_html=True)
+                st.markdown(f'<div style="text-align:center; margin-top:15px;"><div style="{BADGE_CSS} animation:blink 1.5s infinite; font-size:18px; padding:8px 20px;">🚀 VOTES OUVERTS</div></div>', unsafe_allow_html=True)
             with c3:
                 for c in cands[mid:]: st.markdown(get_item_html(c), unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
