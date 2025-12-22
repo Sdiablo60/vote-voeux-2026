@@ -93,7 +93,7 @@ est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 
 if est_admin:
-    st.markdown("""<style>[data-testid="stHeader"] { visibility: hidden; } .block-container { padding-top: 5rem !important; } .fixed-header { position: fixed; top: 0; left: 0; width: 100%; background-color: #E2001A; color: white; text-align: center; padding: 15px 0; z-index: 999999; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-family: sans-serif; font-weight: bold; font-size: 22px; text-transform: uppercase; }</style>""", unsafe_allow_html=True)
+    st.markdown("""<style>[data-testid="stHeader"] { visibility: hidden; } .block-container { padding-top: 5rem !important; } .fixed-header { position: fixed; top: 0; left: 0; width: 100%; background-color: #E2001A; color: white; text-align: center; padding: 15px 0; z-index: 999999; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-family: sans-serif; font-weight: bold; font-size: 24px; text-transform: uppercase; }</style>""", unsafe_allow_html=True)
     if "auth" not in st.session_state: st.session_state.auth = False
     if not st.session_state.auth:
         st.markdown("<div class='fixed-header'>🔐 ACCÈS RÉSERVÉ</div>", unsafe_allow_html=True)
@@ -152,9 +152,10 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:120px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
         
+        # BLOC CENTRAL SANS FLOU (FIXED)
         st.markdown(f"""
             <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; text-align:center; width:100%; pointer-events:none;">
-                <div style="display:inline-block; pointer-events:auto; background: rgba(0,0,0,0.4); padding: 40px; border-radius: 40px; backdrop-filter: blur(5px);">
+                <div style="display:inline-block; pointer-events:auto; background: rgba(0,0,0,0.7); padding: 40px; border-radius: 40px; border: 1px solid rgba(255,255,255,0.1);">
                     {logo_html}
                     <h1 style="color:white; font-size:60px; text-transform:uppercase; margin-bottom:30px; text-shadow: 2px 2px 10px rgba(0,0,0,0.8);">Mur Photos Live</h1>
                     <div style="background:white; padding:20px; border-radius:30px; box-shadow: 0 0 50px rgba(0,0,0,0.5); display:inline-block; margin-bottom:30px;">
@@ -180,24 +181,15 @@ else:
                     i.style.width = size+'px'; i.style.height = size+'px';
                     i.style.left = Math.random()*90 + 'vw'; i.style.top = Math.random()*90 + 'vh';
                     window.parent.document.body.appendChild(i);
-                    
-                    // VITESSE RALENTIE : 0.1 à 0.3 pour un effet flottant doux
                     var vx = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.2 + 0.1);
                     var vy = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.2 + 0.1);
-                    
                     function anim() {{
                         if(!i.parentElement) return;
-                        var l = parseFloat(i.style.left);
-                        var t = parseFloat(i.style.top);
-                        
-                        if(l <= 1 || l >= 94) vx *= -1;
-                        if(t <= 1 || t >= 94) vy *= -1;
-                        
-                        i.style.left = (l + vx) + 'vw';
-                        i.style.top = (t + vy) + 'vh';
+                        var l = parseFloat(i.style.left); var t = parseFloat(i.style.top);
+                        if(l <= 1 || l >= 94) vx *= -1; if(t <= 1 || t >= 94) vy *= -1;
+                        i.style.left = (l + vx) + 'vw'; i.style.top = (t + vy) + 'vh';
                         requestAnimationFrame(anim);
-                    }}
-                    anim();
+                    }} anim();
                 }});
             </script>""", height=0)
     else:
