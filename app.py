@@ -117,7 +117,7 @@ if est_admin:
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
             st.markdown("---")
-            menu = st.radio("Navigation :", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque", "📊 Data & Exports"], label_visibility="collapsed")
+            menu = st.radio("Navigation :", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque (Modération)", "📊 Data & Exports"], label_visibility="collapsed")
             st.markdown("---")
             if st.button("🔓 Déconnexion", use_container_width=True):
                 st.session_state["auth"] = False
@@ -232,40 +232,29 @@ if est_admin:
                             if b64:
                                 st.session_state.config["candidats_images"][sel] = b64; save_config(); st.rerun()
 
-        elif menu == "📸 Médiathèque":
-            st.title("📸 Médiathèque")
-            t_adm, t_live, t_old = st.tabs(["📂 Admin (Logos)", "🔴 Photos Live Users", "📂 Uploads Vrac"])
-            with t_adm:
-                up_sys = st.file_uploader("Ajout Admin", type=['png', 'jpg'], key="up_sys")
-                if up_sys:
-                    with open(os.path.join(ADMIN_DIR, up_sys.name), "wb") as f: f.write(up_sys.getbuffer())
-                    st.rerun()
-                files = glob.glob(f"{ADMIN_DIR}/*")
-                if files:
-                    cols = st.columns(5)
-                    for i, f in enumerate(files):
-                        with cols[i%5]:
-                            st.image(f, use_container_width=True)
-                            if st.button("🗑️", key=f"da_{i}"): os.remove(f); st.rerun()
-            with t_live:
-                st.info("Photos reçues en direct.")
-                files = glob.glob(f"{LIVE_DIR}/*")
-                files.sort(key=os.path.getmtime, reverse=True)
-                if files:
-                    cols = st.columns(5)
-                    for i, f in enumerate(files):
-                        with cols[i%5]:
-                            st.image(f, use_container_width=True)
-                            if st.button("🗑️", key=f"dl_{i}"): os.remove(f); st.rerun()
-                else: st.write("Vide.")
-            with t_old:
-                files = glob.glob(f"{GALLERY_DIR}/*")
-                if files:
-                    cols = st.columns(5)
-                    for i, f in enumerate(files):
-                        with cols[i%5]:
-                            st.image(f, use_container_width=True)
-                            if st.button("🗑️", key=f"do_{i}"): os.remove(f); st.rerun()
+        # --- MÉDIATHÈQUE NETTOYÉE ---
+        elif menu == "📸 Médiathèque (Modération)":
+            st.title("📸 Modération Photos Live")
+            st.info("Voici les photos envoyées en direct par les participants. Supprimez celles qui ne conviennent pas.")
+            
+            if st.button("🔄 Rafraîchir la galerie"):
+                st.rerun()
+
+            files = glob.glob(f"{LIVE_DIR}/*")
+            files.sort(key=os.path.getmtime, reverse=True)
+            
+            if files:
+                cols = st.columns(6)
+                for i, f in enumerate(files):
+                    with cols[i%6]:
+                        st.image(f, use_container_width=True)
+                        if st.button("🗑️ Suppr.", key=f"del_live_{i}", type="secondary"): 
+                            os.remove(f)
+                            st.toast("Photo supprimée")
+                            time.sleep(0.5)
+                            st.rerun()
+            else:
+                st.warning("Aucune photo live pour le moment.")
 
         elif menu == "📊 Data & Exports":
             if st.button("RESET TOUT"):
