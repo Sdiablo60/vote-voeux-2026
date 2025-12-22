@@ -119,7 +119,6 @@ if est_admin:
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
             
-            # --- BOUTON D'OUVERTURE DU MUR (NOUVEAU) ---
             st.markdown("""
             <a href="/" target="_blank" style="text-decoration:none;">
                 <div style="background-color: #E2001A; color: white; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; border: 1px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
@@ -244,35 +243,17 @@ if est_admin:
                             if b64:
                                 st.session_state.config["candidats_images"][sel] = b64; save_config(); st.rerun()
 
-        # --- MÉDIATHÈQUE AVEC BARRE D'OUTILS EN HAUT ---
         elif menu == "📸 Médiathèque (Gestion)":
-            st.markdown("""
-            <style>
-            div[data-testid="stButton"] button[key="btn_download"] { background-color: #007bff; color: white; border-color: #007bff; }
-            div[data-testid="stButton"] button[key="btn_download"]:hover { background-color: #0056b3; border-color: #0056b3; }
-            div[data-testid="stButton"] button[key="btn_delete"] { background-color: #dc3545; color: white; border-color: #dc3545; }
-            div[data-testid="stButton"] button[key="btn_delete"]:hover { background-color: #a71d2a; border-color: #a71d2a; }
-            </style>
-            """, unsafe_allow_html=True)
-
+            st.markdown("""<style>div[data-testid="stButton"] button[key="btn_download"] { background-color: #007bff; color: white; border-color: #007bff; } div[data-testid="stButton"] button[key="btn_download"]:hover { background-color: #0056b3; border-color: #0056b3; } div[data-testid="stButton"] button[key="btn_delete"] { background-color: #dc3545; color: white; border-color: #dc3545; } div[data-testid="stButton"] button[key="btn_delete"]:hover { background-color: #a71d2a; border-color: #a71d2a; }</style>""", unsafe_allow_html=True)
             st.title("📸 Médiathèque & Export")
-            
-            files = glob.glob(f"{LIVE_DIR}/*")
-            files.sort(key=os.path.getmtime, reverse=True)
-            
+            files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
             st.markdown("### 🛠️ Outils de Gestion")
             
-            if not files:
-                st.warning("Aucune photo dans la galerie.")
+            if not files: st.warning("Aucune photo dans la galerie.")
             else:
                 c_sel_all, c_dl, c_del = st.columns([1, 1.5, 1.5], vertical_alignment="center")
+                with c_sel_all: select_all = st.checkbox("✅ Tout sélectionner", value=False)
                 
-                with c_sel_all:
-                    select_all = st.checkbox("✅ Tout sélectionner", value=False)
-                
-                final_selection = []
-                if select_all: final_selection = files
-
                 with c_dl:
                     if select_all:
                         zip_buffer = BytesIO()
@@ -283,19 +264,16 @@ if est_admin:
 
                 with c_del:
                     if select_all:
-                        if st.button(f"🗑️ SUPPRIMER TOUT ({len(files)})", use_container_width=True, key="btn_delete"):
-                            st.session_state.confirm_delete = True
+                        if st.button(f"🗑️ SUPPRIMER TOUT ({len(files)})", use_container_width=True, key="btn_delete"): st.session_state.confirm_delete = True
                     else: st.caption("Sélectionnez tout pour suppression de masse.")
 
                 if st.session_state.confirm_delete:
-                    st.error("⚠️ ATTENTION : SUPPRESSION DÉFINITIVE DE TOUTES LES PHOTOS !")
+                    st.error("⚠️ ATTENTION : SUPPRESSION DÉFINITIVE !")
                     col_conf_1, col_conf_2 = st.columns(2)
                     if col_conf_1.button("✅ OUI, TOUT EFFACER"):
                         for f in files: os.remove(f)
-                        st.session_state.confirm_delete = False
-                        st.success("Galerie vidée !"); time.sleep(1); st.rerun()
-                    if col_conf_2.button("❌ ANNULER"):
-                        st.session_state.confirm_delete = False; st.rerun()
+                        st.session_state.confirm_delete = False; st.success("Galerie vidée !"); time.sleep(1); st.rerun()
+                    if col_conf_2.button("❌ ANNULER"): st.session_state.confirm_delete = False; st.rerun()
 
                 st.divider()
                 view_mode = st.radio("Affichage :", ["▦ Grille", "☰ Liste Détaillée"], horizontal=True, label_visibility="collapsed")
@@ -326,32 +304,61 @@ if est_admin:
                     
                     if manual_selection:
                         st.markdown("---")
-                        st.info(f"{len(manual_selection)} fichiers sélectionnés manuellement.")
+                        st.info(f"{len(manual_selection)} fichiers sélectionnés.")
                         zip_man = BytesIO()
                         with zipfile.ZipFile(zip_man, "w") as zf:
                             for f in manual_selection: zf.write(f, os.path.basename(f))
-                        st.download_button("📥 Télécharger la sélection manuelle", data=zip_man.getvalue(), file_name="selection.zip", mime="application/zip")
+                        st.download_button("📥 Télécharger la sélection", data=zip_man.getvalue(), file_name="selection.zip", mime="application/zip")
 
         elif menu == "📊 Data & Exports":
-            if st.button("RESET TOUT"):
+            st.title("📊 Data & Exports")
+            st.subheader("1️⃣ Export des Résultats (Votes)")
+            
+            # --- PARTIE EXPORT CSV DES VOTES (NOUVEAU) ---
+            v_data = load_json(VOTES_FILE, {})
+            if v_data:
+                valid = {k:v for k,v in v_data.items() if k in st.session_state.config["candidats"]}
+                if valid:
+                    df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points'])
+                    df = df.sort_values('Points', ascending=False)
+                    
+                    st.dataframe(df, hide_index=True, use_container_width=True)
+                    
+                    csv = df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Télécharger les résultats en CSV",
+                        data=csv,
+                        file_name=f"resultats_votes_{int(time.time())}.csv",
+                        mime="text/csv",
+                        type="primary"
+                    )
+                else:
+                    st.info("Aucun vote valide enregistré.")
+            else:
+                st.info("La base de votes est vide.")
+
+            st.divider()
+            
+            # --- PARTIE RESET USINE ---
+            st.subheader("⚠️ Zone de Danger (Réinitialisation)")
+            st.markdown("""
+            <div style="border: 1px solid red; padding: 15px; border-radius: 5px; background-color: #fff5f5; color: #8b0000;">
+                <strong>ATTENTION :</strong> Le bouton ci-dessous efface <strong>TOUTES</strong> les données (Scores, Participants, Historique, Photos Live). 
+                À utiliser uniquement pour remettre le système à neuf avant un nouvel événement.
+            </div>
+            <br>
+            """, unsafe_allow_html=True)
+            
+            if st.button("🔥 RESET TOUT (REMISE À ZÉRO)", type="primary"):
                  for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
                      if os.path.exists(f): os.remove(f)
                  for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
-                 st.success("Reset complet !"); st.rerun()
+                 st.success("✅ Système remis à neuf !"); time.sleep(1); st.rerun()
 
 # --- 4. UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("""
-    <style>
-        .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
-        .stApp { background-color: black !important; color: white !important; }
-        [data-testid="stHeader"] { display: none !important; }
-        h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
-        .stTabs [data-baseweb="tab-list"] { justify-content: center; }
-        div[data-testid="stCameraInput"] button { width: 100%; }
-    </style>
-    """, unsafe_allow_html=True)
+    st.markdown("""<style>.block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; } .stApp { background-color: black !important; color: white !important; } [data-testid="stHeader"] { display: none !important; } h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; } .stTabs [data-baseweb="tab-list"] { justify-content: center; } div[data-testid="stCameraInput"] button { width: 100%; }</style>""", unsafe_allow_html=True)
     
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
@@ -361,25 +368,21 @@ elif est_utilisateur:
 
     if cfg["mode_affichage"] == "photos_live":
         st.markdown("<h1 style='color:#E2001A;'>📸 MUR PHOTO LIVE</h1>", unsafe_allow_html=True)
-        if cfg.get("logo_b64"):
-            st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:60px; width:auto;"></div>', unsafe_allow_html=True)
+        if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:60px; width:auto;"></div>', unsafe_allow_html=True)
         
         tab_native, tab_web = st.tabs(["📱 Téléphone", "💻 Webcam"])
         with tab_native:
             photo_native = st.file_uploader("Prendre une photo", type=["png", "jpg", "jpeg"], key=f"upl_{st.session_state.cam_reset_id}", label_visibility="collapsed")
             if photo_native:
-                if save_live_photo(photo_native):
-                    st.balloons(); st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(1.5); st.rerun()
+                if save_live_photo(photo_native): st.balloons(); st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(1.5); st.rerun()
         with tab_web:
             photo_web = st.camera_input("Photo", key=f"cam_{st.session_state.cam_reset_id}", label_visibility="collapsed")
             if photo_web:
-                if save_live_photo(photo_web):
-                    st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(0.5); st.rerun()
+                if save_live_photo(photo_web): st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(0.5); st.rerun()
 
     else:
         st.title("🗳️ Vote Transdev")
-        if cfg.get("logo_b64"):
-            st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
+        if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
         if "user_id" not in st.session_state: st.session_state.user_id = None
         if not st.session_state.user_id:
             nom = st.text_input("Votre Nom / Matricule :")
@@ -410,21 +413,11 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
-    st.markdown("""
-    <style>
-        body, .stApp { background-color: black !important; } 
-        [data-testid='stHeader'], footer { display: none !important; } 
-        .block-container { padding-top: 2rem !important; }
-        img { background-color: transparent !important; }
-    </style>
-    """, unsafe_allow_html=True)
-    
+    st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; } img { background-color: transparent !important; }</style>""", unsafe_allow_html=True)
     config = load_json(CONFIG_FILE, default_config)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
-    
     logo_html = ""
-    if config.get("logo_b64"): 
-        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
+    if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
 
     if config["mode_affichage"] != "photos_live":
         st.markdown(f'<div style="text-align:center; color:white; background:transparent;">{logo_html}<h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
@@ -449,91 +442,34 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        photos = glob.glob(f"{LIVE_DIR}/*")
-        photos.sort(key=os.path.getmtime, reverse=True)
-        recent_photos = photos[:40] 
-
+        photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
         for photo_path in recent_photos:
-            with open(photo_path, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-                img_array_js.append(f"data:image/jpeg;base64,{b64}")
+            with open(photo_path, "rb") as f: b64 = base64.b64encode(f.read()).decode(); img_array_js.append(f"data:image/jpeg;base64,{b64}")
         js_img_list = json.dumps(img_array_js)
 
         components.html(f"""
-        <html>
-        <head>
-            <style>
-                body {{ margin: 0; overflow: hidden; background: transparent; }}
-                .bubble {{
-                    position: absolute;
-                    border-radius: 50%;
-                    border: 4px solid #E2001A;
-                    box-shadow: 0 0 20px rgba(226, 0, 26, 0.5);
-                    object-fit: cover;
-                    will-change: transform;
-                }}
-            </style>
-        </head>
-        <body>
-            <div id="container"></div>
-            <script>
-                const images = {js_img_list};
-                const container = document.getElementById('container');
-                const bubbles = [];
-                const speed = 2.5;
-                const centerX_min = window.innerWidth * 0.35;
-                const centerX_max = window.innerWidth * 0.65;
-                const centerY_min = window.innerHeight * 0.30;
-                const centerY_max = window.innerHeight * 0.70;
-
-                images.forEach((src, index) => {{
-                    const img = document.createElement('img');
-                    img.src = src;
-                    img.className = 'bubble';
-                    const size = 80 + Math.random() * 150;
-                    let startX, startY;
-                    do {{
-                        startX = Math.random() * (window.innerWidth - 150);
-                        startY = Math.random() * (window.innerHeight - 150);
-                    }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max);
-
-                    const bubble = {{
-                        element: img,
-                        x: startX,
-                        y: startY,
-                        vx: (Math.random() - 0.5) * speed * 2,
-                        vy: (Math.random() - 0.5) * speed * 2,
-                        size: size
-                    }};
-                    img.style.width = bubble.size + 'px';
-                    img.style.height = bubble.size + 'px';
-                    container.appendChild(img);
-                    bubbles.push(bubble);
-                }});
-
-                function animate() {{
-                    const w = window.innerWidth;
-                    const h = window.innerHeight;
-                    bubbles.forEach(b => {{
-                        b.x += b.vx;
-                        b.y += b.vy;
-                        if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1;
-                        if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1;
-                        if (b.x + b.size > centerX_min && b.x < centerX_max && 
-                            b.y + b.size > centerY_min && b.y < centerY_max) {{
-                            const centerX = (centerX_min + centerX_max) / 2;
-                            if (b.x < centerX) b.vx = -Math.abs(b.vx); 
-                            else b.vx = Math.abs(b.vx);
-                        }}
-                        b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
-                    }});
-                    requestAnimationFrame(animate);
-                }}
-                animate();
-            </script>
-        </body>
-        </html>
+        <html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head>
+        <body><div id="container"></div><script>
+            const images = {js_img_list}; const container = document.getElementById('container'); const bubbles = []; const speed = 2.5;
+            const centerX_min = window.innerWidth * 0.35; const centerX_max = window.innerWidth * 0.65; const centerY_min = window.innerHeight * 0.30; const centerY_max = window.innerHeight * 0.70;
+            images.forEach((src, index) => {{
+                const img = document.createElement('img'); img.src = src; img.className = 'bubble'; const size = 80 + Math.random() * 150;
+                let startX, startY;
+                do {{ startX = Math.random() * (window.innerWidth - 150); startY = Math.random() * (window.innerHeight - 150); }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max);
+                const bubble = {{ element: img, x: startX, y: startY, vx: (Math.random() - 0.5) * speed * 2, vy: (Math.random() - 0.5) * speed * 2, size: size }};
+                img.style.width = bubble.size + 'px'; img.style.height = bubble.size + 'px'; container.appendChild(img); bubbles.push(bubble);
+            }});
+            function animate() {{
+                const w = window.innerWidth; const h = window.innerHeight;
+                bubbles.forEach(b => {{
+                    b.x += b.vx; b.y += b.vy;
+                    if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1;
+                    if (b.x + b.size > centerX_min && b.x < centerX_max && b.y + b.size > centerY_min && b.y < centerY_max) {{ const centerX = (centerX_min + centerX_max) / 2; if (b.x < centerX) b.vx = -Math.abs(b.vx); else b.vx = Math.abs(b.vx); }}
+                    b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
+                }}); requestAnimationFrame(animate);
+            }} animate();
+        </script></body></html>
         """, height=900)
 
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
