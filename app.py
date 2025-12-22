@@ -48,7 +48,6 @@ if est_admin:
             st.session_state["auth"] = True
             st.rerun()
     else:
-        # NAVIGATION DANS LA BARRE LATÉRALE
         with st.sidebar:
             st.title("🎮 RÉGIE")
             onglet = st.radio("Menu de gestion :", ["🕹️ Pilotage Live", "⚙️ Paramétrage", "📸 Gestion Photos", "📥 Exports & Data"])
@@ -57,7 +56,6 @@ if est_admin:
                 st.session_state["auth"] = False
                 st.rerun()
 
-        # ZONE CENTRALE ADMIN
         if onglet == "🕹️ Pilotage Live":
             st.header("🕹️ Pilotage du Mur Social")
             col_ctrl, col_stats = st.columns([1, 1.5])
@@ -125,20 +123,18 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
-    st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
+    st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>""", unsafe_allow_html=True)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     logo_img = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; margin-bottom:10px;">' if config.get("logo_b64") else ""
     
-    # EN-TÊTE FIXE
-    st.markdown(f"""
-        <div style="text-align:center; color:white; padding-top:40px;">
-            {logo_img}
-            <h1 style="font-size:50px; font-weight:bold; text-transform:uppercase; margin:0;">{config["titre_mur"]}</h1>
-            <div style="background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; margin-top:10px;">
-                👥 {nb_p} CONNECTÉS
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    # --- CORRECTION ICI : Suppression de l'indentation dans le bloc HTML ---
+    html_header = f"""<div style="text-align:center; color:white; padding-top:40px;">
+{logo_img}
+<h1 style="font-size:50px; font-weight:bold; text-transform:uppercase; margin:0;">{config["titre_mur"]}</h1>
+<div style="background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; margin-top:10px;">👥 {nb_p} CONNECTÉS</div>
+</div>"""
+    
+    st.markdown(html_header, unsafe_allow_html=True)
 
     if config["mode_affichage"] == "attente":
         st.markdown(f'<div style="text-align:center; color:white;"><div style="{BADGE_CSS}">⌛ En attente des Votes</div><h2 style="font-size:55px; margin-top:60px;">Bienvenue ! 👋</h2></div>', unsafe_allow_html=True)
@@ -161,21 +157,21 @@ else:
             st.markdown("</div>", unsafe_allow_html=True)
         else:
             components.html(f"""
-                <div style="text-align:center; font-family:sans-serif; color:white; background:black; height:100%;">
-                    <div style="{BADGE_CSS} background:#333;">🏁 LES VOTES SONT CLOS</div>
-                    <div style="font-size:100px; animation: clap 0.5s infinite alternate; margin-top:30px;">👏</div>
-                    <h1 style="color:#E2001A; font-size:45px;">MERCI À TOUS !</h1>
-                </div>
-                <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-                <script>
-                    var end = Date.now() + 7000;
-                    (function frame() {{
-                        confetti({{ particleCount: 3, origin: {{ y: -0.2, x: Math.random() }}, spread: 360, gravity: 0.8, colors: ['#E2001A', '#ffffff'] }});
-                        if (Date.now() < end) requestAnimationFrame(frame);
-                    }}());
-                </script>
-                <style> @keyframes clap {{ from {{ transform: scale(1); }} to {{ transform: scale(1.2); }} }} </style>
-            """, height=600)
+<div style="text-align:center; font-family:sans-serif; color:white; background:black; height:100%;">
+<div style="{BADGE_CSS} background:#333;">🏁 LES VOTES SONT CLOS</div>
+<div style="font-size:100px; animation: clap 0.5s infinite alternate; margin-top:30px;">👏</div>
+<h1 style="color:#E2001A; font-size:45px;">MERCI À TOUS !</h1>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+<script>
+var end = Date.now() + 7000;
+(function frame() {{
+confetti({{ particleCount: 3, origin: {{ y: -0.2, x: Math.random() }}, spread: 360, gravity: 0.8, colors: ['#E2001A', '#ffffff'] }});
+if (Date.now() < end) requestAnimationFrame(frame);
+}}());
+</script>
+<style> @keyframes clap {{ from {{ transform: scale(1); }} to {{ transform: scale(1.2); }} }} </style>
+""", height=600)
 
     elif config["reveal_resultats"]:
         temps_ecoule = time.time() - config.get("timestamp_podium", 0)
