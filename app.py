@@ -78,7 +78,6 @@ def save_live_photo(uploaded_file):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"live_{timestamp}_{random.randint(100,999)}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
-        
         img = Image.open(uploaded_file)
         try:
             from PIL import ExifTags
@@ -91,7 +90,6 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
-
         img = img.convert("RGB")
         img.thumbnail((500, 500)) 
         img.save(filepath, "JPEG", quality=85)
@@ -311,48 +309,51 @@ elif est_utilisateur:
     st.markdown("""
     <style>
         .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
-        .stApp { background-color: black !important; color: white !important; }
+        .stApp { background-color: black !important; color: white !important; visibility: hidden; } /* CACHÉ PAR DÉFAUT */
         [data-testid="stHeader"] { display: none !important; }
         h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { justify-content: center; }
         div[data-testid="stCameraInput"] button { width: 100%; }
         
-        /* CADRE BLANC ET ROUGE AUTOUR DU SELECT */
-        .stMultiSelect div[data-baseweb="select"] > div {
-            border: 3px solid #E2001A !important;
-            border-radius: 8px !important;
-            background-color: #222 !important;
+        /* DESIGN SELECT */
+        .stMultiSelect div[data-baseweb="select"] {
+            border: 4px solid white !important;
+            border-radius: 12px !important;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important;
         }
         .stMultiSelect div[data-baseweb="tag"] {
             background-color: #E2001A !important;
             color: white !important;
         }
-        div[data-baseweb="popover"] {
-            background-color: #333 !important;
-        }
     </style>
     """, unsafe_allow_html=True)
     
-    # 1. BLOCAGE ULTRA-AGRESSIF JS SI DÉJÀ VOTÉ
-    # On utilise un nom de clé UNIQUE pour être sûr que ça ne conflicte pas
+    # --- SECURITÉ JS "RIDEAU DE FER" ---
     if cfg["mode_affichage"] != "photos_live": 
         components.html("""
         <script>
-            // VERIFICATION IMMEDIATE : On regarde si la marque existe
-            var voted = localStorage.getItem('has_voted_transdev_v2');
+            // 1. Vérifie si le cookie existe
+            var voted = localStorage.getItem('transdev_final_lock');
             
             if (voted === 'true') {
-                // SI OUI : On efface tout le contenu de la page pour bloquer l'accès
-                document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:black;color:white;font-family:sans-serif;text-align:center;"><div><h1 style="font-size:3rem;">🚫</h1><h2>Vous avez déjà voté.</h2><p>Le vote est limité à une fois par appareil.</p></div></div>';
+                // 2. SI OUI : Affiche un message de blocage et NE MONTRE JAMAIS l'app
+                document.body.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:black;color:white;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999999;font-family:sans-serif;"><h1>🚫</h1><h2>Vote déjà enregistré.</h2><p>Une seule participation autorisée.</p></div>';
+            } else {
+                // 3. SI NON : Rend l'application visible (enlève le visibility:hidden du CSS)
+                window.parent.document.querySelector('.stApp').style.visibility = 'visible';
             }
         </script>
         """, height=0)
+    else:
+        # Pour le mode photo, on rend visible direct
+        components.html("""<script>window.parent.document.querySelector('.stApp').style.visibility = 'visible';</script>""", height=0)
 
-    if "participant_recorded" not in st.session_state:
-        parts = load_json(PARTICIPANTS_FILE, [])
-        parts.append(time.time())
-        with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
-        st.session_state["participant_recorded"] = True
+    # COMPTEUR CONNECTES (Fenêtre 30s)
+    parts = load_json(PARTICIPANTS_FILE, [])
+    now = time.time()
+    parts = [t for t in parts if now - t < 30]
+    parts.append(now)
+    with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
@@ -386,7 +387,6 @@ elif est_utilisateur:
             
             if "user_id" not in st.session_state: st.session_state.user_id = None
             if not st.session_state.user_id:
-                # CHANGEMENT DU TEXTE
                 nom = st.text_input("Votre Pseudo / Nom :")
                 if st.button("Commencer"):
                     if len(nom) > 2:
@@ -407,10 +407,8 @@ elif est_utilisateur:
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                     
                     st.session_state["a_vote"] = True
-                    
-                    # 2. MARQUAGE DU NAVIGATEUR (LOCALSTORAGE)
-                    # On injecte la marque indélébile
-                    components.html("""<script>localStorage.setItem('has_voted_transdev_v2', 'true'); location.reload();</script>""", height=0)
+                    # Injection de la marque de vote
+                    components.html("""<script>localStorage.setItem('transdev_final_lock', 'true'); location.reload();</script>""", height=0)
                     time.sleep(1)
                 elif len(choix) > 3: st.error("Max 3 !")
 
@@ -419,10 +417,8 @@ else:
     st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; } img { background-color: transparent !important; }</style>""", unsafe_allow_html=True)
     config = load_json(CONFIG_FILE, default_config)
     
-    # LECTURE ET NETTOYAGE DU COMPTEUR
     parts = load_json(PARTICIPANTS_FILE, [])
     now = time.time()
-    # On affiche seulement ceux connectés il y a moins de 30s
     nb_p = len([t for t in parts if now - t < 30])
     
     logo_html = ""
