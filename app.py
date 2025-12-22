@@ -98,15 +98,93 @@ EFFECTS_LIB = {
     "🟢 Matrix": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,30);</script>"""
 }
 
-# --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
-PREVIEW_LIB = {
-    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h4 style='color:#555;font-family:sans-serif;margin:0;'>OFF</h4></body></html>",
-    "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:20px;transition:bottom 3s linear;';document.body.appendChild(d);setTimeout(function(){d.style.bottom='120%';},50);setTimeout(function(){d.remove()},3000);},500);</script></body></html>""",
-    "❄️ Neige": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.f{position:absolute;color:#FFF;animation:d 2s linear forwards}@keyframes d{to{transform:translateY(200px)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='f';d.innerHTML='❄';d.style.left=Math.random()*95+'%';d.style.top='-20px';d.style.fontSize=(Math.random()*10+8)+'px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},100);</script></body></html>""",
-    "🎉 Confettis": """<html><body style='background:black;margin:0;overflow:hidden;'><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>setInterval(function(){confetti({particleCount:5,spread:50,origin:{y:0.6},colors:['#E2001A','#ffffff'],disableForReducedMotion:true,zIndex:100,scalar:0.6});},800);</script></body></html>""",
-    "🌌 Espace": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(2)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='s';d.style.left=Math.random()*100+'%';d.style.top=Math.random()*100+'%';d.style.width='1px';d.style.height='1px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},80);</script></body></html>""",
-    "💸 Billets": """<html><body style='background:black;margin:0;overflow:hidden;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:18px;';document.body.appendChild(d);d.animate([{transform:'translateY(0)'},{transform:'translateY(200px)'}],{duration:2000,iterations:1});setTimeout(function(){d.remove()},1900);},400);</script></body></html>""",
-    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100vh;"></canvas><script>var c=document.getElementById('m');var x=c.getContext('2d');c.width=160;c.height=140;var col=c.width/10;var r=[];for(var i=0;i<col;i++)r[i]=1;setInterval(function(){x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font='8px monospace';for(var i=0;i<r.length;i++){x.fillText(Math.floor(Math.random()*2),i*10,r[i]*10);if(r[i]*10>c.height&&Math.random()>0.95)r[i]=0;r[i]++;}},50);</script></body></html>"""
+# --- 2. GENERATEUR HTML DE TV RETRO AVEC PREVIEW ---
+def get_tv_html(effect_js):
+    return f"""
+    <html>
+    <head>
+        <style>
+            body {{ margin: 0; padding: 0; background: transparent; font-family: sans-serif; display: flex; justify-content: center; overflow: hidden; }}
+            .tv-container {{
+                position: relative; width: 300px; height: 260px; margin-top: 30px;
+            }}
+            
+            /* ANTENNA */
+            .antenna {{ position: absolute; top: -35px; left: 50%; transform: translateX(-50%); width: 80px; height: 35px; z-index: 0; }}
+            .ant-l {{ position: absolute; bottom: 0; left: 0; width: 3px; height: 45px; background: #888; transform: rotate(-30deg); transform-origin: bottom; }}
+            .ant-r {{ position: absolute; bottom: 0; right: 0; width: 3px; height: 45px; background: #888; transform: rotate(30deg); transform-origin: bottom; }}
+            .ant-base {{ position: absolute; bottom: 0; left: 25px; width: 30px; height: 15px; background: #222; border-radius: 50% 50% 0 0; }}
+
+            /* CABINET */
+            .cabinet {{
+                position: absolute; width: 100%; height: 200px; top: 0; left: 0;
+                background: #5D4037; border: 6px solid #3E2723; border-radius: 15px;
+                box-shadow: 5px 5px 15px rgba(0,0,0,0.5); z-index: 2;
+                display: flex; align-items: center; padding: 10px; box-sizing: border-box;
+            }}
+            
+            /* SCREEN AREA (LEFT) */
+            .screen-bezel {{
+                width: 200px; height: 160px;
+                background: #222; border: 3px solid #8D6E63; border-radius: 20px;
+                box-shadow: inset 0 0 15px #000;
+                display: flex; align-items: center; justify-content: center; overflow: hidden;
+            }}
+            .screen-content {{
+                width: 180px; height: 140px;
+                background: black; border-radius: 16px;
+                position: relative; overflow: hidden; /* Effect lives here */
+            }}
+            
+            /* CONTROLS (RIGHT) */
+            .controls {{
+                flex-grow: 1; height: 100%; margin-left: 10px;
+                background: #4E342E; border-left: 2px solid #3E2723;
+                border-radius: 4px; display: flex; flex-direction: column; 
+                align-items: center; justify-content: space-evenly;
+            }}
+            .knob {{ width: 30px; height: 30px; background: #BCAAA4; border-radius: 50%; border: 2px solid #222; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); }}
+            .speaker {{ width: 30px; height: 50px; background: repeating-linear-gradient(0deg, #222, #222 2px, #444 2px, #444 4px); border: 1px solid #000; border-radius: 4px; }}
+
+            /* LEGS */
+            .legs {{ position: absolute; bottom: 15px; left: 0; width: 100%; height: 45px; z-index: 1; }}
+            .leg {{ position: absolute; bottom: 0; width: 20px; height: 45px; background: #3E2723; }}
+            .leg-l {{ left: 30px; transform: rotate(15deg); }}
+            .leg-r {{ right: 30px; transform: rotate(-15deg); }}
+
+        </style>
+    </head>
+    <body>
+        <div class="tv-container">
+            <div class="antenna"><div class="ant-l"></div><div class="ant-base"></div><div class="ant-r"></div></div>
+            <div class="legs"><div class="leg leg-l"></div><div class="leg leg-r"></div></div>
+            
+            <div class="cabinet">
+                <div class="screen-bezel">
+                    <div class="screen-content" id="preview-screen">
+                        {effect_js}
+                    </div>
+                </div>
+                <div class="controls">
+                    <div class="knob" style="transform: rotate(45deg);"></div>
+                    <div class="knob" style="transform: rotate(-15deg);"></div>
+                    <div class="speaker"></div>
+                </div>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+# SCRIPTS JS SPECIFIQUES POUR LA PREVIEW (CIBLANT #preview-screen)
+PREVIEW_SCRIPTS = {
+    "Aucun": "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>",
+    "🎈 Ballons": """<script>const c=document.getElementById('preview-screen'); setInterval(()=>{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-20px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom 3s linear;';c.appendChild(e);setTimeout(()=>{e.style.bottom='150px'},50);setTimeout(()=>{e.remove()},3000)},500);</script>""",
+    "❄️ Neige": """<style>.sf{position:absolute;color:white;animation:f 2s linear infinite}@keyframes f{to{transform:translateY(150px)}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';c.appendChild(e);setTimeout(()=>{e.remove()},2000)},100);</script>""",
+    "🎉 Confettis": """<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const c=document.getElementById('preview-screen');setInterval(()=>{confetti({particleCount:5,spread:40,origin:{y:0.7},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.5});},800);</script>""",
+    "🌌 Espace": """<style>.st{position:absolute;background:white;border-radius:50%;animation:z 2s linear infinite;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(2)}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{const e=document.createElement('div');e.className='st';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';c.appendChild(e);setTimeout(()=>{e.remove()},2000)},80);</script>""",
+    "💸 Billets": """<script>const c=document.getElementById('preview-screen'); setInterval(()=>{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{transform:'translateY(0)'},{transform:'translateY(160px)'}],{duration:2000});setTimeout(()=>{e.remove()},1900)},500);</script>""",
+    "🟢 Matrix": """<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++})},50);</script>"""
 }
 
 # --- FONCTIONS CRITIQUES ---
@@ -227,136 +305,23 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # CSS TV RETRO FIDÈLE (BOIS + CONTROLES A DROITE)
-            st.markdown("""
-            <style>
-                .tv-retro-container {
-                    position: relative;
-                    width: 320px;
-                    height: 240px;
-                    margin: 0 auto;
-                }
-                
-                /* LES ANTENNES */
-                .tv-antennas {
-                    position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
-                    width: 100px; height: 50px; z-index: 0;
-                }
-                .ant-rod { width: 3px; background: #666; height: 100%; position: absolute; bottom: 0; transform-origin: bottom; }
-                .ant-l { left: 0; transform: rotate(-25deg); }
-                .ant-r { right: 0; transform: rotate(25deg); }
-                .ant-base { width: 30px; height: 15px; background: #222; border-radius: 50% 50% 0 0; position: absolute; bottom: 0; left: 35px; }
-
-                /* BOITIER TV */
-                .tv-box {
-                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                    background: #5D4037; /* Marron bois */
-                    border: 6px solid #3E2723; /* Bordure bois foncé */
-                    border-radius: 20px;
-                    box-shadow: 5px 5px 15px rgba(0,0,0,0.6);
-                    z-index: 5;
-                    display: flex; /* Flexbox pour séparer écran et contrôles */
-                    padding: 12px;
-                    box-sizing: border-box;
-                }
-
-                /* ZONE ECRAN (GAUCHE) */
-                .tv-screen-zone {
-                    flex: 1; /* Prend la place restante */
-                    background: #222;
-                    border: 4px solid #8D6E63; /* Bordure beige/clair */
-                    border-radius: 16px;
-                    box-shadow: inset 0 0 20px #000;
-                    margin-right: 12px;
-                    position: relative;
-                    overflow: hidden;
-                }
-                
-                /* OVERLAY ECRAN (IFRAME) */
-                .tv-screen-content {
-                    width: 100%; height: 100%;
-                    background: black; /* Fond noir forcé */
-                }
-                .tv-screen-content iframe {
-                    width: 100% !important; height: 100% !important; border: none;
-                }
-
-                /* ZONE CONTROLES (DROITE) */
-                .tv-controls-zone {
-                    width: 60px;
-                    background: #3E2723;
-                    border-radius: 8px;
-                    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;
-                    padding: 5px 0;
-                }
-                .tv-knob {
-                    width: 30px; height: 30px;
-                    border-radius: 50%;
-                    background: #BCAAA4; /* Bouton clair */
-                    border: 2px solid #222;
-                    box-shadow: 1px 2px 3px rgba(0,0,0,0.5);
-                }
-                .tv-speaker {
-                    width: 30px; height: 40px;
-                    background: repeating-linear-gradient(0deg, #222, #222 3px, #4E342E 3px, #4E342E 6px);
-                    border: 1px solid #111;
-                    border-radius: 4px;
-                }
-
-                /* PIEDS */
-                .tv-legs {
-                    position: absolute; bottom: -40px; left: 0; width: 100%;
-                    display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; z-index: 1;
-                }
-                .tv-leg { width: 15px; height: 50px; background: #222; }
-                .leg-l { transform: skewX(10deg); }
-                .leg-r { transform: skewX(-10deg); }
-            </style>
-            """, unsafe_allow_html=True)
-
             st.markdown("### 🧪 Laboratoire & Visuels")
             
             c_test_sel, c_test_tv = st.columns([1, 1.5], gap="medium", vertical_alignment="center")
 
             with c_test_sel:
                 st.markdown("#### 1. Choix Aperçu")
-                prev_sel = st.radio("Effet à tester :", list(PREVIEW_LIB.keys()), index=list(PREVIEW_LIB.keys()).index(st.session_state.preview_selected), key="radio_preview", label_visibility="collapsed")
+                # Liste déroulante pour la preview
+                prev_sel = st.radio("Effet à tester :", list(PREVIEW_SCRIPTS.keys()), index=list(PREVIEW_SCRIPTS.keys()).index(st.session_state.preview_selected), key="radio_preview", label_visibility="collapsed")
                 if prev_sel != st.session_state.preview_selected:
                     st.session_state.preview_selected = prev_sel
                     st.rerun()
 
             with c_test_tv:
-                # CONSTRUCTION DE LA TV HTML STRUCTUREE
-                # 1. Container global
-                html_tv = f"""
-                <div class="tv-retro-container">
-                    <div class="tv-antennas">
-                        <div class="ant-rod ant-l"></div>
-                        <div class="ant-base"></div>
-                        <div class="ant-rod ant-r"></div>
-                    </div>
-                    
-                    <div class="tv-box">
-                        <div class="tv-screen-zone">
-                            <div class="tv-screen-content">
-                                {PREVIEW_LIB[st.session_state.preview_selected] if st.session_state.preview_selected in PREVIEW_LIB else ''}
-                            </div>
-                        </div>
-                        
-                        <div class="tv-controls-zone">
-                            <div class="tv-knob" style="transform: rotate(45deg);"></div>
-                            <div class="tv-knob" style="transform: rotate(-20deg);"></div>
-                            <div class="tv-speaker"></div>
-                        </div>
-                    </div>
-
-                    <div class="tv-legs">
-                        <div class="tv-leg leg-l"></div>
-                        <div class="tv-leg leg-r"></div>
-                    </div>
-                </div>
-                """
-                components.html(html_tv, height=320) # Hauteur suffisante pour inclure pieds et antennes
+                # GENERATION ET AFFICHAGE DE LA TV "TOUT EN UN"
+                js_code = PREVIEW_SCRIPTS.get(st.session_state.preview_selected, "")
+                full_tv_code = get_tv_html(js_code)
+                components.html(full_tv_code, height=350)
             
             st.divider()
 
