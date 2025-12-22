@@ -112,6 +112,21 @@ if est_admin:
             if c4.button("4. PODIUM", use_container_width=True, type="primary" if re else "secondary"):
                 cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); force_refresh(); st.rerun()
 
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # --- NOUVEAU BOUTON RESET DANS LE LIVE ---
+            with st.expander("🗑️ OPTIONS DE RÉINITIALISATION (Zone de danger)"):
+                col_rst, col_info = st.columns([1, 2])
+                with col_rst:
+                    if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet les scores à 0 mais garde les participants"):
+                        if os.path.exists(VOTES_FILE):
+                            os.remove(VOTES_FILE)
+                        st.toast("✅ Votes réinitialisés avec succès !")
+                        time.sleep(1)
+                        st.rerun()
+                with col_info:
+                    st.info("Ceci efface tous les votes enregistrés pour redémarrer une session, mais conserve les participants connectés.")
+
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
             v_data = load_json(VOTES_FILE, {})
@@ -291,7 +306,6 @@ else:
             with c1:
                 for c in cands[:mid]: st.markdown(get_html(c), unsafe_allow_html=True)
             with c2:
-                # --- MODIFICATION ICI : Padding réduit (4px) et centrage via margin: 0 auto et width: fit-content ---
                 st.markdown(f'<div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;"><img src="data:image/png;base64,{qr_b64}" width="180" style="display:block;"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p></div>', unsafe_allow_html=True)
             with c3:
                 for c in cands[mid:]: st.markdown(get_html(c), unsafe_allow_html=True)
