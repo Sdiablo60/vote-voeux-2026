@@ -1,7 +1,9 @@
 streamlit
 pandas
 qrcode
+fpdf
 pillow
 altair
 openpyxl
 streamlit-autorefresh
+
