@@ -77,7 +77,7 @@ if est_admin:
         if st.sidebar.button("3️⃣ Clôturer les Votes", type="primary" if (not vo and m == "votes" and not re) else "secondary", use_container_width=True):
             config.update({"session_ouverte": False})
             with open(CONFIG_FILE, "w") as f: json.dump(config, f)
-            st.sidebar.success("✅ Votes clôturés sur le mur !")
+            st.sidebar.success("✅ Votes clôturés !")
             st.rerun()
 
         if st.sidebar.button("4️⃣ Afficher le Podium 🏆", type="primary" if re else "secondary", use_container_width=True):
@@ -98,15 +98,6 @@ if est_admin:
             for f_p, cont in [(CONFIG_FILE, config), (VOTES_FILE, {}), (PARTICIPANTS_FILE, [])]:
                 with open(f_p, "w") as f: json.dump(cont, f)
             st.rerun()
-
-    if st.session_state.get("auth"):
-        st.title("📊 Résultats & Export")
-        v_data = load_json(VOTES_FILE, {})
-        if v_data:
-            sorted_v = dict(sorted(v_data.items(), key=lambda x: x[1], reverse=True))
-            st.bar_chart(sorted_v)
-            df = pd.DataFrame(list(sorted_v.items()), columns=['BU', 'Points'])
-            st.download_button("📥 Télécharger CSV", df.to_csv(index=False).encode('utf-8'), f'resultats_v{VOTE_VERSION}.csv', 'text/csv')
 
 # --- 4. UTILISATEUR (VOTE) ---
 elif est_utilisateur:
@@ -140,7 +131,7 @@ elif est_utilisateur:
                 components.html(f'<script>localStorage.setItem("{v_key}", "true"); setTimeout(()=>{{window.parent.location.reload();}}, 300);</script>', height=0)
                 st.session_state["voted_final"] = True; st.rerun()
 
-# --- 5. MUR SOCIAL (ÉCRAN PROJETÉ) ---
+# --- 5. MUR SOCIAL ---
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
     host = st.context.headers.get('host', 'localhost')
@@ -151,38 +142,25 @@ else:
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     v_data = load_json(VOTES_FILE, {})
 
-    # En-tête Mur
-    st.markdown(f"""
-        <div style="text-align:center; color:white; padding-top:40px;">
-            <h1 style="font-size:50px; margin:0; text-transform:uppercase; letter-spacing:2px; font-weight:bold;">{config["titre_mur"]}</h1>
-            <div style="margin-top:10px; background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; font-size:16px;">
-                👥 {nb_p} PARTICIPANTS CONNECTÉS
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center; color:white; padding-top:40px;"><h1 style="font-size:50px; margin:0; text-transform:uppercase; letter-spacing:2px; font-weight:bold;">{config["titre_mur"]}</h1><div style="margin-top:10px; background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; font-size:16px;">👥 {nb_p} PARTICIPANTS CONNECTÉS</div></div>', unsafe_allow_html=True)
 
     badge_style = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:20px; font-weight:bold; border:2px solid white; color:white;"
 
+    # LOGIQUE SONORE (Invisible)
+    if (config["mode_affichage"] == "votes" and not config["session_ouverte"] and not config["reveal_resultats"]) or config["reveal_resultats"]:
+        components.html("""<audio autoplay><source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg"></audio>""", height=0)
+
     # 1. MODE ATTENTE
     if config["mode_affichage"] == "attente":
-        st.markdown(f"""
-            <div style="text-align:center; color:white;">
-                <div style="{badge_style}">⌛ En attente de l'ouverture des Votes</div>
-                <div style="margin-top:60px;">
-                    <h2 style="font-size:55px; opacity:0.9;">Bienvenue à tous ! 👋</h2>
-                    <p style="font-size:30px; color:#ccc; margin-top:15px;">Installez-vous confortablement.</p>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align:center; color:white;"><div style="{badge_style}">⌛ En attente de l\'ouverture des Votes</div><div style="margin-top:60px;"><h2 style="font-size:55px; opacity:0.9;">Bienvenue à tous ! 👋</h2><p style="font-size:30px; color:#ccc; margin-top:15px;">Installez-vous confortablement.</p></div></div>', unsafe_allow_html=True)
 
     # 2. MODE VOTES (OUVERT OU CLOS)
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         if config["session_ouverte"]:
-            # VOTES OUVERTS
-            st.markdown(f"""<div style="text-align:center;"><div style="{badge_style} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div><style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>""", unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center;"><div style="{badge_style} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div><style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>', unsafe_allow_html=True)
         else:
-            # VOTES CLOS (Nouveau message !)
-            st.markdown(f"""<div style="text-align:center;"><div style="{badge_style} background:#333;">🏁 LES VOTES SONT CLOS</div></div>""", unsafe_allow_html=True)
+            st.snow()
+            st.markdown(f"""<div style="text-align:center;"><div style="{badge_style} background:#333;">🏁 LES VOTES SONT CLOS</div><div style="margin-top:40px; color:white;"><h1 style="font-size:60px; animation: bounce 2s infinite;">👏👏👏</h1><h2 style="font-size:45px; color:#E2001A;">MERCI À TOUS !</h2><p style="font-size:25px; color:#ccc;">Suspense... Les résultats arrivent !</p></div></div><style>@keyframes bounce {{ 0%, 100% {{ transform: translateY(0); }} 50% {{ transform: translateY(-20px); }} }}</style>""", unsafe_allow_html=True)
 
         st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 0.8, 1])
@@ -191,9 +169,9 @@ else:
                 st.markdown(f'<div style="background:#222; color:white; padding:12px 15px; border-radius:10px; margin-bottom:12px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
         with col2:
             if config["session_ouverte"]:
-                st.markdown(f"""<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;"><div style="background:white; padding:8px; border-radius:12px; display:inline-block;"><img src="data:image/png;base64,{qr_b64}" width="180"></div><div style="text-align:center; margin-top:15px; color:white; font-size:14px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">Scannez pour voter</div></div>""", unsafe_allow_html=True)
+                st.markdown(f'<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;"><div style="background:white; padding:8px; border-radius:12px; display:inline-block;"><img src="data:image/png;base64,{qr_b64}" width="180"></div></div>', unsafe_allow_html=True)
             else:
-                st.markdown(f"""<div style="text-align:center; margin-top:50px; color:white; opacity:0.5;"><h1 style="font-size:80px;">🔒</h1><h3>Merci pour vos votes !</h3><p>Calcul des résultats en cours...</p></div>""", unsafe_allow_html=True)
+                st.markdown('<div style="text-align:center; margin-top:30px; font-size:100px;">✨</div>', unsafe_allow_html=True)
         with col3:
             for opt in OPTS_BU[5:]:
                 st.markdown(f'<div style="background:#222; color:white; padding:12px 15px; border-radius:10px; margin-bottom:12px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
@@ -201,6 +179,7 @@ else:
 
     # 3. MODE PODIUM
     elif config["mode_affichage"] == "votes" and config["reveal_resultats"]:
+        st.balloons()
         if v_data:
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
             cols = st.columns(3)
