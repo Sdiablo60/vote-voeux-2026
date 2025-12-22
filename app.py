@@ -100,9 +100,8 @@ EFFECTS_LIB = {
 }
 
 # --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
-# Fond forcé à NOIR pour tous les effets
 PREVIEW_LIB = {
-    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100%;'><h4 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:1px;margin:0;'>Signal coupé</h4></body></html>",
+    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h4 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:12px;margin:0;'>OFF</h4></body></html>",
     
     "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>
     setInterval(function(){
@@ -115,7 +114,7 @@ PREVIEW_LIB = {
     }, 500);
     </script></body></html>""",
     
-    "❄️ Neige": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.f {position:absolute;color:#FFF;animation:d 2s linear forwards} @keyframes d{to{transform:translateY(250px)}}</style>
+    "❄️ Neige": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.f {position:absolute;color:#FFF;animation:d 2s linear forwards} @keyframes d{to{transform:translateY(200px)}}</style>
     <script>
     setInterval(function(){
         var d = document.createElement('div');
@@ -128,7 +127,7 @@ PREVIEW_LIB = {
     
     "🎉 Confettis": """<html><body style='background:black;margin:0;overflow:hidden;'><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>
     setInterval(function(){
-        confetti({particleCount:5, spread:50, origin:{y:0.7}, colors:['#E2001A','#ffffff'], disableForReducedMotion:true, zIndex:100, scalar:0.8});
+        confetti({particleCount:5, spread:50, origin:{y:0.6}, colors:['#E2001A','#ffffff'], disableForReducedMotion:true, zIndex:100, scalar:0.6});
     }, 800);
     </script></body></html>""",
     
@@ -136,7 +135,7 @@ PREVIEW_LIB = {
     <script>
     setInterval(function(){
         var d = document.createElement('div'); d.className='s';
-        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='1px'; d.style.height='1px';
+        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='2px'; d.style.height='2px';
         document.body.appendChild(d);
         setTimeout(function(){ d.remove(); }, 2000);
     }, 80);
@@ -145,16 +144,16 @@ PREVIEW_LIB = {
     "💸 Billets": """<html><body style='background:black;margin:0;overflow:hidden;'><script>
     setInterval(function(){
         var d = document.createElement('div'); d.innerHTML = '💸';
-        d.style.cssText = 'position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:20px;';
+        d.style.cssText = 'position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:18px;';
         document.body.appendChild(d);
-        d.animate([{transform:'translateY(0)'}, {transform:'translateY(250px)'}], {duration:2000, iterations:1});
+        d.animate([{transform:'translateY(0)'}, {transform:'translateY(200px)'}], {duration:2000, iterations:1});
         setTimeout(function(){ d.remove(); }, 1900);
     }, 500);
     </script></body></html>""",
     
-    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100%;"></canvas><script>
+    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100vh;"></canvas><script>
     var c=document.getElementById('m'); var x=c.getContext('2d');
-    c.width=300; c.height=220;
+    c.width=200; c.height=150;
     var col=c.width/10; var r=[]; for(var i=0;i<col;i++)r[i]=1;
     setInterval(function(){
         x.fillStyle='rgba(0,0,0,0.1)'; x.fillRect(0,0,c.width,c.height);
@@ -285,91 +284,74 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # Inject CSS for Realistic Retro TV
+            # CSS pour la TV Mini
             st.markdown("""
             <style>
-                .tv-wrapper { position: relative; width: fit-content; margin: 0 auto; }
-                /* Antenna */
-                .tv-antenna { position: absolute; top: -40px; left: 50%; transform: translateX(-50%); width: 120px; height: 40px; display: flex; justify-content: space-between; z-index: 0; }
-                .antenna-rod { width: 4px; background: linear-gradient(to right, #999, #ccc, #999); border-radius: 4px; height: 100%; transform-origin: bottom; }
+                .tv-wrapper { position: relative; width: 260px; margin: 0 auto; }
+                .tv-antenna { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 80px; height: 30px; display: flex; justify-content: space-between; z-index: 0; }
+                .antenna-rod { width: 3px; background: #999; border-radius: 4px; height: 100%; transform-origin: bottom; }
                 .rod-left { transform: rotate(-25deg); } .rod-right { transform: rotate(25deg); }
-                .antenna-base { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 30px; height: 15px; background: #333; border-radius: 50% 50% 0 0; }
-                
-                /* Cabinet */
+                .antenna-base { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 20px; height: 10px; background: #333; border-radius: 50% 50% 0 0; }
                 .tv-cabinet {
-                    background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%); /* Rich wood */
-                    border-radius: 25px; padding: 15px;
-                    box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.4);
-                    border: 5px solid #3e2723; position: relative; z-index: 1;
-                    display: flex; gap: 15px;
+                    background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%);
+                    border-radius: 15px; padding: 10px;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+                    border: 4px solid #3e2723; position: relative; z-index: 1;
+                    display: flex; gap: 10px;
                 }
-                /* Screen Section */
                 .tv-screen-section { flex-grow: 1; }
                 .tv-screen-bezel {
-                    background-color: #222; border-radius: 15px; padding: 12px;
-                    box-shadow: inset 0 0 20px rgba(0,0,0,1); border: 3px solid #444; overflow: hidden;
+                    background-color: #111; border-radius: 10px; padding: 5px;
+                    box-shadow: inset 0 0 10px rgba(0,0,0,1); border: 2px solid #444; overflow: hidden;
+                    height: 160px; display: flex; align-items: center; justify-content: center;
                 }
-                /* Control Panel Section (Side) */
                 .tv-controls-panel {
-                     display: flex; flex-direction: column; justify-content: center; gap: 15px;
-                     background: #4e342e; padding: 10px; border-radius: 10px; border: 2px solid #3e2723;
+                     display: flex; flex-direction: column; justify-content: center; gap: 8px;
+                     background: #4e342e; padding: 5px; border-radius: 5px; border: 2px solid #3e2723; width: 40px;
                 }
                 .tv-knob {
-                    width: 35px; height: 35px; background: radial-gradient(circle, #795548 30%, #3e2723 100%);
-                    border-radius: 50%; border: 2px solid #222; box-shadow: 1px 2px 4px rgba(0,0,0,0.6);
-                    position: relative;
+                    width: 25px; height: 25px; background: radial-gradient(circle, #795548 30%, #3e2723 100%);
+                    border-radius: 50%; border: 2px solid #222; margin: 0 auto;
                 }
-                .tv-knob::after { content: ''; position: absolute; top: 5px; left: 50%; width: 4px; height: 12px; background: #ccc; transform: translateX(-50%); }
                 .tv-speaker-grille {
-                     width: 35px; height: 60px; background: repeating-linear-gradient(0deg, #333, #333 2px, #222 2px, #222 4px);
-                     border-radius: 4px; border: 1px solid #111;
+                     width: 25px; height: 40px; background: repeating-linear-gradient(0deg, #333, #333 2px, #222 2px, #222 4px);
+                     border-radius: 2px; border: 1px solid #111; margin: 0 auto;
                 }
-                
-                /* Legs */
-                .tv-legs-container { display: flex; justify-content: space-between; width: 70%; margin: -10px auto 0 auto; position: relative; z-index: 0; }
+                .tv-legs-container { display: flex; justify-content: space-between; width: 60%; margin: -5px auto 0 auto; position: relative; z-index: 0; }
                 .tv-leg {
-                     width: 25px; height: 50px; background: linear-gradient(to right, #5d4037, #3e2723);
+                     width: 15px; height: 30px; background: linear-gradient(to right, #5d4037, #3e2723);
                      clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%);
                 }
-                .leg-left { transform: rotate(15deg); } .leg-right { transform: rotate(-15deg); }
+                .leg-left { transform: rotate(10deg); } .leg-right { transform: rotate(-10deg); }
             </style>
             """, unsafe_allow_html=True)
 
-            # --- ZONE 1: LABORATOIRE DE TEST (PREVIEW) ---
-            st.markdown("### 🧪 Laboratoire de Test (Visualisation)")
+            st.markdown("### 🧪 Laboratoire & Visuels")
             
-            # Layout 2 colonnes : Selection gauche, TV droite
             c_test_sel, c_test_tv = st.columns([1, 1.5], gap="large", vertical_alignment="center")
 
             with c_test_sel:
-                st.markdown("#### 🕹️ Sélection de l'effet")
-                prev_sel = st.radio("Choisir pour prévisualiser :", list(PREVIEW_LIB.keys()), index=list(PREVIEW_LIB.keys()).index(st.session_state.preview_selected), key="radio_preview", label_visibility="collapsed")
+                st.markdown("#### 1. Choix Aperçu")
+                prev_sel = st.radio("Effet à tester :", list(PREVIEW_LIB.keys()), index=list(PREVIEW_LIB.keys()).index(st.session_state.preview_selected), key="radio_preview", label_visibility="collapsed")
                 if prev_sel != st.session_state.preview_selected:
                     st.session_state.preview_selected = prev_sel
                     st.rerun()
 
             with c_test_tv:
-                 # Structure HTML de la TV Complete
                 st.markdown("""
                 <div class="tv-wrapper">
                     <div class="tv-antenna"><div class="antenna-rod rod-left"></div><div class="antenna-base"></div><div class="antenna-rod rod-right"></div></div>
                     <div class="tv-cabinet">
-                        <div class="tv-screen-section">
-                            <div class="tv-screen-bezel">
+                        <div class="tv-screen-section"><div class="tv-screen-bezel">
                 """, unsafe_allow_html=True)
-
-                # LE COMPOSANT ECRAN (Taille réduite)
+                
+                # COMPOSANT PREVIEW (CARRÉ)
                 if st.session_state.preview_selected in PREVIEW_LIB:
-                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=220)
+                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=150)
 
                 st.markdown("""
-                            </div>
-                        </div>
-                        <div class="tv-controls-panel">
-                            <div class="tv-knob" style="transform: rotate(45deg);"></div>
-                            <div class="tv-knob" style="transform: rotate(-30deg);"></div>
-                            <div class="tv-speaker-grille"></div>
-                        </div>
+                        </div></div>
+                        <div class="tv-controls-panel"><div class="tv-knob"></div><div class="tv-knob"></div><div class="tv-speaker-grille"></div></div>
                     </div>
                     <div class="tv-legs-container"><div class="tv-leg leg-left"></div><div class="tv-leg leg-right"></div></div>
                 </div>
@@ -378,10 +360,9 @@ if est_admin:
             st.divider()
 
             # --- ZONE 2: CONFIGURATION LIVE PAR ECRAN ---
-            st.markdown("### 📡 Diffusion Live (Configuration par Écran)")
-            st.caption("ℹ️ *Modifiez un effet pour l'appliquer immédiatement sur le mur social. Pour un effet temporaire (Flash), sélectionnez-le, attendez quelques secondes, puis remettez sur 'Aucun'.*")
+            st.markdown("### 📡 Diffusion Live (Par Écran)")
+            st.caption("ℹ️ *Sélectionnez un effet pour l'activer. Remettez 'Aucun' pour arrêter.*")
             
-            # Helper pour mettre à jour
             def update_screen_effect(key_widget, key_config):
                 val = st.session_state[key_widget]
                 st.session_state.config["screen_effects"][key_config] = val
@@ -391,7 +372,7 @@ if est_admin:
             screen_map = st.session_state.config["screen_effects"]
             
             with c_1:
-                st.markdown("#### 🏠 Accueil (Attente)")
+                st.markdown("#### 🏠 Accueil")
                 def_idx = list(EFFECTS_LIB.keys()).index(screen_map.get("attente", "Aucun"))
                 st.selectbox("Effet", list(EFFECTS_LIB.keys()), index=def_idx, key="s_attente", on_change=update_screen_effect, args=("s_attente", "attente"), label_visibility="collapsed")
                 
@@ -414,7 +395,7 @@ if est_admin:
 
             st.divider()
 
-            # --- ZONE SEQUENCEUR (inchangé) ---
+            # --- ZONE SEQUENCEUR ---
             st.subheader("🎬 Séquenceur")
             c1, c2, c3, c4 = st.columns(4)
             cfg = st.session_state.config
