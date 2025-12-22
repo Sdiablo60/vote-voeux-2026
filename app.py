@@ -72,16 +72,8 @@ def inject_visual_effect(effect_name, intensity, speed):
             setTimeout(() => {{ e.style.bottom = '110vh'; }}, 50);
             setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
-        function createSnow() {{
-            var e = doc.createElement('div'); e.innerHTML = '❄';
-            e.style.cssText = 'position:absolute;top:-50px;left:'+Math.random()*100+'vw;color:white;font-size:'+(Math.random()*20+10)+'px;transition:top {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.top = '110vh'; }}, 50);
-            setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
     """
     if effect_name == "🎈 Ballons": js_code += f"setInterval(createBalloon, {interval});"
-    elif effect_name == "❄️ Neige": js_code += f"setInterval(createSnow, {interval});"
     elif effect_name == "🎉 Confettis":
         js_code += f"""
         var s = doc.createElement('script'); s.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
@@ -94,14 +86,11 @@ def inject_visual_effect(effect_name, intensity, speed):
 
 # --- 2. GENERATEUR TV PREVIEW ---
 def get_tv_html(effect_js):
-    return f"""<html><head><style>body {{ margin: 0; display: flex; justify-content: center; background: transparent; overflow: hidden; }} .tv {{ position: relative; width: 300px; height: 210px; background: #5D4037; border: 5px solid #3E2723; border-radius: 20px; display: flex; padding: 10px; box-sizing: border-box; }} .screen {{ flex: 1; background: black; border: 3px solid #222; border-radius: 10px; overflow: hidden; position: relative; }} .controls {{ width: 50px; display: flex; flex-direction: column; align-items: center; justify-content: space-around; }} .knob {{ width: 20px; height: 20px; background: #AAA; border-radius: 50%; border: 2px solid #333; }}</style></head><body><div class="tv"><div class="screen">{effect_js}</div><div class="controls"><div class="knob"></div><div class="knob"></div></div></div></body></html>"""
+    return f"""<html><head><style>body {{ margin: 0; display: flex; justify-content: center; background: transparent; overflow: hidden; }} .tv {{ position: relative; width: 300px; height: 180px; background: #5D4037; border: 5px solid #3E2723; border-radius: 20px; display: flex; padding: 10px; box-sizing: border-box; }} .screen {{ flex: 1; background: black; border: 3px solid #222; border-radius: 10px; overflow: hidden; position: relative; }}</style></head><body><div class="tv"><div class="screen">{effect_js}</div></div></body></html>"""
 
 def get_preview_js(effect_name, intensity, speed):
-    if effect_name == "Aucun": return "<div style='color:white;text-align:center;margin-top:80px;'>OFF</div>"
-    interval = int(3500 / (intensity + 5))
-    duration = max(2, 10 - (speed * 0.15))
-    if effect_name == "🎈 Ballons": return f"<script>setInterval(()=>{{var e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:20px;transition:bottom {duration}s linear;';document.body.appendChild(e);setTimeout(()=>{{e.style.bottom='250px'}},50);}},{interval});</script>"
-    return "<div style='color:white;text-align:center;margin-top:80px;'>Aperçu Actif</div>"
+    if effect_name == "Aucun": return "<div style='color:white;text-align:center;margin-top:60px;'>OFF</div>"
+    return "<div style='color:white;text-align:center;margin-top:60px;'>Aperçu Actif</div>"
 
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -134,56 +123,42 @@ if est_admin:
             c1, c2 = st.columns([1, 1.5])
             with c1:
                 EFFECT_LIST = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
-                prev = st.radio("Tester l'effet", EFFECT_LIST, index=0)
                 intensity = st.slider("🔢 Densité", 0, 50, cfg["effect_intensity"])
                 speed = st.slider("🚀 Vitesse", 0, 50, cfg["effect_speed"])
                 if intensity != cfg["effect_intensity"] or speed != cfg["effect_speed"]:
                     cfg["effect_intensity"] = intensity; cfg["effect_speed"] = speed; save_config(); st.rerun()
-            with c2: components.html(get_tv_html(get_preview_js(prev, intensity, speed)), height=250)
+            with c2: components.html(get_tv_html(get_preview_js("Aperçu", intensity, speed)), height=220)
 
             st.divider()
             st.subheader("⚙️ Config par écran")
             col1, col2 = st.columns(2)
             with col1:
                 st.selectbox("Effet Accueil", EFFECT_LIST, index=EFFECT_LIST.index(cfg["screen_effects"].get("attente","Aucun")), key="s1")
-                st.selectbox("Effet Votes", EFFECT_LIST, index=EFFECT_LIST.index(cfg["screen_effects"].get("votes_open","Aucun")), key="s2")
             with col2:
                 st.selectbox("Effet Podium", EFFECT_LIST, index=EFFECT_LIST.index(cfg["screen_effects"].get("podium","Aucun")), key="s3")
-                st.selectbox("Effet Photos", EFFECT_LIST, index=EFFECT_LIST.index(cfg["screen_effects"].get("photos_live","Aucun")), key="s4")
-            if st.button("💾 SAUVEGARDER CONFIG EFFETS"):
-                cfg["screen_effects"].update({"attente":st.session_state.s1, "votes_open":st.session_state.s2, "podium":st.session_state.s3, "photos_live":st.session_state.s4})
-                save_config(); st.toast("Configuration mise à jour !")
+            if st.button("💾 SAUVEGARDER CONFIG"):
+                cfg["screen_effects"].update({"attente":st.session_state.s1, "podium":st.session_state.s3})
+                save_config(); st.toast("Config OK")
 
 elif est_utilisateur:
-    cfg = load_json(CONFIG_FILE, {})
     st.markdown("<style>.stApp { background-color: black; color: white; }</style>", unsafe_allow_html=True)
-    if cfg.get("mode_affichage") == "photos_live":
-        st.title("📸 Envoyer une photo")
-        photo = st.camera_input("Smile !")
-        if photo:
-            img = Image.open(photo)
-            img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG"); st.success("Envoyé !")
-    else:
-        st.title("🗳️ Vote Transdev")
-        if cfg.get("session_ouverte"):
-            choix = st.multiselect("Choisissez 3 favoris :", cfg.get("candidats", []))
-            if len(choix) == 3 and st.button("Valider mon vote"):
-                vts = load_json(VOTES_FILE, {})
-                for c in choix: vts[c] = vts.get(c, 0) + 1
-                with open(VOTES_FILE, "w") as f: json.dump(vts, f); st.success("Merci !")
-        else: st.info("⌛ Attente des votes...")
+    st.title("🗳️ Vote / 📸 Photo")
+    photo = st.camera_input("Smile !")
+    if photo:
+        img = Image.open(photo)
+        img.save(f"{LIVE_DIR}/img_{int(time.time())}_{random.randint(0,1000)}.jpg", "JPEG")
+        st.success("Photo envoyée !")
 
 else:
     # --- MUR SOCIAL ---
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=2500, key="wall")
+    st_autorefresh(interval=3000, key="wall")
     cfg = load_json(CONFIG_FILE, {})
-    st.markdown("<style>body, .stApp { background-color: black; overflow: hidden; } [data-testid='stHeader'] { display: none; } .bubble { position: absolute; border-radius: 50%; border: 4px solid #E2001A; object-fit: cover; z-index: 10; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>body, .stApp { background-color: black; overflow: hidden; } [data-testid='stHeader'] { display: none; } .bubble { position: absolute; border-radius: 50%; border: 4px solid #E2001A; object-fit: cover; z-index: 1; pointer-events: none; }</style>", unsafe_allow_html=True)
     
     screen_key = "attente"
     if cfg.get("mode_affichage") == "photos_live": screen_key = "photos_live"
     elif cfg.get("reveal_resultats"): screen_key = "podium"
-    elif cfg.get("mode_affichage") == "votes": screen_key = "votes_open" if cfg.get("session_ouverte") else "votes_closed"
     
     inject_visual_effect(cfg.get("screen_effects", {}).get(screen_key, "Aucun"), cfg.get("effect_intensity", 25), cfg.get("effect_speed", 25))
 
@@ -193,7 +168,6 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:120px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
         
-        # BLOC CENTRAL FORCE AU MILIEU PAR CSS FIXE
         st.markdown(f"""
             <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; text-align:center; width:100%; pointer-events:none;">
                 <div style="display:inline-block; pointer-events:auto;">
@@ -214,21 +188,35 @@ else:
         if files:
             img_list = [f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in files[:25]]
             components.html(f"""<script>
+                // Nettoyage des bulles existantes
+                window.parent.document.querySelectorAll('.bubble').forEach(b => b.remove());
                 var imgs = {json.dumps(img_list)};
                 imgs.forEach(src => {{
                     var i = document.createElement('img'); i.src = src; i.className = 'bubble';
                     var size = Math.random()*150 + 100;
-                    i.style.cssText = 'position:absolute; border-radius:50%; border:4px solid #E2001A; object-fit:cover; z-index:1;';
                     i.style.width = size+'px'; i.style.height = size+'px';
+                    // Position initiale hors centre pour ne pas masquer le QR
                     i.style.left = Math.random()*90 + 'vw'; i.style.top = Math.random()*90 + 'vh';
                     window.parent.document.body.appendChild(i);
-                    var vx = (Math.random()-0.5)*1.5; var vy = (Math.random()-0.5)*1.5;
+                    
+                    // Vitesse aléatoire garantie sans 0
+                    var vx = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.8 + 0.4);
+                    var vy = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.8 + 0.4);
+                    
                     function anim() {{
-                        var l = parseFloat(i.style.left); var t = parseFloat(i.style.top);
-                        if(l<1 || l>95) vx*=-1; if(t<1 || t>95) vy*=-1;
-                        i.style.left = (l+vx)+'vw'; i.style.top = (t+vy)+'vh';
+                        if(!i.parentElement) return;
+                        var l = parseFloat(i.style.left);
+                        var t = parseFloat(i.style.top);
+                        
+                        // Rebond sur les bords (0 à 95% pour la sécurité)
+                        if(l <= 1 || l >= 94) vx *= -1;
+                        if(t <= 1 || t >= 94) vy *= -1;
+                        
+                        i.style.left = (l + vx) + 'vw';
+                        i.style.top = (t + vy) + 'vh';
                         requestAnimationFrame(anim);
-                    }} anim();
+                    }}
+                    anim();
                 }});
             </script>""", height=0)
     else:
