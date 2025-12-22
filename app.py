@@ -49,7 +49,7 @@ if "config" not in st.session_state:
 def save_config():
     with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
 
-# --- FONCTION D'INJECTION D'EFFETS (MUR SOCIAL) ---
+# --- FONCTION D'INJECTION D'EFFETS ---
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
         components.html("""<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>""", height=0)
@@ -63,7 +63,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         if(old) old.remove();
         var layer = doc.createElement('div');
         layer.id = 'effect-layer';
-        layer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:999999;overflow:hidden;';
+        layer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:99;overflow:hidden;';
         doc.body.appendChild(layer);
         function createBalloon() {{
             var e = doc.createElement('div'); e.innerHTML = '🎈';
@@ -79,18 +79,9 @@ def inject_visual_effect(effect_name, intensity, speed):
             setTimeout(() => {{ e.style.top = '110vh'; }}, 50);
             setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
-        function createStar() {{
-            var e = doc.createElement('div'); var size = (Math.random() * 3 + 1) + 'px';
-            e.style.cssText = 'position:absolute;background:white;border-radius:50%;width:'+size+';height:'+size+';left:'+Math.random()*100+'vw;top:'+Math.random()*100+'vh;opacity:0;transition:opacity 1s, transform {duration}s;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.opacity = '1'; }}, 50);
-            setTimeout(() => {{ e.style.opacity = '0'; }}, {duration * 800});
-            setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
     """
     if effect_name == "🎈 Ballons": js_code += f"setInterval(createBalloon, {interval});"
     elif effect_name == "❄️ Neige": js_code += f"setInterval(createSnow, {interval});"
-    elif effect_name == "🌌 Espace": js_code += f"setInterval(createStar, {interval});"
     elif effect_name == "🎉 Confettis":
         js_code += f"""
         var s = doc.createElement('script'); s.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
@@ -98,20 +89,12 @@ def inject_visual_effect(effect_name, intensity, speed):
             function fire() {{ window.parent.confetti({{ particleCount: {max(1, int(intensity*1.5))}, angle: 90, spread: 100, origin: {{ x: Math.random(), y: -0.2 }}, gravity: 0.8, ticks: 400 }}); setTimeout(fire, {max(200, 2000 - (speed * 35))}); }}
             fire();
         }}; layer.appendChild(s);"""
-    elif effect_name == "🟢 Matrix":
-        font_size = max(10, 40 - intensity)
-        js_code += f"""
-        var canvas = doc.createElement('canvas'); canvas.style.cssText = 'width:100%;height:100%;opacity:0.6;'; layer.appendChild(canvas);
-        var ctx = canvas.getContext('2d'); canvas.width = window.parent.innerWidth; canvas.height = window.parent.innerHeight;
-        var columns = canvas.width / {font_size}; var drops = []; for(var i=0; i<columns; i++) drops[i] = 1;
-        function draw() {{ ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.fillStyle = '#0F0'; ctx.font = '{font_size}px monospace'; for(var i=0; i<drops.length; i++) {{ ctx.fillText(Math.floor(Math.random()*2), i*{font_size}, drops[i]*{font_size}); if(drops[i]*{font_size} > canvas.height && Math.random() > 0.975) drops[i] = 0; drops[i]++; }} }}
-        setInterval(draw, {max(20, 150 - (speed * 2.5))});"""
     js_code += "</script>"
     components.html(js_code, height=0)
 
 # --- 2. GENERATEUR TV PREVIEW ---
 def get_tv_html(effect_js):
-    return f"""<html><head><style>body {{ margin: 0; display: flex; justify-content: center; background: transparent; overflow: hidden; }} .tv {{ position: relative; width: 300px; height: 230px; background: #5D4037; border: 5px solid #3E2723; border-radius: 20px; display: flex; padding: 10px; box-sizing: border-box; }} .screen {{ flex: 1; background: black; border: 3px solid #222; border-radius: 10px; overflow: hidden; position: relative; }} .controls {{ width: 50px; display: flex; flex-direction: column; align-items: center; justify-content: space-around; }} .knob {{ width: 25px; height: 25px; background: #AAA; border-radius: 50%; border: 2px solid #333; }}</style></head><body><div class="tv"><div class="screen">{effect_js}</div><div class="controls"><div class="knob"></div><div class="knob"></div></div></div></body></html>"""
+    return f"""<html><head><style>body {{ margin: 0; display: flex; justify-content: center; background: transparent; overflow: hidden; }} .tv {{ position: relative; width: 300px; height: 210px; background: #5D4037; border: 5px solid #3E2723; border-radius: 20px; display: flex; padding: 10px; box-sizing: border-box; }} .screen {{ flex: 1; background: black; border: 3px solid #222; border-radius: 10px; overflow: hidden; position: relative; }} .controls {{ width: 50px; display: flex; flex-direction: column; align-items: center; justify-content: space-around; }} .knob {{ width: 20px; height: 20px; background: #AAA; border-radius: 50%; border: 2px solid #333; }}</style></head><body><div class="tv"><div class="screen">{effect_js}</div><div class="controls"><div class="knob"></div><div class="knob"></div></div></div></body></html>"""
 
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun": return "<div style='color:white;text-align:center;margin-top:80px;'>OFF</div>"
@@ -151,12 +134,12 @@ if est_admin:
             c1, c2 = st.columns([1, 1.5])
             with c1:
                 EFFECT_LIST = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
-                prev = st.radio("Tester l'effet", EFFECT_LIST)
+                prev = st.radio("Tester l'effet", EFFECT_LIST, index=0)
                 intensity = st.slider("🔢 Densité", 0, 50, cfg["effect_intensity"])
                 speed = st.slider("🚀 Vitesse", 0, 50, cfg["effect_speed"])
                 if intensity != cfg["effect_intensity"] or speed != cfg["effect_speed"]:
                     cfg["effect_intensity"] = intensity; cfg["effect_speed"] = speed; save_config(); st.rerun()
-            with c2: components.html(get_tv_html(get_preview_js(prev, intensity, speed)), height=300)
+            with c2: components.html(get_tv_html(get_preview_js(prev, intensity, speed)), height=250)
 
             st.divider()
             st.subheader("⚙️ Config par écran")
@@ -167,9 +150,9 @@ if est_admin:
             with col2:
                 st.selectbox("Effet Podium", EFFECT_LIST, index=EFFECT_LIST.index(cfg["screen_effects"].get("podium","Aucun")), key="s3")
                 st.selectbox("Effet Photos", EFFECT_LIST, index=EFFECT_LIST.index(cfg["screen_effects"].get("photos_live","Aucun")), key="s4")
-            if st.button("💾 SAUVEGARDER"):
+            if st.button("💾 SAUVEGARDER CONFIG EFFETS"):
                 cfg["screen_effects"].update({"attente":st.session_state.s1, "votes_open":st.session_state.s2, "podium":st.session_state.s3, "photos_live":st.session_state.s4})
-                save_config(); st.toast("Config OK")
+                save_config(); st.toast("Configuration mise à jour !")
 
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, {})
@@ -181,22 +164,21 @@ elif est_utilisateur:
             img = Image.open(photo)
             img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG"); st.success("Envoyé !")
     else:
-        st.title("🗳️ Vote")
+        st.title("🗳️ Vote Transdev")
         if cfg.get("session_ouverte"):
-            choix = st.multiselect("Choisissez 3 services :", cfg.get("candidats", []))
-            if len(choix) == 3 and st.button("Voter"):
+            choix = st.multiselect("Choisissez 3 favoris :", cfg.get("candidats", []))
+            if len(choix) == 3 and st.button("Valider mon vote"):
                 vts = load_json(VOTES_FILE, {})
                 for c in choix: vts[c] = vts.get(c, 0) + 1
-                with open(VOTES_FILE, "w") as f: json.dump(vts, f)
-                st.success("Merci !")
-        else: st.info("⌛ Attente...")
+                with open(VOTES_FILE, "w") as f: json.dump(vts, f); st.success("Merci !")
+        else: st.info("⌛ Attente des votes...")
 
 else:
     # --- MUR SOCIAL ---
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2500, key="wall")
     cfg = load_json(CONFIG_FILE, {})
-    st.markdown("<style>body, .stApp { background-color: black; overflow: hidden; } [data-testid='stHeader'] { display: none; } .bubble { position: absolute; border-radius: 50%; border: 4px solid #E2001A; object-fit: cover; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>body, .stApp { background-color: black; overflow: hidden; } [data-testid='stHeader'] { display: none; } .bubble { position: absolute; border-radius: 50%; border: 4px solid #E2001A; object-fit: cover; z-index: 10; }</style>", unsafe_allow_html=True)
     
     screen_key = "attente"
     if cfg.get("mode_affichage") == "photos_live": screen_key = "photos_live"
@@ -206,19 +188,28 @@ else:
     inject_visual_effect(cfg.get("screen_effects", {}).get(screen_key, "Aucun"), cfg.get("effect_intensity", 25), cfg.get("effect_speed", 25))
 
     if cfg.get("mode_affichage") == "photos_live":
-        # HEADER PHOTO
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:100px;">' if cfg.get("logo_b64") else ""
+        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:120px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
         
-        st.markdown(f"""<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; text-align:center; color:white; width:100%;">
-            {logo_html}<h1 style="font-size:60px; margin:20px 0;">MUR PHOTOS LIVE</h1>
-            <div style="background:white; display:inline-block; padding:15px; border-radius:20px; margin-bottom:20px;"><img src="data:image/png;base64,{qr_b64}" width="180"></div>
-            <div style="background:#E2001A; padding:10px 30px; border-radius:50px; font-weight:bold; font-size:24px; display:inline-block; border:3px solid white;">📸 SCANNES POUR ENVOYER TA PHOTO</div>
-        </div>""", unsafe_allow_html=True)
+        # BLOC CENTRAL FORCE AU MILIEU PAR CSS FIXE
+        st.markdown(f"""
+            <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; text-align:center; width:100%; pointer-events:none;">
+                <div style="display:inline-block; pointer-events:auto;">
+                    {logo_html}
+                    <h1 style="color:white; font-size:60px; text-transform:uppercase; margin-bottom:30px; text-shadow: 2px 2px 10px rgba(0,0,0,0.8);">Mur Photos Live</h1>
+                    <div style="background:white; padding:20px; border-radius:30px; box-shadow: 0 0 50px rgba(0,0,0,0.5); display:inline-block; margin-bottom:30px;">
+                        <img src="data:image/png;base64,{qr_b64}" width="220">
+                    </div>
+                    <br>
+                    <div style="background:#E2001A; color:white; padding:15px 40px; border-radius:50px; font-weight:bold; font-size:28px; display:inline-block; border:4px solid white; box-shadow: 0 10px 20px rgba(0,0,0,0.4);">
+                        📸 SCANNEZ POUR ENVOYER VOTRE PHOTO
+                    </div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
         
-        # BULLES PHOTOS
         files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
         if files:
             img_list = [f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in files[:25]]
@@ -227,19 +218,19 @@ else:
                 imgs.forEach(src => {{
                     var i = document.createElement('img'); i.src = src; i.className = 'bubble';
                     var size = Math.random()*150 + 100;
+                    i.style.cssText = 'position:absolute; border-radius:50%; border:4px solid #E2001A; object-fit:cover; z-index:1;';
                     i.style.width = size+'px'; i.style.height = size+'px';
-                    i.style.left = Math.random()*80 + 10 + 'vw'; i.style.top = Math.random()*80 + 10 + 'vh';
+                    i.style.left = Math.random()*90 + 'vw'; i.style.top = Math.random()*90 + 'vh';
                     window.parent.document.body.appendChild(i);
-                    var vx = (Math.random()-0.5)*2; var vy = (Math.random()-0.5)*2;
+                    var vx = (Math.random()-0.5)*1.5; var vy = (Math.random()-0.5)*1.5;
                     function anim() {{
                         var l = parseFloat(i.style.left); var t = parseFloat(i.style.top);
-                        if(l<0 || l>90) vx*=-1; if(t<0 || t>90) vy*=-1;
+                        if(l<1 || l>95) vx*=-1; if(t<1 || t>95) vy*=-1;
                         i.style.left = (l+vx)+'vw'; i.style.top = (t+vy)+'vh';
                         requestAnimationFrame(anim);
                     }} anim();
                 }});
             </script>""", height=0)
     else:
-        # AFFICHAGE TITRE NORMAL
         logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:150px; display:block; margin:auto;">' if cfg.get("logo_b64") else ""
-        st.markdown(f"<div style='margin-top:100px;'>{logo_html}<h1 style='text-align:center; color:white; font-size:65px; margin-top:40px;'>{cfg.get('titre_mur')}</h1></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='margin-top:150px; text-align:center;'>{logo_html}<h1 style='color:white; font-size:65px; margin-top:40px;'>{cfg.get('titre_mur')}</h1></div>", unsafe_allow_html=True)
