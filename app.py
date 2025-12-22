@@ -29,6 +29,7 @@ def load_json(file, default):
 
 config = load_json(CONFIG_FILE, default_config)
 VOTE_VERSION = config.get("vote_version", 1)
+OPTS_BU = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
 
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -47,7 +48,6 @@ if est_admin:
             st.session_state["auth"] = True
             st.rerun()
     else:
-        # --- SESSION & STATS ---
         if st.sidebar.button("🔓 Déconnexion", use_container_width=True):
             st.session_state["auth"] = False
             st.rerun()
@@ -55,7 +55,6 @@ if est_admin:
         nb_p = len(load_json(PARTICIPANTS_FILE, []))
         st.sidebar.info(f"👥 {nb_p} Participants connectés")
         
-        # --- APERÇU DU STATUT ---
         st.sidebar.markdown("---")
         st.sidebar.caption("📺 État actuel du Mur :")
         desc = "⏸️ ATTENTE"
@@ -63,11 +62,9 @@ if est_admin:
         if config["mode_affichage"] == "votes":
             desc = "🗳️ VOTE OUVERT" if config["session_ouverte"] else "🏁 FIN DU VOTE"
             if config["reveal_resultats"]: desc = "🏆 PODIUM"
-        
-        st.sidebar.markdown(f'<div style="background:#333;padding:10px;border-radius:5px;border:1px solid #E2001A;text-align:center;color:white;">{desc}</div>', unsafe_allow_html=True)
+        st.sidebar.markdown(f'<div style="background:#333;padding:10px;border-radius:5px;border:1px solid #E2001A;text-align:center;color:white;font-weight:bold;">{desc}</div>', unsafe_allow_html=True)
         st.sidebar.markdown("---")
 
-        # --- WORKFLOW ÉVÉNEMENT ---
         st.sidebar.subheader("🕹️ Pilotage direct")
         m, vo, re = config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"]
 
@@ -98,8 +95,8 @@ if est_admin:
 
         if st.sidebar.button("🔴 RESET COMPLET", type="secondary", use_container_width=True):
             config.update({"vote_version": VOTE_VERSION+1, "session_ouverte": False, "reveal_resultats": False, "mode_affichage": "attente"})
-            for f_path, content in [(CONFIG_FILE, config), (VOTES_FILE, {}), (PARTICIPANTS_FILE, [])]:
-                with open(f_path, "w") as f: json.dump(content, f)
+            for f_p, cont in [(CONFIG_FILE, config), (VOTES_FILE, {}), (PARTICIPANTS_FILE, [])]:
+                with open(f_p, "w") as f: json.dump(cont, f)
             st.rerun()
 
     if st.session_state.get("auth"):
@@ -110,8 +107,6 @@ if est_admin:
             st.bar_chart(sorted_v)
             df = pd.DataFrame(list(sorted_v.items()), columns=['BU', 'Points'])
             st.download_button("📥 Télécharger CSV", df.to_csv(index=False).encode('utf-8'), f'resultats_v{VOTE_VERSION}.csv', 'text/csv')
-        else:
-            st.info("Aucun vote pour le moment.")
 
 # --- 4. UTILISATEUR (VOTE) ---
 elif est_utilisateur:
@@ -121,11 +116,11 @@ elif est_utilisateur:
     components.html(f'<script>if(localStorage.getItem("{v_key}")){{ window.parent.postMessage({{type: "streamlit:setComponentValue", value: true, key: "voted"}}, "*"); }}</script>', height=0)
 
     if st.session_state.get("voted") or st.session_state.get("voted_final"):
-        st.balloons(); st.success("✅ Vote enregistré !")
+        st.balloons(); st.success("✅ Vote enregistré ! Merci.")
     else:
         if "pseudo" not in st.session_state:
             with st.form("p"):
-                name = st.text_input("Prénom / Pseudo :")
+                name = st.text_input("Votre Prénom / Pseudo :")
                 if st.form_submit_button("REJOINDRE"):
                     if name:
                         st.session_state["pseudo"] = name
@@ -133,51 +128,82 @@ elif est_utilisateur:
                         if name not in ps: ps.append(name); json.dump(ps, open(PARTICIPANTS_FILE, "w"))
                         st.rerun()
         elif not config["session_ouverte"]:
-            st.warning("⌛ En attente de l'ouverture des votes...")
+            st.warning("⌛ Les votes ne sont pas encore ouverts. Patientez...")
             try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(5000, key="u_ref")
             except: pass
         else:
-            opts = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
-            choix = st.multiselect("Top 3 (l'ordre compte) :", opts)
-            if len(choix) == 3 and st.button("🚀 VALIDER", use_container_width=True, type="primary"):
+            choix = st.multiselect("Sélectionnez votre Top 3 :", OPTS_BU)
+            if len(choix) == 3 and st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
                 vts = load_json(VOTES_FILE, {})
                 for v, pts in zip(choix, [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
                 with open(VOTES_FILE, "w") as f: json.dump(vts, f)
                 components.html(f'<script>localStorage.setItem("{v_key}", "true"); setTimeout(()=>{{window.parent.location.reload();}}, 300);</script>', height=0)
                 st.session_state["voted_final"] = True; st.rerun()
 
-# --- 5. MUR SOCIAL ---
+# --- 5. MUR SOCIAL (ÉCRAN PROJETÉ) ---
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
-    qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
+    host = st.context.headers.get('host', 'localhost')
+    qr_url = f"https://{host}/?mode=vote"
     qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
     
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     v_data = load_json(VOTES_FILE, {})
 
-    st.markdown(f'<div style="text-align:center;color:white;"><p style="color:#E2001A;font-size:30px;font-weight:bold;margin:0;">MUR LIVE TRANSDEV</p><div style="background:white;display:inline-block;padding:5px 25px;border-radius:20px;margin:10px 0;color:black;font-weight:bold;">{nb_p} CONNECTÉS</div><h1 style="font-size:50px;margin:0;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
+    # En-tête Mur
+    st.markdown(f'<div style="text-align:center;color:white;padding-top:20px;"><p style="color:#E2001A;font-size:30px;font-weight:bold;margin:0;">MUR LIVE TRANSDEV</p><div style="background:white;display:inline-block;padding:5px 25px;border-radius:20px;margin:10px 0;color:black;font-weight:bold;">{nb_p} CONNECTÉS</div><h1 style="font-size:55px;margin:0;text-transform:uppercase;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
 
+    # 1. MODE ATTENTE (Message sympa, PAS de QR Code)
     if config["mode_affichage"] == "attente":
-        st.markdown(f'<div style="text-align:center;margin-top:50px;"><img src="data:image/png;base64,{qr_b64}" width="250" style="border:10px solid white;border-radius:15px;"><h2 style="color:white;margin-top:20px;">Scannez pour voter !</h2></div>', unsafe_allow_html=True)
-    
-    elif config["mode_affichage"] == "votes":
-        if config["reveal_resultats"] and v_data:
+        st.markdown(f"""
+            <div style="text-align:center; margin-top:80px; color:white;">
+                <h1 style="font-size:70px;">Bienvenue à tous ! 👋</h1>
+                <p style="font-size:35px; color:#ccc; margin-top:20px;">Installez-vous confortablement...</p>
+                <div style="margin-top:60px; background:#E2001A; display:inline-block; padding:20px 50px; border-radius:15px; font-size:35px; font-weight:bold; border:3px solid white;">
+                    ⌛ En attente de l'ouverture des Votes
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # 2. MODE VOTES (QR Code géant + Liste des vidéos)
+    elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown(f"""
+                <div style="text-align:center; background:white; padding:30px; border-radius:30px; margin-top:20px;">
+                    <img src="data:image/png;base64,{qr_b64}" width="380">
+                    <h2 style="color:black; margin-top:20px; font-size:30px; font-weight:bold;">SCANNEZ POUR VOTER</h2>
+                </div>
+                <div style="text-align:center; margin-top:30px; color:#E2001A; font-size:45px; font-weight:bold; animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS !</div>
+                <style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>
+            """, unsafe_allow_html=True)
+        with col2:
+            st.markdown("<h2 style='color:white; text-align:center; font-size:35px; border-bottom:3px solid #E2001A; padding-bottom:10px;'>Vidéos en compétition :</h2>", unsafe_allow_html=True)
+            for opt in OPTS_BU:
+                st.markdown(f'<div style="background:#222; color:white; padding:12px 25px; border-radius:12px; margin-bottom:10px; border-left:8px solid #E2001A; font-size:22px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
+
+    # 3. MODE PODIUM
+    elif config["mode_affichage"] == "votes" and config["reveal_resultats"]:
+        if v_data:
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
             cols = st.columns(3)
             m_txt = ["🥇 1er", "🥈 2ème", "🥉 3ème"]
             for i, (name, score) in enumerate(sorted_v):
-                cols[i].markdown(f'<div style="background:#222;padding:20px;border-radius:20px;border:3px solid #E2001A;text-align:center;color:white;"><h2>{m_txt[i]}</h2><h1 style="font-size:35px;">{name}</h1><p>{score} pts</p></div>', unsafe_allow_html=True)
+                cols[i].markdown(f'<div style="background:#222;padding:30px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;min-height:250px;"><h2 style="color:#E2001A;">{m_txt[i]}</h2><h1 style="font-size:45px;">{name}</h1><p style="font-size:25px;">{score} pts</p></div>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<div style="display:flex;justify-content:center;align-items:center;gap:30px;margin-top:50px;"><img src="data:image/png;base64,{qr_b64}" width="150" style="border:5px solid white;"><div style="background:#E2001A;color:white;padding:20px 40px;border-radius:15px;font-size:40px;font-weight:bold;border:3px solid white;animation:blink 1.5s infinite;">🗳️ À VOS VOTES !</div><img src="data:image/png;base64,{qr_b64}" width="150" style="border:5px solid white;"></div><style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>', unsafe_allow_html=True)
-    
+            st.info("Aucun vote enregistré.")
+
+    # 4. MODE LIVE PHOTOS
     elif config["mode_affichage"] == "live":
         img_list = glob.glob(os.path.join(ADMIN_DIR, "*")) + glob.glob(os.path.join(GALLERY_DIR, "*"))
         if img_list:
-            photos_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" style="position:absolute;width:250px;border:5px solid white;border-radius:10px;top:{random.randint(10,50)}%;left:{random.randint(5,75)}%;transform:rotate({random.randint(-10,10)}deg);box-shadow:5px 5px 15px rgba(0,0,0,0.5);">' for p in img_list[-12:]])
-            components.html(f'<div style="position:relative;width:100%;height:500px;overflow:hidden;">{photos_html}</div>', height=550)
+            p_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" style="position:absolute;width:280px;border:5px solid white;border-radius:10px;top:{random.randint(10,50)}%;left:{random.randint(5,75)}%;transform:rotate({random.randint(-10,10)}deg);box-shadow:5px 5px 15px rgba(0,0,0,0.5);">' for p in img_list[-12:]])
+            components.html(f'<div style="position:relative;width:100%;height:600px;overflow:hidden;">{p_html}</div>', height=650)
         else:
-            st.markdown(f'<div style="text-align:center;margin-top:50px;"><img src="data:image/png;base64,{qr_b64}" width="200" style="border:5px solid white;border-radius:15px;"><h3 style="color:gray;margin-top:20px;">En attente des photos...</h3></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center;margin-top:100px;"><img src="data:image/png;base64,{qr_b64}" width="200" style="border:5px solid white;border-radius:15px;"><h3 style="color:gray;margin-top:20px;">En attente des photos live...</h3></div>', unsafe_allow_html=True)
 
-    try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(5000, key="wall_ref")
+    try: 
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(5000, key="wall_ref")
     except: pass
