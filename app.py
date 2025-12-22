@@ -58,7 +58,7 @@ def process_image_upload(uploaded_file):
         if img.mode != "RGBA": img = img.convert("RGBA")
         img.thumbnail((300, 300))
         buffered = BytesIO()
-        img.save(buffered, format="PNG") # PNG force transparence
+        img.save(buffered, format="PNG") 
         return base64.b64encode(buffered.getvalue()).decode()
     except: return None
 
@@ -109,7 +109,7 @@ if est_admin:
             with st.expander("🗑️ OPTIONS DE RÉINITIALISATION (Zone de danger)"):
                 col_rst, col_info = st.columns([1, 2])
                 with col_rst:
-                    if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet tout à 0 (Scores, Participants, Votants)"):
+                    if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet tout à 0"):
                         for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
                             if os.path.exists(f): os.remove(f)
                         st.toast("✅ Session entièrement réinitialisée !")
@@ -174,14 +174,10 @@ if est_admin:
 
             with t2:
                 st.subheader("📋 Liste des Questions / Candidats")
-                st.info("Utilisez le tableau ci-dessous pour modifier les noms, ajouter ou supprimer des lignes.")
-
-                # --- TABLEAU ÉDITABLE (Solution au problème de texte figé) ---
+                
                 current_list = st.session_state.config["candidats"]
-                # Création DataFrame
                 df_cands = pd.DataFrame(current_list, columns=["Nom du Candidat"])
                 
-                # Éditeur de données
                 edited_df = st.data_editor(
                     df_cands, 
                     num_rows="dynamic", 
@@ -189,38 +185,27 @@ if est_admin:
                     key="editor_cands"
                 )
 
-                # Bouton de validation global pour la liste
                 if st.button("💾 ENREGISTRER LES MODIFICATIONS DE LA LISTE", type="primary"):
-                    # Récupération de la nouvelle liste propre
                     new_list = edited_df["Nom du Candidat"].astype(str).tolist()
-                    # Nettoyage des vides
                     new_list = [x for x in new_list if x.strip() != ""]
-                    
                     st.session_state.config["candidats"] = new_list
                     save_config()
-                    st.success("✅ Liste mise à jour avec succès !")
-                    time.sleep(1)
-                    st.rerun()
+                    st.success("✅ Liste mise à jour !")
+                    time.sleep(1); st.rerun()
 
                 st.markdown("---")
                 st.subheader("🖼️ Associer des Photos")
-                st.write("Sélectionnez un nom dans la liste pour lui ajouter/changer sa photo.")
                 
-                # Sélecteur pour gérer les images
                 if st.session_state.config["candidats"]:
                     selected_cand = st.selectbox("Choisir le candidat :", st.session_state.config["candidats"])
-                    
                     c1, c2 = st.columns([1, 2])
                     with c1:
-                        # Afficher l'image actuelle si elle existe
                         if selected_cand in st.session_state.config["candidats_images"]:
                             st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][selected_cand])), width=100, caption="Actuelle")
                             if st.button("🗑️ Supprimer Photo"):
                                 del st.session_state.config["candidats_images"][selected_cand]
-                                save_config()
-                                st.rerun()
-                        else:
-                            st.info("Pas d'image")
+                                save_config(); st.rerun()
+                        else: st.info("Pas d'image")
                     
                     with c2:
                         up_p = st.file_uploader(f"Charger une image pour : {selected_cand}", type=["png", "jpg", "jpeg"])
@@ -228,22 +213,54 @@ if est_admin:
                             b64_p = process_image_upload(up_p)
                             if b64_p:
                                 st.session_state.config["candidats_images"][selected_cand] = b64_p
-                                save_config()
-                                st.success("Image associée !")
-                                time.sleep(1)
-                                st.rerun()
+                                save_config(); st.success("Image associée !"); time.sleep(1); st.rerun()
 
+        # --- RE-FONTE DE LA MÉDIATHÈQUE ---
         elif menu == "📸 Médiathèque":
-            st.write("Gestion fichiers...")
-            t1, t2 = st.tabs(["Admin", "User"])
-            with t1:
-                for f in glob.glob(f"{ADMIN_DIR}/*"):
-                     st.image(f, width=100); 
-                     if st.button("X", key=f): os.remove(f); st.rerun()
-            with t2:
-                for f in glob.glob(f"{GALLERY_DIR}/*"):
-                     st.image(f, width=100); 
-                     if st.button("X", key=f+"u"): os.remove(f); st.rerun()
+            st.title("📸 Médiathèque Globale")
+            st.info("Gérez ici tous les fichiers présents sur le serveur.")
+
+            tab_admin, tab_user = st.tabs(["📂 Dossier Admin", "📂 Uploads Participants"])
+            
+            # TAB 1 : ADMIN
+            with tab_admin:
+                st.subheader("Ajouter une image au système")
+                up_sys = st.file_uploader("Ajouter un fichier (Logo, Asset...)", type=['png', 'jpg', 'jpeg'], key="up_sys")
+                if up_sys:
+                    with open(os.path.join(ADMIN_DIR, up_sys.name), "wb") as f:
+                        f.write(up_sys.getbuffer())
+                    st.success(f"Fichier {up_sys.name} ajouté !")
+                    time.sleep(1); st.rerun()
+                
+                st.divider()
+                
+                # Grille d'images Admin
+                files_adm = glob.glob(f"{ADMIN_DIR}/*")
+                if files_adm:
+                    cols = st.columns(5)
+                    for i, f in enumerate(files_adm):
+                        with cols[i % 5]:
+                            st.image(f, use_container_width=True)
+                            st.caption(os.path.basename(f))
+                            if st.button("🗑️", key=f"del_adm_{i}"):
+                                os.remove(f); st.rerun()
+                else:
+                    st.info("Le dossier Admin est vide.")
+
+            # TAB 2 : USERS (Si vous aviez une fonction d'upload participant)
+            with tab_user:
+                st.subheader("Fichiers reçus")
+                files_usr = glob.glob(f"{GALLERY_DIR}/*")
+                if files_usr:
+                    cols = st.columns(5)
+                    for i, f in enumerate(files_usr):
+                        with cols[i % 5]:
+                            st.image(f, use_container_width=True)
+                            st.caption(os.path.basename(f))
+                            if st.button("🗑️", key=f"del_usr_{i}"):
+                                os.remove(f); st.rerun()
+                else:
+                    st.info("Aucun fichier participant.")
 
         elif menu == "📊 Data & Exports":
             if st.button("RESET TOUT"):
@@ -251,13 +268,12 @@ if est_admin:
                      if os.path.exists(f): os.remove(f)
                  st.success("Reset!"); st.rerun()
 
-# --- 4. UTILISATEUR (MOBILE) ---
+# --- 4. UTILISATEUR ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # 1. AFFICHAGE DU LOGO (CSS forcée pour transparence)
     if cfg.get("logo_b64"):
         st.markdown(f"""
         <div style="text-align:center; margin-bottom:20px; background-color:transparent !important;">
@@ -267,7 +283,6 @@ elif est_utilisateur:
     
     st.title("🗳️ Vote Transdev")
     
-    # 2. ENREGISTREMENT COMPTEUR
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
@@ -277,7 +292,6 @@ elif est_utilisateur:
     if "user_id" not in st.session_state:
         st.session_state.user_id = None
 
-    # Écran 1 : Identification
     if not st.session_state.user_id:
         st.info("Pour garantir un vote unique, merci de vous identifier.")
         nom = st.text_input("Votre Nom et Prénom / Matricule :")
@@ -292,7 +306,6 @@ elif est_utilisateur:
                     st.rerun()
             else: st.warning("Merci d'entrer un nom valide.")
     
-    # Écran 2 : Vote
     else:
         if st.session_state.get("a_vote", False):
             st.balloons()
@@ -313,12 +326,10 @@ elif est_utilisateur:
 
             if len(choix) == 3:
                 if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
-                    # Save votes
                     vts = load_json(VOTES_FILE, {})
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     json.dump(vts, open(VOTES_FILE, "w"))
                     
-                    # Save voter
                     voters = load_json(VOTERS_FILE, [])
                     voters.append(st.session_state.user_id)
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
@@ -329,7 +340,7 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
-    # CSS GLOBAL POUR FORCER LE FOND NOIR ET TRANSPARENCE IMAGES
+    # CSS GLOBAL
     st.markdown("""
     <style>
         body, .stApp { background-color: black !important; } 
@@ -344,7 +355,6 @@ else:
     
     logo_html = ""
     if config.get("logo_b64"): 
-        # Ajout du style inline pour garantir la transparence
         logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background-color: transparent !important;">'
 
     counter_html = ""
@@ -391,7 +401,6 @@ else:
             with c1:
                 for c in cands[:mid]: st.markdown(get_html(c), unsafe_allow_html=True)
             with c2:
-                # Ajout style width: fit-content et margin: auto pour centrage parfait
                 st.markdown(f'<div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;"><img src="data:image/png;base64,{qr_b64}" width="180" style="display:block;"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p></div>', unsafe_allow_html=True)
             with c3:
                 for c in cands[mid:]: st.markdown(get_html(c), unsafe_allow_html=True)
