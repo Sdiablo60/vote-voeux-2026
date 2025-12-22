@@ -62,10 +62,12 @@ def save_config():
 def process_image_upload(uploaded_file):
     try:
         img = Image.open(uploaded_file)
-        if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+        # Conversion en RGBA pour gérer la transparence si c'est un PNG
+        if img.mode != "RGBA": img = img.convert("RGBA")
         img.thumbnail((200, 200))
         buffered = BytesIO()
-        img.save(buffered, format="JPEG", quality=85)
+        # Sauvegarde explicite en PNG pour garder la transparence
+        img.save(buffered, format="PNG", quality=85)
         return base64.b64encode(buffered.getvalue()).decode()
     except: return None
 
@@ -166,7 +168,7 @@ if est_admin:
                     if st.button("Sauver Titre"):
                         st.session_state.config["titre_mur"] = new_t; force_refresh(); st.rerun()
                 
-                up_l = st.file_uploader("Logo", type=["png", "jpg"])
+                up_l = st.file_uploader("Logo (PNG Transparent recommandé)", type=["png", "jpg"])
                 if up_l:
                     b64 = process_image_upload(up_l)
                     if b64:
@@ -257,7 +259,8 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
     if cfg.get("logo_b64"):
-        st.markdown(f"""<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>""", unsafe_allow_html=True)
+        # Ajout de background:transparent pour le mobile aussi
+        st.markdown(f"""<div style="text-align:center; margin-bottom:20px; background:transparent;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto; background:transparent;"></div>""", unsafe_allow_html=True)
     
     st.title("🗳️ Vote Transdev")
     
@@ -315,18 +318,17 @@ else:
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
     logo_html = ""
-    # LOGO : Affichage direct sans fond blanc (transparent)
+    # AJOUT DE background: transparent explicitement
     if config.get("logo_b64"): 
-        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">'
+        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
 
-    # Construction du HTML du compteur (Affiché seulement si PAS en attente)
     counter_html = ""
     if config["mode_affichage"] != "attente":
         counter_html = f'<div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold; margin-top:15px; font-size:18px;">👥 {nb_p} CONNECTÉS</div>'
 
-    # En-tête principal (Titre + Logo)
+    # AJOUT DE background-color: transparent !important sur le conteneur principal
     st.markdown(f"""
-    <div style="text-align:center; color:white;">
+    <div style="text-align:center; color:white; background-color: transparent !important;">
     {logo_html}
     <h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1>
     {counter_html}
@@ -334,7 +336,6 @@ else:
     """, unsafe_allow_html=True)
 
     if config["mode_affichage"] == "attente":
-        # Message d'accueil épuré sans compteur
         st.markdown(f"""
         <div style="text-align:center; color:white; margin-top:80px;">
             <div style="{BADGE_CSS}">✨ BIENVENUE ✨</div>
