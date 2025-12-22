@@ -75,7 +75,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         doc.body.appendChild(layer);
         function createBalloon() {{
             var e = doc.createElement('div'); e.innerHTML = '🎈';
-            e.style.cssText = 'position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*40+20)+'px;transition:bottom {duration}s linear;';
+            e.style.cssText = 'position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*40+20)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom {duration}s linear,left {duration}s ease-in-out;';
             layer.appendChild(e);
             setTimeout(() => {{ e.style.bottom = '110vh'; }}, 50);
             setTimeout(() => {{ e.remove(); }}, {duration * 1000});
@@ -87,18 +87,9 @@ def inject_visual_effect(effect_name, intensity, speed):
             setTimeout(() => {{ e.style.top = '110vh'; }}, 50);
             setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
-        function createStar() {{
-            var e = doc.createElement('div'); var size = (Math.random() * 3 + 1) + 'px';
-            e.style.cssText = 'position:absolute;background:white;border-radius:50%;width:'+size+';height:'+size+';left:'+Math.random()*100+'vw;top:'+Math.random()*100+'vh;opacity:0;transition:opacity 1s, transform {duration}s;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.opacity = '1'; }}, 50);
-            setTimeout(() => {{ e.style.opacity = '0'; }}, {duration * 800});
-            setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
     """
     if effect_name == "🎈 Ballons": js_code += f"setInterval(createBalloon, {interval});"
     elif effect_name == "❄️ Neige": js_code += f"setInterval(createSnow, {interval});"
-    elif effect_name == "🌌 Espace": js_code += f"setInterval(createStar, {interval});"
     elif effect_name == "🎉 Confettis":
         js_code += f"""
         var s = doc.createElement('script'); s.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
@@ -155,7 +146,7 @@ def get_preview_js(effect_name, intensity, speed):
     elif effect_name == "🌌 Espace": return f"<style>body{{background:black}}.s{{position:absolute;background:white;width:2px;height:2px;border-radius:50%;animation:b {duration}s infinite}}@keyframes b{{0%,100%{{opacity:0}}50%{{opacity:1}}}}</style><script>setInterval(()=>{{var e=document.createElement('div');e.className='s';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';document.body.appendChild(e);}},{interval});</script>"
     return ""
 
-# --- NAVIGATION ---
+# --- NAVIGATION & AUTH ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 
@@ -173,8 +164,21 @@ if est_admin:
         st.markdown(f"<div class='fixed-header'>{menu}</div>", unsafe_allow_html=True)
 
         if menu == "🔴 PILOTAGE LIVE":
-            st.markdown("### 🧪 Aperçu Régie")
-            c1, c2 = st.columns([1, 1.5], vertical_alignment="center")
+            # --- SECTEUR 1: SEQUENCER (DÉPLACÉ EN HAUT) ---
+            st.subheader("🎬 Séquenceur de Diffusion")
+            bt1, bt2, bt3, bt4, bt5 = st.columns(5)
+            cfg = st.session_state.config
+            if bt1.button("🏠 1. ACCUEIL", use_container_width=True): cfg.update({"mode_affichage":"attente","reveal_resultats":False,"session_ouverte":False}); save_config(); st.rerun()
+            if bt2.button("🗳️ 2. VOTES ON", use_container_width=True): cfg.update({"mode_affichage":"votes","session_ouverte":True,"reveal_resultats":False}); save_config(); st.rerun()
+            if bt3.button("🛑 3. VOTES OFF", use_container_width=True): cfg.update({"session_ouverte":False}); save_config(); st.rerun()
+            if bt4.button("🏆 4. PODIUM", use_container_width=True): cfg.update({"mode_affichage":"votes","reveal_resultats":True,"session_ouverte":False,"timestamp_podium":time.time()}); save_config(); st.rerun()
+            if bt5.button("📸 5. PHOTO LIVE", use_container_width=True): cfg.update({"mode_affichage":"photos_live"}); save_config(); st.rerun()
+            
+            st.divider()
+
+            # --- SECTEUR 2: LABORATOIRE ---
+            st.markdown("### 🧪 Laboratoire & Visuels")
+            c1, c2 = st.columns([1, 1.5], gap="medium", vertical_alignment="center")
             with c1:
                 EFFECT_LIST = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
                 if "preview_selected" not in st.session_state: st.session_state.preview_selected = "Aucun"
@@ -187,10 +191,12 @@ if est_admin:
                 components.html(get_tv_html(js_preview), height=320)
             
             st.divider()
-            st.markdown("### 📡 Contrôles du Mur")
+
+            # --- SECTEUR 3: REGLAGES ---
+            st.markdown("### 📡 Contrôles Globaux des Effets")
             cp1, cp2 = st.columns(2)
-            with cp1: intensity = st.slider("🔢 Densité", 0, 50, intensity)
-            with cp2: speed = st.slider("🚀 Vitesse", 0, 50, speed)
+            with cp1: intensity = st.slider("🔢 Densité (Quantité)", 0, 50, intensity)
+            with cp2: speed = st.slider("🚀 Vitesse (Animation)", 0, 50, speed)
             if intensity != st.session_state.config["effect_intensity"] or speed != st.session_state.config["effect_speed"]:
                 st.session_state.config["effect_intensity"] = intensity
                 st.session_state.config["effect_speed"] = speed; save_config(); st.rerun()
@@ -198,67 +204,68 @@ if est_admin:
             col1, col2 = st.columns(2)
             screen_map = st.session_state.config["screen_effects"]
             with col1:
-                st.selectbox("🏠 Accueil (Attente)", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("attente", "Aucun")), key="sel_attente")
-                st.selectbox("🗳️ Votes Ouverts", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("votes_open", "Aucun")), key="sel_open")
+                st.selectbox("🏠 Effet : Accueil", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("attente", "Aucun")), key="sel_attente")
+                st.selectbox("🗳️ Effet : Votes Ouverts", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("votes_open", "Aucun")), key="sel_open")
             with col2:
-                st.selectbox("🏆 Podium", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("podium", "Aucun")), key="sel_podium")
-                st.selectbox("📸 Mur Photos", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("photos_live", "Aucun")), key="sel_photos")
+                st.selectbox("🏆 Effet : Podium", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("podium", "Aucun")), key="sel_podium")
+                st.selectbox("📸 Effet : Mur Photos", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("photos_live", "Aucun")), key="sel_photos")
             
-            if st.button("💾 Appliquer les effets au Mur"):
+            if st.button("💾 SAUVEGARDER CONFIG EFFETS"):
                 st.session_state.config["screen_effects"].update({"attente": st.session_state.sel_attente, "votes_open": st.session_state.sel_open, "podium": st.session_state.sel_podium, "photos_live": st.session_state.sel_photos})
-                save_config(); st.toast("Effets mis à jour !")
-
-            st.divider()
-            st.subheader("🎬 Séquenceur")
-            bt1, bt2, bt3, bt4, bt5 = st.columns(5)
-            cfg = st.session_state.config
-            if bt1.button("1. ACCUEIL", use_container_width=True): cfg.update({"mode_affichage":"attente","reveal_resultats":False,"session_ouverte":False}); save_config(); st.rerun()
-            if bt2.button("2. VOTES ON", use_container_width=True): cfg.update({"mode_affichage":"votes","session_ouverte":True,"reveal_resultats":False}); save_config(); st.rerun()
-            if bt3.button("3. VOTES OFF", use_container_width=True): cfg.update({"session_ouverte":False}); save_config(); st.rerun()
-            if bt4.button("4. PODIUM", use_container_width=True): cfg.update({"mode_affichage":"votes","reveal_resultats":True,"session_ouverte":False,"timestamp_podium":time.time()}); save_config(); st.rerun()
-            if bt5.button("5. 📸 PHOTO LIVE", use_container_width=True): cfg.update({"mode_affichage":"photos_live"}); save_config(); st.rerun()
+                save_config(); st.toast("Configuration du mur mise à jour !")
 
         elif menu == "⚙️ Paramètres":
-            st.title("Paramètres")
-            new_title = st.text_input("Titre du Mur", value=st.session_state.config["titre_mur"])
-            if st.button("Enregistrer"): st.session_state.config["titre_mur"] = new_title; save_config(); st.success("OK")
+            st.title("Paramètres Généraux")
+            new_title = st.text_input("Titre du Mur Social", value=st.session_state.config["titre_mur"])
+            if st.button("Enregistrer"): st.session_state.config["titre_mur"] = new_title; save_config(); st.success("Titre sauvegardé")
             st.divider()
+            st.subheader("Candidats / Services")
             df_cands = pd.DataFrame(st.session_state.config["candidats"], columns=["Nom du Candidat"])
             edited = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True)
-            if st.button("💾 Sauver Candidats"): st.session_state.config["candidats"] = edited["Nom du Candidat"].tolist(); save_config(); st.rerun()
+            if st.button("💾 Sauver Liste Candidats"): st.session_state.config["candidats"] = edited["Nom du Candidat"].tolist(); save_config(); st.rerun()
 
         elif menu == "📸 Médiathèque":
-            st.title("Médiathèque")
+            st.title("Gestion des Photos")
             files = glob.glob(f"{LIVE_DIR}/*")
             if files:
                 cols = st.columns(5)
                 for i, f in enumerate(files):
                     with cols[i%5]:
                         st.image(f, use_container_width=True)
-                        if st.button("🗑️", key=f"del_{i}"): os.remove(f); st.rerun()
+                        if st.button("🗑️ Supprimer", key=f"del_{i}"): os.remove(f); st.rerun()
+            else: st.info("Aucune photo reçue.")
 
+# --- UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, {})
     st.markdown("<style>.stApp { background-color: black; color: white; }</style>", unsafe_allow_html=True)
     if cfg.get("mode_affichage") == "photos_live":
-        st.title("📸 Envoyer Photo")
+        st.title("📸 Envoyez votre photo !")
         photo = st.camera_input("Smile !")
         if photo:
             img = Image.open(photo)
-            img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG"); st.success("Envoyé !")
+            img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG"); st.success("Photo envoyée au Mur !")
     else:
-        if not cfg.get("session_ouverte"): st.info("⌛ Attente des votes...")
+        if not cfg.get("session_ouverte"): st.info("⌛ En attente du lancement des votes...")
         else:
-            st.title("🗳️ Vote")
-            choix = st.multiselect("Choisissez 3 :", cfg.get("candidats", []))
-            if len(choix) == 3 and st.button("Voter"): st.success("Merci !")
+            if st.session_state.get("a_vote", False): st.success("Merci ! Votre vote a été enregistré.")
+            else:
+                st.title("🗳️ Vote Transdev")
+                choix = st.multiselect("Choisissez vos 3 favoris :", cfg.get("candidats", []))
+                if len(choix) == 3 and st.button("VALIDER MON VOTE"):
+                    vts = load_json(VOTES_FILE, {}); pts = [5, 3, 1]
+                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
+                    with open(VOTES_FILE, "w") as f: json.dump(vts, f)
+                    st.session_state.a_vote = True; st.rerun()
 
+# --- MUR SOCIAL ---
 else:
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2500, key="wall")
     cfg = load_json(CONFIG_FILE, {})
     st.markdown("<style>body, .stApp { background-color: black; overflow: hidden; } [data-testid='stHeader'] { display: none; }</style>", unsafe_allow_html=True)
     
+    # Choix de l'effet à injecter
     screen_key = "attente"
     if cfg.get("mode_affichage") == "photos_live": screen_key = "photos_live"
     elif cfg.get("reveal_resultats"): screen_key = "podium"
@@ -270,9 +277,7 @@ else:
         st.markdown("<h1 style='text-align:center; color:white; font-size:60px;'>📸 MUR PHOTO</h1>", unsafe_allow_html=True)
         files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
         if files:
-            img_list = []
-            for f in files[:12]:
-                with open(f, "rb") as b: img_list.append(f"data:image/jpeg;base64,{base64.b64encode(b.read()).decode()}")
-            components.html(f"""<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;padding:20px;"></div><script>var imgs={json.dumps(img_list)}; var c=document.body.firstChild; imgs.forEach(s=>{{var i=document.createElement('img');i.src=s;i.style.height='250px';i.style.borderRadius='15px';i.style.border='4px solid #E2001A';document.body.appendChild(i);}});</script>""", height=800)
+            img_list = [f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in files[:12]]
+            components.html(f"""<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;padding:20px;"></div><script>var imgs={json.dumps(img_list)}; imgs.forEach(s=>{{var i=document.createElement('img');i.src=s;i.style.height='250px';i.style.borderRadius='15px';i.style.border='4px solid #E2001A';document.body.firstChild.appendChild(i);}});</script>""", height=800)
     else:
         st.markdown(f"<h1 style='text-align:center; color:white; font-size:60px; margin-top:100px;'>{cfg.get('titre_mur', '')}</h1>", unsafe_allow_html=True)
