@@ -116,13 +116,12 @@ def get_live_effect_html(effect_name, intensity, speed):
     elif effect_name == "🎉 Confettis":
         count = max(1, int(intensity * 1.5)) 
         interval = max(100, 1500 - (speed * 28))
-        # CORRECTIF: Ajout de 'ticks: 300' et 'gravity' pour forcer la descente en bas de l'écran
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){{(function f(){{if(!window.parent.document.body.contains(s))return;window.parent.confetti({{particleCount:{count},angle:90,spread:100,origin:{{x:Math.random(),y:-0.2}},colors:['#E2001A','#ffffff','#ffcc00'],zIndex:0,gravity:0.8,drift:0,ticks:400,scalar:1.2}}); setTimeout(()=>{{requestAnimationFrame(f)}}, {interval})}}())}};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>"""
 
     elif effect_name == "🌌 Espace":
-        interval = max(5, 200 - (intensity * 3.8))
+        interval = int(1000 / (intensity + 5))
         duration = max(1, 8 - (speed * 0.14))
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{{position:absolute;background:white;border-radius:50%;animation:z {duration}s infinite linear;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(5)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=Math.random()*3+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),{duration*1000})}},{interval});</script>"""
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{{position:absolute;background:white;border-radius:50%;animation:z {duration}s linear infinite;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(3)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=(Math.random()*4+2)+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),{duration*1000})}},{interval});</script>"""
 
     elif effect_name == "💸 Billets":
         interval = int(2500 / (intensity + 3))
@@ -131,7 +130,7 @@ def get_live_effect_html(effect_name, intensity, speed):
 
     elif effect_name == "🟢 Matrix":
         fps = max(10, 100 - (speed * 1.5))
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){{const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}}}};setInterval(d,{fps});</script>"""
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.4;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='01';const fs=20;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){{const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}}}};setInterval(d,{fps});</script>"""
     
     return ""
 
@@ -195,29 +194,35 @@ def get_tv_html(effect_js):
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
+    
     elif effect_name == "🎈 Ballons":
         interval = int(3500 / (intensity + 5))
         duration = max(3, 20 - (speed * 0.34))
-        return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-20px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom {duration}s linear;';c.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
+        return f"""<script>const sc=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom {duration}s linear;';sc.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
+    
     elif effect_name == "❄️ Neige":
         interval = int(1000 / (intensity + 2))
         duration = max(2, 10 - (speed * 0.16))
-        return f"""<style>.sf{{position:absolute;color:white;animation:f 2s linear infinite}}@keyframes f{{to{{transform:translateY(150px)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';e.style.animationDuration=(Math.random()*{duration} + {duration/2})+'s';c.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000 + 1000})}},{interval});</script>"""
+        return f"""<style>.sf{{position:absolute;color:white;animation:f 2s linear infinite}}@keyframes f{{to{{transform:translateY(150px)}}}}</style><script>const sc=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';e.style.animationDuration=(Math.random()*{duration} + {duration/2})+'s';sc.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000 + 1000})}},{interval});</script>"""
+    
     elif effect_name == "🎉 Confettis":
         count = max(1, int(intensity * 1.5))
         interval = max(100, 1500 - (speed * 28))
-        return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:60,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},{interval});</script>"""
+        return f"""<canvas id="cf-cv" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const cv=document.getElementById('cf-cv'); const mc=confetti.create(cv,{{resize:true,useWorker:true}}); setInterval(()=>{{mc({{particleCount:{count},spread:60,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},{interval});</script>"""
+    
     elif effect_name == "🌌 Espace":
-        interval = max(10, 300 - (intensity * 5.5))
+        interval = int(1000 / (intensity + 5))
         duration = max(1, 8 - (speed * 0.14))
-        return f"""<style>.st{{position:absolute;background:white;border-radius:50%;animation:z {duration}s linear infinite;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(2)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';c.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
+        return f"""<style>.st-p{{position:absolute;background:white;border-radius:50%;animation:z-p {duration}s linear infinite;opacity:0}}@keyframes z-p{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(3)}}}}</style><script>const sc=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st-p';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='4px';e.style.height='4px';sc.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
+    
     elif effect_name == "💸 Billets":
         interval = int(2500 / (intensity + 3))
         duration = max(1000, 5000 - (speed * 80))
-        return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:{duration}}});setTimeout(()=>{{e.remove()}},{duration})}},{interval});</script>"""
+        return f"""<script>const sc=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:18px;';sc.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:{duration}}});setTimeout(()=>{{e.remove()}},{duration})}},{interval});</script>"""
+    
     elif effect_name == "🟢 Matrix":
         fps = max(10, 100 - (speed * 1.5))
-        return f"""<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++}})}},{fps});</script>"""
+        return f"""<canvas id="mx-cv" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mx-cv');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++}})}},{fps});</script>"""
     return ""
 
 # --- FONCTIONS CRITIQUES ---
@@ -770,7 +775,7 @@ else:
     logo_html = ""
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
 
-    # --- DETERMINATION EFFET ACTIF (Mode Ecran) ---
+    # --- DETERMINATION EFFET ACTIF ---
     screen_key = "attente"
     if config["mode_affichage"] == "attente": screen_key = "attente"
     elif config["mode_affichage"] == "photos_live": screen_key = "photos_live"
