@@ -9,7 +9,6 @@ from PIL import Image
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
-# NOUVEAU FICHIER : voters.json pour stocker les noms de ceux qui ont voté
 VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE, VOTERS_FILE = "votes.json", "participants.json", "config_mur.json", "voters.json"
 
 for d in [GALLERY_DIR, ADMIN_DIR]:
@@ -118,7 +117,6 @@ if est_admin:
                 col_rst, col_info = st.columns([1, 2])
                 with col_rst:
                     if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet tout à 0 (Scores, Participants, Votants)"):
-                        # Suppression de TOUS les fichiers de données
                         for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
                             if os.path.exists(f): os.remove(f)
                         st.toast("✅ Session entièrement réinitialisée !")
@@ -132,7 +130,6 @@ if est_admin:
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in cfg["candidats"]}
                 if valid:
-                    # Conversion pour Altair
                     import altair as alt
                     df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points'])
                     df = df.sort_values('Points', ascending=False).reset_index(drop=True)
@@ -259,60 +256,38 @@ elif est_utilisateur:
     
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # 1. AFFICHAGE LOGO SUR MOBILE
     if cfg.get("logo_b64"):
-        st.markdown(f"""
-        <div style="text-align:center; margin-bottom:20px;">
-            <img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;">
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>""", unsafe_allow_html=True)
     
     st.title("🗳️ Vote Transdev")
     
-    # 2. ENREGISTREMENT COMPTEUR (1 seule fois par session browser)
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
         with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
         st.session_state["participant_recorded"] = True
 
-    # 3. VERIFICATION IDENTITÉ
     if "user_id" not in st.session_state:
         st.session_state.user_id = None
 
-    # Écran 1: Identification
     if not st.session_state.user_id:
         st.info("Pour garantir un vote unique, merci de vous identifier.")
         nom = st.text_input("Votre Nom et Prénom / Matricule :")
         if st.button("Commencer"):
             if len(nom) > 2:
-                # Nettoyage nom pour éviter doublons (ex: "Toto" == "toto ")
                 clean_id = nom.strip().lower()
-                
-                # Vérification dans la base des votants
                 voters = load_json(VOTERS_FILE, [])
                 if clean_id in voters:
                     st.error("❌ Ce nom a déjà été utilisé pour voter.")
                 else:
                     st.session_state.user_id = clean_id
                     st.rerun()
-            else:
-                st.warning("Merci d'entrer un nom valide.")
+            else: st.warning("Merci d'entrer un nom valide.")
     
-    # Écran 2: Vote ou Confirmation
     else:
-        # Si déjà voté (Session locale)
         if st.session_state.get("a_vote", False):
             st.balloons()
-            st.markdown("""
-            <div style="text-align:center; padding-top:50px;">
-                <div style="font-size:80px;">👏</div>
-                <h1 style="color:#E2001A;">MERCI !</h1>
-                <p style="font-size:20px;">Votre vote a bien été pris en compte.</p>
-            </div>
-            """, unsafe_allow_html=True)
-            # Pas de bouton retour pour empêcher le spam
-        
+            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1><p style="font-size:20px;">Votre vote a bien été pris en compte.</p></div>""", unsafe_allow_html=True)
         elif not cfg["session_ouverte"]: 
             st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
         else:
@@ -322,17 +297,12 @@ elif est_utilisateur:
 
             if len(choix) == 3:
                 if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
-                    # 1. Enregistrement des points
                     vts = load_json(VOTES_FILE, {})
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     json.dump(vts, open(VOTES_FILE, "w"))
-                    
-                    # 2. Enregistrement du Votant (Bloque le nom pour le futur)
                     voters = load_json(VOTERS_FILE, [])
                     voters.append(st.session_state.user_id)
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
-                    
-                    # 3. Validation locale
                     st.session_state["a_vote"] = True
                     st.rerun()
             elif len(choix) > 3: st.error("Maximum 3 choix !")
@@ -345,18 +315,33 @@ else:
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
     logo_html = ""
-    if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px;">'
+    # LOGO : Affichage direct sans fond blanc (transparent)
+    if config.get("logo_b64"): 
+        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">'
 
+    # Construction du HTML du compteur (Affiché seulement si PAS en attente)
+    counter_html = ""
+    if config["mode_affichage"] != "attente":
+        counter_html = f'<div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold; margin-top:15px; font-size:18px;">👥 {nb_p} CONNECTÉS</div>'
+
+    # En-tête principal (Titre + Logo)
     st.markdown(f"""
     <div style="text-align:center; color:white;">
     {logo_html}
     <h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1>
-    <div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold; margin-top:15px; font-size:18px;">👥 {nb_p} CONNECTÉS</div>
+    {counter_html}
     </div>
     """, unsafe_allow_html=True)
 
     if config["mode_affichage"] == "attente":
-        st.markdown(f"""<div style="text-align:center; color:white; margin-top:50px;"><div style="{BADGE_CSS}">⌛ En attente</div><h2 style="font-size:60px; margin-top:40px;">Bienvenue ! 👋</h2></div>""", unsafe_allow_html=True)
+        # Message d'accueil épuré sans compteur
+        st.markdown(f"""
+        <div style="text-align:center; color:white; margin-top:80px;">
+            <div style="{BADGE_CSS}">✨ BIENVENUE ✨</div>
+            <h2 style="font-size:50px; margin-top:40px; font-weight:lighter;">L'événement va commencer dans quelques instants...</h2>
+            <p style="font-size:24px; color:#aaa; margin-top:20px;">Installez-vous confortablement</p>
+        </div>
+        """, unsafe_allow_html=True)
 
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         if config["session_ouverte"]:
