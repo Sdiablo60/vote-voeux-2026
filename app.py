@@ -8,7 +8,7 @@ from datetime import datetime
 import zipfile
 import uuid
 
-# TENTATIVE D'IMPORT DE FPDF POUR L'EXPORT PDF
+# --- GESTION PDF (Optionnel si fpdf n'est pas installé) ---
 try:
     from fpdf import FPDF
     HAS_FPDF = True
@@ -20,12 +20,20 @@ st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wi
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
 LIVE_DIR = "galerie_live_users"
-VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE, VOTERS_FILE, DETAILED_VOTES_FILE = "votes.json", "participants.json", "config_mur.json", "voters.json", "detailed_votes.json"
+# Fichiers de données
+VOTES_FILE = "votes.json"
+PARTICIPANTS_FILE = "participants.json"
+CONFIG_FILE = "config_mur.json"
+VOTERS_FILE = "voters.json"
+DETAILED_VOTES_FILE = "detailed_votes.json"
 
 for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
-DEFAULT_CANDIDATS = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
+DEFAULT_CANDIDATS = [
+    "BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", 
+    "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"
+]
 
 default_config = {
     "mode_affichage": "attente", 
@@ -99,7 +107,7 @@ def save_live_photo(uploaded_file):
         filename = f"live_{timestamp}_{random.randint(100,999)}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
         img = Image.open(uploaded_file)
-        try:
+        try: # Rotation EXIF
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -128,10 +136,9 @@ def update_presence(is_active_user=False):
         json.dump(clean_data, f)
     return len(clean_data)
 
-# --- GENERATEUR PDF SIMPLIFIÉ ---
+# --- GENERATEUR PDF ---
 def generate_pdf_report(dataframe, title):
     if not HAS_FPDF: return None
-    
     class PDF(FPDF):
         def header(self):
             self.set_font('Arial', 'B', 15)
@@ -141,28 +148,21 @@ def generate_pdf_report(dataframe, title):
             self.set_y(-15)
             self.set_font('Arial', 'I', 8)
             self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
-
     pdf = PDF()
     pdf.add_page()
     pdf.set_font("Arial", size=10)
-    
-    # Entêtes
     cols = dataframe.columns.tolist()
     col_width = 190 / len(cols)
     pdf.set_fill_color(200, 220, 255)
     for col in cols:
-        # Encodage latin-1 pour éviter plantage accents
         pdf.cell(col_width, 10, str(col).encode('latin-1', 'replace').decode('latin-1'), 1, 0, 'C', 1)
     pdf.ln()
-    
-    # Données
     pdf.set_fill_color(255, 255, 255)
     for index, row in dataframe.iterrows():
         for col in cols:
             txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
             pdf.cell(col_width, 10, txt, 1, 0, 'C')
         pdf.ln()
-        
     return pdf.output(dest='S').encode('latin-1')
 
 # --- 2. NAVIGATION ---
@@ -192,6 +192,7 @@ if est_admin:
                 st.session_state["auth"] = False
                 st.rerun()
 
+        # --- MENU: PILOTAGE LIVE ---
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             st.subheader("1️⃣ Séquenceur")
@@ -221,18 +222,22 @@ if est_admin:
                 col_rst, col_info = st.columns([1, 2])
                 with col_rst:
                     if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet tout à 0"):
+                        # RESET TOUS LES FICHIERS DE DONNEES
                         for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE, DETAILED_VOTES_FILE]:
                             if os.path.exists(f): os.remove(f)
+                        # GENERER NOUVELLE SESSION ID
                         st.session_state.config["session_id"] = str(int(time.time()))
                         save_config()
                         st.toast("✅ Session entièrement réinitialisée !")
                         time.sleep(1); st.rerun()
+                    
                     if st.button("🗑️ VIDER PHOTOS LIVE", use_container_width=True):
                         files = glob.glob(f"{LIVE_DIR}/*")
                         for f in files: os.remove(f)
                         st.toast("✅ Galerie Live vidée !")
                         time.sleep(1); st.rerun()
-                with col_info: st.info("Efface les scores ou les photos live.")
+                with col_info:
+                    st.info("Efface les scores ou les photos live.")
 
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
@@ -241,9 +246,8 @@ if est_admin:
             voters_list = load_json(VOTERS_FILE, [])
             st.metric("👥 Participants Validés", len(voters_list))
             
-            # --- 2.1 RESUME GRAPHIQUE (TOGGLE) ---
+            # TOGGLE 1 : GRAPHIQUE
             show_summary = st.toggle("📊 Afficher le Graphique & Podiums", value=True)
-            
             if show_summary:
                 v_data = load_json(VOTES_FILE, {})
                 if v_data:
@@ -262,9 +266,8 @@ if est_admin:
                     else: st.info("Aucun vote actif.")
                 else: st.info("En attente de votes...")
 
-            # --- 2.2 LOG DETAILLE (TOGGLE) ---
+            # TOGGLE 2 : DETAILS
             show_details = st.toggle("👁️ Afficher le tableau des votants", value=False)
-            
             if show_details:
                 st.markdown("##### 🕵️‍♂️ Détail des votes (Live)")
                 detailed_votes = load_json(DETAILED_VOTES_FILE, [])
@@ -286,6 +289,7 @@ if est_admin:
                 else:
                     st.info("Aucun vote détaillé enregistré.")
 
+        # --- MENU: PARAMETRAGE ---
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
             t1, t2 = st.tabs(["Identité", "Gestion Questions"])
@@ -323,6 +327,7 @@ if est_admin:
                             b64 = process_image_upload(up)
                             if b64: st.session_state.config["candidats_images"][sel] = b64; save_config(); st.rerun()
 
+        # --- MENU: MEDIATHEQUE ---
         elif menu == "📸 Médiathèque (Gestion)":
             st.markdown("""<style>div[data-testid="stButton"] button[key="btn_download"] { background-color: #007bff; color: white; border-color: #007bff; } div[data-testid="stButton"] button[key="btn_download"]:hover { background-color: #0056b3; border-color: #0056b3; } div[data-testid="stButton"] button[key="btn_delete"] { background-color: #dc3545; color: white; border-color: #dc3545; } div[data-testid="stButton"] button[key="btn_delete"]:hover { background-color: #a71d2a; border-color: #a71d2a; }</style>""", unsafe_allow_html=True)
             st.title("📸 Médiathèque & Export")
@@ -384,10 +389,11 @@ if est_admin:
                             for f in manual_selection: zf.write(f, os.path.basename(f))
                         st.download_button("📥 Télécharger la sélection", data=zip_man.getvalue(), file_name="selection.zip", mime="application/zip")
 
+        # --- MENU: DATA & EXPORTS ---
         elif menu == "📊 Data & Exports":
             st.title("📊 Data & Exports")
             
-            # --- 1. EXPORT SCORES GLOBAUX ---
+            # 1. SCORES GLOBAUX
             st.subheader("1️⃣ Résultats Globaux (Scores)")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
@@ -403,14 +409,13 @@ if est_admin:
                         if HAS_FPDF:
                             pdf_bytes = generate_pdf_report(df, "RESULTATS GLOBAUX")
                             st.download_button("📄 Télécharger PDF", data=pdf_bytes, file_name=f"resultats_globaux_{int(time.time())}.pdf", mime="application/pdf", use_container_width=True)
-                        else:
-                            st.warning("Installez 'fpdf' (pip install fpdf) pour l'export PDF.")
+                        else: st.warning("Installez 'fpdf' pour PDF")
                 else: st.info("Aucun vote valide.")
             else: st.info("Aucun vote.")
             
             st.divider()
             
-            # --- 2. EXPORT LOG DETAILLE ---
+            # 2. LOG DETAILLE
             st.subheader("2️⃣ Historique Détaillé (Votants)")
             detailed_votes = load_json(DETAILED_VOTES_FILE, [])
             if detailed_votes:
@@ -424,8 +429,7 @@ if est_admin:
                     if HAS_FPDF:
                         pdf_bytes = generate_pdf_report(df_det, "HISTORIQUE DETAILLE")
                         st.download_button("📄 Télécharger PDF", data=pdf_bytes, file_name=f"historique_detaille_{int(time.time())}.pdf", mime="application/pdf", use_container_width=True)
-                    else:
-                        st.warning("Installez 'fpdf' pour l'export PDF.")
+                    else: st.warning("Installez 'fpdf' pour PDF")
             else: st.info("Pas d'historique.")
 
             st.divider()
@@ -448,7 +452,7 @@ elif est_utilisateur:
     st.markdown("""
     <style>
         .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
-        .stApp { background-color: black !important; color: white !important; visibility: hidden; } /* CACHÉ PAR DÉFAUT */
+        .stApp { background-color: black !important; color: white !important; visibility: hidden; } 
         [data-testid="stHeader"] { display: none !important; }
         h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { justify-content: center; }
@@ -458,22 +462,32 @@ elif est_utilisateur:
     </style>
     """, unsafe_allow_html=True)
     
+    # 1. VERIFICATION SI BLOQUE
+    is_blocked_url = st.query_params.get("blocked") == "yes"
+    
+    # 2. SECURITÉ JS
     if cfg["mode_affichage"] != "photos_live": 
         components.html(f"""
         <script>
             var voted = localStorage.getItem('{ls_key}');
             if (voted === 'true') {{
-                var overlay = document.createElement('div');
-                overlay.style.position = 'fixed'; overlay.style.top = '0'; overlay.style.left = '0';
-                overlay.style.width = '100%'; overlay.style.height = '100%';
-                overlay.style.backgroundColor = 'rgba(0,0,0,0.95)'; overlay.style.zIndex = '2147483647';
-                overlay.style.display = 'flex'; overlay.style.flexDirection = 'column';
-                overlay.style.justifyContent = 'center'; overlay.style.alignItems = 'center';
-                overlay.style.color = 'white'; overlay.style.fontFamily = 'sans-serif'; overlay.style.textAlign = 'center';
-                overlay.innerHTML = '<h1 style="font-size:4rem; margin:0;">🚫</h1><h2 style="color:#E2001A; margin-top:20px;">Vote Déjà Enregistré</h2><p style="font-size:1.2rem;">Vous avez déjà soumis votre participation.</p>';
-                window.parent.document.body.appendChild(overlay);
-                var app = window.parent.document.querySelector('.stApp');
-                if (app) app.style.filter = 'blur(10px)';
+                const params = new URLSearchParams(window.location.search);
+                if (!params.has('blocked')) {{
+                    params.set('blocked', 'yes');
+                    window.location.search = params.toString();
+                }} else {{
+                    var overlay = document.createElement('div');
+                    overlay.style.position = 'fixed'; overlay.style.top = '0'; overlay.style.left = '0';
+                    overlay.style.width = '100%'; overlay.style.height = '100%';
+                    overlay.style.backgroundColor = 'rgba(0,0,0,0.95)'; overlay.style.zIndex = '2147483647';
+                    overlay.style.display = 'flex'; overlay.style.flexDirection = 'column';
+                    overlay.style.justifyContent = 'center'; overlay.style.alignItems = 'center';
+                    overlay.style.color = 'white'; overlay.style.fontFamily = 'sans-serif'; overlay.style.textAlign = 'center';
+                    overlay.innerHTML = '<h1 style="font-size:4rem; margin:0;">🚫</h1><h2 style="color:#E2001A; margin-top:20px;">Vote Déjà Enregistré</h2><p style="font-size:1.2rem;">Vous avez déjà soumis votre participation.</p>';
+                    window.parent.document.body.appendChild(overlay);
+                    var app = window.parent.document.querySelector('.stApp');
+                    if (app) app.style.filter = 'blur(10px)';
+                }}
             }} else {{
                 window.parent.document.querySelector('.stApp').style.visibility = 'visible';
             }}
@@ -482,10 +496,13 @@ elif est_utilisateur:
     else:
         components.html("""<script>window.parent.document.querySelector('.stApp').style.visibility = 'visible';</script>""", height=0)
 
+    # 3. MISE A JOUR PRESENCE (si non bloqué)
+    if not is_blocked_url:
+        update_presence(is_active_user=True)
+
     if cfg["mode_affichage"] == "photos_live":
         st.markdown("<h1 style='color:#E2001A;'>📸 MUR PHOTO LIVE</h1>", unsafe_allow_html=True)
         if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:60px; width:auto;"></div>', unsafe_allow_html=True)
-        
         tab_native, tab_web = st.tabs(["📱 Téléphone", "💻 Webcam"])
         with tab_native:
             photo_native = st.file_uploader("Prendre une photo", type=["png", "jpg", "jpeg"], key=f"upl_{st.session_state.cam_reset_id}", label_visibility="collapsed")
@@ -543,11 +560,7 @@ elif est_utilisateur:
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                     
                     details = load_json(DETAILED_VOTES_FILE, [])
-                    details.append({
-                        "timestamp": datetime.now().strftime("%H:%M:%S"),
-                        "user": st.session_state.user_id,
-                        "choix_1": choix[0], "choix_2": choix[1], "choix_3": choix[2]
-                    })
+                    details.append({"timestamp": datetime.now().strftime("%H:%M:%S"), "user": st.session_state.user_id, "choix_1": choix[0], "choix_2": choix[1], "choix_3": choix[2]})
                     with open(DETAILED_VOTES_FILE, "w") as f: json.dump(details, f)
                     
                     st.session_state["a_vote"] = True
@@ -558,35 +571,21 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
+    # 1. AUTO-REFRESH CRITIQUE
+    try:
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(interval=2000, key="wall_autorefresh")
+    except ImportError:
+        st.error("⚠️ Module 'streamlit-autorefresh' manquant.")
+        st.stop()
+
     st.markdown("""
     <style>
         body, .stApp { background-color: black !important; overflow: hidden; height: 100vh; } 
         [data-testid='stHeader'], footer { display: none !important; } 
         .block-container { padding-top: 1rem !important; padding-bottom: 0 !important; max-width: 98% !important; }
-        
-        .participant-badge {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.1);
-            color: #ccc;
-            border: 1px solid #444;
-            border-radius: 15px;
-            padding: 4px 12px;
-            margin: 4px;
-            font-size: 14px;
-            font-weight: bold;
-            white-space: nowrap;
-        }
-        
-        .badges-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            max-height: 25vh; 
-            overflow-y: auto;
-            margin-top: 10px;
-            padding: 10px;
-            scrollbar-width: none; 
-        }
+        .participant-badge { display: inline-block; background: rgba(255, 255, 255, 0.1); color: #ccc; border: 1px solid #444; border-radius: 15px; padding: 4px 12px; margin: 4px; font-size: 14px; font-weight: bold; white-space: nowrap; }
+        .badges-container { display: flex; flex-wrap: wrap; justify-content: center; max-height: 25vh; overflow-y: auto; margin-top: 10px; padding: 10px; scrollbar-width: none; }
         .badges-container::-webkit-scrollbar { display: none; }
     </style>
     """, unsafe_allow_html=True)
@@ -594,10 +593,8 @@ else:
     config = load_json(CONFIG_FILE, default_config)
     voters_list = load_json(VOTERS_FILE, [])
     nb_p = len(voters_list)
-    
     logo_html = ""
-    if config.get("logo_b64"): 
-        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
+    if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
 
     if config["mode_affichage"] != "photos_live":
         st.markdown(f'<div style="text-align:center; color:white;">{logo_html}<h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
@@ -609,71 +606,30 @@ else:
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-
-        st.markdown(f"""
-        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
-            <div style="margin-bottom:10px;">{logo_html}</div>
-            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
-                <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
-            </div>
-            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
-                📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
+        st.markdown(f"""<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;"><div style="margin-bottom:10px;">{logo_html}</div><div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);"><img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;"></div><div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !</div></div>""", unsafe_allow_html=True)
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
         for photo_path in recent_photos:
             with open(photo_path, "rb") as f: b64 = base64.b64encode(f.read()).decode(); img_array_js.append(f"data:image/jpeg;base64,{b64}")
         js_img_list = json.dumps(img_array_js)
-
-        components.html(f"""
-        <html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head>
-        <body><div id="container"></div><script>
-            const images = {js_img_list}; const container = document.getElementById('container'); const bubbles = []; const speed = 2.5;
-            const centerX_min = window.innerWidth * 0.35; const centerX_max = window.innerWidth * 0.65; const centerY_min = window.innerHeight * 0.30; const centerY_max = window.innerHeight * 0.70;
-            images.forEach((src, index) => {{
-                const img = document.createElement('img'); img.src = src; img.className = 'bubble'; const size = 80 + Math.random() * 150;
-                let startX, startY;
-                do {{ startX = Math.random() * (window.innerWidth - 150); startY = Math.random() * (window.innerHeight - 150); }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max);
-                const bubble = {{ element: img, x: startX, y: startY, vx: (Math.random() - 0.5) * speed * 2, vy: (Math.random() - 0.5) * speed * 2, size: size }};
-                img.style.width = bubble.size + 'px'; img.style.height = bubble.size + 'px'; container.appendChild(img); bubbles.push(bubble);
-            }});
-            function animate() {{
-                const w = window.innerWidth; const h = window.innerHeight;
-                bubbles.forEach(b => {{
-                    b.x += b.vx; b.y += b.vy;
-                    if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1;
-                    if (b.x + b.size > centerX_min && b.x < centerX_max && b.y + b.size > centerY_min && b.y < centerY_max) {{ const centerX = (centerX_min + centerX_max) / 2; if (b.x < centerX) b.vx = -Math.abs(b.vx); else b.vx = Math.abs(b.vx); }}
-                    b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
-                }}); requestAnimationFrame(animate);
-            }} animate();
-        </script></body></html>
-        """, height=900)
+        components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>const images = {js_img_list}; const container = document.getElementById('container'); const bubbles = []; const speed = 2.5; const centerX_min = window.innerWidth * 0.35; const centerX_max = window.innerWidth * 0.65; const centerY_min = window.innerHeight * 0.30; const centerY_max = window.innerHeight * 0.70; images.forEach((src, index) => {{ const img = document.createElement('img'); img.src = src; img.className = 'bubble'; const size = 80 + Math.random() * 150; let startX, startY; do {{ startX = Math.random() * (window.innerWidth - 150); startY = Math.random() * (window.innerHeight - 150); }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max); const bubble = {{ element: img, x: startX, y: startY, vx: (Math.random() - 0.5) * speed * 2, vy: (Math.random() - 0.5) * speed * 2, size: size }}; img.style.width = bubble.size + 'px'; img.style.height = bubble.size + 'px'; container.appendChild(img); bubbles.push(bubble); }}); function animate() {{ const w = window.innerWidth; const h = window.innerHeight; bubbles.forEach(b => {{ b.x += b.vx; b.y += b.vy; if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; if (b.x + b.size > centerX_min && b.x < centerX_max && b.y + b.size > centerY_min && b.y < centerY_max) {{ const centerX = (centerX_min + centerX_max) / 2; if (b.x < centerX) b.vx = -Math.abs(b.vx); else b.vx = Math.abs(b.vx); }} b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`; }}); requestAnimationFrame(animate); }} animate();</script></body></html>""", height=900)
 
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         st.markdown(f'<div style="text-align:center; margin-top:5px; margin-bottom:5px;"><div style="background:white; display:inline-block; padding:2px 15px; border-radius:15px; color:black; font-weight:bold; font-size:16px;">👥 {nb_p} PARTICIPANTS</div></div>', unsafe_allow_html=True)
-        
         if voters_list:
             badges_html = "".join([f'<div class="participant-badge">{v}</div>' for v in voters_list[::-1]])
             st.markdown(f'<div class="badges-container">{badges_html}</div>', unsafe_allow_html=True)
-
         if config["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            
-            cands = config["candidats"]
-            mid = (len(cands) + 1) // 2
-            
+            cands = config["candidats"]; mid = (len(cands) + 1) // 2
             def get_item_html(label):
                 img_html = '<span style="font-size:30px; margin-right:15px;">🎥</span>'
                 if label in config.get("candidats_images", {}):
                     b64 = config["candidats_images"][label]
                     img_html = f'<img src="data:image/png;base64,{b64}" style="width:50px; height:50px; object-fit:cover; border-radius:8px; margin-right:10px; border:2px solid #E2001A;">'
                 return f'<div style="background:#222; color:white; padding:8px; margin-bottom:8px; border-left:4px solid #E2001A; font-weight:bold; font-size:18px; display:flex; align-items:center;">{img_html}{label}</div>'
-            
             st.markdown("<div style='margin-top:20px;'>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 0.6, 1])
             with c1:
@@ -698,10 +654,10 @@ else:
             sorted_v = sorted(valid.items(), key=lambda x: x[1], reverse=True)[:3]
             st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS}">🏆 PODIUM</div></div>', unsafe_allow_html=True)
             cols = st.columns(3)
-            ranks = ["🥇", "🥈", "🥉"]
-            colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
+            colors = ["#FFD700", "#C0C0C0", "#CD7F32"]; ranks = ["🥇", "🥈", "🥉"]
             for i, (name, score) in enumerate(sorted_v):
                 img_p = ""
                 if name in config.get("candidats_images", {}):
                      img_p = f'<img src="data:image/png;base64,{config["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; border:4px solid {colors[i]}; display:block; margin:0 auto 15px auto;">'
                 cols[i].markdown(f"""<div style="background:#1a1a1a; padding:30px; border:4px solid {colors[i]}; text-align:center; color:white; margin-top:30px; border-radius:20px;"><h2>{ranks[i]}</h2>{img_p}<h1>{name}</h1><p>{score} pts</p></div>""", unsafe_allow_html=True)
+            components.html('<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>confetti({particleCount:100,spread:70,origin:{y:0.6}});</script>', height=0)
