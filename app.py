@@ -5,6 +5,7 @@ import streamlit.components.v1 as components
 import time
 from PIL import Image
 from datetime import datetime
+import zipfile
 
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
@@ -117,7 +118,7 @@ if est_admin:
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
             st.markdown("---")
-            menu = st.radio("Navigation :", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque (Modération)", "📊 Data & Exports"], label_visibility="collapsed")
+            menu = st.radio("Navigation :", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque (Export)", "📊 Data & Exports"], label_visibility="collapsed")
             st.markdown("---")
             if st.button("🔓 Déconnexion", use_container_width=True):
                 st.session_state["auth"] = False
@@ -232,29 +233,98 @@ if est_admin:
                             if b64:
                                 st.session_state.config["candidats_images"][sel] = b64; save_config(); st.rerun()
 
-        # --- MÉDIATHÈQUE NETTOYÉE ---
-        elif menu == "📸 Médiathèque (Modération)":
-            st.title("📸 Modération Photos Live")
-            st.info("Voici les photos envoyées en direct par les participants. Supprimez celles qui ne conviennent pas.")
+        # --- MÉDIATHÈQUE AVEC DOUBLE VUE ---
+        elif menu == "📸 Médiathèque (Export)":
+            st.title("📸 Médiathèque & Export")
             
-            if st.button("🔄 Rafraîchir la galerie"):
-                st.rerun()
-
             files = glob.glob(f"{LIVE_DIR}/*")
             files.sort(key=os.path.getmtime, reverse=True)
             
-            if files:
-                cols = st.columns(6)
-                for i, f in enumerate(files):
-                    with cols[i%6]:
-                        st.image(f, use_container_width=True)
-                        if st.button("🗑️ Suppr.", key=f"del_live_{i}", type="secondary"): 
-                            os.remove(f)
-                            st.toast("Photo supprimée")
-                            time.sleep(0.5)
-                            st.rerun()
+            # 1. ZONE EXPORT
+            st.markdown("### 📤 Exportation")
+            if not files:
+                st.warning("Aucune photo.")
             else:
-                st.warning("Aucune photo live pour le moment.")
+                col_ex_all, col_ex_sel = st.columns(2)
+                with col_ex_all:
+                    zip_buffer_all = BytesIO()
+                    with zipfile.ZipFile(zip_buffer_all, "w") as zf:
+                        for f in files: zf.write(f, os.path.basename(f))
+                    st.download_button(
+                        label=f"📥 TÉLÉCHARGER TOUT ({len(files)} photos)",
+                        data=zip_buffer_all.getvalue(),
+                        file_name=f"photos_live_tout_{int(time.time())}.zip",
+                        mime="application/zip", use_container_width=True, type="primary"
+                    )
+
+            st.divider()
+            
+            # 2. SÉLECTEUR DE VUE
+            st.markdown("### 🖼️ Galerie")
+            view_mode = st.radio("Mode d'affichage :", ["▦ Grille (Aperçu)", "☰ Liste (Détail & Gestion)"], horizontal=True, label_visibility="collapsed")
+            
+            if files:
+                selected_files = []
+                
+                # --- VUE GRILLE (5 COLONNES) ---
+                if "Grille" in view_mode:
+                    cols = st.columns(6)
+                    for i, f in enumerate(files):
+                        with cols[i%6]:
+                            st.image(f, use_container_width=True)
+                            if st.checkbox("Select", key=f"sel_g_{i}", label_visibility="collapsed"):
+                                selected_files.append(f)
+                            if st.button("🗑️", key=f"del_g_{i}"):
+                                os.remove(f); st.rerun()
+
+                # --- VUE LISTE (DÉTAILLÉE) ---
+                else:
+                    # Bouton "Tout sélectionner" (Simulation visuelle)
+                    if st.checkbox("Tout sélectionner pour export/suppression"):
+                        selected_files = files
+                    
+                    st.markdown("---")
+                    for i, f in enumerate(files):
+                        c1, c2, c3, c4 = st.columns([0.5, 0.5, 3, 1], vertical_alignment="center")
+                        
+                        # Miniature
+                        with c1:
+                            st.image(f, width=50)
+                        
+                        # Checkbox
+                        with c2:
+                            if f in selected_files:
+                                st.checkbox("✅", value=True, key=f"sel_l_d_{i}", disabled=True)
+                            else:
+                                if st.checkbox("✅", key=f"sel_l_{i}", label_visibility="collapsed"):
+                                    selected_files.append(f)
+                        
+                        # Infos fichier
+                        with c3:
+                            ts = os.path.getmtime(f)
+                            dt_str = datetime.fromtimestamp(ts).strftime('%H:%M:%S')
+                            st.write(f"**{os.path.basename(f)}** | 🕒 {dt_str}")
+                        
+                        # Delete
+                        with c4:
+                            if st.button("🗑️ Suppr.", key=f"del_l_{i}"):
+                                os.remove(f); st.rerun()
+
+                # 3. EXPORT SÉLECTION
+                if selected_files:
+                    st.markdown("---")
+                    st.success(f"{len(selected_files)} photos sélectionnées.")
+                    zip_buffer_sel = BytesIO()
+                    with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
+                        for f in selected_files: zf.write(f, os.path.basename(f))
+                    st.download_button(
+                        label="📥 TÉLÉCHARGER SÉLECTION (.ZIP)",
+                        data=zip_buffer_sel.getvalue(),
+                        file_name=f"photos_live_selection_{int(time.time())}.zip",
+                        mime="application/zip", type="primary"
+                    )
+            else:
+                st.info("Vide.")
 
         elif menu == "📊 Data & Exports":
             if st.button("RESET TOUT"):
@@ -267,7 +337,6 @@ if est_admin:
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # CSS POUR "COMPACTER" L'AFFICHAGE MOBILE
     st.markdown("""
     <style>
         .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
@@ -279,27 +348,20 @@ elif est_utilisateur:
     </style>
     """, unsafe_allow_html=True)
     
-    # Enregistrement présence
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
         with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
         st.session_state["participant_recorded"] = True
 
-    # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
-        # TITRE SPÉCIFIQUE
         st.markdown("<h1 style='color:#E2001A;'>📸 MUR PHOTO LIVE</h1>", unsafe_allow_html=True)
-        
-        # LOGO REDUIT
         if cfg.get("logo_b64"):
             st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:60px; width:auto;"></div>', unsafe_allow_html=True)
         
-        # ONGLETS COMPACTS
         tab_native, tab_web = st.tabs(["📱 Téléphone", "💻 Webcam"])
         
         with tab_native:
-            # File Uploader prend moins de place visuellement au départ
             photo_native = st.file_uploader("Prendre une photo", type=["png", "jpg", "jpeg"], key=f"upl_{st.session_state.cam_reset_id}", label_visibility="collapsed")
             if photo_native:
                 if save_live_photo(photo_native):
@@ -316,7 +378,6 @@ elif est_utilisateur:
                     st.session_state.cam_reset_id += 1
                     time.sleep(0.5); st.rerun()
 
-    # --- MODE VOTE (STANDARD) ---
     else:
         st.title("🗳️ Vote Transdev")
         if cfg.get("logo_b64"):
@@ -353,7 +414,6 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
-    # CSS de Base
     st.markdown("""
     <style>
         body, .stApp { background-color: black !important; } 
@@ -381,12 +441,8 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-        # ÉLÉMENT CENTRAL FIXE
         st.markdown(f"""
         <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
-            <div style="margin-bottom:10px; background:transparent;">
-                <h1 style="font-size:40px; font-weight:bold; color:white; text-shadow: 0 0 20px #000; margin:0;">MUR PHOTO LIVE</h1>
-            </div>
             <div style="margin-bottom:10px;">{logo_html}</div>
             <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
                 <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
@@ -397,7 +453,6 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        # --- JAVASCRIPT ANIMATION ENGINE ---
         photos = glob.glob(f"{LIVE_DIR}/*")
         photos.sort(key=os.path.getmtime, reverse=True)
         recent_photos = photos[:40] 
@@ -407,7 +462,6 @@ else:
             with open(photo_path, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode()
                 img_array_js.append(f"data:image/jpeg;base64,{b64}")
-        
         js_img_list = json.dumps(img_array_js)
 
         components.html(f"""
@@ -432,7 +486,6 @@ else:
                 const container = document.getElementById('container');
                 const bubbles = [];
                 const speed = 2.5;
-
                 const centerX_min = window.innerWidth * 0.35;
                 const centerX_max = window.innerWidth * 0.65;
                 const centerY_min = window.innerHeight * 0.30;
@@ -443,7 +496,6 @@ else:
                     img.src = src;
                     img.className = 'bubble';
                     const size = 80 + Math.random() * 150;
-                    
                     let startX, startY;
                     do {{
                         startX = Math.random() * (window.innerWidth - 150);
@@ -458,7 +510,6 @@ else:
                         vy: (Math.random() - 0.5) * speed * 2,
                         size: size
                     }};
-                    
                     img.style.width = bubble.size + 'px';
                     img.style.height = bubble.size + 'px';
                     container.appendChild(img);
@@ -468,7 +519,6 @@ else:
                 function animate() {{
                     const w = window.innerWidth;
                     const h = window.innerHeight;
-
                     bubbles.forEach(b => {{
                         b.x += b.vx;
                         b.y += b.vy;
