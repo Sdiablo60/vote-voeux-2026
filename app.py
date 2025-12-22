@@ -39,7 +39,7 @@ default_config = {
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
     "session_id": "session_init_001",
-    "effect_intensity": 5, # NOUVEAU: Intensité par défaut (1-10)
+    "effect_intensity": 25, # Par défaut au milieu (0-50)
     "screen_effects": {       
         "attente": "Aucun",
         "votes_open": "Aucun",
@@ -64,7 +64,7 @@ if "screen_effects" not in st.session_state.config:
     st.session_state.config["screen_effects"] = default_config["screen_effects"]
 
 if "effect_intensity" not in st.session_state.config:
-    st.session_state.config["effect_intensity"] = 5
+    st.session_state.config["effect_intensity"] = 25
 
 if "session_id" not in st.session_state.config:
     st.session_state.config["session_id"] = str(int(time.time()))
@@ -91,32 +91,42 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
-# --- 1. GENERATEUR D'EFFETS DYNAMIQUES (MUR SOCIAL) ---
-# Cette fonction génère le JS en fonction de l'intensité
+# --- 1. BIBLIOTHEQUE D'EFFETS STATIQUES (Liste simple pour selects) ---
+EFFECTS_LIB = {
+    "Aucun": "", "🎈 Ballons": "", "❄️ Neige": "", "🎉 Confettis": "", "🌌 Espace": "", "💸 Billets": "", "🟢 Matrix": ""
+}
+EFFECT_NAMES = list(EFFECTS_LIB.keys())
+
+# --- 2. GENERATEUR D'EFFETS DYNAMIQUES (MUR SOCIAL) ---
+# Calibré pour 0-50
 def get_live_effect_html(effect_name, intensity):
-    # Intensity est entre 1 et 10
+    # intensity : 0 à 50
     if effect_name == "Aucun":
         return """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>"""
     
     elif effect_name == "🎈 Ballons":
-        # Plus l'intensité est haute, plus l'intervalle est court (max speed)
-        interval = max(100, 1200 - (intensity * 100)) 
+        # 0 -> 2500ms (très lent), 50 -> 200ms (très rapide)
+        interval = max(150, 2500 - (intensity * 45)) 
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-50px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom '+(Math.random()*5+5)+'s linear,left '+(Math.random()*5+5)+'s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';}});setTimeout(()=>{{d.remove()}},12000);}}setInterval(c,{interval});</script>"""
 
     elif effect_name == "❄️ Neige":
-        interval = max(20, 300 - (intensity * 25))
+        # 0 -> 500ms, 50 -> 20ms
+        interval = max(20, 500 - (intensity * 9))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}}@keyframes f{{to{{transform:translateY(105vh)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=Math.random()*3+3+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),6000)}},{interval});</script>"""
 
     elif effect_name == "🎉 Confettis":
-        count = max(1, int(intensity * 0.8)) # De 1 à 8 particules par tick
+        # 0 -> 1 particule, 50 -> 30 particules par tick
+        count = max(1, int(intensity * 0.6))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){{(function f(){{if(!window.parent.document.body.contains(s))return;window.parent.confetti({{particleCount:{count},angle:90,spread:90,origin:{{x:Math.random(),y:-0.1}},colors:['#E2001A','#ffffff'],zIndex:0}});requestAnimationFrame(f)}}())}};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>"""
 
     elif effect_name == "🌌 Espace":
-        interval = max(10, 100 - (intensity * 8))
+        # 0 -> 300ms, 50 -> 20ms
+        interval = max(10, 300 - (intensity * 5.5))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{{position:absolute;background:white;border-radius:50%;animation:z 3s infinite linear;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(5)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=Math.random()*3+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),3000)}},{interval});</script>"""
 
     elif effect_name == "💸 Billets":
-        interval = max(50, 600 - (intensity * 50))
+        # 0 -> 1000ms, 50 -> 100ms
+        interval = max(50, 1000 - (intensity * 18))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;';l.appendChild(d);d.animate([{{transform:'translateY(0)'}},{{transform:'translateY(110vh)'}}],{{duration:3000,iterations:1}});setTimeout(()=>d.remove(),3000)}},{interval});</script>"""
 
     elif effect_name == "🟢 Matrix":
@@ -124,55 +134,44 @@ def get_live_effect_html(effect_name, intensity):
     
     return ""
 
-# LISTE DES NOMS D'EFFETS
-EFFECT_NAMES = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
-
-# --- 2. GENERATEUR HTML DE TV RETRO (PREVIEW ADMIN) ---
+# --- 3. GENERATEUR HTML DE TV RETRO (PREVIEW ADMIN) ---
 def get_tv_html(effect_js):
     return f"""
     <html>
     <head>
         <style>
             body {{ margin: 0; padding: 0; background: transparent; font-family: sans-serif; display: flex; justify-content: center; overflow: hidden; }}
-            .tv-container {{ position: relative; width: 300px; height: 260px; margin-top: 30px; }}
+            .tv-container {{ position: relative; width: 320px; height: 240px; margin: 0 auto; }}
             /* ANTENNA */
-            .antenna {{ position: absolute; top: -35px; left: 50%; transform: translateX(-50%); width: 80px; height: 35px; z-index: 0; }}
-            .ant-l {{ position: absolute; bottom: 0; left: 0; width: 3px; height: 45px; background: #888; transform: rotate(-30deg); transform-origin: bottom; }}
-            .ant-r {{ position: absolute; bottom: 0; right: 0; width: 3px; height: 45px; background: #888; transform: rotate(30deg); transform-origin: bottom; }}
-            .ant-base {{ position: absolute; bottom: 0; left: 25px; width: 30px; height: 15px; background: #222; border-radius: 50% 50% 0 0; }}
+            .antenna {{ position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 100px; height: 50px; z-index: 0; }}
+            .ant-l {{ position: absolute; bottom: 0; left: 0; width: 3px; height: 100%; background: #666; transform: rotate(-25deg); transform-origin: bottom; }}
+            .ant-r {{ position: absolute; bottom: 0; right: 0; width: 3px; height: 100%; background: #666; transform: rotate(25deg); transform-origin: bottom; }}
+            .ant-base {{ position: absolute; bottom: 0; left: 35px; width: 30px; height: 15px; background: #222; border-radius: 50% 50% 0 0; }}
             /* CABINET */
             .cabinet {{
-                position: absolute; width: 100%; height: 200px; top: 0; left: 0;
-                background: #5D4037; border: 6px solid #3E2723; border-radius: 15px;
-                box-shadow: 5px 5px 15px rgba(0,0,0,0.5); z-index: 2;
-                display: flex; align-items: center; padding: 10px; box-sizing: border-box;
+                position: absolute; width: 100%; height: 100%; top: 0; left: 0;
+                background: #5D4037; border: 6px solid #3E2723; border-radius: 20px;
+                box-shadow: 5px 5px 15px rgba(0,0,0,0.6); z-index: 5;
+                display: flex; padding: 12px; box-sizing: border-box;
             }}
             /* SCREEN AREA (LEFT) */
             .screen-bezel {{
-                width: 200px; height: 160px;
-                background: #222; border: 3px solid #8D6E63; border-radius: 20px;
-                box-shadow: inset 0 0 15px #000;
-                display: flex; align-items: center; justify-content: center; overflow: hidden;
-            }}
-            .screen-content {{
-                width: 180px; height: 140px;
-                background: black; border-radius: 16px;
+                flex: 1; background: #222; border: 4px solid #8D6E63; border-radius: 16px;
+                box-shadow: inset 0 0 20px #000; margin-right: 12px;
                 position: relative; overflow: hidden;
             }}
+            .screen-content {{ width: 100%; height: 100%; background: black; position: relative; overflow: hidden; }}
             /* CONTROLS (RIGHT) */
             .controls {{
-                flex-grow: 1; height: 100%; margin-left: 10px;
-                background: #4E342E; border-left: 2px solid #3E2723;
-                border-radius: 4px; display: flex; flex-direction: column; 
-                align-items: center; justify-content: space-evenly;
+                width: 60px; background: #3E2723; border-radius: 8px;
+                display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; padding: 5px 0;
             }}
-            .knob {{ width: 30px; height: 30px; background: #BCAAA4; border-radius: 50%; border: 2px solid #222; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); }}
-            .speaker {{ width: 30px; height: 50px; background: repeating-linear-gradient(0deg, #222, #222 2px, #444 2px, #444 4px); border: 1px solid #000; border-radius: 4px; }}
+            .knob {{ width: 30px; height: 30px; background: #BCAAA4; border-radius: 50%; border: 2px solid #222; box-shadow: 1px 2px 3px rgba(0,0,0,0.5); }}
+            .speaker {{ width: 30px; height: 40px; background: repeating-linear-gradient(0deg, #222, #222 3px, #4E342E 3px, #4E342E 6px); border: 1px solid #111; border-radius: 4px; }}
             /* LEGS */
-            .legs {{ position: absolute; bottom: 15px; left: 0; width: 100%; height: 45px; z-index: 1; }}
-            .leg {{ position: absolute; bottom: 0; width: 20px; height: 45px; background: #3E2723; }}
-            .leg-l {{ left: 30px; transform: rotate(15deg); }}
-            .leg-r {{ right: 30px; transform: rotate(-15deg); }}
+            .legs {{ position: absolute; bottom: -40px; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; z-index: 1; }}
+            .leg {{ width: 15px; height: 50px; background: #222; }}
+            .leg-l {{ transform: skewX(10deg); }} .leg-r {{ transform: skewX(-10deg); }}
         </style>
     </head>
     <body>
@@ -187,7 +186,7 @@ def get_tv_html(effect_js):
                 </div>
                 <div class="controls">
                     <div class="knob" style="transform: rotate(45deg);"></div>
-                    <div class="knob" style="transform: rotate(-15deg);"></div>
+                    <div class="knob" style="transform: rotate(-20deg);"></div>
                     <div class="speaker"></div>
                 </div>
             </div>
@@ -196,25 +195,25 @@ def get_tv_html(effect_js):
     </html>
     """
 
-# --- 3. GENERATEUR JS POUR PREVIEW (DANS TV) ---
-# On réutilise la même logique d'intensité pour la preview
+# --- 4. GENERATEUR JS POUR PREVIEW (DANS TV) ---
+# Meme logique 0-50 que pour le live
 def get_preview_js(effect_name, intensity):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
     elif effect_name == "🎈 Ballons":
-        interval = max(100, 1200 - (intensity * 100))
+        interval = max(150, 2500 - (intensity * 45))
         return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-20px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom 3s linear;';c.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},3000)}},{interval});</script>"""
     elif effect_name == "❄️ Neige":
-        interval = max(20, 300 - (intensity * 25))
+        interval = max(20, 500 - (intensity * 9))
         return f"""<style>.sf{{position:absolute;color:white;animation:f 2s linear infinite}}@keyframes f{{to{{transform:translateY(150px)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';c.appendChild(e);setTimeout(()=>{{e.remove()}},2000)}},{interval});</script>"""
     elif effect_name == "🎉 Confettis":
-        count = max(1, int(intensity * 0.8))
+        count = max(1, int(intensity * 0.6))
         return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:50,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},800);</script>"""
     elif effect_name == "🌌 Espace":
-        interval = max(10, 100 - (intensity * 8))
+        interval = max(10, 300 - (intensity * 5.5))
         return f"""<style>.st{{position:absolute;background:white;border-radius:50%;animation:z 2s linear infinite;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(2)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';c.appendChild(e);setTimeout(()=>{{e.remove()}},2000)}},{interval});</script>"""
     elif effect_name == "💸 Billets":
-        interval = max(50, 600 - (intensity * 50))
+        interval = max(50, 1000 - (intensity * 18))
         return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:2000}});setTimeout(()=>{{e.remove()}},1900)}},{interval});</script>"""
     elif effect_name == "🟢 Matrix":
         return """<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++})},50);</script>"""
@@ -304,7 +303,6 @@ def generate_pdf_report(dataframe, title):
     return pdf.output(dest='S').encode('latin-1')
 
 def inject_visual_effect(effect_name, intensity):
-    # Appel de la fonction dynamique pour generer le JS live
     js_code = get_live_effect_html(effect_name, intensity)
     components.html(js_code, height=0)
 
@@ -345,15 +343,13 @@ if est_admin:
 
             with c_test_sel:
                 st.markdown("#### 1. Choix Aperçu")
-                # Liste déroulante pour la preview
                 prev_sel = st.radio("Effet à tester :", EFFECT_NAMES, index=EFFECT_NAMES.index(st.session_state.preview_selected) if st.session_state.preview_selected in EFFECT_NAMES else 0, key="radio_preview", label_visibility="collapsed")
                 if prev_sel != st.session_state.preview_selected:
                     st.session_state.preview_selected = prev_sel
                     st.rerun()
 
             with c_test_tv:
-                # GENERATION DE LA TV PREVIEW (AVEC INTENSITE ACTUELLE)
-                current_intensity = st.session_state.config.get("effect_intensity", 5)
+                current_intensity = st.session_state.config.get("effect_intensity", 25)
                 js_preview = get_preview_js(st.session_state.preview_selected, current_intensity)
                 full_tv_code = get_tv_html(js_preview)
                 components.html(full_tv_code, height=350)
@@ -363,13 +359,11 @@ if est_admin:
             # --- ZONE 2: CONFIGURATION LIVE PAR ECRAN ---
             st.markdown("### 📡 Diffusion Live (Par Écran)")
             
-            # SLIDER D'INTENSITE
             st.markdown("#### 🎚️ Intensité des Effets")
-            intensity = st.slider("Régler la densité (Ballons, Neige, Confettis...)", 1, 10, st.session_state.config.get("effect_intensity", 5), key="slider_intensity")
+            intensity = st.slider("Régler la densité (Ballons, Neige, Confettis...)", 0, 50, st.session_state.config.get("effect_intensity", 25), key="slider_intensity")
             if intensity != st.session_state.config.get("effect_intensity"):
                 st.session_state.config["effect_intensity"] = intensity
                 save_config()
-                # On rerun pour mettre à jour la preview et le live si besoin
                 st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
@@ -777,7 +771,7 @@ else:
         else: screen_key = "votes_closed"
         
     effect_to_apply = config["screen_effects"].get(screen_key, "Aucun")
-    intensity_to_apply = config.get("effect_intensity", 5)
+    intensity_to_apply = config.get("effect_intensity", 25)
     
     inject_visual_effect(effect_to_apply, intensity_to_apply)
 
