@@ -37,7 +37,8 @@ default_config = {
     "candidats": DEFAULT_CANDIDATS,
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
-    "session_id": "session_init_001"
+    "session_id": "session_init_001",
+    "active_effect": "Aucun" # NOUVEAU : Variable pour l'effet visuel
 }
 
 def load_json(file, default):
@@ -53,6 +54,9 @@ if "config" not in st.session_state:
 
 if "session_id" not in st.session_state.config:
     st.session_state.config["session_id"] = str(int(time.time()))
+    
+if "active_effect" not in st.session_state.config:
+    st.session_state.config["active_effect"] = "Aucun"
 
 if "my_uuid" not in st.session_state:
     st.session_state.my_uuid = str(uuid.uuid4())
@@ -72,6 +76,143 @@ if "candidats_images" not in st.session_state.config: st.session_state.config["c
 if "points_ponderation" not in st.session_state.config: st.session_state.config["points_ponderation"] = [5, 3, 1]
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
+
+# --- BIBLIOTHEQUE D'EFFETS HTML/JS/CSS ---
+EFFECTS_LIB = {
+    "Aucun": "",
+    
+    "🎈 Ballons": """
+    <div id="balloon-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden;"></div>
+    <script>
+    function createBalloon() {
+        const div = document.createElement('div');
+        div.innerHTML = '🎈';
+        div.style.position = 'absolute';
+        div.style.bottom = '-50px';
+        div.style.left = Math.random() * 100 + 'vw';
+        div.style.fontSize = (Math.random() * 30 + 30) + 'px';
+        div.style.opacity = Math.random() * 0.5 + 0.5;
+        div.style.transition = `bottom ${Math.random() * 5 + 5}s linear, left ${Math.random() * 5 + 5}s ease-in-out`;
+        document.getElementById('balloon-container').appendChild(div);
+        
+        setTimeout(() => {
+            div.style.bottom = '110vh';
+            div.style.left = (parseFloat(div.style.left) + (Math.random() * 20 - 10)) + 'vw';
+        }, 100);
+        setTimeout(() => { div.remove(); }, 12000);
+    }
+    setInterval(createBalloon, 600);
+    </script>
+    """,
+    
+    "❄️ Neige": """
+    <div style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;background:transparent;">
+        <style>
+            .snowflake { position: absolute; top: -10px; color: #FFF; animation: fall linear infinite; }
+            @keyframes fall { to { transform: translateY(105vh); } }
+        </style>
+        <script>
+            const container = document.currentScript.parentElement;
+            setInterval(() => {
+                const flake = document.createElement('div');
+                flake.className = 'snowflake';
+                flake.textContent = '❄';
+                flake.style.left = Math.random() * 100 + 'vw';
+                flake.style.animationDuration = Math.random() * 3 + 2 + 's';
+                flake.style.fontSize = Math.random() * 10 + 10 + 'px';
+                flake.style.opacity = Math.random();
+                container.appendChild(flake);
+                setTimeout(() => flake.remove(), 5000);
+            }, 100);
+        </script>
+    </div>
+    """,
+    
+    "🎉 Confettis (Pluie)": """
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>
+    var duration = 15 * 1000;
+    var animationEnd = Date.now() + duration;
+    var skew = 1;
+    (function frame() {
+        confetti({ particleCount: 1, startVelocity: 0, ticks: 200, origin: { x: Math.random(), y: 0 }, colors: ['#E2001A', '#ffffff'], gravity: 0.8, scalar: 1.2, drift: 0 });
+        requestAnimationFrame(frame);
+    }());
+    </script>
+    """,
+    
+    "🌌 Espace": """
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:black; z-index:-1; pointer-events:none;">
+    <style>
+    .star { position: absolute; background: white; border-radius: 50%; animation: zoom 3s infinite linear; opacity: 0; }
+    @keyframes zoom { 0% { opacity: 0; transform: scale(0.1) translateZ(0); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(5) translateZ(0); } }
+    </style>
+    <script>
+        setInterval(() => {
+            const star = document.createElement('div');
+            star.className = 'star';
+            const x = Math.random() * 100; const y = Math.random() * 100;
+            star.style.left = x + 'vw'; star.style.top = y + 'vh';
+            star.style.width = Math.random() * 3 + 'px'; star.style.height = star.style.width;
+            document.body.appendChild(star);
+            setTimeout(() => star.remove(), 3000);
+        }, 50);
+    </script>
+    </div>
+    """,
+    
+    "🎆 Feu d'Artifice": """
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>
+    var interval = setInterval(function() {
+        var randomInRange = (min, max) => Math.random() * (max - min) + min;
+        confetti({ startVelocity: 30, spread: 360, ticks: 60, zIndex: 0, particleCount: 50, origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 } });
+    }, 800);
+    </script>
+    """,
+    
+    "💸 Pluie de Billets": """
+    <div id="money-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden;"></div>
+    <script>
+    setInterval(() => {
+        const div = document.createElement('div');
+        div.innerHTML = '💸';
+        div.style.position = 'absolute';
+        div.style.top = '-50px';
+        div.style.left = Math.random() * 100 + 'vw';
+        div.style.fontSize = '30px';
+        div.style.animation = 'fall 3s linear';
+        document.getElementById('money-container').appendChild(div);
+        
+        div.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(110vh)' }], { duration: 3000, iterations: 1 });
+        setTimeout(() => div.remove(), 3000);
+    }, 200);
+    </script>
+    """,
+    
+    "🟢 Matrix": """
+    <canvas id="matrix" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;"></canvas>
+    <script>
+    const canvas = document.getElementById('matrix'); const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
+    const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; const nums = '0123456789'; const alphabet = katakana + latin + nums;
+    const fontSize = 16; const columns = canvas.width/fontSize; const rainDrops = [];
+    for( let x = 0; x < columns; x++ ) { rainDrops[x] = 1; }
+    const draw = () => {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#0F0'; ctx.font = fontSize + 'px monospace';
+        for(let i = 0; i < rainDrops.length; i++) {
+            const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+            ctx.fillText(text, i*fontSize, rainDrops[i]*fontSize);
+            if(rainDrops[i]*fontSize > canvas.height && Math.random() > 0.975){ rainDrops[i] = 0; }
+            rainDrops[i]++;
+        }
+    };
+    setInterval(draw, 30);
+    </script>
+    """
+}
 
 # --- FONCTIONS CRITIQUES ---
 
@@ -128,7 +269,6 @@ def update_presence(is_active_user=False):
         json.dump(clean_data, f)
     return len(clean_data)
 
-# --- GENERATEUR PDF ---
 def generate_pdf_report(dataframe, title):
     if not HAS_FPDF: return None
     class PDF(FPDF):
@@ -184,8 +324,25 @@ if est_admin:
                 st.session_state["auth"] = False
                 st.rerun()
 
+        # --- MENU: PILOTAGE LIVE ---
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
+            
+            # 1. AMBIANCE VISUELLE
+            st.subheader("✨ AMBIANCE VISUELLE (Mur)")
+            current_eff = st.session_state.config.get("active_effect", "Aucun")
+            new_eff = st.selectbox("Choisir un effet d'animation :", list(EFFECTS_LIB.keys()), index=list(EFFECTS_LIB.keys()).index(current_eff) if current_eff in EFFECTS_LIB else 0)
+            
+            if new_eff != current_eff:
+                st.session_state.config["active_effect"] = new_eff
+                save_config()
+                st.toast(f"✨ Effet activé : {new_eff}")
+                time.sleep(0.5)
+                st.rerun()
+
+            st.divider()
+
+            # 2. SEQUENCEUR
             st.subheader("1️⃣ Séquenceur")
             c1, c2, c3, c4 = st.columns(4)
             cfg = st.session_state.config
@@ -545,6 +702,11 @@ else:
     logo_html = ""
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
 
+    # INJECTION EFFET VISUEL (OVERLAY)
+    effect_name = config.get("active_effect", "Aucun")
+    if effect_name in EFFECTS_LIB and effect_name != "Aucun":
+        components.html(EFFECTS_LIB[effect_name], height=0)
+
     if config["mode_affichage"] != "photos_live":
         st.markdown(f'<div style="text-align:center; color:white;">{logo_html}<h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
 
@@ -556,26 +718,12 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         
-        # LOGO SPECIAL POUR CE MODE
         logo_live = ""
         if config.get("logo_b64"):
             logo_live = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
-        
         title_html = '<h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>'
 
-        st.markdown(f"""
-        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:20px;">
-            {logo_live}
-            {title_html}
-            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
-                <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
-            </div>
-            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
-                📸 SCANNEZ POUR PARTICIPER
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
+        st.markdown(f"""<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:20px;">{logo_live}{title_html}<div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);"><img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;"></div><div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">📸 SCANNEZ POUR PARTICIPER</div></div>""", unsafe_allow_html=True)
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
         for photo_path in recent_photos:
@@ -610,13 +758,7 @@ else:
                 for c in cands[mid:]: st.markdown(get_item_html(c), unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"""
-            <div style="text-align:center; color:white; margin-top:80px;">
-                <div style="{BADGE_CSS} background:#333; animation: none;">🏁 LES VOTES SONT CLOS</div>
-                <div style="font-size:120px; margin-top:40px;">🙏</div>
-                <h1 style="color:#E2001A; font-size:50px; margin-top:20px;">MERCI DE VOTRE PARTICIPATION</h1>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div style="text-align:center; color:white; margin-top:80px;"><div style="{BADGE_CSS} background:#333; animation: none;">🏁 LES VOTES SONT CLOS</div><div style="font-size:120px; margin-top:40px;">🙏</div><h1 style="color:#E2001A; font-size:50px; margin-top:20px;">MERCI DE VOTRE PARTICIPATION</h1></div>""", unsafe_allow_html=True)
 
     elif config["reveal_resultats"]:
         diff = 10 - int(time.time() - config.get("timestamp_podium", 0))
@@ -627,17 +769,13 @@ else:
             v_data = load_json(VOTES_FILE, {})
             valid = {k:v for k,v in v_data.items() if k in config["candidats"]}
             sorted_v = sorted(valid.items(), key=lambda x: x[1], reverse=True)[:3]
-            
             top_score = sorted_v[0][1] if sorted_v else 0
             winners = [x for x in sorted_v if x[1] == top_score]
             is_tie = len(winners) > 1
-            
             title_text = "🏆 LES VAINQUEURS SONT..." if is_tie else "🏆 LE GAGNANT EST..."
             st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS}">{title_text}</div></div>', unsafe_allow_html=True)
-            
             cols = st.columns(3)
-            ranks = ["🥇", "🥈", "🥉"]
-            colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
+            ranks = ["🥇", "🥈", "🥉"]; colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
             for i, (name, score) in enumerate(sorted_v):
                 is_winner = (score == top_score)
                 css_class = "winner-card" if is_winner else ""
