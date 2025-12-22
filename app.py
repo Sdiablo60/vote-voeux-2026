@@ -6,6 +6,7 @@ import time
 from PIL import Image
 from datetime import datetime
 import zipfile
+import uuid  # NÉCESSAIRE POUR LE COMPTAGE UNIQUE
 
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
@@ -19,7 +20,6 @@ for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
 
 DEFAULT_CANDIDATS = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
 
-# AJOUT DU SESSION_ID DANS LA CONFIG PAR DEFAUT
 default_config = {
     "mode_affichage": "attente", 
     "titre_mur": "CONCOURS VIDÉO PÔLE AEROPORTUAIRE", 
@@ -30,7 +30,7 @@ default_config = {
     "candidats": DEFAULT_CANDIDATS,
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
-    "session_id": "session_init_001" # Clé unique pour identifier la session en cours
+    "session_id": "session_init_001"
 }
 
 def load_json(file, default):
@@ -44,15 +44,18 @@ def load_json(file, default):
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
-# Si la config n'a pas de session_id (ancien fichier), on en crée un
 if "session_id" not in st.session_state.config:
     st.session_state.config["session_id"] = str(int(time.time()))
+
+# --- INITIALISATION IDENTIFIANT UNIQUE (POUR COMPTEUR CONNECTÉS) ---
+if "my_uuid" not in st.session_state:
+    st.session_state.my_uuid = str(uuid.uuid4())
 
 if "refresh_id" not in st.session_state: st.session_state.refresh_id = 0
 if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 if "confirm_delete" not in st.session_state: st.session_state.confirm_delete = False
 
-# Initialisation User
+# Variables User
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "a_vote" not in st.session_state: st.session_state.a_vote = False
 if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
@@ -107,6 +110,31 @@ def save_live_photo(uploaded_file):
         return True
     except Exception as e:
         return False
+
+# Fonction intelligente pour le compteur de participants
+def update_presence(is_active_user=False):
+    # On charge un DICTIONNAIRE { "uuid": timestamp } au lieu d'une liste
+    presence_data = load_json(PARTICIPANTS_FILE, {})
+    
+    # Si le fichier était au format liste (ancienne version), on le reset
+    if isinstance(presence_data, list):
+        presence_data = {}
+
+    now = time.time()
+    
+    # 1. Nettoyage des vieux connectés (> 30 secondes d'inactivité)
+    # On crée un nouveau dict en gardant seulement les récents
+    clean_data = {uid: ts for uid, ts in presence_data.items() if now - ts < 30}
+    
+    # 2. Si c'est un utilisateur actif (Mobile), on le met à jour/ajoute
+    if is_active_user:
+        clean_data[st.session_state.my_uuid] = now
+        
+    # 3. Sauvegarde
+    with open(PARTICIPANTS_FILE, "w") as f:
+        json.dump(clean_data, f)
+        
+    return len(clean_data)
 
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -166,7 +194,6 @@ if est_admin:
                     if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet tout à 0"):
                         for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
                             if os.path.exists(f): os.remove(f)
-                        # CHANGEMENT DE SESSION ID
                         st.session_state.config["session_id"] = str(int(time.time()))
                         save_config()
                         st.toast("✅ Session entièrement réinitialisée !")
@@ -322,8 +349,6 @@ if est_admin:
 # --- 4. UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    
-    # ID de session pour le LocalStorage
     current_session = cfg.get("session_id", "v1")
     ls_key = f"vote_record_{current_session}"
 
@@ -335,28 +360,17 @@ elif est_utilisateur:
         h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { justify-content: center; }
         div[data-testid="stCameraInput"] button { width: 100%; }
-        
-        .stMultiSelect div[data-baseweb="select"] {
-            border: 4px solid white !important;
-            border-radius: 12px !important;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important;
-        }
-        .stMultiSelect div[data-baseweb="tag"] {
-            background-color: #E2001A !important;
-            color: white !important;
-        }
+        .stMultiSelect div[data-baseweb="select"] { border: 4px solid white !important; border-radius: 12px !important; box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important; }
+        .stMultiSelect div[data-baseweb="tag"] { background-color: #E2001A !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
     
-    # --- SECURITÉ JS INTELLIGENTE ---
+    # --- SECURITÉ JS OVERLAY ---
     if cfg["mode_affichage"] != "photos_live": 
-        # On vérifie SI l'utilisateur a le cookie DE LA SESSION ACTUELLE
         components.html(f"""
         <script>
             var voted = localStorage.getItem('{ls_key}');
-            
             if (voted === 'true') {{
-                // AFFICHER OVERLAY DE BLOCAGE
                 var overlay = document.createElement('div');
                 overlay.style.position = 'fixed'; overlay.style.top = '0'; overlay.style.left = '0';
                 overlay.style.width = '100%'; overlay.style.height = '100%';
@@ -369,7 +383,6 @@ elif est_utilisateur:
                 var app = window.parent.document.querySelector('.stApp');
                 if (app) app.style.filter = 'blur(10px)';
             }} else {{
-                // TOUT VA BIEN, AFFICHER L'APP
                 window.parent.document.querySelector('.stApp').style.visibility = 'visible';
             }}
         </script>
@@ -377,12 +390,8 @@ elif est_utilisateur:
     else:
         components.html("""<script>window.parent.document.querySelector('.stApp').style.visibility = 'visible';</script>""", height=0)
 
-    # COMPTEUR CONNECTES
-    parts = load_json(PARTICIPANTS_FILE, [])
-    now = time.time()
-    parts = [t for t in parts if now - t < 30]
-    parts.append(now)
-    with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
+    # MISE A JOUR PRESENCE UTILISATEUR
+    update_presence(is_active_user=True)
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
@@ -403,7 +412,7 @@ elif est_utilisateur:
     else:
         if st.session_state.get("a_vote", False):
             st.balloons()
-            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">✅</div><h1 style="color:#E2001A;">Votre vote a été enregistré</h1><p>Merci d'avoir participé !</p></div>""", unsafe_allow_html=True)
+            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">✅</div><h1 style="color:#E2001A;">Vote Enregistré !</h1><p>Merci d'avoir participé.</p></div>""", unsafe_allow_html=True)
         
         elif not cfg["session_ouverte"]:
             st.title("🗳️ Vote Transdev")
@@ -459,9 +468,10 @@ elif est_utilisateur:
 else:
     st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; } img { background-color: transparent !important; }</style>""", unsafe_allow_html=True)
     config = load_json(CONFIG_FILE, default_config)
-    parts = load_json(PARTICIPANTS_FILE, [])
-    now = time.time()
-    nb_p = len([t for t in parts if now - t < 30])
+    
+    # LECTURE COMPTEUR (SANS LE MODIFIER)
+    nb_p = update_presence(is_active_user=False)
+    
     logo_html = ""
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
 
