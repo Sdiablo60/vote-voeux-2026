@@ -19,7 +19,6 @@ for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
 
 DEFAULT_CANDIDATS = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
 
-# AJOUT D'UN ID DE SESSION POUR GERER LE RESET COTÉ CLIENT
 default_config = {
     "mode_affichage": "attente", 
     "titre_mur": "CONCOURS VIDÉO PÔLE AEROPORTUAIRE", 
@@ -29,8 +28,7 @@ default_config = {
     "logo_b64": None,
     "candidats": DEFAULT_CANDIDATS,
     "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1],
-    "session_id": "init_1" # Clé unique qui changera à chaque Reset
+    "points_ponderation": [5, 3, 1]
 }
 
 def load_json(file, default):
@@ -40,17 +38,19 @@ def load_json(file, default):
         except: return default
     return default
 
-# --- GESTION ÉTAT SESSION ---
+# --- GESTION ÉTAT SESSION (INITIALISATION GLOBALE) ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
-# S'assurer que le session_id existe (pour compatibilité)
-if "session_id" not in st.session_state.config:
-    st.session_state.config["session_id"] = str(int(time.time()))
-
+# Initialisation des variables Admin
 if "refresh_id" not in st.session_state: st.session_state.refresh_id = 0
 if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 if "confirm_delete" not in st.session_state: st.session_state.confirm_delete = False
+
+# Initialisation des variables Utilisateur (CORRECTION DU BUG)
+if "user_id" not in st.session_state: st.session_state.user_id = None
+if "a_vote" not in st.session_state: st.session_state.a_vote = False
+if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
 
 # Sécurités structure
 if "candidats" not in st.session_state.config: st.session_state.config["candidats"] = DEFAULT_CANDIDATS
@@ -307,19 +307,11 @@ if est_admin:
                  for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
                      if os.path.exists(f): os.remove(f)
                  for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
-                 # GENERATION D'UNE NOUVELLE CLÉ DE SESSION POUR INVALIDER LES COOKIES
-                 st.session_state.config["session_id"] = str(int(time.time()))
-                 save_config()
-                 st.success("✅ Reset OK ! Session renouvelée."); time.sleep(1); st.rerun()
+                 st.success("✅ Reset OK !"); time.sleep(1); st.rerun()
 
 # --- 4. UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    
-    # Génération du Nom de la clé LocalStorage basée sur l'ID de session Serveur
-    # C'est ce qui permet au téléphone de savoir s'il doit "oublier" qu'il a voté.
-    session_key_vote = f"vote_record_{cfg.get('session_id', 'v1')}"
-
     st.markdown("""
     <style>
         .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
@@ -328,28 +320,17 @@ elif est_utilisateur:
         h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { justify-content: center; }
         div[data-testid="stCameraInput"] button { width: 100%; }
-        
-        .stMultiSelect div[data-baseweb="select"] {
-            border: 4px solid white !important;
-            border-radius: 12px !important;
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important;
-        }
-        .stMultiSelect div[data-baseweb="tag"] {
-            background-color: #E2001A !important;
-            color: white !important;
-        }
+        .stMultiSelect div[data-baseweb="select"] { border: 4px solid white !important; border-radius: 12px !important; box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important; }
+        .stMultiSelect div[data-baseweb="tag"] { background-color: #E2001A !important; color: white !important; }
     </style>
     """, unsafe_allow_html=True)
     
-    # --- SECURITÉ JS DYNAMIQUE ---
+    # --- SECURITÉ JS OVERLAY ---
     if cfg["mode_affichage"] != "photos_live": 
-        components.html(f"""
+        components.html("""
         <script>
-            var key = "{session_key_vote}";
-            var voted = localStorage.getItem(key);
-            
-            if (voted === 'true') {{
-                // Overlay de blocage
+            var voted = localStorage.getItem('transdev_final_secure_v2');
+            if (voted === 'true') {
                 var overlay = document.createElement('div');
                 overlay.style.position = 'fixed'; overlay.style.top = '0'; overlay.style.left = '0';
                 overlay.style.width = '100%'; overlay.style.height = '100%';
@@ -361,20 +342,19 @@ elif est_utilisateur:
                 window.parent.document.body.appendChild(overlay);
                 var app = window.parent.document.querySelector('.stApp');
                 if (app) app.style.filter = 'blur(10px)';
-            }} else {{
+            } else {
                 window.parent.document.querySelector('.stApp').style.visibility = 'visible';
-            }}
+            }
         </script>
         """, height=0)
     else:
         components.html("""<script>window.parent.document.querySelector('.stApp').style.visibility = 'visible';</script>""", height=0)
 
-    # COMPTEUR CONNECTES
-    parts = load_json(PARTICIPANTS_FILE, [])
-    now = time.time()
-    parts = [t for t in parts if now - t < 30]
-    parts.append(now)
-    with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
+    if "participant_recorded" not in st.session_state:
+        parts = load_json(PARTICIPANTS_FILE, [])
+        parts.append(time.time())
+        with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
+        st.session_state["participant_recorded"] = True
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
@@ -395,7 +375,7 @@ elif est_utilisateur:
     else:
         if st.session_state.get("a_vote", False):
             st.balloons()
-            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">✅</div><h1 style="color:#E2001A;">Votre vote a été enregistré</h1><p>Merci d'avoir participé !</p></div>""", unsafe_allow_html=True)
+            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">✅</div><h1 style="color:#E2001A;">Vote Enregistré !</h1><p>Merci d'avoir participé.</p></div>""", unsafe_allow_html=True)
         
         elif not cfg["session_ouverte"]:
             st.title("🗳️ Vote Transdev")
@@ -421,8 +401,8 @@ elif est_utilisateur:
             elif not st.session_state.rules_accepted:
                 st.markdown("""<div style="background:#222; padding:20px; border-radius:10px; border:2px solid #E2001A; margin-bottom:20px;">
                 <h3 style="color:#E2001A; margin-top:0;">📜 RÈGLES DU JEU</h3>
-                <ul><li>Vous ne pouvez voter qu'<strong>UNE SEULE FOIS</strong>.</li><li>Vous devez sélectionner <strong>3 CHOIX</strong> exactement.</li></ul>
-                <hr style="border-color:#555;"><h3 style="color:white; margin-top:10px;">🏆 ATTRIBUTION DES POINTS</h3>""", unsafe_allow_html=True)
+                <ul><li>Vous ne pouvez voter qu'<strong>UNE SEULE FOIS</strong>.</li><li>Vous devez sélectionner <strong>3 CHOIX</strong>.</li></ul>
+                <hr style="border-color:#555;"><h3 style="color:white; margin-top:10px;">🏆 PONDÉRATION</h3>""", unsafe_allow_html=True)
                 pts = cfg.get("points_ponderation", [5, 3, 1])
                 st.markdown(f"""* 🥇 **1er Choix :** {pts[0]} Points\n* 🥈 **2ème Choix :** {pts[1]} Points\n* 🥉 **3ème Choix :** {pts[2]} Points</div>""", unsafe_allow_html=True)
                 if st.button("✅ J'AI COMPRIS, PASSER AU VOTE", type="primary", use_container_width=True):
@@ -430,7 +410,7 @@ elif est_utilisateur:
 
             # ETAPE 3 : VOTE
             else:
-                choix = st.multiselect("Sélectionnez vos 3 favoris (dans l'ordre) :", cfg["candidats"])
+                choix = st.multiselect("Sélectionnez vos 3 favoris :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER MON VOTE", type="primary", use_container_width=True):
                     vts = load_json(VOTES_FILE, {})
                     pts = cfg.get("points_ponderation", [5, 3, 1])
@@ -441,11 +421,10 @@ elif est_utilisateur:
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                     
                     st.session_state["a_vote"] = True
-                    # ON MARQUE LE NAVIGATEUR AVEC LA CLÉ DE SESSION ACTUELLE
-                    components.html(f"""<script>localStorage.setItem('{session_key_vote}', 'true'); location.reload();</script>""", height=0)
+                    components.html("""<script>localStorage.setItem('transdev_final_secure_v2', 'true'); location.reload();</script>""", height=0)
                     time.sleep(1)
-                elif len(choix) > 3: st.error("⚠️ Vous ne pouvez choisir que 3 candidats maximum !")
-                elif len(choix) > 0 and len(choix) < 3: st.warning(f"Encore {3-len(choix)} choix à faire.")
+                elif len(choix) > 3: st.error("⚠️ 3 choix maximum !")
+                elif len(choix) > 0 and len(choix) < 3: st.warning(f"Encore {3-len(choix)} choix.")
 
 # --- 5. MUR SOCIAL ---
 else:
