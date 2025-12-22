@@ -64,17 +64,11 @@ if "config" not in st.session_state:
 # --- FONCTION D'INJECTION D'EFFETS (MUR SOCIAL) ---
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
-        components.html("""<script>
-            var old = window.parent.document.getElementById('effect-layer');
-            if(old) old.remove();
-        </script>""", height=0)
+        components.html("""<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>""", height=0)
         return
 
-    # Calculs dynamiques
-    duration = max(2, 20 - (speed * 0.35))
-    interval = int(4000 / (intensity + 5))
-    
-    js_code = f"""
+    # Nettoyage et création du conteneur
+    js_base = """
     <script>
         var doc = window.parent.document;
         var old = doc.getElementById('effect-layer');
@@ -83,8 +77,13 @@ def inject_visual_effect(effect_name, intensity, speed):
         layer.id = 'effect-layer';
         layer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:999999;overflow:hidden;';
         doc.body.appendChild(layer);
+    """
 
-        function createBalloon() {{
+    if effect_name == "🎈 Ballons":
+        duration = max(3, 20 - (speed * 0.34))
+        interval = int(4000 / (intensity + 5))
+        js_code = js_base + f"""
+        function create() {{
             var e = doc.createElement('div');
             e.innerHTML = '🎈';
             e.style.cssText = 'position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*40+20)+'px;transition:bottom {duration}s linear;';
@@ -92,8 +91,14 @@ def inject_visual_effect(effect_name, intensity, speed):
             setTimeout(() => {{ e.style.bottom = '110vh'; }}, 50);
             setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
+        setInterval(create, {interval});
+        </script>"""
 
-        function createSnow() {{
+    elif effect_name == "❄️ Neige":
+        duration = max(2, 12 - (speed * 0.2))
+        interval = int(1200 / (intensity + 2))
+        js_code = js_base + f"""
+        function create() {{
             var e = doc.createElement('div');
             e.innerHTML = '❄';
             e.style.cssText = 'position:absolute;top:-50px;left:'+Math.random()*100+'vw;color:white;font-size:'+(Math.random()*20+10)+'px;transition:top {duration}s linear;';
@@ -101,18 +106,48 @@ def inject_visual_effect(effect_name, intensity, speed):
             setTimeout(() => {{ e.style.top = '110vh'; }}, 50);
             setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
+        setInterval(create, {interval});
+        </script>"""
 
-        function createStar() {{
+    elif effect_name == "🎉 Confettis":
+        count = max(1, int(intensity * 1.5))
+        fire_rate = max(150, 2000 - (speed * 35))
+        js_code = js_base + f"""
+        var s = doc.createElement('script');
+        s.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
+        s.onload = function() {{
+            function fire() {{
+                window.parent.confetti({{ particleCount: {count}, angle: 90, spread: 100, origin: {{ x: Math.random(), y: -0.2 }}, gravity: 0.8, ticks: 400 }});
+                setTimeout(fire, {fire_rate});
+            }}
+            fire();
+        }};
+        layer.appendChild(s);
+        </script>"""
+
+    elif effect_name == "🌌 Espace":
+        # Densité = nombre d'étoiles créées par cycle
+        interval = int(1000 / (intensity + 2))
+        # Vitesse = durée de vie / rapidité du scintillement
+        duration = max(0.5, 5 - (speed * 0.08))
+        js_code = js_base + f"""
+        function create() {{
             var e = doc.createElement('div');
-            var size = (Math.random() * 6 + 2) + 'px';
-            e.style.cssText = 'position:absolute;background:white;border-radius:50%;width:'+size+';height:'+size+';left:'+Math.random()*100+'vw;top:'+Math.random()*100+'vh;opacity:0;transition:opacity 1s, transform {duration}s;';
+            var size = (Math.random() * 3 + 1) + 'px';
+            e.style.cssText = 'position:absolute;background:white;border-radius:50%;width:'+size+';height:'+size+';left:'+Math.random()*100+'vw;top:'+Math.random()*100+'vh;opacity:0;transition:opacity {duration/2}s; box-shadow: 0 0 5px white;';
             layer.appendChild(e);
-            setTimeout(() => {{ e.style.opacity = '1'; e.style.transform = 'scale(2.5)'; }}, 50);
+            setTimeout(() => {{ e.style.opacity = '1'; }}, 50);
             setTimeout(() => {{ e.style.opacity = '0'; }}, {duration * 800});
             setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
+        setInterval(create, {interval});
+        </script>"""
 
-        function createMoney() {{
+    elif effect_name == "💸 Billets":
+        duration = max(1, 10 - (speed * 0.18))
+        interval = int(3000 / (intensity + 3))
+        js_code = js_base + f"""
+        function create() {{
             var e = doc.createElement('div');
             e.innerHTML = '💸';
             e.style.cssText = 'position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;transition:top {duration}s linear;';
@@ -120,52 +155,34 @@ def inject_visual_effect(effect_name, intensity, speed):
             setTimeout(() => {{ e.style.top = '110vh'; }}, 50);
             setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
-    """
+        setInterval(create, {interval});
+        </script>"""
 
-    if effect_name == "🎈 Ballons":
-        js_code += f"setInterval(createBalloon, {interval});"
-    elif effect_name == "❄️ Neige":
-        js_code += f"setInterval(createSnow, {interval});"
-    elif effect_name == "🌌 Espace":
-        js_code += f"setInterval(createStar, {interval});"
-    elif effect_name == "💸 Billets":
-        js_code += f"setInterval(createMoney, {interval});"
-    elif effect_name == "🎉 Confettis":
-        count = max(1, int(intensity * 1.5))
-        js_code += f"""
-        var s = doc.createElement('script');
-        s.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";
-        s.onload = function() {{
-            function fire() {{
-                window.parent.confetti({{ particleCount: {count}, angle: 90, spread: 100, origin: {{ x: Math.random(), y: -0.2 }}, gravity: 0.8, ticks: 400 }});
-                setTimeout(fire, {max(200, 2000 - (speed * 35))});
-            }}
-            fire();
-        }};
-        layer.appendChild(s);
-        """
     elif effect_name == "🟢 Matrix":
-        js_code += f"""
+        # Densité = Taille de police (plus petit = plus dense)
+        font_size = max(10, 40 - intensity)
+        # Vitesse = délai entre frames
+        refresh = max(20, 150 - (speed * 2.5))
+        js_code = js_base + f"""
         var canvas = doc.createElement('canvas');
         canvas.style.cssText = 'width:100%;height:100%;opacity:0.6;';
         layer.appendChild(canvas);
         var ctx = canvas.getContext('2d');
         canvas.width = window.parent.innerWidth; canvas.height = window.parent.innerHeight;
-        var columns = canvas.width / 20; var drops = [];
+        var columns = canvas.width / {font_size}; var drops = [];
         for(var i=0; i<columns; i++) drops[i] = 1;
         function draw() {{
             ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#0F0'; ctx.font = '20px monospace';
+            ctx.fillStyle = '#0F0'; ctx.font = '{font_size}px monospace';
             for(var i=0; i<drops.length; i++) {{
-                ctx.fillText(Math.floor(Math.random()*2), i*20, drops[i]*20);
-                if(drops[i]*20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                ctx.fillText(Math.floor(Math.random()*2), i*{font_size}, drops[i]*{font_size});
+                if(drops[i]*{font_size} > canvas.height && Math.random() > 0.975) drops[i] = 0;
                 drops[i]++;
             }}
         }}
-        setInterval(draw, {max(20, 150 - (speed * 2.5))});
-        """
+        setInterval(draw, {refresh});
+        </script>"""
     
-    js_code += "</script>"
     components.html(js_code, height=0)
 
 # --- 2. GENERATEUR HTML DE TV RETRO (PREVIEW ADMIN) ---
@@ -224,7 +241,7 @@ def get_tv_html(effect_js):
     </html>
     """
 
-# --- 3. GENERATEUR JS POUR PREVIEW (DANS TV ADMIN) ---
+# --- 4. GENERATEUR JS POUR PREVIEW (DANS TV ADMIN) ---
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
@@ -239,30 +256,18 @@ def get_preview_js(effect_name, intensity, speed):
     elif effect_name == "🎉 Confettis":
         return f"""<canvas id="cf-cv" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const cv=document.getElementById('cf-cv'); const mc=confetti.create(cv,{{resize:true}}); setInterval(()=>{{mc({{particleCount:Math.max(1, {intensity}/5),spread:60,origin:{{y:0.6}},colors:['#E2001A','#fff']}});}},800);</script>"""
     elif effect_name == "🌌 Espace":
-        return f"""<style>.st-p{{position:absolute;background:white;border-radius:50%;animation:z-p {duration}s linear infinite;opacity:0}}@keyframes z-p{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(3)}}}}</style><script>const sc=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st-p';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='4px';e.style.height='4px';sc.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
+        return f"""<style>.st-p{{position:absolute;background:white;border-radius:50%;opacity:0;box-shadow: 0 0 3px white; animation: blink-p {duration}s infinite;}} @keyframes blink-p {{ 0%, 100% {{ opacity: 0; }} 50% {{ opacity: 1; }} }}</style><script>const sc=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st-p';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';sc.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
     elif effect_name == "💸 Billets":
         return f"""<script>const sc=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:18px;';sc.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:{duration*1000}}});setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
     elif effect_name == "🟢 Matrix":
-        return f"""<canvas id="mx-cv" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mx-cv');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{{x.fillText(Math.floor(Math.random()*2),i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++}})}},{max(20, 150 - (speed*2))});</script>"""
+        font_s = max(8, 25 - (intensity/4))
+        ref = max(20, 150 - (speed*2))
+        return f"""<canvas id="mx-cv" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mx-cv');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/{font_s};const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='{font_s}px mono';r.forEach((y,i)=>{{x.fillText(Math.floor(Math.random()*2),i*{font_s},y*{font_s});if(y*{font_s}>v.height&&Math.random()>0.9)r[i]=0;r[i]++}})}},{ref});</script>"""
     return ""
 
 # --- FONCTIONS UTILITAIRES ---
 def save_config():
     with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
-
-def force_refresh():
-    st.session_state.refresh_id += 1
-    save_config()
-
-def process_image_upload(uploaded_file):
-    try:
-        img = Image.open(uploaded_file)
-        if img.mode != "RGBA": img = img.convert("RGBA")
-        img.thumbnail((300, 300))
-        buffered = BytesIO()
-        img.save(buffered, format="PNG") 
-        return base64.b64encode(buffered.getvalue()).decode().replace('\n', '')
-    except: return None
 
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -283,7 +288,6 @@ if est_admin:
     else:
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
-            st.markdown("---")
             menu = st.radio("Navigation :", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque", "📊 Data"], label_visibility="collapsed")
             if st.button("🔓 Déconnexion", use_container_width=True):
                 st.session_state["auth"] = False; st.rerun()
@@ -337,7 +341,6 @@ if est_admin:
             st.divider()
             c1, c2, c3, c4 = st.columns(4)
             cfg = st.session_state.config
-            m = cfg["mode_affichage"]
             if c1.button("1. ACCUEIL", use_container_width=True): cfg.update({"mode_affichage":"attente","session_ouverte":False,"reveal_resultats":False}); save_config(); st.rerun()
             if c2.button("2. VOTES ON", use_container_width=True): cfg.update({"mode_affichage":"votes","session_ouverte":True,"reveal_resultats":False}); save_config(); st.rerun()
             if c3.button("3. VOTES OFF", use_container_width=True): cfg.update({"session_ouverte":False}); save_config(); st.rerun()
@@ -349,8 +352,8 @@ if est_admin:
             if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
             up_l = st.file_uploader("Logo", type=["png", "jpg"])
             if up_l:
-                b64 = process_image_upload(up_l)
-                if b64: st.session_state.config["logo_b64"] = b64; save_config(); st.success("OK"); st.rerun()
+                b64 = base64.b64encode(up_l.read()).decode()
+                st.session_state.config["logo_b64"] = b64; save_config(); st.success("OK"); st.rerun()
 
         elif menu == "📸 Médiathèque":
             st.title("📸 Photos")
@@ -366,14 +369,14 @@ if est_admin:
             st.title("📊 Export")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
-                df = pd.DataFrame(list(v_data.items()), columns=['Candidat', 'Points'])
+                df = pd.DataFrame(list(v_data.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
                 st.dataframe(df, use_container_width=True)
                 if st.button("♻️ RESET VOTES"):
                     for f in [VOTES_FILE, VOTERS_FILE]: 
                         if os.path.exists(f): os.remove(f)
                     st.rerun()
 
-# --- UTILISATEUR ---
+# --- UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
@@ -385,12 +388,12 @@ elif est_utilisateur:
             img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG")
             st.success("Envoyé !"); st.balloons()
     else:
-        if not cfg["session_ouverte"]: st.warning("⌛ Attente...")
+        if not cfg["session_ouverte"]: st.warning("⌛ Attente des votes...")
         else:
-            if st.session_state.get("a_vote", False): st.success("Merci !")
+            if st.session_state.get("a_vote", False): st.success("Merci ! Votre vote est bien pris en compte.")
             else:
-                st.title("🗳️ Vote")
-                choix = st.multiselect("Choisissez 3 :", cfg["candidats"])
+                st.title("🗳️ Vote Transdev")
+                choix = st.multiselect("Choisissez vos 3 favoris :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER"):
                     vts = load_json(VOTES_FILE, {})
                     pts = [5, 3, 1]
@@ -434,6 +437,8 @@ else:
             components.html(f"""<div id="grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;padding:20px;"></div><script>var imgs={js_imgs}; var g=document.getElementById('grid'); imgs.forEach(s=>{{var i=document.createElement('img');i.src=s;i.style.height='250px';i.style.borderRadius='15px';i.style.border='4px solid #E2001A';g.appendChild(i);}});</script>""", height=800)
 
     elif cfg["mode_affichage"] == "votes" and not cfg["reveal_resultats"]:
+        vts_count = len(load_json(VOTERS_FILE, []))
+        st.markdown(f'<div style="text-align:center; color:white;"><h3>👥 {vts_count} PARTICIPANTS</h3></div>', unsafe_allow_html=True)
         if cfg["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
             qr = qrcode.make(f"https://{host}/?mode=vote")
