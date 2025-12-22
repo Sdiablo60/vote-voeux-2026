@@ -3,8 +3,8 @@ import os, glob, base64, qrcode, json, random
 from io import BytesIO
 import streamlit.components.v1 as components
 
-# --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Social Wall Master", layout="wide")
+# --- 1. CONFIGURATION & FICHIERS ---
+st.set_page_config(page_title="Social Wall Master - Transdev", layout="wide")
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
 VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE = "votes.json", "participants.json", "config_mur.json"
@@ -20,16 +20,14 @@ default_config = {
     "reveal_resultats": False
 }
 
-if os.path.exists(CONFIG_FILE):
-    try:
-        with open(CONFIG_FILE, "r") as f: 
-            config = json.load(f)
-            for key, value in default_config.items():
-                if key not in config: config[key] = value
-    except: config = default_config
-else:
-    config = default_config
+def load_json(file, default):
+    if os.path.exists(file):
+        try:
+            with open(file, "r") as f: return json.load(f)
+        except: return default
+    return default
 
+config = load_json(CONFIG_FILE, default_config)
 VOTE_VERSION = config.get("vote_version", 1)
 
 # --- 2. NAVIGATION ---
@@ -39,31 +37,70 @@ est_utilisateur = st.query_params.get("mode") == "vote"
 # --- 3. ADMINISTRATION ---
 if est_admin:
     st.sidebar.title("🎮 Régie Master")
-    if st.sidebar.text_input("Code Admin", type="password") == "ADMIN_LIVE_MASTER":
-        st.session_state["auth"] = True
-        if st.session_state.get("auth"):
-            config["titre_mur"] = st.sidebar.text_input("Titre", value=config["titre_mur"])
-            config["session_ouverte"] = st.sidebar.checkbox("📢 Ouvrir les votes", value=config["session_ouverte"])
-            config["reveal_resultats"] = st.sidebar.checkbox("🏆 RÉVÉLER LE PODIUM FINAL", value=config["reveal_resultats"])
-            modes = ["Attente (Admin)", "Live (Tout)", "Votes (Écran de vote)"]
-            sel_mode = st.sidebar.radio("Mode Mur :", modes, index=0 if config["mode_affichage"]=="attente" else (1 if config["mode_affichage"]=="live" else 2))
-            config["mode_affichage"] = "attente" if "Attente" in sel_mode else ("live" if "Live" in sel_mode else "votes")
-            if st.sidebar.button("🔵 METTRE À JOUR LE MUR", type="primary"):
-                with open(CONFIG_FILE, "w") as f: json.dump(config, f); st.rerun()
-            if st.sidebar.button("🔴 RESET COMPLET", type="secondary"):
-                config.update({"vote_version": VOTE_VERSION+1, "session_ouverte": False, "reveal_resultats": False, "mode_affichage": "attente"})
-                with open(CONFIG_FILE, "w") as f: json.dump(config, f)
-                with open(VOTES_FILE, "w") as f: json.dump({}, f)
-                with open(PARTICIPANTS_FILE, "w") as f: json.dump([], f); st.rerun()
-    st.title("📊 Console")
-    try:
-        v_data = json.load(open(VOTES_FILE))
-        st.bar_chart(v_data)
-    except: pass
+    
+    if "auth" not in st.session_state:
+        st.session_state["auth"] = False
 
-# --- 4. UTILISATEUR (ZÉRO ANGLAIS) ---
+    # Écran de connexion
+    if not st.session_state["auth"]:
+        pwd = st.sidebar.text_input("Code Admin", type="password")
+        if pwd == "ADMIN_LIVE_MASTER":
+            st.session_state["auth"] = True
+            st.rerun()
+        elif pwd != "":
+            st.sidebar.error("Code incorrect")
+            
+    # Interface Admin Connectée
+    else:
+        st.sidebar.success("✅ Connecté en Admin")
+        
+        # Stats en direct
+        try:
+            nb_p = len(load_json(PARTICIPANTS_FILE, []))
+            v_data_current = load_json(VOTES_FILE, {})
+            nb_v = sum(v_data_current.values()) // 9
+            st.sidebar.metric("Participants", nb_p)
+            st.sidebar.metric("Votes validés", nb_v)
+        except: pass
+
+        st.sidebar.markdown("---")
+        config["titre_mur"] = st.sidebar.text_input("Titre du Mur", value=config["titre_mur"])
+        config["session_ouverte"] = st.sidebar.checkbox("📢 Ouvrir les votes", value=config["session_ouverte"])
+        config["reveal_resultats"] = st.sidebar.checkbox("🏆 RÉVÉLER LE PODIUM", value=config["reveal_resultats"])
+        
+        modes = ["Attente (Admin)", "Live (Tout)", "Votes (Écran de vote)"]
+        curr_idx = 0 if config["mode_affichage"]=="attente" else (1 if config["mode_affichage"]=="live" else 2)
+        sel_mode = st.sidebar.radio("Mode Mur :", modes, index=curr_idx)
+        config["mode_affichage"] = "attente" if "Attente" in sel_mode else ("live" if "Live" in sel_mode else "votes")
+        
+        if st.sidebar.button("🔵 METTRE À JOUR LE MUR", type="primary", use_container_width=True):
+            with open(CONFIG_FILE, "w") as f: json.dump(config, f)
+            st.rerun()
+
+        if st.sidebar.button("🔓 Se déconnecter", use_container_width=True):
+            st.session_state["auth"] = False
+            st.rerun()
+            
+        st.sidebar.markdown("---")
+        if st.sidebar.button("🔴 RESET COMPLET", type="secondary", use_container_width=True):
+            config.update({"vote_version": VOTE_VERSION+1, "session_ouverte": False, "reveal_resultats": False, "mode_affichage": "attente"})
+            with open(CONFIG_FILE, "w") as f: json.dump(config, f)
+            with open(VOTES_FILE, "w") as f: json.dump({}, f)
+            with open(PARTICIPANTS_FILE, "w") as f: json.dump([], f)
+            st.rerun()
+
+    if st.session_state.get("auth"):
+        st.title("📊 Résultats en temps réel")
+        v_data = load_json(VOTES_FILE, {})
+        if v_data:
+            sorted_v = dict(sorted(v_data.items(), key=lambda x: x[1], reverse=True))
+            st.bar_chart(sorted_v)
+        else:
+            st.info("Aucun vote pour le moment.")
+
+# --- 4. UTILISATEUR (VOTE SMARTPHONE) ---
 elif est_utilisateur:
-    st.markdown("<style>.stApp { background-color: black !important; color: white !important; } .stMultiSelect span { color: white !important; }</style>", unsafe_allow_html=True)
+    st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
     vote_key = f"transdev_v{VOTE_VERSION}"
     
@@ -71,6 +108,7 @@ elif est_utilisateur:
 
     if st.session_state.get("voted_final") or st.session_state.get("voted_check"):
         st.balloons(); st.success("✅ Votre Top 3 a été enregistré !")
+        st.info("Merci de votre participation. Les résultats seront bientôt sur le mur !")
     else:
         if "user_pseudo" not in st.session_state:
             with st.form("pseudo"):
@@ -78,53 +116,50 @@ elif est_utilisateur:
                 if st.form_submit_button("REJOINDRE"):
                     if p:
                         st.session_state["user_pseudo"] = p
-                        parts = json.load(open(PARTICIPANTS_FILE))
-                        if p not in parts: parts.append(p); json.dump(parts, open(PARTICIPANTS_FILE, "w"))
+                        parts = load_json(PARTICIPANTS_FILE, [])
+                        if p not in parts: 
+                            parts.append(p)
+                            with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
                         st.rerun()
         else:
             if not config["session_ouverte"]:
-                st.warning("⌛ En attente ouverture des votes...")
+                st.warning("⌛ En attente de l'ouverture des votes par l'admin...")
                 try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(interval=5000, key="m_ref")
                 except: pass
             else:
                 st.write(f"Bonjour **{st.session_state['user_pseudo']}**")
                 options = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
-                
-                # Pas de max_selections ici pour éviter le message en anglais
                 choix = st.multiselect("Sélectionnez vos 3 vidéos préférées (l'ordre compte) :", options)
                 
-                if len(choix) > 0:
+                if 0 < len(choix) <= 3:
                     st.markdown("---")
                     labels = ["🥇 **+5 points**", "🥈 **+3 points**", "🥉 **+1 point**"]
-                    for i in range(min(len(choix), 3)):
+                    for i in range(len(choix)):
                         st.write(f"{labels[i]} pour : **{choix[i]}**")
                     
-                    if len(choix) > 3:
-                        st.error(f"⚠️ Trop de choix ! Veuillez en retirer {len(choix)-3}.")
-                    st.markdown("---")
+                    if len(choix) == 3:
+                        if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
+                            vts = load_json(VOTES_FILE, {})
+                            for v, pts in zip(choix, [5, 3, 1]): 
+                                vts[v] = vts.get(v, 0) + pts
+                            with open(VOTES_FILE, "w") as f: json.dump(vts, f)
+                            components.html(f'<script>localStorage.setItem("{vote_key}", "true"); setTimeout(() => {{ window.parent.location.reload(); }}, 300);</script>', height=0)
+                            st.session_state["voted_final"] = True; st.rerun()
+                elif len(choix) > 3:
+                    st.error(f"⚠️ Trop de choix ! Retirez {len(choix)-3} option(s).")
 
-                if len(choix) == 3:
-                    if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
-                        vts = json.load(open(VOTES_FILE))
-                        for v, pts in zip(choix[:3], [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
-                        with open(VOTES_FILE, "w") as f: json.dump(vts, f)
-                        components.html(f'<script>localStorage.setItem("{vote_key}", "true"); setTimeout(() => {{ window.parent.location.reload(); }}, 300);</script>', height=0)
-                        st.session_state["voted_final"] = True; st.rerun()
-                elif len(choix) > 0 and len(choix) < 3:
-                    st.info(f"Encore {3-len(choix)} choix à faire...")
-
-# --- 5. MUR SOCIAL ---
+# --- 5. MUR SOCIAL (ÉCRAN PROJETÉ) ---
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
     qr_url = f"https://{st.context.headers.get('host', 'localhost')}/?mode=vote"
     qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
     qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-    try:
-        nb_p = len(json.load(open(PARTICIPANTS_FILE))); v_data = json.load(open(VOTES_FILE))
-    except: nb_p = 0; v_data = {}
+    
+    nb_p = len(load_json(PARTICIPANTS_FILE, []))
+    v_data = load_json(VOTES_FILE, {})
 
     st.markdown(f"""<div style="text-align:center;color:white;font-family:sans-serif;padding-top:20px;">
-        <p style="color:#E2001A;font-size:30px;font-weight:bold;margin:0;">MUR PHOTO LIVE</p>
+        <p style="color:#E2001A;font-size:30px;font-weight:bold;margin:0;">MUR LIVE TRANSDEV</p>
         <div style="background:white;display:inline-block;padding:8px 30px;border-radius:25px;margin:15px 0;border:3px solid #E2001A;"><p style="color:black;font-size:26px;font-weight:bold;margin:0;">{nb_p} PARTICIPANTS CONNECTÉS</p></div>
         <h1 style="font-size:58px;margin:0;">{config['titre_mur']}</h1></div>""", unsafe_allow_html=True)
 
@@ -144,7 +179,9 @@ else:
                 cols[i].markdown(f"""<div style="background:#222;padding:30px;border-radius:20px;border:4px solid #E2001A;text-align:center;">
                     <h2 style="color:#E2001A;">{medailles[i]}</h2><h1 style="color:white;font-size:40px;">{name}</h1><p style="font-size:25px;color:white;">{score} pts</p></div>""", unsafe_allow_html=True)
         else:
-            st.markdown("<div style='text-align:center;margin-top:50px;color:white;'><h2>LES VOTES SONT OUVERTS !</h2></div>", unsafe_allow_html=True)
+            st.markdown(f"""<div style='text-align:center;margin-top:40px;'>
+                <img src="data:image/png;base64,{qr_b64}" width="200" style="border:10px solid white; border-radius:15px;">
+                <h2 style='color:white;margin-top:20px;'>SCANNÉ POUR VOTER !</h2></div>""", unsafe_allow_html=True)
     else:
         img_list = glob.glob(os.path.join(ADMIN_DIR, "*")) + (glob.glob(os.path.join(GALLERY_DIR, "*")) if config["mode_affichage"]=="live" else [])
         if img_list:
