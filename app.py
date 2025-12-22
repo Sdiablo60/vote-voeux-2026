@@ -49,14 +49,13 @@ BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:
 def process_image_upload(uploaded_file):
     try:
         img = Image.open(uploaded_file)
-        # Conversion RGB si nécessaire (pour éviter erreur transparence PNG->JPG)
         if img.mode in ("RGBA", "P"): img = img.convert("RGB")
         img.thumbnail((200, 200)) # Optimisation taille
         buffered = BytesIO()
         img.save(buffered, format="JPEG", quality=85)
         return base64.b64encode(buffered.getvalue()).decode()
     except Exception as e:
-        st.error(f"Erreur traitement image: {e}")
+        st.error(f"Erreur image: {e}")
         return None
 
 # --- 2. NAVIGATION ---
@@ -180,14 +179,14 @@ if est_admin:
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # Liste sous forme de cartes
+                # Liste sous forme de cartes avec ORDONNANCEMENT
                 if not config["candidats"]:
                     st.warning("La liste est vide.")
                 else:
                     for i, cand in enumerate(config["candidats"]):
                         # Cadre visuel pour chaque candidat
                         with st.container(border=True):
-                            col_img, col_name, col_upload, col_del = st.columns([0.8, 2.5, 1.5, 0.5])
+                            col_img, col_name, col_move, col_act = st.columns([0.8, 2, 0.8, 1.5])
                             
                             # 1. Image actuelle
                             with col_img:
@@ -208,26 +207,39 @@ if est_admin:
                                         json.dump(config, open(CONFIG_FILE, "w"))
                                         st.rerun()
 
-                            # 3. Upload Photo (Unique Key Fix)
-                            with col_upload:
-                                upl = st.file_uploader("Photo", type=["png", "jpg", "jpeg"], key=f"u_{i}_{cand}", label_visibility="collapsed")
-                                if upl:
-                                    # Traitement immédiat
-                                    b64 = process_image_upload(upl)
-                                    if b64:
-                                        config["candidats_images"][cand] = b64
-                                        json.dump(config, open(CONFIG_FILE, "w"))
-                                        st.success("OK")
-                                        time.sleep(0.5) # Temps pour voir le succès
-                                        st.rerun() # Force le refresh pour afficher l'image
+                            # 3. Boutons Monter / Descendre (Remplacement Drag n Drop)
+                            with col_move:
+                                c_up, c_down = st.columns(2)
+                                if c_up.button("⬆️", key=f"up_{i}", help="Monter"):
+                                    if i > 0:
+                                        config["candidats"][i], config["candidats"][i-1] = config["candidats"][i-1], config["candidats"][i]
+                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                if c_down.button("⬇️", key=f"down_{i}", help="Descendre"):
+                                    if i < len(config["candidats"]) - 1:
+                                        config["candidats"][i], config["candidats"][i+1] = config["candidats"][i+1], config["candidats"][i]
+                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-                            # 4. Suppression
-                            with col_del:
-                                if st.button("🗑️", key=f"del_{i}"):
-                                    config["candidats"].pop(i)
-                                    if cand in config["candidats_images"]: del config["candidats_images"][cand]
-                                    json.dump(config, open(CONFIG_FILE, "w"))
-                                    st.rerun()
+                            # 4. Actions (Upload / Suppr)
+                            with col_act:
+                                with st.expander("🖼️ / 🗑️ Actions"):
+                                    # Gestion Image
+                                    upl = st.file_uploader("Changer Photo", type=["png", "jpg"], key=f"u_{i}", label_visibility="collapsed")
+                                    if upl:
+                                        b64 = process_image_upload(upl)
+                                        if b64:
+                                            config["candidats_images"][cand] = b64
+                                            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                    
+                                    if cand in config["candidats_images"]:
+                                        if st.button("❌ Supprimer Photo", key=f"del_img_{i}"):
+                                            del config["candidats_images"][cand]
+                                            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+
+                                    st.markdown("---")
+                                    if st.button("🗑️ Supprimer Question", key=f"del_quest_{i}"):
+                                        config["candidats"].pop(i)
+                                        if cand in config["candidats_images"]: del config["candidats_images"][cand]
+                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
         # 3. MÉDIATHÈQUE
         elif menu == "📸 Médiathèque":
@@ -304,7 +316,7 @@ else:
             st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div>', unsafe_allow_html=True)
             st.markdown("<style>@keyframes blink{50%{opacity:0.5;}}</style>", unsafe_allow_html=True)
             
-            # --- LISTE DYNAMIQUE AVEC PHOTOS (Optimisée) ---
+            # --- LISTE DYNAMIQUE AVEC PHOTOS ---
             candidats = config["candidats"]
             mid = (len(candidats) + 1) // 2
             left, right = candidats[:mid], candidats[mid:]
