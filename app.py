@@ -81,7 +81,7 @@ def save_live_photo(uploaded_file):
         img = Image.open(uploaded_file)
         # Gestion rotation EXIF pour mobile
         try:
-            from PIL import ExifTags, ImageOps
+            from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
                 if exif:
@@ -93,7 +93,7 @@ def save_live_photo(uploaded_file):
         except: pass
 
         img = img.convert("RGB")
-        img.thumbnail((600, 600)) 
+        img.thumbnail((500, 500)) # Taille optimale pour les bulles
         img.save(filepath, "JPEG", quality=85)
         return True
     except Exception as e:
@@ -306,12 +306,10 @@ elif est_utilisateur:
         st.title("📸 Mur Live")
         st.info("Participez au mur photo en direct !")
         
-        # ONGLETS POUR CHOISIR LA MÉTHODE (CONTOURNEMENT DU BUG NAVIGATEUR)
         tab_native, tab_web = st.tabs(["📱 Caméra Téléphone (Recommandé)", "💻 Webcam"])
         
         with tab_native:
             st.write("**Utilisez l'appareil photo de votre téléphone :**")
-            # Le file_uploader sur mobile ouvre souvent directement la caméra
             photo_native = st.file_uploader("Prendre une photo", type=["png", "jpg", "jpeg"], key=f"upl_{st.session_state.cam_reset_id}")
             
             if photo_native:
@@ -370,6 +368,7 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
+    # ANIMATION CSS COMPLEXE POUR LE MOUVEMENT ALÉATOIRE
     st.markdown("""
     <style>
         body, .stApp { background-color: black !important; } 
@@ -377,19 +376,24 @@ else:
         .block-container { padding-top: 2rem !important; }
         img { background-color: transparent !important; }
         
-        @keyframes float {
-            0% { transform: translateY(0px); opacity: 0; }
-            10% { opacity: 1; }
-            50% { transform: translateY(-20px); }
-            100% { transform: translateY(0px); opacity: 1; }
+        /* Animation qui bouge dans tous les sens */
+        @keyframes randomFloat {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(50px, -50px) rotate(5deg); }
+            40% { transform: translate(-30px, 40px) rotate(-5deg); }
+            60% { transform: translate(40px, 30px) rotate(3deg); }
+            80% { transform: translate(-40px, -20px) rotate(-3deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
         }
+
         .photo-bubble {
+            position: fixed; /* Sort du flux normal pour couvrir l'écran */
             border-radius: 50%;
             object-fit: cover;
-            border: 4px solid #E2001A;
-            box-shadow: 0 0 15px rgba(226, 0, 26, 0.5);
-            animation: float 6s ease-in-out infinite;
-            margin: 10px;
+            border: 3px solid #E2001A;
+            box-shadow: 0 0 20px rgba(226, 0, 26, 0.5);
+            animation: randomFloat 10s ease-in-out infinite alternate;
+            z-index: 1; /* Derrière le QR code */
         }
     </style>
     """, unsafe_allow_html=True)
@@ -397,48 +401,73 @@ else:
     config = load_json(CONFIG_FILE, default_config)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
+    # --- LOGO ET TITRE (EN HAUT) ---
     logo_html = ""
     if config.get("logo_b64"): 
         logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
 
-    st.markdown(f"""
-    <div style="text-align:center; color:white; background:transparent;">
-    {logo_html}
-    <h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1>
-    </div>
-    """, unsafe_allow_html=True)
+    if config["mode_affichage"] != "photos_live":
+        st.markdown(f"""
+        <div style="text-align:center; color:white; background:transparent;">
+        {logo_html}
+        <h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1>
+        </div>
+        """, unsafe_allow_html=True)
 
+    # 1. ATTENTE
     if config["mode_affichage"] == "attente":
         st.markdown(f"""<div style="text-align:center; color:white; margin-top:80px;"><div style="{BADGE_CSS}">✨ BIENVENUE ✨</div><h2 style="font-size:50px; margin-top:40px; font-weight:lighter;">L'événement va commencer...</h2></div>""", unsafe_allow_html=True)
 
+    # 2. PHOTOS LIVE (MODE IMMERSIF)
     elif config["mode_affichage"] == "photos_live":
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-        st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS}">📸 MUR LIVE</div></div>', unsafe_allow_html=True)
-        
+        # ÉLÉMENT CENTRAL FIXE (QR + LOGO + TEXTE) - Z-INDEX ÉLEVÉ
         st.markdown(f"""
-        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:100; text-align:center;">
-            <div style="background:white; padding:10px; border-radius:15px; box-shadow: 0 0 50px rgba(255,255,255,0.2);">
-                <img src="data:image/png;base64,{qr_b64}" width="200" style="display:block;">
-                <p style="color:black; font-weight:bold; margin:0; font-size:20px;">PARTICIPEZ !</p>
+        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:100; text-align:center; width:400px;">
+            {logo_html}
+            <div style="background:rgba(255,255,255,0.95); padding:20px; border-radius:25px; box-shadow: 0 0 50px rgba(226,0,26,0.4); display:inline-block;">
+                <img src="data:image/png;base64,{qr_b64}" width="220" style="display:block; margin:0 auto;">
+                <h2 style="color:black; font-weight:900; margin:15px 0 5px 0; font-size:30px;">SCANNEZ-MOI</h2>
+                <p style="color:#E2001A; font-weight:bold; font-size:18px; margin:0;">📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
+        # AFFICHAGE DES BULLES FLOTTANTES (ARRIÈRE-PLAN)
         photos = glob.glob(f"{LIVE_DIR}/*")
         photos.sort(key=os.path.getmtime, reverse=True)
-        recent_photos = photos[:24]
+        recent_photos = photos[:30] # On affiche les 30 dernières
 
+        # Injection des bulles avec positions aléatoires générées par Python
         if recent_photos:
-            cols = st.columns(6)
-            for i, photo_path in enumerate(recent_photos):
-                with cols[i % 6]:
-                    with open(photo_path, "rb") as f:
-                        b64_img = base64.b64encode(f.read()).decode()
-                    st.markdown(f"""<img src="data:image/jpeg;base64,{b64_img}" class="photo-bubble" style="width:100%; aspect-ratio:1/1;">""", unsafe_allow_html=True)
+            html_bubbles = ""
+            for photo_path in recent_photos:
+                with open(photo_path, "rb") as f:
+                    b64_img = base64.b64encode(f.read()).decode()
+                
+                # Génération aléatoire des positions et tailles
+                top = random.randint(5, 85)
+                left = random.randint(5, 90)
+                size = random.randint(120, 220)
+                duration = random.randint(8, 15) # Vitesse variable
+                delay = random.randint(0, 5)
+                
+                html_bubbles += f"""
+                <img src="data:image/jpeg;base64,{b64_img}" class="photo-bubble" style="
+                    top: {top}%; 
+                    left: {left}%; 
+                    width: {size}px; 
+                    height: {size}px;
+                    animation-duration: {duration}s;
+                    animation-delay: -{delay}s;
+                ">
+                """
+            st.markdown(html_bubbles, unsafe_allow_html=True)
 
+    # 3. VOTES
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         st.markdown(f'<div style="text-align:center; margin-top:10px;"><div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold;">👥 {nb_p} CONNECTÉS</div></div>', unsafe_allow_html=True)
         
@@ -471,6 +500,7 @@ else:
         else:
             components.html(f"""<div style="text-align:center;color:white;background:black;height:100vh;"><div style="{BADGE_CSS} background:#333;">🏁 CLOS</div><div style="font-size:100px;margin-top:40px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1></div>""", height=600)
 
+    # 4. PODIUM
     elif config["reveal_resultats"]:
         diff = 10 - int(time.time() - config.get("timestamp_podium", 0))
         if diff > 0:
