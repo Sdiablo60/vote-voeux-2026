@@ -39,29 +39,30 @@ est_utilisateur = st.query_params.get("mode") == "vote"
 
 # --- 3. ADMINISTRATION ---
 if est_admin:
-    st.title("🛠️ Console Régie Master")
-    
     if "auth" not in st.session_state: st.session_state["auth"] = False
+    
     if not st.session_state["auth"]:
+        st.title("🔐 Accès Régie")
         pwd = st.text_input("Code Admin", type="password")
         if pwd == "ADMIN_LIVE_MASTER":
             st.session_state["auth"] = True
             st.rerun()
     else:
-        st.sidebar.success("Connecté en tant que Régie")
-        if st.sidebar.button("🔓 Déconnexion"):
-            st.session_state["auth"] = False
-            st.rerun()
+        # TOUS LES MENUS DANS LA SIDEBAR
+        with st.sidebar:
+            st.title("🎮 RÉGIE")
+            onglet = st.radio("Navigation", ["🕹️ Pilotage Live", "⚙️ Configuration", "📸 Galerie Photos", "📥 Données & Exports"])
+            st.markdown("---")
+            if st.button("🔓 Déconnexion", use_container_width=True):
+                st.session_state["auth"] = False
+                st.rerun()
 
-        # --- SYSTÈME D'ONGLETS ---
-        tab_live, tab_config, tab_galerie, tab_data = st.tabs([
-            "🎮 Pilotage Live", "⚙️ Configuration", "📸 Galerie Photos", "📥 Données & Exports"
-        ])
-
-        with tab_live:
-            col_ctrl, col_stats = st.columns([1, 1.5])
-            with col_ctrl:
-                st.subheader("Pilotage du Mur")
+        # CONTENU CENTRAL SELON L'ONGLET SÉLECTIONNÉ DANS LA SIDEBAR
+        if onglet == "🕹️ Pilotage Live":
+            st.header("🎮 Pilotage du Mur Social")
+            col_btn, col_stats = st.columns([1, 1.5])
+            
+            with col_btn:
                 m, vo, re = config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"]
                 
                 if st.button("1️⃣ Mode Attente", use_container_width=True, type="primary" if m=="attente" else "secondary"):
@@ -81,65 +82,73 @@ if est_admin:
                     json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
             with col_stats:
-                st.subheader("Suivi des Votes")
                 v_data = load_json(VOTES_FILE, {})
+                nb_p = len(load_json(PARTICIPANTS_FILE, []))
+                st.metric("Participants Connectés", nb_p)
                 if v_data:
                     df = pd.DataFrame(list(v_data.items()), columns=['BU', 'Points']).sort_values('Points', ascending=False)
                     st.bar_chart(df.set_index('BU'))
-                else:
-                    st.info("En attente des premiers votes...")
+                else: st.info("Aucun vote enregistré.")
 
-        with tab_config:
-            st.subheader("Personnalisation")
-            config["titre_mur"] = st.text_input("Titre de l'écran principal", value=config["titre_mur"])
-            
-            uploaded_logo = st.file_uploader("Logo (PNG de préférence)", type=["png", "jpg", "jpeg"])
+        elif onglet == "⚙️ Configuration":
+            st.header("⚙️ Paramètres")
+            config["titre_mur"] = st.text_input("Titre de l'événement", value=config["titre_mur"])
+            uploaded_logo = st.file_uploader("Logo PNG", type=["png", "jpg"])
             if uploaded_logo:
-                logo_b64 = base64.b64encode(uploaded_logo.read()).decode()
-                config["logo_b64"] = logo_b64
-                st.success("Logo mis à jour !")
-
-            if st.button("💾 Enregistrer les modifications"):
+                config["logo_b64"] = base64.b64encode(uploaded_logo.read()).decode()
+                st.success("Logo chargé !")
+            if st.button("💾 Sauvegarder"):
                 json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-        with tab_galerie:
+        elif onglet == "📸 Galerie Photos":
+            st.header("📸 Gestion des images")
             col_a, col_u = st.columns(2)
             with col_a:
-                st.write("**Photos Régie (Dossier Admin)**")
+                st.subheader("Photos Admin")
                 for f in glob.glob(f"{ADMIN_DIR}/*"):
-                    st.image(f, width=150)
-                    if st.button(f"Supprimer {os.path.basename(f)}", key=f):
-                        os.remove(f); st.rerun()
+                    st.image(f, width=100)
+                    if st.button(f"Supprimer", key=f): os.remove(f); st.rerun()
             with col_u:
-                st.write("**Photos Utilisateurs**")
+                st.subheader("Photos Utilisateurs")
                 for f in glob.glob(f"{GALLERY_DIR}/*"):
-                    st.image(f, width=150)
-                    if st.button(f"Supprimer {os.path.basename(f)}", key=f+"u"):
-                        os.remove(f); st.rerun()
+                    st.image(f, width=100)
+                    if st.button(f"Supprimer", key=f+"u"): os.remove(f); st.rerun()
 
-        with tab_data:
-            st.subheader("Gestion des fichiers")
-            if st.button("📊 Exporter Résultats CSV"):
-                v_data = load_json(VOTES_FILE, {})
+        elif onglet == "📥 Données & Exports":
+            st.header("📥 Exports")
+            v_data = load_json(VOTES_FILE, {})
+            if v_data:
                 df = pd.DataFrame(list(v_data.items()), columns=['BU', 'Points'])
-                st.download_button("Télécharger CSV", df.to_csv(index=False).encode('utf-8'), "resultats.csv")
-            
-            if st.button("🔴 RESET TOUT (Votes + Participants)", type="secondary"):
-                if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
-                if os.path.exists(PARTICIPANTS_FILE): os.remove(PARTICIPANTS_FILE)
-                st.warning("Système réinitialisé.")
+                st.download_button("📥 Télécharger CSV", df.to_csv(index=False).encode('utf-8'), "votes.csv")
+            if st.button("🔴 RÉINITIALISER TOUT", type="secondary"):
+                for f_reset in [VOTES_FILE, PARTICIPANTS_FILE]:
+                    if os.path.exists(f_reset): os.remove(f_reset)
+                st.warning("Système remis à zéro.")
 
-# --- 4. UTILISATEUR & 5. MUR SOCIAL (Même logique que précédemment avec le nouveau titre) ---
-# [Le reste du code suit exactement la même logique robuste établie précédemment]
+# --- 4. UTILISATEUR (VOTES) ---
+elif est_utilisateur:
+    st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
+    st.title("🗳️ Vote Transdev")
+    if not config["session_ouverte"]:
+        st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
+    else:
+        choix = st.multiselect("Sélectionnez 3 Vidéos :", OPTS_BU)
+        if len(choix) == 3 and st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
+            vts = load_json(VOTES_FILE, {})
+            for v, pts in zip(choix, [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
+            json.dump(vts, open(VOTES_FILE, "w"))
+            st.success("✅ Merci ! Votre vote a été pris en compte.")
+
+# --- 5. MUR SOCIAL ---
 else:
-    # (Affichage Mur Social avec le titre config["titre_mur"] et la pluie de confettis haut->bas)
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
-    logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; margin-bottom:10px;">' if config.get("logo_b64") else ""
     
+    # Correction de l'en-tête (encapsulé dans st.markdown)
+    logo_img = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; margin-bottom:10px;">' if config.get("logo_b64") else ""
     st.markdown(f"""
         <div style="text-align:center; color:white; padding-top:40px;">
-            {logo_html}
+            {logo_img}
             <h1 style="font-size:50px; font-weight:bold; text-transform:uppercase; margin:0;">{config["titre_mur"]}</h1>
             <div style="background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; margin-top:10px;">
                 👥 {nb_p} CONNECTÉS
@@ -149,6 +158,7 @@ else:
 
     if config["mode_affichage"] == "attente":
         st.markdown(f'<div style="text-align:center; color:white;"><div style="{BADGE_CSS}">⌛ En attente de l\'ouverture des Votes</div><h2 style="font-size:55px; margin-top:60px;">Bienvenue ! 👋</h2></div>', unsafe_allow_html=True)
+    
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         if config["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
@@ -167,19 +177,20 @@ else:
             st.markdown("</div>", unsafe_allow_html=True)
         else:
             components.html(f"""
-                <div style="text-align:center; font-family: sans-serif; color:white; background:black;">
+                <div style="text-align:center; font-family:sans-serif; color:white; background:black;">
                     <div style="{BADGE_CSS} background:#333;">🏁 LES VOTES SONT CLOS</div>
                     <div style="font-size:100px; animation: clap 0.5s infinite alternate; margin-top:30px;">👏</div>
                     <h1 style="color:#E2001A; font-size:45px;">MERCI À TOUS !</h1>
                 </div>
                 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
                 <script>
-                    var end = Date.now() + (7 * 1000);
+                    var end = Date.now() + 7000;
                     (function frame() {{
                         confetti({{ particleCount: 3, origin: {{ y: -0.2, x: Math.random() }}, spread: 360, gravity: 0.8, colors: ['#E2001A', '#ffffff'] }});
                         if (Date.now() < end) requestAnimationFrame(frame);
                     }}());
                 </script>
+                <style> @keyframes clap {{ from {{ transform: scale(1); }} to {{ transform: scale(1.2); }} }} </style>
             """, height=600)
 
     elif config["reveal_resultats"]:
@@ -196,7 +207,7 @@ else:
                 cols = st.columns(3)
                 m_txt = ["🥇 1er", "🥈 2ème", "🥉 3ème"]
                 for i, (name, score) in enumerate(sorted_v):
-                    cols[i].markdown(f'<div style="background:#222;padding:40px 20px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;margin-top:40px;"><h2>{m_txt[i]}</h2><h1 style="font-size:38px;">{name}</h1><p style="font-size:22px;">{score} pts</p></div>', unsafe_allow_html=True)
+                    cols[i].markdown(f'<div style="background:#222;padding:40px 20px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;margin-top:40px;"><h2>{m_txt[i]}</h2><h1>{name}</h1><p>{score} pts</p></div>', unsafe_allow_html=True)
                 components.html('<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>var end=Date.now()+10000;(function frame(){confetti({particleCount:5,origin:{y:-0.2,x:Math.random()},spread:360,gravity:0.7,colors:["#E2001A","#ffffff","#ffd700"]});if(Date.now()<end)requestAnimationFrame(frame);})();</script>', height=0)
 
     try:
