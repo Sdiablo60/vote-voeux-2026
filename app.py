@@ -100,14 +100,71 @@ EFFECTS_LIB = {
 }
 
 # --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
+# Fond forcé à NOIR pour tous les effets
 PREVIEW_LIB = {
-    "Aucun": "<div style='width:100%;height:100%;background:black;display:flex;align-items:center;justify-content:center;color:#777;font-family:sans-serif;font-size:20px;'>Aucun effet</div>",
-    "🎈 Ballons": """<div style='background:#000;width:100%;height:100%;overflow:hidden;position:relative;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:24px;transition:bottom 3s linear;';document.body.appendChild(d);setTimeout(function(){d.style.bottom='120%';},50);setTimeout(function(){d.remove()},3000);},500);</script></div>""",
-    "❄️ Neige": """<div style='background:#000;width:100%;height:100%;overflow:hidden;position:relative;'><style>.f{position:absolute;color:#FFF;animation:d 2s linear forwards}@keyframes d{to{transform:translateY(250px)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='f';d.innerHTML='❄';d.style.left=Math.random()*95+'%';d.style.top='-20px';d.style.fontSize=(Math.random()*15+10)+'px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},100);</script></div>""",
-    "🎉 Confettis": """<div style='background:#000;width:100%;height:100%;overflow:hidden;'><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>setInterval(function(){confetti({particleCount:7,spread:60,origin:{y:0.6},colors:['#E2001A','#ffffff'],disableForReducedMotion:true,zIndex:100});},600);</script></div>""",
-    "🌌 Espace": """<div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(3)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='s';d.style.left=Math.random()*100+'%';d.style.top=Math.random()*100+'%';d.style.width='2px';d.style.height='2px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},50);</script></div>""",
-    "💸 Billets": """<div style='background:#000;width:100%;height:100%;overflow:hidden;position:relative;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:24px;';document.body.appendChild(d);d.animate([{transform:'translateY(0)'},{transform:'translateY(250px)'}],{duration:2000,iterations:1});setTimeout(function(){d.remove()},1900);},400);</script></div>""",
-    "🟢 Matrix": """<div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'><canvas id="m" style="width:100%;height:100%;"></canvas><script>var c=document.getElementById('m');var x=c.getContext('2d');c.width=300;c.height=200;var col=c.width/10;var r=[];for(var i=0;i<col;i++)r[i]=1;setInterval(function(){x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font='10px monospace';for(var i=0;i<r.length;i++){x.fillText(Math.floor(Math.random()*2),i*10,r[i]*10);if(r[i]*10>c.height&&Math.random()>0.9)r[i]=0;r[i]++;}},50);</script></div>"""
+    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h3 style='color:#555;font-family:sans-serif;'>NO SIGNAL</h3></body></html>",
+    
+    "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>
+    setInterval(function(){
+        var d = document.createElement('div');
+        d.innerHTML = '🎈';
+        d.style.cssText = 'position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:24px;transition:bottom 3s linear;';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.style.bottom = '120%'; }, 50);
+        setTimeout(function(){ d.remove(); }, 3000);
+    }, 500);
+    </script></body></html>""",
+    
+    "❄️ Neige": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.f {position:absolute;color:#FFF;animation:d 2s linear forwards} @keyframes d{to{transform:translateY(250px)}}</style>
+    <script>
+    setInterval(function(){
+        var d = document.createElement('div');
+        d.className = 'f'; d.innerHTML = '❄';
+        d.style.left = Math.random()*95+'%'; d.style.top = '-20px'; d.style.fontSize = (Math.random()*15+10)+'px';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.remove(); }, 2000);
+    }, 100);
+    </script></body></html>""",
+    
+    "🎉 Confettis": """<html><body style='background:black;margin:0;overflow:hidden;'><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>
+    setInterval(function(){
+        confetti({particleCount:7, spread:60, origin:{y:0.6}, colors:['#E2001A','#ffffff'], disableForReducedMotion:true, zIndex:100});
+    }, 600);
+    </script></body></html>""",
+    
+    "🌌 Espace": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0} @keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(3)}}</style>
+    <script>
+    setInterval(function(){
+        var d = document.createElement('div'); d.className='s';
+        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='2px'; d.style.height='2px';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.remove(); }, 2000);
+    }, 50);
+    </script></body></html>""",
+    
+    "💸 Billets": """<html><body style='background:black;margin:0;overflow:hidden;'><script>
+    setInterval(function(){
+        var d = document.createElement('div'); d.innerHTML = '💸';
+        d.style.cssText = 'position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:24px;';
+        document.body.appendChild(d);
+        d.animate([{transform:'translateY(0)'}, {transform:'translateY(250px)'}], {duration:2000, iterations:1});
+        setTimeout(function(){ d.remove(); }, 1900);
+    }, 400);
+    </script></body></html>""",
+    
+    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100vh;"></canvas><script>
+    var c=document.getElementById('m'); var x=c.getContext('2d');
+    c.width=window.innerWidth; c.height=window.innerHeight;
+    var col=c.width/10; var r=[]; for(var i=0;i<col;i++)r[i]=1;
+    setInterval(function(){
+        x.fillStyle='rgba(0,0,0,0.1)'; x.fillRect(0,0,c.width,c.height);
+        x.fillStyle='#0F0'; x.font='10px monospace';
+        for(var i=0;i<r.length;i++){
+            x.fillText(Math.floor(Math.random()*2), i*10, r[i]*10);
+            if(r[i]*10>c.height && Math.random()>0.9) r[i]=0; r[i]++;
+        }
+    }, 50);
+    </script></body></html>"""
 }
 
 # --- FONCTIONS CRITIQUES ---
@@ -231,14 +288,17 @@ if est_admin:
             # --- ZONE 1: LABORATOIRE DE TEST (PREVIEW) ---
             st.markdown("### 🧪 Laboratoire de Test (Visualisation)")
             
-            c_test_sel, c_test_view = st.columns([1, 2])
-            with c_test_sel:
-                preview_choice = st.radio("Voir l'effet :", list(PREVIEW_LIB.keys()), index=0)
+            # Ecran noir de preview
+            prev_sel = st.session_state.get("preview_selected", "Aucun")
+            if prev_sel in PREVIEW_LIB:
+                # Affichage TV
+                components.html(PREVIEW_LIB[prev_sel], height=300)
             
-            with c_test_view:
-                if preview_choice in PREVIEW_LIB:
-                    st.markdown("**Aperçu en temps réel :**")
-                    components.html(PREVIEW_LIB[preview_choice], height=250)
+            # Selecteur pour changer la preview (sans impacter le live)
+            new_prev = st.selectbox("Choisir l'effet à tester :", list(PREVIEW_LIB.keys()), index=list(PREVIEW_LIB.keys()).index(prev_sel))
+            if new_prev != prev_sel:
+                st.session_state.preview_selected = new_prev
+                st.rerun()
             
             st.divider()
 
