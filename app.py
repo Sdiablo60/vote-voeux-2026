@@ -152,8 +152,8 @@ else:
     # En-tête Mur
     st.markdown(f"""
         <div style="text-align:center; color:white; padding-top:40px;">
-            <h1 style="font-size:65px; margin:0; text-transform:uppercase; letter-spacing:2px; font-weight:bold;">{config["titre_mur"]}</h1>
-            <div style="margin-top:15px; background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold; font-size:18px;">
+            <h1 style="font-size:50px; margin:0; text-transform:uppercase; letter-spacing:2px; font-weight:bold;">{config["titre_mur"]}</h1>
+            <div style="margin-top:10px; background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; font-size:16px;">
                 👥 {nb_p} PARTICIPANTS CONNECTÉS
             </div>
         </div>
@@ -162,8 +162,8 @@ else:
     # 1. MODE ATTENTE
     if config["mode_affichage"] == "attente":
         st.markdown(f"""
-            <div style="text-align:center; margin-top:25px; color:white;">
-                <div style="background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;">
+            <div style="text-align:center; margin-top:15px; color:white;">
+                <div style="background:#E2001A; display:inline-block; padding:8px 25px; border-radius:10px; font-size:20px; font-weight:bold; border:2px solid white; color:white;">
                     ⌛ En attente de l'ouverture des Votes
                 </div>
                 <div style="margin-top:60px;">
@@ -175,25 +175,33 @@ else:
 
     # 2. MODE VOTES (QR Code au centre entouré de 2 colonnes)
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
+        # Bandeau d'état repositionné sous le titre
+        st.markdown(f"""
+            <div style="text-align:center; margin-top:15px;">
+                <div style="background:#E2001A; color:white; padding:8px 25px; border-radius:10px; font-size:24px; font-weight:bold; border:2px solid white; animation:blink 1.5s infinite;">
+                    🚀 LES VOTES SONT OUVERTS
+                </div>
+            </div>
+            <style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>
+        """, unsafe_allow_html=True)
+
         col1, col2, col3 = st.columns([1, 1, 1])
         with col1: # Liste Gauche
-            st.markdown("<div style='margin-top:50px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
             for opt in OPTS_BU[:5]:
                 st.markdown(f'<div style="background:#222; color:white; padding:10px 15px; border-radius:10px; margin-bottom:10px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         
-        with col2: # QR Code Central
+        with col2: # QR Code Central (Réduit)
             st.markdown(f"""
-                <div style="text-align:center; background:white; padding:15px; border-radius:20px; margin-top:30px;">
-                    <img src="data:image/png;base64,{qr_b64}" width="220">
+                <div style="text-align:center; background:white; padding:8px; border-radius:15px; margin-top:50px; display:inline-block;">
+                    <img src="data:image/png;base64,{qr_b64}" width="200">
                 </div>
-                <div style="text-align:center; margin-top:20px; color:white; font-size:18px; font-weight:bold;">SCANNEZ POUR VOTER</div>
-                <div style="text-align:center; margin-top:20px; color:#E2001A; font-size:28px; font-weight:bold; animation:blink 1.5s infinite;">🚀 VOTES OUVERTS</div>
-                <style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>
+                <div style="text-align:center; margin-top:15px; color:white; font-size:16px; font-weight:bold; letter-spacing:1px;">SCANNEZ POUR VOTER</div>
             """, unsafe_allow_html=True)
 
         with col3: # Liste Droite
-            st.markdown("<div style='margin-top:50px;'>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
             for opt in OPTS_BU[5:]:
                 st.markdown(f'<div style="background:#222; color:white; padding:10px 15px; border-radius:10px; margin-bottom:10px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
