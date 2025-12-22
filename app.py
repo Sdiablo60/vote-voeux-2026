@@ -27,6 +27,7 @@ for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
 
 DEFAULT_CANDIDATS = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
 
+# MAPPING DES EFFETS PAR DEFAUT
 default_config = {
     "mode_affichage": "attente", 
     "titre_mur": "CONCOURS VIDÉO PÔLE AEROPORTUAIRE", 
@@ -38,7 +39,15 @@ default_config = {
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
     "session_id": "session_init_001",
-    "active_effect": "Aucun"
+    # NOUVEAU SYSTEME D'EFFETS
+    "global_effect": "Aucun", # Effet prioritaire (écrase tout)
+    "screen_effects": {       # Effets par écran (si global est "Aucun")
+        "attente": "Aucun",
+        "votes_open": "Aucun",
+        "votes_closed": "Aucun",
+        "podium": "🎉 Confettis",
+        "photos_live": "Aucun"
+    }
 }
 
 def load_json(file, default):
@@ -52,11 +61,14 @@ def load_json(file, default):
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
+# Migration structurelle si nécessaire (pour ne pas planter si l'ancien fichier config existe)
+if "screen_effects" not in st.session_state.config:
+    st.session_state.config["screen_effects"] = default_config["screen_effects"]
+if "global_effect" not in st.session_state.config:
+    st.session_state.config["global_effect"] = "Aucun"
+
 if "session_id" not in st.session_state.config:
     st.session_state.config["session_id"] = str(int(time.time()))
-    
-if "active_effect" not in st.session_state.config:
-    st.session_state.config["active_effect"] = "Aucun"
 
 if "my_uuid" not in st.session_state:
     st.session_state.my_uuid = str(uuid.uuid4())
@@ -78,7 +90,6 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
 # --- 1. BIBLIOTHEQUE D'EFFETS (MUR SOCIAL - PLEIN ECRAN) ---
-# Utilise window.parent pour sortir de l'iframe
 EFFECTS_LIB = {
     "Aucun": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>""",
     "🎈 Ballons": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-50px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom '+(Math.random()*5+5)+'s linear,left '+(Math.random()*5+5)+'s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';});setTimeout(()=>{d.remove()},12000);}setInterval(c,600);</script>""",
@@ -89,13 +100,12 @@ EFFECTS_LIB = {
     "🟢 Matrix": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,30);</script>"""
 }
 
-# --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - DANS LA BOITE) ---
-# Code HTML/JS autonome qui reste DANS l'iframe de prévisualisation
+# --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
 PREVIEW_LIB = {
-    "Aucun": "<div style='width:100%;height:100%;background:#333;display:flex;align-items:center;justify-content:center;color:#777;font-family:sans-serif;'>Aucun effet</div>",
+    "Aucun": "<div style='width:100%;height:100%;background:black;display:flex;align-items:center;justify-content:center;color:#555;font-family:sans-serif;'>Aucun effet</div>",
     
     "🎈 Ballons": """
-    <div style='background:#222;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'>
     <script>
     setInterval(function(){
         var d = document.createElement('div');
@@ -108,7 +118,7 @@ PREVIEW_LIB = {
     </script></div>""",
     
     "❄️ Neige": """
-    <div style='background:#222;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'>
     <style>.f {position:absolute;color:#FFF;animation:d 2s linear forwards} @keyframes d{to{transform:translateY(250px)}}</style>
     <script>
     setInterval(function(){
@@ -121,7 +131,7 @@ PREVIEW_LIB = {
     </script></div>""",
     
     "🎉 Confettis": """
-    <div style='background:#222;width:100%;height:100%;overflow:hidden;'>
+    <div style='background:black;width:100%;height:100%;overflow:hidden;'>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script>
     setInterval(function(){
@@ -142,7 +152,7 @@ PREVIEW_LIB = {
     </script></div>""",
     
     "💸 Billets": """
-    <div style='background:#222;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'>
     <script>
     setInterval(function(){
         var d = document.createElement('div'); d.innerHTML = '💸';
@@ -289,30 +299,81 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # 1. AMBIANCE VISUELLE (AVEC PREVIEW BOITE NOIRE)
-            st.subheader("✨ AMBIANCE VISUELLE")
-            col_sel, col_prev = st.columns([1, 1])
+            # --- ZONE GESTION EFFETS ---
+            st.markdown("### 🎨 Gestion des Effets Visuels")
             
-            with col_sel:
-                current_eff = st.session_state.config.get("active_effect", "Aucun")
-                new_eff = st.selectbox("Choisir un effet d'animation :", list(EFFECTS_LIB.keys()), index=list(EFFECTS_LIB.keys()).index(current_eff) if current_eff in EFFECTS_LIB else 0)
+            # 1. Selecteur d'effet prioritaire (GLOBAL)
+            st.caption("🚀 EFFET PRIORITAIRE (Applique immédiatement sur tous les écrans)")
+            global_eff = st.selectbox("Forcer un effet Global :", ["Aucun"] + [k for k in EFFECTS_LIB.keys() if k!="Aucun"], index=0, key="sel_global")
+            
+            # Mise à jour si changement
+            if global_eff != st.session_state.config.get("global_effect"):
+                st.session_state.config["global_effect"] = global_eff
+                save_config()
+                st.toast(f"Global : {global_eff}")
+                st.rerun()
+
+            st.markdown("---")
+            
+            # 2. Configuration par écran
+            st.caption("🛠️ CONFIGURATION PAR ÉCRAN (Actif si 'Effet Global' est sur Aucun)")
+            
+            col_conf, col_visu = st.columns([1.5, 1])
+            
+            with col_conf:
+                # Dictionnaire local pour stocker les choix avant sauvegarde si besoin, 
+                # mais ici on update direct pour fluidité
+                map_eff = st.session_state.config["screen_effects"]
                 
-                if new_eff != current_eff:
-                    st.session_state.config["active_effect"] = new_eff
+                def update_screen_eff(key, screen_key):
+                    val = st.session_state[key]
+                    st.session_state.config["screen_effects"][screen_key] = val
                     save_config()
-                    st.toast(f"✨ Effet activé : {new_eff}")
-                    time.sleep(0.5)
-                    st.rerun()
-            
-            with col_prev:
-                st.caption("📺 Aperçu en direct (Admin)")
-                if new_eff in PREVIEW_LIB:
-                    # Utilisation d'un container dédié pour l'aperçu
-                    components.html(PREVIEW_LIB[new_eff], height=200)
+
+                # Liste des ecrans
+                screens = [
+                    ("🏠 Accueil (Attente)", "attente"),
+                    ("🗳️ Votes Ouverts", "votes_open"),
+                    ("🏁 Votes Clos", "votes_closed"),
+                    ("🏆 Podium", "podium"),
+                    ("📸 Mur Photos", "photos_live")
+                ]
+                
+                # On garde en mémoire le dernier survolé/modifié pour la preview ? 
+                # Simplification : On ajoute un selecteur "Voir Preview de..."
+                
+                preview_target = st.selectbox("👁️ Prévisualiser l'effet de :", [s[0] for s in screens], index=0)
+                target_key = next(s[1] for s in screens if s[0] == preview_target)
+                
+                # Affichage des selectbox pour chaque écran
+                st.write("**Réglages des ambiances :**")
+                for label, s_key in screens:
+                    curr_val = map_eff.get(s_key, "Aucun")
+                    # On recupere l'index
+                    idx = list(EFFECTS_LIB.keys()).index(curr_val) if curr_val in EFFECTS_LIB else 0
+                    st.selectbox(label, list(EFFECTS_LIB.keys()), index=idx, key=f"sel_{s_key}", on_change=update_screen_eff, args=(f"sel_{s_key}", s_key))
+
+            with col_visu:
+                st.markdown(f"**Aperçu : {preview_target}**")
+                
+                # On détermine quel effet montrer dans la boite noire
+                # Si Global est actif, on montre global. Sinon on montre celui de l'écran selectionné.
+                eff_to_show = "Aucun"
+                if st.session_state.config["global_effect"] != "Aucun":
+                    eff_to_show = st.session_state.config["global_effect"]
+                    st.warning(f"🔒 Global '{eff_to_show}' est actif !")
+                else:
+                    eff_to_show = st.session_state.config["screen_effects"].get(target_key, "Aucun")
+                
+                # RENDER PREVIEW BOX
+                if eff_to_show in PREVIEW_LIB:
+                    components.html(PREVIEW_LIB[eff_to_show], height=250)
+                else:
+                    st.write("Pas de prévisualisation")
 
             st.divider()
 
-            # 2. SEQUENCEUR
+            # 2. SEQUENCEUR (Reste inchangé)
             st.subheader("1️⃣ Séquenceur")
             c1, c2, c3, c4 = st.columns(4)
             cfg = st.session_state.config
@@ -672,9 +733,31 @@ else:
     logo_html = ""
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
 
-    # APPLICATION DE L'EFFET GLOBAL (SUPERPOSITION)
-    inject_visual_effect(config.get("active_effect", "Aucun"))
+    # --- DECISION LOGIQUE DE L'EFFET A AFFICHER ---
+    effect_to_apply = "Aucun"
+    
+    # 1. Priorité: Effet Global (Force)
+    if config.get("global_effect", "Aucun") != "Aucun":
+        effect_to_apply = config["global_effect"]
+    
+    # 2. Sinon: Effet par écran
+    else:
+        # Determination de la clé d'écran
+        screen_key = "attente" # Defaut
+        if config["mode_affichage"] == "attente": screen_key = "attente"
+        elif config["mode_affichage"] == "photos_live": screen_key = "photos_live"
+        elif config["reveal_resultats"]: screen_key = "podium"
+        elif config["mode_affichage"] == "votes":
+            if config["session_ouverte"]: screen_key = "votes_open"
+            else: screen_key = "votes_closed"
+            
+        effect_to_apply = config["screen_effects"].get(screen_key, "Aucun")
 
+    # 3. Injection
+    inject_visual_effect(effect_to_apply)
+
+    # --- AFFICHAGE ECRANS ---
+    
     if config["mode_affichage"] != "photos_live":
         st.markdown(f'<div style="text-align:center; color:white;">{logo_html}<h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
 
