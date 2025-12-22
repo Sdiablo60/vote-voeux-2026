@@ -159,11 +159,14 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
+    # Styles communs pour les bandeaux rouges
+    badge_style = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:20px; font-weight:bold; border:2px solid white; color:white;"
+
     # 1. MODE ATTENTE
     if config["mode_affichage"] == "attente":
         st.markdown(f"""
-            <div style="text-align:center; margin-top:15px; color:white;">
-                <div style="background:#E2001A; display:inline-block; padding:8px 25px; border-radius:10px; font-size:20px; font-weight:bold; border:2px solid white; color:white;">
+            <div style="text-align:center; color:white;">
+                <div style="{badge_style}">
                     ⌛ En attente de l'ouverture des Votes
                 </div>
                 <div style="margin-top:60px;">
@@ -173,11 +176,11 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-    # 2. MODE VOTES (QR Code au centre, aligné avec les listes)
+    # 2. MODE VOTES
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         st.markdown(f"""
-            <div style="text-align:center; margin-top:15px;">
-                <div style="background:#E2001A; color:white; padding:8px 25px; border-radius:10px; font-size:24px; font-weight:bold; border:2px solid white; animation:blink 1.5s infinite;">
+            <div style="text-align:center;">
+                <div style="{badge_style} animation:blink 1.5s infinite;">
                     🚀 LES VOTES SONT OUVERTS
                 </div>
             </div>
@@ -193,7 +196,7 @@ else:
         
         with col2:
             st.markdown(f"""
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
                     <div style="background:white; padding:8px; border-radius:12px; display:inline-block;">
                         <img src="data:image/png;base64,{qr_b64}" width="180">
                     </div>
