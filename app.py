@@ -48,16 +48,16 @@ if est_admin:
             st.session_state["auth"] = True
             st.rerun()
     else:
-        # NAVIGATION DANS LA BARRE LATÉRALE
+        # NAVIGATION DANS LA BARRE LATÉRALE (SIDEBAR)
         with st.sidebar:
-            st.title("🎮 MENU RÉGIE")
-            onglet = st.radio("Aller vers :", ["🕹️ Pilotage Live", "⚙️ Paramétrage", "📸 Gestion Photos", "📥 Exports & Data"])
+            st.title("🎮 RÉGIE")
+            onglet = st.radio("Menu Gestion", ["🕹️ Pilotage Live", "⚙️ Paramétrage", "📸 Gestion Photos", "📥 Exports & Data"])
             st.markdown("---")
             if st.button("🔓 Déconnexion", use_container_width=True):
                 st.session_state["auth"] = False
                 st.rerun()
 
-        # CONTENU CENTRAL SELON L'ONGLET
+        # ZONE CENTRALE ADMIN
         if onglet == "🕹️ Pilotage Live":
             st.header("🕹️ Pilotage du Mur Social")
             col_ctrl, col_stats = st.columns([1, 1.5])
@@ -146,7 +146,7 @@ else:
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     logo_img = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; margin-bottom:10px;">' if config.get("logo_b64") else ""
     
-    # TITRE FIXE ET COMPTEUR (CORRIGÉ)
+    # TITRE FIXE ET COMPTEUR (AFFICHAGE SÉCURISÉ)
     st.markdown(f"""
         <div style="text-align:center; color:white; padding-top:40px;">
             {logo_img}
@@ -177,9 +177,9 @@ else:
                 for opt in OPTS_BU[5:]: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:12px; border-left:5px solid #E2001A; font-weight:bold; font-size:18px;">🎥 {opt}</div>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
-            # MODE CLOS : PLUIE DE CONFETTIS
+            # MODE CLOS : PLUIE DE CONFETTIS TOMBANTE
             components.html(f"""
-                <div style="text-align:center; font-family:sans-serif; color:white; background:black;">
+                <div style="text-align:center; font-family:sans-serif; color:white; background:black; height:100%;">
                     <div style="{BADGE_CSS} background:#333;">🏁 LES VOTES SONT CLOS</div>
                     <div style="font-size:100px; animation: clap 0.5s infinite alternate; margin-top:30px;">👏</div>
                     <h1 style="color:#E2001A; font-size:45px;">MERCI À TOUS !</h1>
