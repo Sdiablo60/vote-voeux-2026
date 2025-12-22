@@ -380,7 +380,7 @@ else:
         <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
             <div style="margin-bottom:10px;">{logo_html}</div>
             <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
-                <img src="data:image/png;base64,{qr_b64}" width="220" style="display:block;">
+                <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
             </div>
             <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
                 📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !
@@ -391,19 +391,16 @@ else:
         # --- JAVASCRIPT ANIMATION ENGINE (Bubbles + Collision + Bouncing) ---
         photos = glob.glob(f"{LIVE_DIR}/*")
         photos.sort(key=os.path.getmtime, reverse=True)
-        recent_photos = photos[:40] # Plus de photos
+        recent_photos = photos[:40] 
 
-        # Préparation des URLs en base64 pour JS
         img_array_js = []
         for photo_path in recent_photos:
             with open(photo_path, "rb") as f:
                 b64 = base64.b64encode(f.read()).decode()
                 img_array_js.append(f"data:image/jpeg;base64,{b64}")
         
-        # Conversion liste Python -> Array JS
         js_img_list = json.dumps(img_array_js)
 
-        # Injection du Moteur Physique JS
         components.html(f"""
         <html>
         <head>
@@ -411,7 +408,6 @@ else:
                 body {{ margin: 0; overflow: hidden; background: transparent; }}
                 .bubble {{
                     position: absolute;
-                    width: 150px; height: 150px;
                     border-radius: 50%;
                     border: 4px solid #E2001A;
                     box-shadow: 0 0 20px rgba(226, 0, 26, 0.5);
@@ -426,10 +422,9 @@ else:
                 const images = {js_img_list};
                 const container = document.getElementById('container');
                 const bubbles = [];
-                const speed = 2.5; // Vitesse de base
+                const speed = 2.5;
 
-                // Zone centrale à éviter (QR Code)
-                // On prend 40% à 60% de l'écran comme zone interdite approximative
+                // Zone centrale (QR Code) à éviter
                 const centerX_min = window.innerWidth * 0.35;
                 const centerX_max = window.innerWidth * 0.65;
                 const centerY_min = window.innerHeight * 0.30;
@@ -440,21 +435,23 @@ else:
                     img.src = src;
                     img.className = 'bubble';
                     
-                    // Position aléatoire hors zone centrale pour commencer
+                    // Tailles variables (80 à 230px)
+                    const size = 80 + Math.random() * 150;
+                    
+                    // Position aléatoire hors zone centrale
                     let startX, startY;
                     do {{
                         startX = Math.random() * (window.innerWidth - 150);
                         startY = Math.random() * (window.innerHeight - 150);
                     }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max);
 
-                    // Propriétés physiques
                     const bubble = {{
                         element: img,
                         x: startX,
                         y: startY,
                         vx: (Math.random() - 0.5) * speed * 2,
                         vy: (Math.random() - 0.5) * speed * 2,
-                        size: 150 + Math.random() * 50 // Taille variable
+                        size: size
                     }};
                     
                     img.style.width = bubble.size + 'px';
@@ -477,15 +474,12 @@ else:
                         if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1;
 
                         // Rebond Zone Centrale (QR Code)
-                        // On vérifie si la bulle rentre dans le rectangle central
                         if (b.x + b.size > centerX_min && b.x < centerX_max && 
                             b.y + b.size > centerY_min && b.y < centerY_max) {{
                             
-                            // Inversion simple : si on vient de gauche/droite, on inverse X
-                            // Sinon on inverse Y. C'est une physique simplifiée.
                             const centerX = (centerX_min + centerX_max) / 2;
-                            if (b.x < centerX) b.vx = -Math.abs(b.vx); // Rebond vers gauche
-                            else b.vx = Math.abs(b.vx); // Rebond vers droite
+                            if (b.x < centerX) b.vx = -Math.abs(b.vx); 
+                            else b.vx = Math.abs(b.vx);
                         }}
 
                         b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
