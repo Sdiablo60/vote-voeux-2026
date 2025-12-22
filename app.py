@@ -130,7 +130,6 @@ def get_live_effect_html(effect_name, intensity, speed):
 
     elif effect_name == "🟢 Matrix":
         fps = max(10, 100 - (speed * 1.5))
-        # CORRECTIF: Doubles accolades pour le JS, simples pour la variable Python {fps}
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){{const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}}}};setInterval(d,{fps});</script>"""
     
     return ""
@@ -192,6 +191,7 @@ def get_tv_html(effect_js):
     """
 
 # --- 4. GENERATEUR JS POUR PREVIEW (DANS TV) ---
+# Calibrage identique au live
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
@@ -217,8 +217,7 @@ def get_preview_js(effect_name, intensity, speed):
         return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:{duration}}});setTimeout(()=>{{e.remove()}},{duration})}},{interval});</script>"""
     elif effect_name == "🟢 Matrix":
         fps = max(10, 100 - (speed * 1.5))
-        # CORRECTIF: Doubles accolades pour le JS, simples pour la variable Python {fps}
-        return f"""<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++})},{fps});</script>"""
+        return f"""<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++}})}},{fps});</script>"""
     return ""
 
 # --- FONCTIONS CRITIQUES ---
