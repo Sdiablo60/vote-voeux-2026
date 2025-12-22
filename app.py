@@ -35,7 +35,7 @@ def load_json(file, default):
         except: return default
     return default
 
-# --- GESTION ÉTAT SESSION (CORRECTION DU BUG DE RAFRAICHISSEMENT) ---
+# --- GESTION ÉTAT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
@@ -291,8 +291,8 @@ else:
             with c1:
                 for c in cands[:mid]: st.markdown(get_html(c), unsafe_allow_html=True)
             with c2:
-                # --- MODIFICATION ICI : Cadre blanc réduit et code QR plus petit ---
-                st.markdown(f'<div style="background:white; padding:8px; border-radius:10px; text-align:center;"><img src="data:image/png;base64,{qr_b64}" width="180"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0;">SCANNEZ</p></div>', unsafe_allow_html=True)
+                # --- MODIFICATION ICI : Padding réduit (4px) et centrage via margin: 0 auto et width: fit-content ---
+                st.markdown(f'<div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;"><img src="data:image/png;base64,{qr_b64}" width="180" style="display:block;"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p></div>', unsafe_allow_html=True)
             with c3:
                 for c in cands[mid:]: st.markdown(get_html(c), unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
