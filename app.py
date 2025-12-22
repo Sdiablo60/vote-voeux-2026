@@ -1,5 +1,6 @@
 import streamlit as st
 import os, glob, base64, qrcode, json, random, pandas as pd
+import altair as alt  # NOUVEAU : Import pour le graphique personnalisé
 from io import BytesIO
 import streamlit.components.v1 as components
 import time
@@ -117,7 +118,6 @@ if est_admin:
                 col_rst, col_info = st.columns([1, 2])
                 with col_rst:
                     if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet les scores et les participants à 0"):
-                        # Suppression des deux fichiers pour un vrai reset
                         if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
                         if os.path.exists(PARTICIPANTS_FILE): os.remove(PARTICIPANTS_FILE)
                         st.toast("✅ Session entièrement réinitialisée !")
@@ -126,15 +126,56 @@ if est_admin:
                     st.info("Efface les scores ET le compteur de participants.")
 
             st.markdown("---")
-            st.subheader("2️⃣ Monitoring")
+            st.subheader("2️⃣ Monitoring des Résultats")
+            
+            # --- VISUALISATION GRAPHIQUE AMÉLIORÉE ---
             v_data = load_json(VOTES_FILE, {})
-            if v_data:
-                valid = {k:v for k,v in v_data.items() if k in cfg["candidats"]}
-                if valid:
-                    df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
-                    st.bar_chart(df.set_index('Candidat'), color="#E2001A")
-                else: st.info("Aucun vote actif.")
-            else: st.info("En attente de votes...")
+            all_cands = st.session_state.config["candidats"]
+            
+            # Construction des données complètes (même ceux à 0)
+            full_data = {c: v_data.get(c, 0) for c in all_cands}
+            
+            if full_data:
+                # Création DataFrame
+                df = pd.DataFrame(list(full_data.items()), columns=['Candidat', 'Points'])
+                df = df.sort_values('Points', ascending=False).reset_index(drop=True)
+                df['Rang'] = df.index + 1
+                
+                # Définition des couleurs : Or, Argent, Bronze, puis Rouge Transdev pour les autres
+                def get_color(rank):
+                    if rank == 1: return '#FFD700' # Or
+                    if rank == 2: return '#C0C0C0' # Argent
+                    if rank == 3: return '#CD7F32' # Bronze
+                    return '#E2001A' # Rouge
+                
+                df['Color'] = df['Rang'].apply(get_color)
+
+                # Graphique Altair personnalisé (Fixe, propre, avec labels)
+                base = alt.Chart(df).encode(
+                    x=alt.X('Points', axis=None), # Pas d'axe X
+                    y=alt.Y('Candidat', sort='-x', axis=alt.Axis(labelFontSize=14, title=None)) # Noms plus gros
+                )
+
+                bars = base.mark_bar().encode(
+                    color=alt.Color('Color', scale=None), # Utilise la colonne couleur définie plus haut
+                    tooltip=['Candidat', 'Points', 'Rang']
+                )
+
+                text = base.mark_text(
+                    align='left',
+                    baseline='middle',
+                    dx=3,  # Décalage du texte
+                    fontSize=14,
+                    fontWeight='bold'
+                ).encode(
+                    text='Points'
+                )
+
+                chart = (bars + text).properties(height=500).configure_view(strokeWidth=0)
+                
+                st.altair_chart(chart, use_container_width=True)
+            else:
+                st.info("En attente de votes...")
 
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
@@ -153,7 +194,6 @@ if est_admin:
                         st.session_state.config["logo_b64"] = b64; force_refresh(); st.success("Logo OK"); st.rerun()
 
             with t2:
-                # Ajout
                 c_add1, c_add2 = st.columns([3, 1])
                 new_cand = c_add1.text_input("Nouveau candidat", key=f"new_cand_{st.session_state.refresh_id}", label_visibility="collapsed", placeholder="Nom...")
                 if c_add2.button("➕ Ajouter", use_container_width=True):
@@ -175,13 +215,11 @@ if est_admin:
                     for i, cand in enumerate(st.session_state.config["candidats"]):
                         cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5], vertical_alignment="center")
                         
-                        # 1. Image
                         with cols[0]:
                             if cand in st.session_state.config["candidats_images"]:
                                 st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][cand])), width=40)
                             else: st.write("⚪")
                         
-                        # 2. Input Nom
                         with cols[1]:
                             val_edit = st.text_input("Nom", value=cand, key=f"n_{i}_{rid}", label_visibility="collapsed")
                             if val_edit != cand:
@@ -190,21 +228,18 @@ if est_admin:
                                 st.session_state.config["candidats"][i] = val_edit
                                 force_refresh(); st.rerun()
                         
-                        # 3. Monter
                         with cols[2]:
                             if i > 0:
                                 if st.button("⬆️", key=f"u_{i}_{rid}"):
                                     st.session_state.config["candidats"][i], st.session_state.config["candidats"][i-1] = st.session_state.config["candidats"][i-1], st.session_state.config["candidats"][i]
                                     force_refresh(); st.rerun()
                         
-                        # 4. Descendre
                         with cols[3]:
                             if i < len(st.session_state.config["candidats"]) - 1:
                                 if st.button("⬇️", key=f"d_{i}_{rid}"):
                                     st.session_state.config["candidats"][i], st.session_state.config["candidats"][i+1] = st.session_state.config["candidats"][i+1], st.session_state.config["candidats"][i]
                                     force_refresh(); st.rerun()
 
-                        # 5. Photo Popover
                         with cols[4]:
                             with st.popover("🖼️"):
                                 st.write(f"**{cand}**")
@@ -220,7 +255,6 @@ if est_admin:
                                         del st.session_state.config["candidats_images"][cand]
                                         force_refresh(); st.rerun()
 
-                        # 6. Supprimer Ligne
                         with cols[5]:
                             if st.button("🗑️", key=f"del_{i}_{rid}"):
                                 st.session_state.config["candidats"].pop(i)
@@ -251,7 +285,7 @@ elif est_utilisateur:
     
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # 1. AFFICHAGE DU LOGO SUR MOBILE (NOUVEAU)
+    # LOGO SUR MOBILE
     if cfg.get("logo_b64"):
         st.markdown(f"""
         <div style="text-align:center; margin-bottom:20px;">
@@ -268,7 +302,6 @@ elif est_utilisateur:
         with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
         st.session_state["participant_recorded"] = True
 
-    # Écran de fin si déjà voté
     if st.session_state.get("a_vote", False):
         st.balloons()
         st.markdown("""
