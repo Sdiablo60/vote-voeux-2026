@@ -13,7 +13,6 @@ st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wi
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
 LIVE_DIR = "galerie_live_users"
-# AJOUT DE DETAILED_VOTES_FILE POUR LE LOG COMPLET
 VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE, VOTERS_FILE, DETAILED_VOTES_FILE = "votes.json", "participants.json", "config_mur.json", "voters.json", "detailed_votes.json"
 
 for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
@@ -115,7 +114,7 @@ def update_presence(is_active_user=False):
     presence_data = load_json(PARTICIPANTS_FILE, {})
     if isinstance(presence_data, list): presence_data = {}
     now = time.time()
-    clean_data = {uid: ts for uid, ts in presence_data.items() if now - ts < 10} # 10s timeout
+    clean_data = {uid: ts for uid, ts in presence_data.items() if now - ts < 10} 
     if is_active_user:
         clean_data[st.session_state.my_uuid] = now
     with open(PARTICIPANTS_FILE, "w") as f:
@@ -194,36 +193,39 @@ if est_admin:
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
             
-            # --- 2.1 KPIS ---
+            # KPI
             voters_list = load_json(VOTERS_FILE, [])
             st.metric("👥 Participants Validés", len(voters_list))
             
-            # --- 2.2 LOG DETAILLE DES VOTES (NOUVEAU) ---
+            # --- LOG DETAILLE (AVEC TOGGLE) ---
             st.markdown("##### 🕵️‍♂️ Détail des votes (Live)")
-            detailed_votes = load_json(DETAILED_VOTES_FILE, [])
-            if detailed_votes:
-                # Création d'un DataFrame joli pour l'admin
-                df_details = pd.DataFrame(detailed_votes)
-                # On renomme et réorganise si nécessaire
-                if not df_details.empty:
-                    st.dataframe(
-                        df_details, 
-                        use_container_width=True, 
-                        hide_index=True,
-                        column_config={
-                            "timestamp": "Heure",
-                            "user": "Pseudo / Nom",
-                            "choix_1": "🥇 1er Choix",
-                            "choix_2": "🥈 2ème Choix",
-                            "choix_3": "🥉 3ème Choix"
-                        }
-                    )
-            else:
-                st.info("Aucun vote détaillé enregistré pour le moment.")
+            
+            # LE SWITCH D'AFFICHAGE/MASQUAGE
+            show_details = st.toggle("👁️ Afficher le tableau des votants", value=False)
+            
+            if show_details:
+                detailed_votes = load_json(DETAILED_VOTES_FILE, [])
+                if detailed_votes:
+                    df_details = pd.DataFrame(detailed_votes)
+                    if not df_details.empty:
+                        st.dataframe(
+                            df_details, 
+                            use_container_width=True, 
+                            hide_index=True,
+                            column_config={
+                                "timestamp": "Heure",
+                                "user": "Pseudo / Nom",
+                                "choix_1": "🥇 1er Choix",
+                                "choix_2": "🥈 2ème Choix",
+                                "choix_3": "🥉 3ème Choix"
+                            }
+                        )
+                else:
+                    st.info("Aucun vote détaillé enregistré pour le moment.")
 
             st.markdown("---")
             
-            # --- 2.3 GRAPHIQUE ---
+            # GRAPHIQUE
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in cfg["candidats"]}
@@ -353,7 +355,6 @@ if est_admin:
             else: st.info("Aucun vote.")
             st.divider()
             
-            # EXPORT DES DETAILS
             st.subheader("2️⃣ Export Log Détaillé")
             detailed_votes = load_json(DETAILED_VOTES_FILE, [])
             if detailed_votes:
@@ -466,25 +467,20 @@ elif est_utilisateur:
             else:
                 choix = st.multiselect("Sélectionnez vos 3 favoris :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER MON VOTE", type="primary", use_container_width=True):
-                    # 1. Enregistrer le score global
                     vts = load_json(VOTES_FILE, {})
                     pts = cfg.get("points_ponderation", [5, 3, 1])
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     json.dump(vts, open(VOTES_FILE, "w"))
                     
-                    # 2. Enregistrer le votant (Liste des Pseudos)
                     voters = load_json(VOTERS_FILE, [])
                     voters.append(st.session_state.user_id)
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                     
-                    # 3. Enregistrer le détail (Pour Admin Monitoring)
                     details = load_json(DETAILED_VOTES_FILE, [])
                     details.append({
                         "timestamp": datetime.now().strftime("%H:%M:%S"),
                         "user": st.session_state.user_id,
-                        "choix_1": choix[0],
-                        "choix_2": choix[1],
-                        "choix_3": choix[2]
+                        "choix_1": choix[0], "choix_2": choix[1], "choix_3": choix[2]
                     })
                     with open(DETAILED_VOTES_FILE, "w") as f: json.dump(details, f)
                     
