@@ -54,16 +54,6 @@ if est_admin:
         st.sidebar.info(f"👥 {nb_p} Participants connectés")
         
         st.sidebar.markdown("---")
-        st.sidebar.caption("📺 État actuel du Mur :")
-        desc = "⏸️ ATTENTE"
-        if config["mode_affichage"] == "live": desc = "📸 LIVE PHOTOS"
-        if config["mode_affichage"] == "votes":
-            desc = "🗳️ VOTE OUVERT" if config["session_ouverte"] else "🏁 FIN DU VOTE"
-            if config["reveal_resultats"]: desc = "🏆 PODIUM"
-        st.sidebar.markdown(f'<div style="background:#333;padding:10px;border-radius:5px;border:1px solid #E2001A;text-align:center;color:white;font-weight:bold;">{desc}</div>', unsafe_allow_html=True)
-        st.sidebar.markdown("---")
-
-        st.sidebar.subheader("🕹️ Pilotage direct")
         m, vo, re = config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"]
 
         if st.sidebar.button("1️⃣ Début : Mode Attente", type="primary" if m == "attente" else "secondary", use_container_width=True):
@@ -86,127 +76,94 @@ if est_admin:
             config.update({"mode_affichage": "live", "session_ouverte": False, "reveal_resultats": False})
             with open(CONFIG_FILE, "w") as f: json.dump(config, f); st.rerun()
 
-        st.sidebar.markdown("---")
-        config["titre_mur"] = st.sidebar.text_input("Titre du Mur", value=config["titre_mur"])
-        if st.sidebar.button("💾 Sauver Titre", use_container_width=True):
-            with open(CONFIG_FILE, "w") as f: json.dump(config, f); st.rerun()
-
-        if st.sidebar.button("🔴 RESET COMPLET", type="secondary", use_container_width=True):
-            config.update({"vote_version": VOTE_VERSION+1, "session_ouverte": False, "reveal_resultats": False, "mode_affichage": "attente"})
-            for f_p, cont in [(CONFIG_FILE, config), (VOTES_FILE, {}), (PARTICIPANTS_FILE, [])]:
-                with open(f_p, "w") as f: json.dump(cont, f)
-            st.rerun()
-
 # --- 4. UTILISATEUR (VOTE) ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
     v_key = f"v_{VOTE_VERSION}"
-    components.html(f'<script>if(localStorage.getItem("{v_key}")){{ window.parent.postMessage({{type: "streamlit:setComponentValue", value: true, key: "voted"}}, "*"); }}</script>', height=0)
-
-    if st.session_state.get("voted") or st.session_state.get("voted_final"):
-        st.success("✅ Votre vote est enregistré !")
+    if not config["session_ouverte"]:
+        st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
     else:
-        if "pseudo" not in st.session_state:
-            with st.form("p"):
-                name = st.text_input("Votre Prénom :")
-                if st.form_submit_button("REJOINDRE"):
-                    if name:
-                        st.session_state["pseudo"] = name
-                        ps = load_json(PARTICIPANTS_FILE, [])
-                        if name not in ps: ps.append(name); json.dump(ps, open(PARTICIPANTS_FILE, "w"))
-                        st.rerun()
-        elif not config["session_ouverte"]:
-            st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
-        else:
-            choix = st.multiselect("Top 3 :", OPTS_BU)
-            if len(choix) == 3 and st.button("🚀 VALIDER", use_container_width=True, type="primary"):
-                vts = load_json(VOTES_FILE, {})
-                for v, pts in zip(choix, [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
-                with open(VOTES_FILE, "w") as f: json.dump(vts, f)
-                components.html(f'<script>localStorage.setItem("{v_key}", "true"); setTimeout(()=>{{window.parent.location.reload();}}, 300);</script>', height=0)
-                st.session_state["voted_final"] = True; st.rerun()
+        choix = st.multiselect("Top 3 :", OPTS_BU)
+        if len(choix) == 3 and st.button("🚀 VALIDER", use_container_width=True, type="primary"):
+            vts = load_json(VOTES_FILE, {})
+            for v, pts in zip(choix, [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
+            with open(VOTES_FILE, "w") as f: json.dump(vts, f)
+            st.success("✅ Vote enregistré !")
 
 # --- 5. MUR SOCIAL ---
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
-    host = st.context.headers.get('host', 'localhost')
-    qr_url = f"https://{host}/?mode=vote"
-    qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
-    qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
     
+    # Titre et Participants
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
-    v_data = load_json(VOTES_FILE, {})
+    st.markdown(f'<div style="text-align:center; color:white; padding-top:40px;"><h1 style="font-size:50px; margin:0; text-transform:uppercase; font-weight:bold;">{config["titre_mur"]}</h1><div style="margin-top:10px; background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; font-size:16px;">👥 {nb_p} CONNECTÉS</div></div>', unsafe_allow_html=True)
 
-    st.markdown(f'<div style="text-align:center; color:white; padding-top:40px;"><h1 style="font-size:50px; margin:0; text-transform:uppercase; letter-spacing:2px; font-weight:bold;">{config["titre_mur"]}</h1><div style="margin-top:10px; background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; font-size:16px;">👥 {nb_p} PARTICIPANTS CONNECTÉS</div></div>', unsafe_allow_html=True)
-
-    badge_style = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:20px; font-weight:bold; border:2px solid white; color:white;"
-
-    # LOGIQUE SONORE ET FEUX D'ARTIFICE
-    if (config["mode_affichage"] == "votes" and not config["session_ouverte"]) or config["reveal_resultats"]:
-        components.html("""
-            <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-            <script>
-                if (!window.hasFired) {
-                    var audio = new Audio("https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3");
-                    audio.play();
-                    
-                    var duration = 5 * 1000;
-                    var end = Date.now() + duration;
-
-                    (function frame() {
-                      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 } });
-                      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 } });
-                      if (Date.now() < end) { requestAnimationFrame(frame); }
-                    }());
-                    window.hasFired = true;
-                }
-            </script>
-        """, height=0)
-
-    # 1. MODE ATTENTE
+    # Logique d'affichage
     if config["mode_affichage"] == "attente":
-        st.markdown(f'<div style="text-align:center; color:white;"><div style="{badge_style}">⌛ En attente de l\'ouverture des Votes</div><div style="margin-top:60px;"><h2 style="font-size:55px; opacity:0.9;">Bienvenue à tous ! 👋</h2><p style="font-size:30px; color:#ccc; margin-top:15px;">Installez-vous confortablement.</p></div></div>', unsafe_allow_html=True)
+        st.markdown('<div style="text-align:center; margin-top:50px; color:white;"><h2>⌛ En attente de l\'ouverture des Votes</h2><h1 style="font-size:60px; margin-top:40px;">Bienvenue ! 👋</h1></div>', unsafe_allow_html=True)
 
-    # 2. MODE VOTES (OUVERT OU CLOS)
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         if config["session_ouverte"]:
-            st.markdown(f'<div style="text-align:center;"><div style="{badge_style} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div><style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>', unsafe_allow_html=True)
+            # Mode VOTE OUVERT : Affichage QR Code + Liste
+            host = st.context.headers.get('host', 'localhost')
+            qr_url = f"https://{host}/?mode=vote"
+            qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
+            qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+            
+            st.markdown('<div style="text-align:center; margin-top:20px;"><div style="background:#E2001A; color:white; padding:10px 30px; border-radius:10px; font-size:24px; font-weight:bold; border:2px solid white;">🚀 VOTES OUVERTS</div></div>', unsafe_allow_html=True)
+            col1, col2, col3 = st.columns([1, 0.8, 1])
+            with col1:
+                for opt in OPTS_BU[:5]: st.markdown(f'<div style="background:#222; color:white; padding:10px; margin-bottom:10px; border-left:5px solid #E2001A;">🎥 {opt}</div>', unsafe_allow_html=True)
+            with col2:
+                st.markdown(f'<div style="background:white; padding:10px; border-radius:15px; text-align:center;"><img src="data:image/png;base64,{qr_b64}" width="180"></div>', unsafe_allow_html=True)
+            with col3:
+                for opt in OPTS_BU[5:]: st.markdown(f'<div style="background:#222; color:white; padding:10px; margin-bottom:10px; border-left:5px solid #E2001A;">🎥 {opt}</div>', unsafe_allow_html=True)
         else:
-            st.markdown(f"""<div style="text-align:center;"><div style="{badge_style} background:#333;">🏁 LES VOTES SONT CLOS</div><div style="margin-top:40px; color:white;"><div class="claps">👏</div><h2 style="font-size:45px; color:#E2001A; margin-top:20px;">MERCI À TOUS !</h2><p style="font-size:25px; color:#ccc;">Suspense... Les résultats arrivent !</p></div></div><style>.claps {{ font-size: 100px; display: inline-block; animation: clap-anim 0.5s infinite alternate; }} @keyframes clap-anim {{ from {{ transform: scale(1) rotate(-10deg); }} to {{ transform: scale(1.3) rotate(10deg); }} }}</style>""", unsafe_allow_html=True)
+            # Mode VOTE CLOS : FEUX D'ARTIFICE ET CLAPS
+            components.html("""
+                <canvas id="fireworks" style="position:fixed; top:0; left:0; width:100vw; height:100vh; pointer-events:none; z-index:999;"></canvas>
+                <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+                <script>
+                    var count = 200;
+                    var defaults = { origin: { y: 0.7 } };
+                    function fire(particleRatio, opts) {
+                        confetti(Object.assign({}, defaults, opts, { particleCount: Math.floor(count * particleRatio) }));
+                    }
+                    fire(0.25, { spread: 26, startVelocity: 55 });
+                    fire(0.2, { spread: 60 });
+                    fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+                    fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+                    fire(0.1, { spread: 120, startVelocity: 45 });
+                </script>
+            """, height=0)
+            
+            st.markdown("""
+                <div style="text-align:center; margin-top:40px;">
+                    <div style="background:#333; color:white; padding:10px 30px; border-radius:10px; font-size:24px; font-weight:bold; border:2px solid white; display:inline-block;">🏁 VOTES CLOS</div>
+                    <div style="margin-top:50px; color:white;">
+                        <div class="clap-emoji">👏</div>
+                        <h1 style="font-size:50px; color:#E2001A;">MERCI À TOUS !</h1>
+                        <h3>Préparation des résultats...</h3>
+                    </div>
+                </div>
+                <style>
+                    .clap-emoji { font-size: 100px; animation: clap 0.6s infinite alternate; }
+                    @keyframes clap { from { transform: scale(1) rotate(-10deg); } to { transform: scale(1.3) rotate(10deg); } }
+                </style>
+            """, unsafe_allow_html=True)
 
-        st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
-        col1, col2, col3 = st.columns([1, 0.8, 1])
-        with col1:
-            for opt in OPTS_BU[:5]:
-                st.markdown(f'<div style="background:#222; color:white; padding:12px 15px; border-radius:10px; margin-bottom:12px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
-        with col2:
-            if config["session_ouverte"]:
-                st.markdown(f'<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;"><div style="background:white; padding:8px; border-radius:12px; display:inline-block;"><img src="data:image/png;base64,{qr_b64}" width="180"></div></div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div style="height:180px;"></div>', unsafe_allow_html=True)
-        with col3:
-            for opt in OPTS_BU[5:]:
-                st.markdown(f'<div style="background:#222; color:white; padding:12px 15px; border-radius:10px; margin-bottom:12px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # 3. MODE PODIUM
-    elif config["mode_affichage"] == "votes" and config["reveal_resultats"]:
+    elif config["reveal_resultats"]:
+        v_data = load_json(VOTES_FILE, {})
         if v_data:
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
             cols = st.columns(3)
             m_txt = ["🥇 1er", "🥈 2ème", "🥉 3ème"]
             for i, (name, score) in enumerate(sorted_v):
-                cols[i].markdown(f'<div style="background:#222;padding:30px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;min-height:200px;"><h2 style="color:#E2001A;">{m_txt[i]}</h2><h1 style="font-size:35px;">{name}</h1><p>{score} pts</p></div>', unsafe_allow_html=True)
+                cols[i].markdown(f'<div style="background:#222;padding:30px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;"><h2>{m_txt[i]}</h2><h1>{name}</h1><p>{score} pts</p></div>', unsafe_allow_html=True)
 
-    # 4. MODE LIVE PHOTOS
-    elif config["mode_affichage"] == "live":
-        img_list = glob.glob(os.path.join(ADMIN_DIR, "*")) + glob.glob(os.path.join(GALLERY_DIR, "*"))
-        if img_list:
-            p_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" style="position:absolute;width:240px;border:5px solid white;border-radius:10px;top:{random.randint(10,50)}%;left:{random.randint(5,75)}%;transform:rotate({random.randint(-10,10)}deg);box-shadow:5px 5px 15px rgba(0,0,0,0.5);">' for p in img_list[-12:]])
-            components.html(f'<div style="position:relative;width:100%;height:550px;overflow:hidden;">{p_html}</div>', height=600)
-
-    try: 
+    # Rafraîchissement automatique
+    try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(5000, key="wall_ref")
     except: pass
