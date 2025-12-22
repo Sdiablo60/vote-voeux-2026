@@ -8,6 +8,13 @@ from datetime import datetime
 import zipfile
 import uuid
 
+# TENTATIVE D'IMPORT DE FPDF POUR L'EXPORT PDF
+try:
+    from fpdf import FPDF
+    HAS_FPDF = True
+except ImportError:
+    HAS_FPDF = False
+
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
 
@@ -121,6 +128,43 @@ def update_presence(is_active_user=False):
         json.dump(clean_data, f)
     return len(clean_data)
 
+# --- GENERATEUR PDF SIMPLIFIÉ ---
+def generate_pdf_report(dataframe, title):
+    if not HAS_FPDF: return None
+    
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 15)
+            self.cell(0, 10, title, 0, 1, 'C')
+            self.ln(10)
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+    pdf = PDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=10)
+    
+    # Entêtes
+    cols = dataframe.columns.tolist()
+    col_width = 190 / len(cols)
+    pdf.set_fill_color(200, 220, 255)
+    for col in cols:
+        # Encodage latin-1 pour éviter plantage accents
+        pdf.cell(col_width, 10, str(col).encode('latin-1', 'replace').decode('latin-1'), 1, 0, 'C', 1)
+    pdf.ln()
+    
+    # Données
+    pdf.set_fill_color(255, 255, 255)
+    for index, row in dataframe.iterrows():
+        for col in cols:
+            txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
+            pdf.cell(col_width, 10, txt, 1, 0, 'C')
+        pdf.ln()
+        
+    return pdf.output(dest='S').encode('latin-1')
+
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
@@ -197,13 +241,32 @@ if est_admin:
             voters_list = load_json(VOTERS_FILE, [])
             st.metric("👥 Participants Validés", len(voters_list))
             
-            # --- LOG DETAILLE (AVEC TOGGLE) ---
-            st.markdown("##### 🕵️‍♂️ Détail des votes (Live)")
+            # --- 2.1 RESUME GRAPHIQUE (TOGGLE) ---
+            show_summary = st.toggle("📊 Afficher le Graphique & Podiums", value=True)
             
-            # LE SWITCH D'AFFICHAGE/MASQUAGE
+            if show_summary:
+                v_data = load_json(VOTES_FILE, {})
+                if v_data:
+                    valid = {k:v for k,v in v_data.items() if k in cfg["candidats"]}
+                    if valid:
+                        import altair as alt
+                        df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points'])
+                        df = df.sort_values('Points', ascending=False).reset_index(drop=True)
+                        df['Rang'] = df.index + 1
+                        def get_color(rank): return '#FFD700' if rank == 1 else '#C0C0C0' if rank == 2 else '#CD7F32' if rank == 3 else '#E2001A'
+                        df['Color'] = df['Rang'].apply(get_color)
+                        base = alt.Chart(df).encode(x=alt.X('Points', axis=None), y=alt.Y('Candidat', sort='-x', axis=alt.Axis(labelFontSize=14, title=None)))
+                        bars = base.mark_bar().encode(color=alt.Color('Color', scale=None))
+                        text = base.mark_text(align='left', baseline='middle', dx=3).encode(text='Points')
+                        st.altair_chart((bars + text).properties(height=400).configure_view(strokeWidth=0), use_container_width=True)
+                    else: st.info("Aucun vote actif.")
+                else: st.info("En attente de votes...")
+
+            # --- 2.2 LOG DETAILLE (TOGGLE) ---
             show_details = st.toggle("👁️ Afficher le tableau des votants", value=False)
             
             if show_details:
+                st.markdown("##### 🕵️‍♂️ Détail des votes (Live)")
                 detailed_votes = load_json(DETAILED_VOTES_FILE, [])
                 if detailed_votes:
                     df_details = pd.DataFrame(detailed_votes)
@@ -221,27 +284,7 @@ if est_admin:
                             }
                         )
                 else:
-                    st.info("Aucun vote détaillé enregistré pour le moment.")
-
-            st.markdown("---")
-            
-            # GRAPHIQUE
-            v_data = load_json(VOTES_FILE, {})
-            if v_data:
-                valid = {k:v for k,v in v_data.items() if k in cfg["candidats"]}
-                if valid:
-                    import altair as alt
-                    df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points'])
-                    df = df.sort_values('Points', ascending=False).reset_index(drop=True)
-                    df['Rang'] = df.index + 1
-                    def get_color(rank): return '#FFD700' if rank == 1 else '#C0C0C0' if rank == 2 else '#CD7F32' if rank == 3 else '#E2001A'
-                    df['Color'] = df['Rang'].apply(get_color)
-                    base = alt.Chart(df).encode(x=alt.X('Points', axis=None), y=alt.Y('Candidat', sort='-x', axis=alt.Axis(labelFontSize=14, title=None)))
-                    bars = base.mark_bar().encode(color=alt.Color('Color', scale=None))
-                    text = base.mark_text(align='left', baseline='middle', dx=3).encode(text='Points')
-                    st.altair_chart((bars + text).properties(height=500).configure_view(strokeWidth=0), use_container_width=True)
-                else: st.info("Aucun vote actif.")
-            else: st.info("En attente de votes...")
+                    st.info("Aucun vote détaillé enregistré.")
 
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
@@ -343,24 +386,47 @@ if est_admin:
 
         elif menu == "📊 Data & Exports":
             st.title("📊 Data & Exports")
-            st.subheader("1️⃣ Export des Résultats")
+            
+            # --- 1. EXPORT SCORES GLOBAUX ---
+            st.subheader("1️⃣ Résultats Globaux (Scores)")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in st.session_state.config["candidats"]}
                 if valid:
                     df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
                     st.dataframe(df, hide_index=True, use_container_width=True)
-                    st.download_button(label="📥 Télécharger CSV", data=df.to_csv(index=False).encode('utf-8'), file_name=f"resultats_{int(time.time())}.csv", mime="text/csv", type="primary")
+                    
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        st.download_button("📥 Télécharger CSV", data=df.to_csv(index=False).encode('utf-8'), file_name=f"resultats_globaux_{int(time.time())}.csv", mime="text/csv", use_container_width=True)
+                    with c2:
+                        if HAS_FPDF:
+                            pdf_bytes = generate_pdf_report(df, "RESULTATS GLOBAUX")
+                            st.download_button("📄 Télécharger PDF", data=pdf_bytes, file_name=f"resultats_globaux_{int(time.time())}.pdf", mime="application/pdf", use_container_width=True)
+                        else:
+                            st.warning("Installez 'fpdf' (pip install fpdf) pour l'export PDF.")
                 else: st.info("Aucun vote valide.")
             else: st.info("Aucun vote.")
+            
             st.divider()
             
-            st.subheader("2️⃣ Export Log Détaillé")
+            # --- 2. EXPORT LOG DETAILLE ---
+            st.subheader("2️⃣ Historique Détaillé (Votants)")
             detailed_votes = load_json(DETAILED_VOTES_FILE, [])
             if detailed_votes:
                 df_det = pd.DataFrame(detailed_votes)
-                st.download_button(label="📥 Télécharger Log Complet CSV", data=df_det.to_csv(index=False).encode('utf-8'), file_name=f"log_votes_complet_{int(time.time())}.csv", mime="text/csv")
-            else: st.info("Pas de log détaillé.")
+                st.dataframe(df_det, hide_index=True, use_container_width=True)
+                
+                c1, c2 = st.columns(2)
+                with c1:
+                    st.download_button("📥 Télécharger CSV", data=df_det.to_csv(index=False).encode('utf-8'), file_name=f"historique_detaille_{int(time.time())}.csv", mime="text/csv", use_container_width=True)
+                with c2:
+                    if HAS_FPDF:
+                        pdf_bytes = generate_pdf_report(df_det, "HISTORIQUE DETAILLE")
+                        st.download_button("📄 Télécharger PDF", data=pdf_bytes, file_name=f"historique_detaille_{int(time.time())}.pdf", mime="application/pdf", use_container_width=True)
+                    else:
+                        st.warning("Installez 'fpdf' pour l'export PDF.")
+            else: st.info("Pas d'historique.")
 
             st.divider()
             st.subheader("⚠️ Réinitialisation")
@@ -639,9 +705,3 @@ else:
                 if name in config.get("candidats_images", {}):
                      img_p = f'<img src="data:image/png;base64,{config["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; border:4px solid {colors[i]}; display:block; margin:0 auto 15px auto;">'
                 cols[i].markdown(f"""<div style="background:#1a1a1a; padding:30px; border:4px solid {colors[i]}; text-align:center; color:white; margin-top:30px; border-radius:20px;"><h2>{ranks[i]}</h2>{img_p}<h1>{name}</h1><p>{score} pts</p></div>""", unsafe_allow_html=True)
-            components.html('<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>confetti({particleCount:100,spread:70,origin:{y:0.6}});</script>', height=0)
-
-    try:
-        from streamlit_autorefresh import st_autorefresh
-        st_autorefresh(5000, key="wall_ref")
-    except: pass
