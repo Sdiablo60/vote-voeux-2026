@@ -68,7 +68,7 @@ def process_image_upload(uploaded_file):
         img.thumbnail((300, 300))
         buffered = BytesIO()
         img.save(buffered, format="PNG") 
-        return base64.b64encode(buffered.getvalue()).decode()
+        return base64.b64encode(buffered.getvalue()).decode().replace('\n', '')
     except: return None
 
 def save_live_photo(uploaded_file):
@@ -79,7 +79,7 @@ def save_live_photo(uploaded_file):
         filepath = os.path.join(LIVE_DIR, filename)
         
         img = Image.open(uploaded_file)
-        # Gestion rotation EXIF
+        # Gestion rotation EXIF pour mobile
         try:
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
@@ -290,9 +290,11 @@ elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     cfg = load_json(CONFIG_FILE, default_config)
     
+    # Logo avec gestion erreur indentation fixée
     if cfg.get("logo_b64"):
-        st.markdown(f"""<div style="text-align:center; margin-bottom:20px; background:transparent;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto; background:transparent;"></div>""", unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align:center; margin-bottom:20px; background:transparent;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto; background:transparent;"></div>', unsafe_allow_html=True)
     
+    # Enregistrement
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
@@ -362,7 +364,7 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
-    # ANIMATION ET STYLE CSS
+    # CSS GLOBAL
     st.markdown("""
     <style>
         body, .stApp { background-color: black !important; } 
@@ -370,7 +372,6 @@ else:
         .block-container { padding-top: 2rem !important; }
         img { background-color: transparent !important; }
         
-        /* Animation fluide et rapide des bulles */
         @keyframes randomFloat {
             0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
             10% { opacity: 1; }
@@ -395,49 +396,39 @@ else:
     config = load_json(CONFIG_FILE, default_config)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
-    # 1. LOGO EN HAUT (FIXE)
+    # 1. LOGO EN HAUT
     logo_html = ""
     if config.get("logo_b64"): 
-        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:120px; display:block; margin:0 auto; background:transparent;">'
+        # CORRECTION BUG INDENTATION : On utilise une chaine directe sans sauts de ligne
+        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
 
-    # Titre affiché sauf en mode live photo (car remplacé par le module central)
     if config["mode_affichage"] != "photos_live":
-        st.markdown(f"""
-        <div style="text-align:center; color:white; background:transparent;">
-        {logo_html}
-        <h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1>
-        </div>
-        """, unsafe_allow_html=True)
+        # CORRECTION BUG INDENTATION
+        st.markdown(f'<div style="text-align:center; color:white; background:transparent;">{logo_html}<h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
 
-    # 2. MODES
+    # 1. ATTENTE
     if config["mode_affichage"] == "attente":
         st.markdown(f"""<div style="text-align:center; color:white; margin-top:80px;"><div style="{BADGE_CSS}">✨ BIENVENUE ✨</div><h2 style="font-size:50px; margin-top:40px; font-weight:lighter;">L'événement va commencer...</h2></div>""", unsafe_allow_html=True)
 
+    # 2. PHOTOS LIVE (MODE IMMERSIF)
     elif config["mode_affichage"] == "photos_live":
-        # --- MODULE CENTRAL FLOTTANT (Îlots séparés) ---
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
+        # ÉLÉMENT CENTRAL FIXE (QR + LOGO + TEXTE) - Z-INDEX ÉLEVÉ
+        # CORRECTION : Indentation HTML sécurisée
         st.markdown(f"""
-        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
-            
-            <div style="margin-bottom:10px;">
-                {logo_html}
-            </div>
+<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
+<div style="margin-bottom:10px;">{logo_html}</div>
+<div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
+<img src="data:image/png;base64,{qr_b64}" width="220" style="display:block;">
+</div>
+<div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !</div>
+</div>
+""", unsafe_allow_html=True)
 
-            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
-                <img src="data:image/png;base64,{qr_b64}" width="220" style="display:block;">
-            </div>
-
-            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
-                📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !
-            </div>
-
-        </div>
-        """, unsafe_allow_html=True)
-
-        # --- BULLES D'ARRIÈRE-PLAN ---
+        # AFFICHAGE DES BULLES FLOTTANTES (ARRIÈRE-PLAN)
         photos = glob.glob(f"{LIVE_DIR}/*")
         photos.sort(key=os.path.getmtime, reverse=True)
         recent_photos = photos[:35]
@@ -447,25 +438,16 @@ else:
             with open(photo_path, "rb") as f:
                 b64_img = base64.b64encode(f.read()).decode()
             
-            # Positionnement aléatoire "Full Screen"
             top = random.randint(5, 85)
             left = random.randint(5, 90)
             size = random.randint(140, 240)
-            duration = random.randint(6, 12) # Plus rapide
+            duration = random.randint(6, 12)
             delay = random.randint(0, 5)
             
-            html_bubbles += f"""
-            <img src="data:image/jpeg;base64,{b64_img}" class="photo-bubble" style="
-                top: {top}%; 
-                left: {left}%; 
-                width: {size}px; 
-                height: {size}px;
-                animation-duration: {duration}s;
-                animation-delay: -{delay}s;
-            ">
-            """
+            html_bubbles += f"""<img src="data:image/jpeg;base64,{b64_img}" class="photo-bubble" style="top: {top}%; left: {left}%; width: {size}px; height: {size}px; animation-duration: {duration}s; animation-delay: -{delay}s;">"""
         st.markdown(html_bubbles, unsafe_allow_html=True)
 
+    # 3. VOTES
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         st.markdown(f'<div style="text-align:center; margin-top:10px;"><div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold;">👥 {nb_p} CONNECTÉS</div></div>', unsafe_allow_html=True)
         
@@ -479,25 +461,26 @@ else:
             cands = config["candidats"]
             mid = (len(cands) + 1) // 2
             
-            def get_html(lbl):
-                img = '<span style="font-size:30px; margin-right:15px;">🎥</span>'
-                if lbl in config.get("candidats_images", {}):
-                    b64 = config["candidats_images"][lbl]
-                    img = f'<img src="data:image/png;base64,{b64}" style="width:60px; height:60px; object-fit:cover; border-radius:10px; margin-right:15px; border:2px solid #E2001A;">'
-                return f'<div style="background:#222; color:white; padding:10px; margin-bottom:12px; border-left:6px solid #E2001A; font-weight:bold; font-size:22px; display:flex; align-items:center;">{img}{lbl}</div>'
+            def get_item_html(label):
+                img_html = '<span style="font-size:30px; margin-right:15px;">🎥</span>'
+                if label in config.get("candidats_images", {}):
+                    b64 = config["candidats_images"][label]
+                    img_html = f'<img src="data:image/png;base64,{b64}" style="width:60px; height:60px; object-fit:cover; border-radius:10px; margin-right:15px; border:2px solid #E2001A;">'
+                return f'<div style="background:#222; color:white; padding:10px; margin-bottom:12px; border-left:6px solid #E2001A; font-weight:bold; font-size:22px; display:flex; align-items:center;">{img_html}{label}</div>'
 
             st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 0.7, 1])
             with c1:
-                for c in cands[:mid]: st.markdown(get_html(c), unsafe_allow_html=True)
+                for c in cands[:mid]: st.markdown(get_item_html(c), unsafe_allow_html=True)
             with c2:
                 st.markdown(f'<div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;"><img src="data:image/png;base64,{qr_b64}" width="180" style="display:block;"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p></div>', unsafe_allow_html=True)
             with c3:
-                for c in cands[mid:]: st.markdown(get_html(c), unsafe_allow_html=True)
+                for c in cands[mid:]: st.markdown(get_item_html(c), unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
             components.html(f"""<div style="text-align:center;color:white;background:black;height:100vh;"><div style="{BADGE_CSS} background:#333;">🏁 CLOS</div><div style="font-size:100px;margin-top:40px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1></div>""", height=600)
 
+    # 4. PODIUM
     elif config["reveal_resultats"]:
         diff = 10 - int(time.time() - config.get("timestamp_podium", 0))
         if diff > 0:
