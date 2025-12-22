@@ -10,7 +10,7 @@ from datetime import datetime
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
-LIVE_DIR = "galerie_live_users"      # Photos prises en direct
+LIVE_DIR = "galerie_live_users"
 VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE, VOTERS_FILE = "votes.json", "participants.json", "config_mur.json", "voters.json"
 
 for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
@@ -72,15 +72,13 @@ def process_image_upload(uploaded_file):
     except: return None
 
 def save_live_photo(uploaded_file):
-    """Sauvegarde une photo prise en direct"""
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"live_{timestamp}_{random.randint(100,999)}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
         
         img = Image.open(uploaded_file)
-        # Gestion rotation EXIF pour mobile
-        try:
+        try: # Rotation EXIF
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -195,33 +193,27 @@ if est_admin:
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
             t1, t2 = st.tabs(["Identité", "Gestion Questions"])
-            
             with t1:
                 new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"], key=f"titre_{st.session_state.refresh_id}")
                 if new_t != st.session_state.config["titre_mur"]:
                     if st.button("Sauver Titre"):
                         st.session_state.config["titre_mur"] = new_t; force_refresh(); st.rerun()
-                
                 up_l = st.file_uploader("Logo", type=["png", "jpg"])
                 if up_l:
                     b64 = process_image_upload(up_l)
                     if b64:
                         st.session_state.config["logo_b64"] = b64; force_refresh(); st.success("Logo chargé !"); st.rerun()
-                
                 if st.session_state.config.get("logo_b64"):
                     st.markdown(f'<img src="data:image/png;base64,{st.session_state.config["logo_b64"]}" width="150" style="background:gray; padding:10px;">', unsafe_allow_html=True)
-
             with t2:
                 st.subheader("📋 Liste des Questions")
                 current_list = st.session_state.config["candidats"]
                 df_cands = pd.DataFrame(current_list, columns=["Nom du Candidat"])
                 edited_df = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True, key="editor_cands")
-
                 if st.button("💾 ENREGISTRER LISTE", type="primary"):
                     new_list = [x for x in edited_df["Nom du Candidat"].astype(str).tolist() if x.strip() != ""]
                     st.session_state.config["candidats"] = new_list
                     save_config(); st.success("Mise à jour !"); time.sleep(1); st.rerun()
-
                 st.markdown("---")
                 st.subheader("🖼️ Photos Questions")
                 if st.session_state.config["candidats"]:
@@ -243,7 +235,6 @@ if est_admin:
         elif menu == "📸 Médiathèque":
             st.title("📸 Médiathèque")
             t_adm, t_live, t_old = st.tabs(["📂 Admin (Logos)", "🔴 Photos Live Users", "📂 Uploads Vrac"])
-            
             with t_adm:
                 up_sys = st.file_uploader("Ajout Admin", type=['png', 'jpg'], key="up_sys")
                 if up_sys:
@@ -256,7 +247,6 @@ if est_admin:
                         with cols[i%5]:
                             st.image(f, use_container_width=True)
                             if st.button("🗑️", key=f"da_{i}"): os.remove(f); st.rerun()
-            
             with t_live:
                 st.info("Photos reçues en direct.")
                 files = glob.glob(f"{LIVE_DIR}/*")
@@ -268,7 +258,6 @@ if est_admin:
                             st.image(f, use_container_width=True)
                             if st.button("🗑️", key=f"dl_{i}"): os.remove(f); st.rerun()
                 else: st.write("Vide.")
-
             with t_old:
                 files = glob.glob(f"{GALLERY_DIR}/*")
                 if files:
@@ -290,11 +279,9 @@ elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # Logo avec gestion erreur indentation fixée
     if cfg.get("logo_b64"):
         st.markdown(f'<div style="text-align:center; margin-bottom:20px; background:transparent;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto; background:transparent;"></div>', unsafe_allow_html=True)
     
-    # Enregistrement
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
@@ -306,12 +293,10 @@ elif est_utilisateur:
         st.title("📸 Mur Live")
         st.info("Participez au mur photo en direct !")
         
-        tab_native, tab_web = st.tabs(["📱 Caméra Téléphone (Recommandé)", "💻 Webcam"])
-        
+        tab_native, tab_web = st.tabs(["📱 Caméra Téléphone", "💻 Webcam"])
         with tab_native:
             st.write("**Utilisez l'appareil photo de votre téléphone :**")
             photo_native = st.file_uploader("Prendre une photo", type=["png", "jpg", "jpeg"], key=f"upl_{st.session_state.cam_reset_id}")
-            
             if photo_native:
                 if save_live_photo(photo_native):
                     st.balloons()
@@ -319,7 +304,6 @@ elif est_utilisateur:
                     st.session_state.cam_reset_id += 1
                     time.sleep(1.5); st.rerun()
                 else: st.error("Erreur d'envoi.")
-
         with tab_web:
             st.write("Utiliser la caméra du navigateur (Nécessite HTTPS) :")
             photo_web = st.camera_input("Photo", key=f"cam_{st.session_state.cam_reset_id}")
@@ -333,7 +317,6 @@ elif est_utilisateur:
     else:
         st.title("🗳️ Vote Transdev")
         if "user_id" not in st.session_state: st.session_state.user_id = None
-
         if not st.session_state.user_id:
             nom = st.text_input("Votre Nom / Matricule :")
             if st.button("Commencer"):
@@ -364,110 +347,174 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
-    # CSS GLOBAL
+    # CSS de Base
     st.markdown("""
     <style>
         body, .stApp { background-color: black !important; } 
         [data-testid='stHeader'], footer { display: none !important; } 
         .block-container { padding-top: 2rem !important; }
         img { background-color: transparent !important; }
-        
-        @keyframes randomFloat {
-            0% { transform: translate(0, 0) rotate(0deg); opacity: 0; }
-            10% { opacity: 1; }
-            30% { transform: translate(60px, -80px) rotate(10deg); }
-            60% { transform: translate(-50px, 60px) rotate(-10deg); }
-            90% { transform: translate(40px, -40px) rotate(5deg); opacity: 1; }
-            100% { transform: translate(0, 0) rotate(0deg); opacity: 0.8; }
-        }
-
-        .photo-bubble {
-            position: fixed; 
-            border-radius: 50%;
-            object-fit: cover;
-            border: 4px solid #E2001A;
-            box-shadow: 0 0 25px rgba(226, 0, 26, 0.6);
-            animation: randomFloat 12s ease-in-out infinite alternate;
-            z-index: 1; /* Arrière plan */
-        }
     </style>
     """, unsafe_allow_html=True)
     
     config = load_json(CONFIG_FILE, default_config)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
-    # 1. LOGO EN HAUT
     logo_html = ""
     if config.get("logo_b64"): 
-        # CORRECTION BUG INDENTATION : On utilise une chaine directe sans sauts de ligne
         logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
 
     if config["mode_affichage"] != "photos_live":
-        # CORRECTION BUG INDENTATION
         st.markdown(f'<div style="text-align:center; color:white; background:transparent;">{logo_html}<h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
 
-    # 1. ATTENTE
     if config["mode_affichage"] == "attente":
         st.markdown(f"""<div style="text-align:center; color:white; margin-top:80px;"><div style="{BADGE_CSS}">✨ BIENVENUE ✨</div><h2 style="font-size:50px; margin-top:40px; font-weight:lighter;">L'événement va commencer...</h2></div>""", unsafe_allow_html=True)
 
-    # 2. PHOTOS LIVE (MODE IMMERSIF)
     elif config["mode_affichage"] == "photos_live":
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
 
-        # ÉLÉMENT CENTRAL FIXE (QR + LOGO + TEXTE) - Z-INDEX ÉLEVÉ
-        # CORRECTION : Indentation HTML sécurisée
+        # ÉLÉMENT CENTRAL FIXE
         st.markdown(f"""
-<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
-<div style="margin-bottom:10px;">{logo_html}</div>
-<div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
-<img src="data:image/png;base64,{qr_b64}" width="220" style="display:block;">
-</div>
-<div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !</div>
-</div>
-""", unsafe_allow_html=True)
+        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
+            <div style="margin-bottom:10px;">{logo_html}</div>
+            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
+                <img src="data:image/png;base64,{qr_b64}" width="220" style="display:block;">
+            </div>
+            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
+                📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
-        # AFFICHAGE DES BULLES FLOTTANTES (ARRIÈRE-PLAN)
+        # --- JAVASCRIPT ANIMATION ENGINE (Bubbles + Collision + Bouncing) ---
         photos = glob.glob(f"{LIVE_DIR}/*")
         photos.sort(key=os.path.getmtime, reverse=True)
-        recent_photos = photos[:35]
+        recent_photos = photos[:40] # Plus de photos
 
-        html_bubbles = ""
+        # Préparation des URLs en base64 pour JS
+        img_array_js = []
         for photo_path in recent_photos:
             with open(photo_path, "rb") as f:
-                b64_img = base64.b64encode(f.read()).decode()
-            
-            top = random.randint(5, 85)
-            left = random.randint(5, 90)
-            size = random.randint(140, 240)
-            duration = random.randint(6, 12)
-            delay = random.randint(0, 5)
-            
-            html_bubbles += f"""<img src="data:image/jpeg;base64,{b64_img}" class="photo-bubble" style="top: {top}%; left: {left}%; width: {size}px; height: {size}px; animation-duration: {duration}s; animation-delay: -{delay}s;">"""
-        st.markdown(html_bubbles, unsafe_allow_html=True)
+                b64 = base64.b64encode(f.read()).decode()
+                img_array_js.append(f"data:image/jpeg;base64,{b64}")
+        
+        # Conversion liste Python -> Array JS
+        js_img_list = json.dumps(img_array_js)
 
-    # 3. VOTES
+        # Injection du Moteur Physique JS
+        components.html(f"""
+        <html>
+        <head>
+            <style>
+                body {{ margin: 0; overflow: hidden; background: transparent; }}
+                .bubble {{
+                    position: absolute;
+                    width: 150px; height: 150px;
+                    border-radius: 50%;
+                    border: 4px solid #E2001A;
+                    box-shadow: 0 0 20px rgba(226, 0, 26, 0.5);
+                    object-fit: cover;
+                    will-change: transform;
+                }}
+            </style>
+        </head>
+        <body>
+            <div id="container"></div>
+            <script>
+                const images = {js_img_list};
+                const container = document.getElementById('container');
+                const bubbles = [];
+                const speed = 2.5; // Vitesse de base
+
+                // Zone centrale à éviter (QR Code)
+                // On prend 40% à 60% de l'écran comme zone interdite approximative
+                const centerX_min = window.innerWidth * 0.35;
+                const centerX_max = window.innerWidth * 0.65;
+                const centerY_min = window.innerHeight * 0.30;
+                const centerY_max = window.innerHeight * 0.70;
+
+                images.forEach((src, index) => {{
+                    const img = document.createElement('img');
+                    img.src = src;
+                    img.className = 'bubble';
+                    
+                    // Position aléatoire hors zone centrale pour commencer
+                    let startX, startY;
+                    do {{
+                        startX = Math.random() * (window.innerWidth - 150);
+                        startY = Math.random() * (window.innerHeight - 150);
+                    }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max);
+
+                    // Propriétés physiques
+                    const bubble = {{
+                        element: img,
+                        x: startX,
+                        y: startY,
+                        vx: (Math.random() - 0.5) * speed * 2,
+                        vy: (Math.random() - 0.5) * speed * 2,
+                        size: 150 + Math.random() * 50 // Taille variable
+                    }};
+                    
+                    img.style.width = bubble.size + 'px';
+                    img.style.height = bubble.size + 'px';
+                    
+                    container.appendChild(img);
+                    bubbles.push(bubble);
+                }});
+
+                function animate() {{
+                    const w = window.innerWidth;
+                    const h = window.innerHeight;
+
+                    bubbles.forEach(b => {{
+                        b.x += b.vx;
+                        b.y += b.vy;
+
+                        // Rebond murs externes
+                        if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1;
+                        if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1;
+
+                        // Rebond Zone Centrale (QR Code)
+                        // On vérifie si la bulle rentre dans le rectangle central
+                        if (b.x + b.size > centerX_min && b.x < centerX_max && 
+                            b.y + b.size > centerY_min && b.y < centerY_max) {{
+                            
+                            // Inversion simple : si on vient de gauche/droite, on inverse X
+                            // Sinon on inverse Y. C'est une physique simplifiée.
+                            const centerX = (centerX_min + centerX_max) / 2;
+                            if (b.x < centerX) b.vx = -Math.abs(b.vx); // Rebond vers gauche
+                            else b.vx = Math.abs(b.vx); // Rebond vers droite
+                        }}
+
+                        b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
+                    }});
+
+                    requestAnimationFrame(animate);
+                }}
+
+                animate();
+            </script>
+        </body>
+        </html>
+        """, height=900)
+
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         st.markdown(f'<div style="text-align:center; margin-top:10px;"><div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold;">👥 {nb_p} CONNECTÉS</div></div>', unsafe_allow_html=True)
-        
         if config["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            
             st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 VOTES OUVERTS</div></div>', unsafe_allow_html=True)
-            
             cands = config["candidats"]
             mid = (len(cands) + 1) // 2
-            
             def get_item_html(label):
                 img_html = '<span style="font-size:30px; margin-right:15px;">🎥</span>'
                 if label in config.get("candidats_images", {}):
                     b64 = config["candidats_images"][label]
                     img_html = f'<img src="data:image/png;base64,{b64}" style="width:60px; height:60px; object-fit:cover; border-radius:10px; margin-right:15px; border:2px solid #E2001A;">'
                 return f'<div style="background:#222; color:white; padding:10px; margin-bottom:12px; border-left:6px solid #E2001A; font-weight:bold; font-size:22px; display:flex; align-items:center;">{img_html}{label}</div>'
-
             st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 0.7, 1])
             with c1:
@@ -480,7 +527,6 @@ else:
         else:
             components.html(f"""<div style="text-align:center;color:white;background:black;height:100vh;"><div style="{BADGE_CSS} background:#333;">🏁 CLOS</div><div style="font-size:100px;margin-top:40px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1></div>""", height=600)
 
-    # 4. PODIUM
     elif config["reveal_resultats"]:
         diff = 10 - int(time.time() - config.get("timestamp_podium", 0))
         if diff > 0:
