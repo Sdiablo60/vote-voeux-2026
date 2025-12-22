@@ -39,7 +39,7 @@ BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 
-# --- 3. ADMINISTRATION (Commandes en Sidebar) ---
+# --- 3. ADMINISTRATION ---
 if est_admin:
     st.sidebar.title("🎮 Régie Master")
     if "auth" not in st.session_state: st.session_state["auth"] = False
@@ -50,26 +50,35 @@ if est_admin:
             st.session_state["auth"] = True
             st.rerun()
     else:
-        # BOUTONS DE COMMANDE DANS LA SIDEBAR
-        st.sidebar.subheader("🕹️ Pilotage")
+        # États actuels pour la coloration des boutons
         m, vo, re = config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"]
         
-        if st.sidebar.button("1️⃣ Mode Attente", use_container_width=True):
+        st.sidebar.subheader("🕹️ Pilotage")
+        
+        # Bouton 1 : Attente
+        type_1 = "primary" if m == "attente" else "secondary"
+        if st.sidebar.button("1️⃣ Mode Attente", use_container_width=True, type=type_1):
             config.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False})
             json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-        if st.sidebar.button("2️⃣ Lancer les Votes", use_container_width=True):
+        # Bouton 2 : Lancer les Votes
+        type_2 = "primary" if (m == "votes" and vo) else "secondary"
+        if st.sidebar.button("2️⃣ Lancer les Votes", use_container_width=True, type=type_2):
             config.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False})
             json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-        if st.sidebar.button("3️⃣ Clôturer les Votes", use_container_width=True):
+        # Bouton 3 : Clôturer les Votes
+        type_3 = "primary" if (m == "votes" and not vo and not re) else "secondary"
+        if st.sidebar.button("3️⃣ Clôturer les Votes", use_container_width=True, type=type_3):
             config.update({"session_ouverte": False})
             json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-        if st.sidebar.button("4️⃣ Afficher Podium 🏆", use_container_width=True):
+        # Bouton 4 : Podium
+        type_4 = "primary" if re else "secondary"
+        if st.sidebar.button("4️⃣ Afficher Podium 🏆", use_container_width=True, type=type_4):
             config.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()})
             json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
-        
+
         st.sidebar.markdown("---")
         config["titre_mur"] = st.sidebar.text_input("Titre du Mur", value=config["titre_mur"])
         if st.sidebar.button("💾 Sauver Titre", use_container_width=True):
