@@ -333,26 +333,26 @@ elif est_utilisateur:
     </style>
     """, unsafe_allow_html=True)
     
-    # --- SECURITE ANTI DOUBLE VOTE (RIDEAU DE FER) ---
-    # Si le vote n'est pas le mode photo, on vérifie le cookie
-    if cfg["mode_affichage"] != "photos_live":
-        # Ce script JS masque le body si le cookie est présent
+    # 1. BLOCAGE ULTRA-AGRESSIF JS SI DÉJÀ VOTÉ
+    # On utilise un nom de clé UNIQUE pour être sûr que ça ne conflicte pas
+    if cfg["mode_affichage"] != "photos_live": 
         components.html("""
         <script>
-            if (localStorage.getItem('transdev_voted') === 'true') {
-                document.body.innerHTML = '';
-                document.write('<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:black;color:white;font-family:sans-serif;text-align:center;"><div><h1 style="font-size:3rem;">🚫</h1><h2>Vous avez déjà voté.</h2><p>Merci pour votre participation.</p></div></div>');
+            // VERIFICATION IMMEDIATE : On regarde si la marque existe
+            var voted = localStorage.getItem('has_voted_transdev_v2');
+            
+            if (voted === 'true') {
+                // SI OUI : On efface tout le contenu de la page pour bloquer l'accès
+                document.body.innerHTML = '<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:black;color:white;font-family:sans-serif;text-align:center;"><div><h1 style="font-size:3rem;">🚫</h1><h2>Vous avez déjà voté.</h2><p>Le vote est limité à une fois par appareil.</p></div></div>';
             }
         </script>
         """, height=0)
 
-    # --- COMPTEUR CONNECTES (FENETRE GLISSANTE 30s) ---
-    # On lit le fichier, on garde que les timestamps < 30s, on ajoute le notre
-    parts = load_json(PARTICIPANTS_FILE, [])
-    now = time.time()
-    parts = [t for t in parts if now - t < 30] # Garde seulement les actifs des 30 dernières sec
-    parts.append(now)
-    with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
+    if "participant_recorded" not in st.session_state:
+        parts = load_json(PARTICIPANTS_FILE, [])
+        parts.append(time.time())
+        with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
+        st.session_state["participant_recorded"] = True
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
@@ -373,18 +373,21 @@ elif est_utilisateur:
     else:
         if st.session_state.get("a_vote", False):
             st.balloons()
-            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1></div>""", unsafe_allow_html=True)
+            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1><p>Vote enregistré.</p></div>""", unsafe_allow_html=True)
+        
         elif not cfg["session_ouverte"]:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
             st.warning("⌛ Votes clos ou attente.")
+            
         else:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
             
             if "user_id" not in st.session_state: st.session_state.user_id = None
             if not st.session_state.user_id:
-                nom = st.text_input("Votre Nom / Matricule :")
+                # CHANGEMENT DU TEXTE
+                nom = st.text_input("Votre Pseudo / Nom :")
                 if st.button("Commencer"):
                     if len(nom) > 2:
                         clean_id = nom.strip().lower()
@@ -404,8 +407,10 @@ elif est_utilisateur:
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                     
                     st.session_state["a_vote"] = True
-                    # Pose du cookie et rechargement pour bloquer
-                    components.html("""<script>localStorage.setItem('transdev_voted', 'true'); window.location.reload();</script>""", height=0)
+                    
+                    # 2. MARQUAGE DU NAVIGATEUR (LOCALSTORAGE)
+                    # On injecte la marque indélébile
+                    components.html("""<script>localStorage.setItem('has_voted_transdev_v2', 'true'); location.reload();</script>""", height=0)
                     time.sleep(1)
                 elif len(choix) > 3: st.error("Max 3 !")
 
