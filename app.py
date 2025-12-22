@@ -113,19 +113,15 @@ if est_admin:
                 cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); force_refresh(); st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
-
-            # --- NOUVEAU BOUTON RESET DANS LE LIVE ---
             with st.expander("🗑️ OPTIONS DE RÉINITIALISATION (Zone de danger)"):
                 col_rst, col_info = st.columns([1, 2])
                 with col_rst:
                     if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet les scores à 0 mais garde les participants"):
-                        if os.path.exists(VOTES_FILE):
-                            os.remove(VOTES_FILE)
-                        st.toast("✅ Votes réinitialisés avec succès !")
-                        time.sleep(1)
-                        st.rerun()
+                        if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
+                        st.toast("✅ Votes réinitialisés !")
+                        time.sleep(1); st.rerun()
                 with col_info:
-                    st.info("Ceci efface tous les votes enregistrés pour redémarrer une session, mais conserve les participants connectés.")
+                    st.info("Efface les scores pour redémarrer une session. Les participants restent connectés.")
 
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
@@ -161,8 +157,7 @@ if est_admin:
                 if c_add2.button("➕ Ajouter", use_container_width=True):
                     if new_cand and new_cand not in st.session_state.config["candidats"]:
                         st.session_state.config["candidats"].append(new_cand)
-                        force_refresh()
-                        st.rerun()
+                        force_refresh(); st.rerun()
                 
                 st.markdown("---")
                 
@@ -245,27 +240,62 @@ if est_admin:
         elif menu == "📊 Data & Exports":
             if st.button("RESET TOUT"):
                  if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
+                 if os.path.exists(PARTICIPANTS_FILE): os.remove(PARTICIPANTS_FILE)
                  st.success("Reset!"); st.rerun()
 
 # --- 4. UTILISATEUR ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
-    st.title("🗳️ Vote")
+    st.title("🗳️ Vote Transdev")
+    
+    # 1. ENREGISTREMENT DU PARTICIPANT (FIX COMPTEUR)
+    if "participant_recorded" not in st.session_state:
+        parts = load_json(PARTICIPANTS_FILE, [])
+        # On ajoute simplement une entrée pour compter (pas d'ID complexe pour rester simple)
+        parts.append(time.time())
+        with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
+        st.session_state["participant_recorded"] = True
+
     cfg = load_json(CONFIG_FILE, default_config)
-    if not cfg["session_ouverte"]: st.warning("Clos.")
+    
+    # Si l'utilisateur a déjà voté, on affiche l'écran de remerciement
+    if st.session_state.get("a_vote", False):
+        st.balloons() # L'effet ballons !
+        st.markdown("""
+        <div style="text-align:center; padding-top:50px;">
+            <div style="font-size:80px;">👏</div>
+            <h1 style="color:#E2001A;">MERCI !</h1>
+            <p style="font-size:20px;">Votre vote a bien été pris en compte.</p>
+        </div>
+        """, unsafe_allow_html=True)
+        # Optionnel : bouton pour revoter si besoin
+        if st.button("Modifier mon vote (Nouveau vote)"):
+             st.session_state["a_vote"] = False
+             st.rerun()
+    
+    # Sinon, on affiche le formulaire
+    elif not cfg["session_ouverte"]: 
+        st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
     else:
-        choix = st.multiselect("Top 3 :", cfg["candidats"])
-        if len(choix) == 3 and st.button("VALIDER"):
-            vts = load_json(VOTES_FILE, {})
-            pts = cfg.get("points_ponderation", [5, 3, 1])
-            for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-            json.dump(vts, open(VOTES_FILE, "w")); st.success("OK"); time.sleep(1); st.rerun()
+        choix = st.multiselect("Sélectionnez vos 3 favoris (dans l'ordre) :", cfg["candidats"])
+        pts = cfg.get("points_ponderation", [5, 3, 1])
+        st.caption(f"ℹ️ Points : 1er={pts[0]}, 2ème={pts[1]}, 3ème={pts[2]}")
+
+        if len(choix) == 3:
+            if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
+                vts = load_json(VOTES_FILE, {})
+                for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
+                json.dump(vts, open(VOTES_FILE, "w"))
+                
+                # Marquer comme voté pour changer d'écran au refresh
+                st.session_state["a_vote"] = True
+                st.rerun() # Refresh pour afficher l'écran de fin
+        elif len(choix) > 3: st.error("Maximum 3 choix !")
 
 # --- 5. MUR SOCIAL ---
 else:
     st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; }</style>""", unsafe_allow_html=True)
     
-    # Rechargement config à chaque refresh
     config = load_json(CONFIG_FILE, default_config)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
