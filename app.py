@@ -39,7 +39,8 @@ default_config = {
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
     "session_id": "session_init_001",
-    "effect_intensity": 25, # Par défaut au milieu (0-50)
+    "effect_intensity": 25, # Densité (Nombre)
+    "effect_speed": 25,     # Vitesse (Animation)
     "screen_effects": {       
         "attente": "Aucun",
         "votes_open": "Aucun",
@@ -66,6 +67,9 @@ if "screen_effects" not in st.session_state.config:
 if "effect_intensity" not in st.session_state.config:
     st.session_state.config["effect_intensity"] = 25
 
+if "effect_speed" not in st.session_state.config:
+    st.session_state.config["effect_speed"] = 25
+
 if "session_id" not in st.session_state.config:
     st.session_state.config["session_id"] = str(int(time.time()))
 
@@ -91,46 +95,56 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
-# --- 1. BIBLIOTHEQUE D'EFFETS STATIQUES (Liste simple pour selects) ---
-EFFECTS_LIB = {
-    "Aucun": "", "🎈 Ballons": "", "❄️ Neige": "", "🎉 Confettis": "", "🌌 Espace": "", "💸 Billets": "", "🟢 Matrix": ""
-}
-EFFECT_NAMES = list(EFFECTS_LIB.keys())
+# --- 1. BIBLIOTHEQUE D'EFFETS ---
+EFFECT_NAMES = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
 
 # --- 2. GENERATEUR D'EFFETS DYNAMIQUES (MUR SOCIAL) ---
-# Calibré pour 0-50
-def get_live_effect_html(effect_name, intensity):
-    # intensity : 0 à 50
+# Calibré pour 0-50 sur deux axes (Intensité / Vitesse)
+def get_live_effect_html(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>"""
     
     elif effect_name == "🎈 Ballons":
-        # 0 -> 2500ms (très lent), 50 -> 200ms (très rapide)
-        interval = max(150, 2500 - (intensity * 45)) 
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-50px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom '+(Math.random()*5+5)+'s linear,left '+(Math.random()*5+5)+'s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';}});setTimeout(()=>{{d.remove()}},12000);}}setInterval(c,{interval});</script>"""
+        # Densité: Intervalle d'apparition (Plus petit = Plus de ballons)
+        # 0 -> 2000ms, 50 -> 40ms (Mitraillette à ballons)
+        interval = max(40, 2000 - (intensity * 39)) 
+        
+        # Vitesse: Durée de la transition CSS (Plus petit = Plus rapide)
+        # 0 -> 20s (Lent), 50 -> 3s (Rapide)
+        duration = max(3, 20 - (speed * 0.34))
+        
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom {duration}s linear,left {duration}s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';}});setTimeout(()=>{{d.remove()}},{duration*1000 + 1000});}}setInterval(c,{interval});</script>"""
 
     elif effect_name == "❄️ Neige":
-        # 0 -> 500ms, 50 -> 20ms
-        interval = max(20, 500 - (intensity * 9))
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}}@keyframes f{{to{{transform:translateY(105vh)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=Math.random()*3+3+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),6000)}},{interval});</script>"""
+        # Densité
+        interval = max(10, 400 - (intensity * 7.8))
+        # Vitesse
+        duration = max(2, 10 - (speed * 0.16))
+        
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}}@keyframes f{{to{{transform:translateY(105vh)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=(Math.random()*{duration} + {duration/2})+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),{duration*1000 + 2000})}},{interval});</script>"""
 
     elif effect_name == "🎉 Confettis":
-        # 0 -> 1 particule, 50 -> 30 particules par tick
-        count = max(1, int(intensity * 0.6))
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){{(function f(){{if(!window.parent.document.body.contains(s))return;window.parent.confetti({{particleCount:{count},angle:90,spread:90,origin:{{x:Math.random(),y:-0.1}},colors:['#E2001A','#ffffff'],zIndex:0}});requestAnimationFrame(f)}}())}};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>"""
+        # Densité: Nombre de particules par tick
+        count = max(1, int(intensity * 1.5)) # Jusqu'à 75 particules par coup
+        # Vitesse: Intervalle de tir
+        interval = max(100, 1500 - (speed * 28))
+        
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){{(function f(){{if(!window.parent.document.body.contains(s))return;window.parent.confetti({{particleCount:{count},angle:90,spread:120,origin:{{x:Math.random(),y:-0.1}},colors:['#E2001A','#ffffff','#000000'],zIndex:0,gravity:1.2,drift:0}}); setTimeout(()=>{{requestAnimationFrame(f)}}, {interval})}}())}};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>"""
 
     elif effect_name == "🌌 Espace":
-        # 0 -> 300ms, 50 -> 20ms
-        interval = max(10, 300 - (intensity * 5.5))
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{{position:absolute;background:white;border-radius:50%;animation:z 3s infinite linear;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(5)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=Math.random()*3+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),3000)}},{interval});</script>"""
+        interval = max(5, 200 - (intensity * 3.8))
+        duration = max(1, 8 - (speed * 0.14))
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{{position:absolute;background:white;border-radius:50%;animation:z {duration}s infinite linear;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(5)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=Math.random()*3+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),{duration*1000})}},{interval});</script>"""
 
     elif effect_name == "💸 Billets":
-        # 0 -> 1000ms, 50 -> 100ms
-        interval = max(50, 1000 - (intensity * 18))
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;';l.appendChild(d);d.animate([{{transform:'translateY(0)'}},{{transform:'translateY(110vh)'}}],{{duration:3000,iterations:1}});setTimeout(()=>d.remove(),3000)}},{interval});</script>"""
+        interval = max(30, 800 - (intensity * 15))
+        duration = max(1000, 5000 - (speed * 80))
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;';l.appendChild(d);d.animate([{{transform:'translateY(0)'}},{{transform:'translateY(110vh)'}}],{{duration:{duration},iterations:1}});setTimeout(()=>d.remove(),{duration})}},{interval});</script>"""
 
     elif effect_name == "🟢 Matrix":
-        return """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,30);</script>"""
+        # Vitesse de rafraichissement
+        fps = max(10, 100 - (speed * 1.5))
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,{fps});</script>"""
     
     return ""
 
@@ -196,27 +210,33 @@ def get_tv_html(effect_js):
     """
 
 # --- 4. GENERATEUR JS POUR PREVIEW (DANS TV) ---
-# Meme logique 0-50 que pour le live
-def get_preview_js(effect_name, intensity):
+# Calibrage identique au live
+def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
     elif effect_name == "🎈 Ballons":
-        interval = max(150, 2500 - (intensity * 45))
-        return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-20px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom 3s linear;';c.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},3000)}},{interval});</script>"""
+        interval = max(40, 2000 - (intensity * 39)) 
+        duration = max(3, 20 - (speed * 0.34))
+        return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-20px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom {duration}s linear;';c.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
     elif effect_name == "❄️ Neige":
-        interval = max(20, 500 - (intensity * 9))
-        return f"""<style>.sf{{position:absolute;color:white;animation:f 2s linear infinite}}@keyframes f{{to{{transform:translateY(150px)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';c.appendChild(e);setTimeout(()=>{{e.remove()}},2000)}},{interval});</script>"""
+        interval = max(10, 400 - (intensity * 7.8))
+        duration = max(2, 10 - (speed * 0.16))
+        return f"""<style>.sf{{position:absolute;color:white;animation:f 2s linear infinite}}@keyframes f{{to{{transform:translateY(150px)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';e.style.animationDuration=(Math.random()*{duration} + {duration/2})+'s';c.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000 + 1000})}},{interval});</script>"""
     elif effect_name == "🎉 Confettis":
-        count = max(1, int(intensity * 0.6))
-        return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:50,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},800);</script>"""
+        count = max(1, int(intensity * 1.5))
+        interval = max(100, 1500 - (speed * 28))
+        return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:60,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},{interval});</script>"""
     elif effect_name == "🌌 Espace":
-        interval = max(10, 300 - (intensity * 5.5))
-        return f"""<style>.st{{position:absolute;background:white;border-radius:50%;animation:z 2s linear infinite;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(2)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';c.appendChild(e);setTimeout(()=>{{e.remove()}},2000)}},{interval});</script>"""
+        interval = max(5, 200 - (intensity * 3.8))
+        duration = max(1, 8 - (speed * 0.14))
+        return f"""<style>.st{{position:absolute;background:white;border-radius:50%;animation:z {duration}s linear infinite;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(2)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';c.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
     elif effect_name == "💸 Billets":
-        interval = max(50, 1000 - (intensity * 18))
-        return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:2000}});setTimeout(()=>{{e.remove()}},1900)}},{interval});</script>"""
+        interval = max(30, 800 - (intensity * 15))
+        duration = max(1000, 5000 - (speed * 80))
+        return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:{duration}}});setTimeout(()=>{{e.remove()}},{duration})}},{interval});</script>"""
     elif effect_name == "🟢 Matrix":
-        return """<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++})},50);</script>"""
+        fps = max(10, 100 - (speed * 1.5))
+        return f"""<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++})},{fps});</script>"""
     return ""
 
 # --- FONCTIONS CRITIQUES ---
@@ -302,8 +322,8 @@ def generate_pdf_report(dataframe, title):
         pdf.ln()
     return pdf.output(dest='S').encode('latin-1')
 
-def inject_visual_effect(effect_name, intensity):
-    js_code = get_live_effect_html(effect_name, intensity)
+def inject_visual_effect(effect_name, intensity, speed):
+    js_code = get_live_effect_html(effect_name, intensity, speed)
     components.html(js_code, height=0)
 
 # --- 2. NAVIGATION ---
@@ -350,7 +370,8 @@ if est_admin:
 
             with c_test_tv:
                 current_intensity = st.session_state.config.get("effect_intensity", 25)
-                js_preview = get_preview_js(st.session_state.preview_selected, current_intensity)
+                current_speed = st.session_state.config.get("effect_speed", 25)
+                js_preview = get_preview_js(st.session_state.preview_selected, current_intensity, current_speed)
                 full_tv_code = get_tv_html(js_preview)
                 components.html(full_tv_code, height=350)
             
@@ -359,10 +380,18 @@ if est_admin:
             # --- ZONE 2: CONFIGURATION LIVE PAR ECRAN ---
             st.markdown("### 📡 Diffusion Live (Par Écran)")
             
-            st.markdown("#### 🎚️ Intensité des Effets")
-            intensity = st.slider("Régler la densité (Ballons, Neige, Confettis...)", 0, 50, st.session_state.config.get("effect_intensity", 25), key="slider_intensity")
-            if intensity != st.session_state.config.get("effect_intensity"):
+            c_params_1, c_params_2 = st.columns(2)
+            with c_params_1:
+                st.markdown("#### 🔢 Densité (Quantité)")
+                intensity = st.slider("Nombre de particules", 0, 50, st.session_state.config.get("effect_intensity", 25), key="slider_intensity")
+            with c_params_2:
+                st.markdown("#### 🚀 Vitesse (Animation)")
+                speed = st.slider("Vitesse de mouvement", 0, 50, st.session_state.config.get("effect_speed", 25), key="slider_speed")
+
+            # Sauvegarde si changement
+            if intensity != st.session_state.config.get("effect_intensity") or speed != st.session_state.config.get("effect_speed"):
                 st.session_state.config["effect_intensity"] = intensity
+                st.session_state.config["effect_speed"] = speed
                 save_config()
                 st.rerun()
 
@@ -772,8 +801,9 @@ else:
         
     effect_to_apply = config["screen_effects"].get(screen_key, "Aucun")
     intensity_to_apply = config.get("effect_intensity", 25)
+    speed_to_apply = config.get("effect_speed", 25)
     
-    inject_visual_effect(effect_to_apply, intensity_to_apply)
+    inject_visual_effect(effect_to_apply, intensity_to_apply, speed_to_apply)
 
     if config["mode_affichage"] != "photos_live":
         st.markdown(f'<div style="text-align:center; color:white;">{logo_html}<h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
