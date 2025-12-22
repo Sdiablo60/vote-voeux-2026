@@ -68,7 +68,6 @@ if "session_id" not in st.session_state.config:
 if "my_uuid" not in st.session_state:
     st.session_state.my_uuid = str(uuid.uuid4())
 
-# Variable pour le selecteur de preview indépendant
 if "preview_selected" not in st.session_state:
     st.session_state.preview_selected = "Aucun"
 
@@ -101,13 +100,13 @@ EFFECTS_LIB = {
 
 # --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
 PREVIEW_LIB = {
-    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h4 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:12px;margin:0;'>OFF</h4></body></html>",
+    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100%;'><h4 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:12px;margin:0;'>OFF</h4></body></html>",
     "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:20px;transition:bottom 3s linear;';document.body.appendChild(d);setTimeout(function(){d.style.bottom='120%';},50);setTimeout(function(){d.remove()},3000);},500);</script></body></html>""",
     "❄️ Neige": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.f{position:absolute;color:#FFF;animation:d 2s linear forwards}@keyframes d{to{transform:translateY(200px)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='f';d.innerHTML='❄';d.style.left=Math.random()*95+'%';d.style.top='-20px';d.style.fontSize=(Math.random()*10+8)+'px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},100);</script></body></html>""",
     "🎉 Confettis": """<html><body style='background:black;margin:0;overflow:hidden;'><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>setInterval(function(){confetti({particleCount:5,spread:50,origin:{y:0.6},colors:['#E2001A','#ffffff'],disableForReducedMotion:true,zIndex:100,scalar:0.6});},800);</script></body></html>""",
     "🌌 Espace": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(2)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='s';d.style.left=Math.random()*100+'%';d.style.top=Math.random()*100+'%';d.style.width='1px';d.style.height='1px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},80);</script></body></html>""",
     "💸 Billets": """<html><body style='background:black;margin:0;overflow:hidden;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:18px;';document.body.appendChild(d);d.animate([{transform:'translateY(0)'},{transform:'translateY(200px)'}],{duration:2000,iterations:1});setTimeout(function(){d.remove()},1900);},400);</script></body></html>""",
-    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100vh;"></canvas><script>var c=document.getElementById('m');var x=c.getContext('2d');c.width=150;c.height=150;var col=c.width/10;var r=[];for(var i=0;i<col;i++)r[i]=1;setInterval(function(){x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font='8px monospace';for(var i=0;i<r.length;i++){x.fillText(Math.floor(Math.random()*2),i*10,r[i]*10);if(r[i]*10>c.height&&Math.random()>0.95)r[i]=0;r[i]++;}},50);</script></body></html>"""
+    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100vh;"></canvas><script>var c=document.getElementById('m');var x=c.getContext('2d');c.width=160;c.height=160;var col=c.width/10;var r=[];for(var i=0;i<col;i++)r[i]=1;setInterval(function(){x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font='8px monospace';for(var i=0;i<r.length;i++){x.fillText(Math.floor(Math.random()*2),i*10,r[i]*10);if(r[i]*10>c.height&&Math.random()>0.95)r[i]=0;r[i]++;}},50);</script></body></html>"""
 }
 
 # --- FONCTIONS CRITIQUES ---
@@ -228,69 +227,58 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # CSS TV COMPACTE & ECRAN CARRE
+            # NOUVEAU CSS : TV CARRE (CUBE) ET RENOMMAGE CLASSE POUR FORCER REFRESH
             st.markdown("""
             <style>
-                .tv-composition-container {
+                /* Conteneur Global */
+                .retro-tv-wrapper {
                     position: relative;
-                    width: 240px;  /* LARGEUR REDUITE */
-                    height: 220px; /* HAUTEUR REDUITE */
+                    width: 200px; /* Largeur réduite */
+                    height: 240px; /* Hauteur plus grande = CUBE */
                     margin: 20px auto;
                 }
-                .tv-art-layer {
-                    position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
-                    pointer-events: none;
-                }
-                .tv-screen-overlay {
-                    position: absolute; z-index: 10;
-                    /* Position pour Ecran CARRE 150x150 */
-                    top: 48px; left: 20px;
-                    width: 150px; height: 150px;
-                    overflow: hidden; border-radius: 8px; background-color: black;
-                }
-                .tv-screen-overlay iframe { width: 100% !important; height: 100% !important; border: none !important; }
-
-                /* DESSIN DE LA TV COMPACTE */
-                .tv-antenna { position: absolute; top: -25px; left: 50%; transform: translateX(-50%); width: 80px; height: 30px; display: flex; justify-content: space-between; }
-                .antenna-rod { width: 3px; background: #888; border-radius: 4px; height: 100%; transform-origin: bottom; }
-                .rod-left { transform: rotate(-25deg); } .rod-right { transform: rotate(25deg); }
-                .antenna-base { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 25px; height: 10px; background: #333; border-radius: 10px 10px 0 0; }
                 
-                .tv-cabinet {
-                    background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%);
-                    border-radius: 15px; padding: 10px;
-                    box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-                    border: 4px solid #3e2723;
-                    position: absolute; top: 30px; left: 0; width: 100%; height: 185px;
-                    display: flex; gap: 10px;
+                /* COUCHE 1 : DESSIN */
+                .retro-tv-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+                
+                .retro-tv-case {
+                    position: absolute; top: 30px; left: 0; width: 100%; height: 180px;
+                    background: #5D4037; /* Bois foncé */
+                    border-radius: 20px;
+                    border: 6px solid #3E2723;
+                    box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+                    display: flex; flex-direction: column; align-items: center; justify-content: start;
+                    padding-top: 15px;
                 }
-                .tv-screen-section { flex-grow: 1; }
-                .tv-screen-bezel {
-                    background-color: #222; border-radius: 10px; padding: 0;
-                    box-shadow: inset 0 0 10px rgba(0,0,0,1); border: 2px solid #444;
-                    width: 154px; height: 154px; /* Cadre carré autour de l'ecran */
+                
+                /* Trou de l'écran (visuel cadre) */
+                .retro-tv-screen-frame {
+                    width: 166px; height: 166px;
+                    background: #222;
+                    border-radius: 20px;
+                    border: 3px solid #444;
+                    box-shadow: inset 0 0 10px #000;
                 }
-                .tv-controls-panel {
-                     display: flex; flex-direction: column; justify-content: center; gap: 10px;
-                     background: #4e342e; padding: 5px; border-radius: 8px; border: 2px solid #3e2723; width: 45px;
+
+                /* Pieds */
+                .retro-leg { position: absolute; bottom: 0; width: 20px; height: 40px; background: #3E2723; z-index: -1; }
+                .leg-l { left: 20px; transform: rotate(15deg); }
+                .leg-r { right: 20px; transform: rotate(-15deg); }
+
+                /* Antenne */
+                .retro-ant { position: absolute; top: 0; width: 4px; height: 40px; background: #999; z-index: -1; }
+                .ant-l { left: 40px; transform: rotate(-30deg); }
+                .ant-r { right: 40px; transform: rotate(30deg); }
+
+                /* COUCHE 2 : OVERLAY INTERACTIF (IFRAME) */
+                .retro-screen-overlay {
+                    position: absolute; z-index: 10;
+                    /* Positionnement précis pour 160x160 dans le cadre */
+                    top: 51px; left: 20px;
+                    width: 160px; height: 160px;
+                    background: black; border-radius: 16px; overflow: hidden;
                 }
-                .tv-knob {
-                    width: 28px; height: 28px; background: radial-gradient(circle, #795548 30%, #3e2723 100%);
-                    border-radius: 50%; border: 2px solid #222; margin: 0 auto; box-shadow: 1px 2px 3px rgba(0,0,0,0.5);
-                }
-                .tv-speaker-grille {
-                     width: 28px; height: 40px; background: repeating-linear-gradient(0deg, #333, #333 2px, #222 2px, #222 4px);
-                     border-radius: 4px; border: 1px solid #111; margin: 0 auto;
-                }
-                .tv-legs-container { 
-                    position: absolute; bottom: -15px; left: 0; width: 100%; 
-                    display: flex; justify-content: center; gap: 140px; z-index: -1;
-                }
-                .tv-leg {
-                     width: 18px; height: 25px; background: linear-gradient(to right, #5d4037, #3e2723);
-                     clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%);
-                }
-                .leg-left { transform: rotate(15deg); } .leg-right { transform: rotate(-15deg); }
+                .retro-screen-overlay iframe { width: 100% !important; height: 100% !important; border: none; }
             </style>
             """, unsafe_allow_html=True)
 
@@ -306,22 +294,23 @@ if est_admin:
                     st.rerun()
 
             with c_test_tv:
-                st.markdown('<div class="tv-composition-container">', unsafe_allow_html=True)
+                st.markdown('<div class="retro-tv-wrapper">', unsafe_allow_html=True)
                 
+                # DESSIN
                 st.markdown("""
-                <div class="tv-art-layer">
-                    <div class="tv-antenna"><div class="antenna-rod rod-left"></div><div class="antenna-base"></div><div class="antenna-rod rod-right"></div></div>
-                    <div class="tv-cabinet">
-                        <div class="tv-screen-section"><div class="tv-screen-bezel"></div></div>
-                        <div class="tv-controls-panel"><div class="tv-knob"></div><div class="tv-knob"></div><div class="tv-speaker-grille"></div></div>
+                <div class="retro-tv-layer">
+                    <div class="retro-ant ant-l"></div><div class="retro-ant ant-r"></div>
+                    <div class="retro-leg leg-l"></div><div class="retro-leg leg-r"></div>
+                    <div class="retro-tv-case">
+                        <div class="retro-tv-screen-frame"></div>
                     </div>
-                    <div class="tv-legs-container"><div class="tv-leg leg-left"></div><div class="tv-leg leg-right"></div></div>
                 </div>
                 """, unsafe_allow_html=True)
 
-                st.markdown('<div class="tv-screen-overlay">', unsafe_allow_html=True)
+                # ECRAN (OVERLAY)
+                st.markdown('<div class="retro-screen-overlay">', unsafe_allow_html=True)
                 if st.session_state.preview_selected in PREVIEW_LIB:
-                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=150)
+                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=160)
                 st.markdown('</div>', unsafe_allow_html=True)
 
                 st.markdown('</div>', unsafe_allow_html=True)
