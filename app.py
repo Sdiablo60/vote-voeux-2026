@@ -27,7 +27,14 @@ for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
 
 DEFAULT_CANDIDATS = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
 
-# --- CONFIGURATION INITIALE ---
+# --- CHARGEMENT CONFIG ---
+def load_json(file, default):
+    if os.path.exists(file):
+        try:
+            with open(file, "r") as f: return json.load(f)
+        except: return default
+    return default
+
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, {
         "mode_affichage": "attente", 
@@ -47,12 +54,8 @@ if "config" not in st.session_state:
         }
     })
 
-def load_json(file, default):
-    if os.path.exists(file):
-        try:
-            with open(file, "r") as f: return json.load(f)
-        except: return default
-    return default
+def save_config():
+    with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
 
 # --- FONCTION D'INJECTION D'EFFETS (MUR SOCIAL) ---
 def inject_visual_effect(effect_name, intensity, speed):
@@ -152,42 +155,12 @@ def get_preview_js(effect_name, intensity, speed):
     elif effect_name == "🌌 Espace": return f"<style>body{{background:black}}.s{{position:absolute;background:white;width:2px;height:2px;border-radius:50%;animation:b {duration}s infinite}}@keyframes b{{0%,100%{{opacity:0}}50%{{opacity:1}}}}</style><script>setInterval(()=>{{var e=document.createElement('div');e.className='s';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';document.body.appendChild(e);}},{interval});</script>"
     return ""
 
-def save_config():
-    with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
-
-# --- NAVIGATION & AUTH ---
+# --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 
 if est_admin:
-    # --- CSS BARRE DE TITRE FIXE ULTIME ---
-    st.markdown("""
-        <style>
-            /* Cacher le header Streamlit */
-            [data-testid="stHeader"] { visibility: hidden; height: 0; }
-            .block-container { padding-top: 5rem !important; }
-            
-            /* Création d'une barre fixe en haut */
-            .fixed-header {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                background-color: #E2001A;
-                color: white;
-                text-align: center;
-                padding: 15px 0;
-                z-index: 999999;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-                font-family: sans-serif;
-                font-weight: bold;
-                font-size: 24px;
-                letter-spacing: 2px;
-                text-transform: uppercase;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
+    st.markdown("""<style>[data-testid="stHeader"] { visibility: hidden; height: 0; } .block-container { padding-top: 5rem !important; } .fixed-header { position: fixed; top: 0; left: 0; width: 100%; background-color: #E2001A; color: white; text-align: center; padding: 15px 0; z-index: 999999; box-shadow: 0 4px 10px rgba(0,0,0,0.3); font-family: sans-serif; font-weight: bold; font-size: 24px; letter-spacing: 2px; text-transform: uppercase; }</style>""", unsafe_allow_html=True)
     if "auth" not in st.session_state: st.session_state.auth = False
     if not st.session_state.auth:
         st.markdown("<div class='fixed-header'>🔐 ACCÈS RÉSERVÉ</div>", unsafe_allow_html=True)
@@ -196,10 +169,7 @@ if est_admin:
     else:
         with st.sidebar:
             st.title("🎛️ RÉGIE")
-            menu = st.radio("Menu", ["🔴 PILOTAGE LIVE", "⚙️ Paramètres", "📸 Photos"])
-            if st.button("🔓 Déconnexion"): st.session_state.auth = False; st.rerun()
-
-        # TITRE FIXE DYNAMIQUE
+            menu = st.radio("Menu", ["🔴 PILOTAGE LIVE", "⚙️ Paramètres", "📸 Médiathèque"])
         st.markdown(f"<div class='fixed-header'>{menu}</div>", unsafe_allow_html=True)
 
         if menu == "🔴 PILOTAGE LIVE":
@@ -207,7 +177,9 @@ if est_admin:
             c1, c2 = st.columns([1, 1.5], vertical_alignment="center")
             with c1:
                 EFFECT_LIST = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
-                prev = st.radio("Tester l'effet", EFFECT_LIST)
+                if "preview_selected" not in st.session_state: st.session_state.preview_selected = "Aucun"
+                prev = st.radio("Tester l'effet", EFFECT_LIST, index=EFFECT_LIST.index(st.session_state.preview_selected))
+                st.session_state.preview_selected = prev
             with c2:
                 intensity = st.session_state.config.get("effect_intensity", 25)
                 speed = st.session_state.config.get("effect_speed", 25)
@@ -216,43 +188,47 @@ if est_admin:
             
             st.divider()
             st.markdown("### 📡 Contrôles du Mur")
-            c_s1, c_s2 = st.columns(2)
-            with c_s1:
-                new_int = st.slider("🔢 Densité", 0, 50, intensity)
-            with c_s2:
-                new_spd = st.slider("🚀 Vitesse", 0, 50, speed)
-            
-            if new_int != intensity or new_spd != speed:
-                st.session_state.config["effect_intensity"] = new_int
-                st.session_state.config["effect_speed"] = new_spd
-                save_config(); st.rerun()
+            cp1, cp2 = st.columns(2)
+            with cp1: intensity = st.slider("🔢 Densité", 0, 50, intensity)
+            with cp2: speed = st.slider("🚀 Vitesse", 0, 50, speed)
+            if intensity != st.session_state.config["effect_intensity"] or speed != st.session_state.config["effect_speed"]:
+                st.session_state.config["effect_intensity"] = intensity
+                st.session_state.config["effect_speed"] = speed; save_config(); st.rerun()
 
             col1, col2 = st.columns(2)
             screen_map = st.session_state.config["screen_effects"]
             with col1:
-                st.selectbox("🏠 Accueil", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("attente", "Aucun")), key="sel_attente")
+                st.selectbox("🏠 Accueil (Attente)", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("attente", "Aucun")), key="sel_attente")
+                st.selectbox("🗳️ Votes Ouverts", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("votes_open", "Aucun")), key="sel_open")
             with col2:
                 st.selectbox("🏆 Podium", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("podium", "Aucun")), key="sel_podium")
+                st.selectbox("📸 Mur Photos", EFFECT_LIST, index=EFFECT_LIST.index(screen_map.get("photos_live", "Aucun")), key="sel_photos")
             
             if st.button("💾 Appliquer les effets au Mur"):
-                st.session_state.config["screen_effects"]["attente"] = st.session_state.sel_attente
-                st.session_state.config["screen_effects"]["podium"] = st.session_state.sel_podium
+                st.session_state.config["screen_effects"].update({"attente": st.session_state.sel_attente, "votes_open": st.session_state.sel_open, "podium": st.session_state.sel_podium, "photos_live": st.session_state.sel_photos})
                 save_config(); st.toast("Effets mis à jour !")
 
             st.divider()
-            bt1, bt2, bt3 = st.columns(3)
+            st.subheader("🎬 Séquenceur")
+            bt1, bt2, bt3, bt4, bt5 = st.columns(5)
             cfg = st.session_state.config
-            if bt1.button("1. ACCUEIL", use_container_width=True): cfg.update({"mode_affichage":"attente","reveal_resultats":False}); save_config(); st.rerun()
-            if bt2.button("2. VOTES ON", use_container_width=True): cfg.update({"mode_affichage":"votes","session_ouverte":True}); save_config(); st.rerun()
-            if bt3.button("3. PODIUM", use_container_width=True): cfg.update({"reveal_resultats":True,"timestamp_podium":time.time()}); save_config(); st.rerun()
+            if bt1.button("1. ACCUEIL", use_container_width=True): cfg.update({"mode_affichage":"attente","reveal_resultats":False,"session_ouverte":False}); save_config(); st.rerun()
+            if bt2.button("2. VOTES ON", use_container_width=True): cfg.update({"mode_affichage":"votes","session_ouverte":True,"reveal_resultats":False}); save_config(); st.rerun()
+            if bt3.button("3. VOTES OFF", use_container_width=True): cfg.update({"session_ouverte":False}); save_config(); st.rerun()
+            if bt4.button("4. PODIUM", use_container_width=True): cfg.update({"mode_affichage":"votes","reveal_resultats":True,"session_ouverte":False,"timestamp_podium":time.time()}); save_config(); st.rerun()
+            if bt5.button("5. 📸 PHOTO LIVE", use_container_width=True): cfg.update({"mode_affichage":"photos_live"}); save_config(); st.rerun()
 
         elif menu == "⚙️ Paramètres":
-            st.markdown("### 🛠️ Configuration")
-            new_title = st.text_input("Titre de l'événement", value=st.session_state.config["titre_mur"])
-            if st.button("Enregistrer"): st.session_state.config["titre_mur"] = new_title; save_config(); st.success("Titre sauvegardé")
+            st.title("Paramètres")
+            new_title = st.text_input("Titre du Mur", value=st.session_state.config["titre_mur"])
+            if st.button("Enregistrer"): st.session_state.config["titre_mur"] = new_title; save_config(); st.success("OK")
+            st.divider()
+            df_cands = pd.DataFrame(st.session_state.config["candidats"], columns=["Nom du Candidat"])
+            edited = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True)
+            if st.button("💾 Sauver Candidats"): st.session_state.config["candidats"] = edited["Nom du Candidat"].tolist(); save_config(); st.rerun()
 
-        elif menu == "📸 Photos":
-            st.markdown("### 🖼️ Galerie Live")
+        elif menu == "📸 Médiathèque":
+            st.title("Médiathèque")
             files = glob.glob(f"{LIVE_DIR}/*")
             if files:
                 cols = st.columns(5)
@@ -260,17 +236,43 @@ if est_admin:
                     with cols[i%5]:
                         st.image(f, use_container_width=True)
                         if st.button("🗑️", key=f"del_{i}"): os.remove(f); st.rerun()
-            else: st.info("Aucune photo pour le moment.")
 
-# --- UTILISATEUR & MUR SOCIAL (Non modifiés mais inclus pour complétude) ---
 elif est_utilisateur:
-    st.title("🗳️ Vote") # Interface mobile simple
+    cfg = load_json(CONFIG_FILE, {})
+    st.markdown("<style>.stApp { background-color: black; color: white; }</style>", unsafe_allow_html=True)
+    if cfg.get("mode_affichage") == "photos_live":
+        st.title("📸 Envoyer Photo")
+        photo = st.camera_input("Smile !")
+        if photo:
+            img = Image.open(photo)
+            img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG"); st.success("Envoyé !")
+    else:
+        if not cfg.get("session_ouverte"): st.info("⌛ Attente des votes...")
+        else:
+            st.title("🗳️ Vote")
+            choix = st.multiselect("Choisissez 3 :", cfg.get("candidats", []))
+            if len(choix) == 3 and st.button("Voter"): st.success("Merci !")
+
 else:
-    # Mur Social
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2500, key="wall")
-    cfg = load_json(CONFIG_FILE, default_config)
+    cfg = load_json(CONFIG_FILE, {})
     st.markdown("<style>body, .stApp { background-color: black; overflow: hidden; } [data-testid='stHeader'] { display: none; }</style>", unsafe_allow_html=True)
-    screen_key = "podium" if cfg.get("reveal_resultats") else "attente"
-    inject_visual_effect(cfg["screen_effects"].get(screen_key, "Aucun"), cfg.get("effect_intensity", 25), cfg.get("effect_speed", 25))
-    st.markdown(f"<h1 style='text-align:center; color:white; font-size:60px; margin-top:100px;'>{cfg['titre_mur']}</h1>", unsafe_allow_html=True)
+    
+    screen_key = "attente"
+    if cfg.get("mode_affichage") == "photos_live": screen_key = "photos_live"
+    elif cfg.get("reveal_resultats"): screen_key = "podium"
+    elif cfg.get("mode_affichage") == "votes": screen_key = "votes_open" if cfg.get("session_ouverte") else "votes_closed"
+    
+    inject_visual_effect(cfg.get("screen_effects", {}).get(screen_key, "Aucun"), cfg.get("effect_intensity", 25), cfg.get("effect_speed", 25))
+    
+    if cfg.get("mode_affichage") == "photos_live":
+        st.markdown("<h1 style='text-align:center; color:white; font-size:60px;'>📸 MUR PHOTO</h1>", unsafe_allow_html=True)
+        files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
+        if files:
+            img_list = []
+            for f in files[:12]:
+                with open(f, "rb") as b: img_list.append(f"data:image/jpeg;base64,{base64.b64encode(b.read()).decode()}")
+            components.html(f"""<div style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;padding:20px;"></div><script>var imgs={json.dumps(img_list)}; var c=document.body.firstChild; imgs.forEach(s=>{{var i=document.createElement('img');i.src=s;i.style.height='250px';i.style.borderRadius='15px';i.style.border='4px solid #E2001A';document.body.appendChild(i);}});</script>""", height=800)
+    else:
+        st.markdown(f"<h1 style='text-align:center; color:white; font-size:60px; margin-top:100px;'>{cfg.get('titre_mur', '')}</h1>", unsafe_allow_html=True)
