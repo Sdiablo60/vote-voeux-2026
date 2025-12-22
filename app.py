@@ -78,6 +78,7 @@ def save_live_photo(uploaded_file):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"live_{timestamp}_{random.randint(100,999)}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
+        
         img = Image.open(uploaded_file)
         try:
             from PIL import ExifTags
@@ -90,6 +91,7 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
+
         img = img.convert("RGB")
         img.thumbnail((500, 500)) 
         img.save(filepath, "JPEG", quality=85)
@@ -309,7 +311,7 @@ elif est_utilisateur:
     st.markdown("""
     <style>
         .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
-        .stApp { background-color: black !important; color: white !important; visibility: hidden; } /* CACHÉ PAR DÉFAUT */
+        .stApp { background-color: black !important; color: white !important; }
         [data-testid="stHeader"] { display: none !important; }
         h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { justify-content: center; }
@@ -328,25 +330,43 @@ elif est_utilisateur:
     </style>
     """, unsafe_allow_html=True)
     
-    # --- SECURITÉ JS "RIDEAU DE FER" ---
+    # --- SECURITÉ JS OVERLAY (BLOQUE TOUT CLIC) ---
     if cfg["mode_affichage"] != "photos_live": 
         components.html("""
         <script>
-            // 1. Vérifie si le cookie existe
-            var voted = localStorage.getItem('transdev_final_lock');
+            // 1. Vérifie si le cookie de vote existe
+            var voted = localStorage.getItem('transdev_final_secure_v2');
             
             if (voted === 'true') {
-                // 2. SI OUI : Affiche un message de blocage et NE MONTRE JAMAIS l'app
-                document.body.innerHTML = '<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:black;color:white;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999999;font-family:sans-serif;"><h1>🚫</h1><h2>Vote déjà enregistré.</h2><p>Une seule participation autorisée.</p></div>';
-            } else {
-                // 3. SI NON : Rend l'application visible (enlève le visibility:hidden du CSS)
-                window.parent.document.querySelector('.stApp').style.visibility = 'visible';
+                // 2. CREATION D'UN OVERLAY QUI BLOQUE TOUT L'ECRAN (Z-INDEX INFINI)
+                var overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.top = '0';
+                overlay.style.left = '0';
+                overlay.style.width = '100%';
+                overlay.style.height = '100%';
+                overlay.style.backgroundColor = 'rgba(0,0,0,0.95)'; // Fond presque noir
+                overlay.style.zIndex = '2147483647'; // Maximum possible
+                overlay.style.display = 'flex';
+                overlay.style.flexDirection = 'column';
+                overlay.style.justifyContent = 'center';
+                overlay.style.alignItems = 'center';
+                overlay.style.color = 'white';
+                overlay.style.fontFamily = 'sans-serif';
+                overlay.style.textAlign = 'center';
+                
+                // Contenu du message
+                overlay.innerHTML = '<h1 style="font-size:4rem; margin:0;">🚫</h1><h2 style="color:#E2001A; margin-top:20px;">Vote Déjà Enregistré</h2><p style="font-size:1.2rem;">Vous avez déjà soumis votre participation.</p>';
+                
+                // Injection dans le corps du document parent (pour couvrir Streamlit)
+                window.parent.document.body.appendChild(overlay);
+                
+                // On floute l'arrière plan pour le style
+                var app = window.parent.document.querySelector('.stApp');
+                if (app) app.style.filter = 'blur(10px)';
             }
         </script>
         """, height=0)
-    else:
-        # Pour le mode photo, on rend visible direct
-        components.html("""<script>window.parent.document.querySelector('.stApp').style.visibility = 'visible';</script>""", height=0)
 
     # COMPTEUR CONNECTES (Fenêtre 30s)
     parts = load_json(PARTICIPANTS_FILE, [])
@@ -408,7 +428,7 @@ elif est_utilisateur:
                     
                     st.session_state["a_vote"] = True
                     # Injection de la marque de vote
-                    components.html("""<script>localStorage.setItem('transdev_final_lock', 'true'); location.reload();</script>""", height=0)
+                    components.html("""<script>localStorage.setItem('transdev_final_secure_v2', 'true'); location.reload();</script>""", height=0)
                     time.sleep(1)
                 elif len(choix) > 3: st.error("Max 3 !")
 
@@ -417,6 +437,7 @@ else:
     st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; } img { background-color: transparent !important; }</style>""", unsafe_allow_html=True)
     config = load_json(CONFIG_FILE, default_config)
     
+    # LECTURE ET NETTOYAGE DU COMPTEUR
     parts = load_json(PARTICIPANTS_FILE, [])
     now = time.time()
     nb_p = len([t for t in parts if now - t < 30])
