@@ -39,9 +39,8 @@ default_config = {
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
     "session_id": "session_init_001",
-    # SYSTEME D'EFFETS AVANCE
-    "global_effect": "Aucun", # L'effet "Temporaire/Prioritaire"
-    "screen_effects": {       # Les effets "Permanents" par écran
+    # SYSTEME D'EFFETS
+    "screen_effects": {       
         "attente": "Aucun",
         "votes_open": "Aucun",
         "votes_closed": "Aucun",
@@ -61,11 +60,8 @@ def load_json(file, default):
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
-# Migration de sécurité (si ancien fichier)
 if "screen_effects" not in st.session_state.config:
     st.session_state.config["screen_effects"] = default_config["screen_effects"]
-if "global_effect" not in st.session_state.config:
-    st.session_state.config["global_effect"] = "Aucun"
 
 if "session_id" not in st.session_state.config:
     st.session_state.config["session_id"] = str(int(time.time()))
@@ -73,8 +69,9 @@ if "session_id" not in st.session_state.config:
 if "my_uuid" not in st.session_state:
     st.session_state.my_uuid = str(uuid.uuid4())
 
-if "preview_effect_admin" not in st.session_state:
-    st.session_state.preview_effect_admin = "Aucun"
+# Variable pour savoir quel effet montrer dans la boite de preview admin
+if "preview_focus" not in st.session_state:
+    st.session_state.preview_focus = "Aucun"
 
 if "refresh_id" not in st.session_state: st.session_state.refresh_id = 0
 if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
@@ -105,13 +102,83 @@ EFFECTS_LIB = {
 
 # --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
 PREVIEW_LIB = {
-    "Aucun": "<div style='width:100%;height:100%;background:black;display:flex;align-items:center;justify-content:center;color:#777;font-family:sans-serif;'>Aucun effet</div>",
-    "🎈 Ballons": """<div style='background:#222;width:100%;height:100%;overflow:hidden;position:relative;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:24px;transition:bottom 3s linear;';document.body.appendChild(d);setTimeout(function(){d.style.bottom='120%';},50);setTimeout(function(){d.remove()},3000);},500);</script></div>""",
-    "❄️ Neige": """<div style='background:#000;width:100%;height:100%;overflow:hidden;position:relative;'><style>.f{position:absolute;color:#FFF;animation:d 2s linear forwards}@keyframes d{to{transform:translateY(250px)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='f';d.innerHTML='❄';d.style.left=Math.random()*95+'%';d.style.top='-20px';d.style.fontSize=(Math.random()*15+10)+'px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},100);</script></div>""",
-    "🎉 Confettis": """<div style='background:#222;width:100%;height:100%;overflow:hidden;'><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>setInterval(function(){confetti({particleCount:7,spread:60,origin:{y:0.6},colors:['#E2001A','#ffffff'],disableForReducedMotion:true,zIndex:100});},600);</script></div>""",
-    "🌌 Espace": """<div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(3)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='s';d.style.left=Math.random()*100+'%';d.style.top=Math.random()*100+'%';d.style.width='2px';d.style.height='2px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},50);</script></div>""",
-    "💸 Billets": """<div style='background:#222;width:100%;height:100%;overflow:hidden;position:relative;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:24px;';document.body.appendChild(d);d.animate([{transform:'translateY(0)'},{transform:'translateY(250px)'}],{duration:2000,iterations:1});setTimeout(function(){d.remove()},1900);},400);</script></div>""",
-    "🟢 Matrix": """<div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'><canvas id="m" style="width:100%;height:100%;"></canvas><script>var c=document.getElementById('m');var x=c.getContext('2d');c.width=300;c.height=200;var col=c.width/10;var r=[];for(var i=0;i<col;i++)r[i]=1;setInterval(function(){x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font='10px monospace';for(var i=0;i<r.length;i++){x.fillText(Math.floor(Math.random()*2),i*10,r[i]*10);if(r[i]*10>c.height&&Math.random()>0.9)r[i]=0;r[i]++;}},50);</script></div>"""
+    "Aucun": "<div style='width:100%;height:100%;background:black;display:flex;align-items:center;justify-content:center;color:#777;font-family:sans-serif;font-size:20px;'>Aucun effet</div>",
+    
+    "🎈 Ballons": """
+    <div style='background:#000;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <script>
+    setInterval(function(){
+        var d = document.createElement('div');
+        d.innerHTML = '🎈';
+        d.style.cssText = 'position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:24px;transition:bottom 3s linear;';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.style.bottom = '120%'; }, 50);
+        setTimeout(function(){ d.remove(); }, 3000);
+    }, 500);
+    </script></div>""",
+    
+    "❄️ Neige": """
+    <div style='background:#000;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <style>.f {position:absolute;color:#FFF;animation:d 2s linear forwards} @keyframes d{to{transform:translateY(250px)}}</style>
+    <script>
+    setInterval(function(){
+        var d = document.createElement('div');
+        d.className = 'f'; d.innerHTML = '❄';
+        d.style.left = Math.random()*95+'%'; d.style.top = '-20px'; d.style.fontSize = (Math.random()*15+10)+'px';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.remove(); }, 2000);
+    }, 100);
+    </script></div>""",
+    
+    "🎉 Confettis": """
+    <div style='background:#000;width:100%;height:100%;overflow:hidden;'>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    <script>
+    setInterval(function(){
+        confetti({particleCount:7, spread:60, origin:{y:0.6}, colors:['#E2001A','#ffffff'], disableForReducedMotion:true, zIndex:100});
+    }, 600);
+    </script></div>""",
+    
+    "🌌 Espace": """
+    <div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0} @keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(3)}}</style>
+    <script>
+    setInterval(function(){
+        var d = document.createElement('div'); d.className='s';
+        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='2px'; d.style.height='2px';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.remove(); }, 2000);
+    }, 50);
+    </script></div>""",
+    
+    "💸 Billets": """
+    <div style='background:#000;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <script>
+    setInterval(function(){
+        var d = document.createElement('div'); d.innerHTML = '💸';
+        d.style.cssText = 'position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:24px;';
+        document.body.appendChild(d);
+        d.animate([{transform:'translateY(0)'}, {transform:'translateY(250px)'}], {duration:2000, iterations:1});
+        setTimeout(function(){ d.remove(); }, 1900);
+    }, 400);
+    </script></div>""",
+    
+    "🟢 Matrix": """
+    <div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <canvas id="m" style="width:100%;height:100%;"></canvas>
+    <script>
+    var c=document.getElementById('m'); var x=c.getContext('2d');
+    c.width=300; c.height=200;
+    var col=c.width/10; var r=[]; for(var i=0;i<col;i++)r[i]=1;
+    setInterval(function(){
+        x.fillStyle='rgba(0,0,0,0.1)'; x.fillRect(0,0,c.width,c.height);
+        x.fillStyle='#0F0'; x.font='10px monospace';
+        for(var i=0;i<r.length;i++){
+            x.fillText(Math.floor(Math.random()*2), i*10, r[i]*10);
+            if(r[i]*10>c.height && Math.random()>0.9) r[i]=0; r[i]++;
+        }
+    }, 50);
+    </script></div>"""
 }
 
 # --- FONCTIONS CRITIQUES ---
@@ -232,55 +299,35 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # --- ZONE 1: PREVISUALISATION & EFFETS ---
-            st.markdown("### 🎨 Studio d'Effets Visuels")
+            # --- ETAGE 1 : ECRAN DE CONTROLE (PREVIEW) ---
+            st.markdown("### 📺 Écran de Contrôle (Aperçu)")
+            current_preview = st.session_state.get("preview_focus", "Aucun")
             
-            # A. ECRAN DE CONTROLE (PREVIEW)
-            st.markdown("**1️⃣ Écran de Contrôle (Aperçu)**")
-            current_preview = st.session_state.get("preview_effect_admin", "Aucun")
-            # Affichage dans un container noir
+            # CADRE NOIR POUR LA PREVIEW
+            st.markdown(f"**Aperçu de l'effet : {current_preview}**")
             if current_preview in PREVIEW_LIB:
-                components.html(PREVIEW_LIB[current_preview], height=220)
+                components.html(PREVIEW_LIB[current_preview], height=250)
+            else:
+                st.write("Pas de prévisualisation disponible.")
             
             st.divider()
 
-            # B. EFFET GLOBAL (PRIORITAIRE)
-            st.markdown("**2️⃣ EFFET PRIORITAIRE (Temporaire / Global)**")
-            st.caption("🚨 *Cet effet écrase tous les autres réglages s'il est activé.*")
-            
-            current_global = st.session_state.config.get("global_effect", "Aucun")
-            new_global = st.selectbox(
-                "Appliquer un effet général :", 
-                list(EFFECTS_LIB.keys()), 
-                index=list(EFFECTS_LIB.keys()).index(current_global) if current_global in EFFECTS_LIB else 0,
-                key="glob_select"
-            )
-            
-            if new_global != current_global:
-                st.session_state.config["global_effect"] = new_global
-                st.session_state.preview_effect_admin = new_global # Update preview
-                save_config()
-                st.rerun()
-
-            st.divider()
-
-            # C. EFFET PAR ECRAN (PERMANENT)
-            st.markdown("**3️⃣ CONFIGURATION PAR ÉCRAN (Permanent)**")
-            st.caption("🛠️ *S'applique uniquement si l'effet prioritaire est sur 'Aucun'.*")
+            # --- ETAGE 3 : CONFIGURATION PAR ECRAN (Direct) ---
+            st.markdown("### ⚙️ Configuration des Ambiances (Par Écran)")
+            st.caption("ℹ️ *Modifiez un effet pour l'appliquer immédiatement. Pour un effet temporaire, sélectionnez-le, attendez, puis remettez sur 'Aucun'.*")
             
             # Helper pour mettre à jour et prévisualiser
             def update_screen_effect(key_widget, key_config):
                 val = st.session_state[key_widget]
                 st.session_state.config["screen_effects"][key_config] = val
-                st.session_state.preview_effect_admin = val # Update preview quand on change un selecteur
+                st.session_state.preview_focus = val # L'aperçu montre ce qu'on vient de toucher
                 save_config()
 
             c_1, c_2 = st.columns(2)
-            
             screen_map = st.session_state.config["screen_effects"]
             
             with c_1:
-                st.write("🏠 **Accueil**")
+                st.write("🏠 **Accueil (Attente)**")
                 def_idx = list(EFFECTS_LIB.keys()).index(screen_map.get("attente", "Aucun"))
                 st.selectbox("Effet Accueil", list(EFFECTS_LIB.keys()), index=def_idx, key="s_attente", on_change=update_screen_effect, args=("s_attente", "attente"), label_visibility="collapsed")
                 
@@ -303,7 +350,7 @@ if est_admin:
 
             st.divider()
 
-            # --- ZONE 2: SEQUENCEUR ---
+            # --- ZONE SEQUENCEUR (inchangé) ---
             st.subheader("🎬 Séquenceur")
             c1, c2, c3, c4 = st.columns(4)
             cfg = st.session_state.config
@@ -663,20 +710,16 @@ else:
     logo_html = ""
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
 
-    # DETERMINATION EFFET ACTIF
-    effect_to_apply = "Aucun"
-    if config.get("global_effect", "Aucun") != "Aucun":
-        effect_to_apply = config["global_effect"]
-    else:
-        screen_key = "attente"
-        if config["mode_affichage"] == "attente": screen_key = "attente"
-        elif config["mode_affichage"] == "photos_live": screen_key = "photos_live"
-        elif config["reveal_resultats"]: screen_key = "podium"
-        elif config["mode_affichage"] == "votes":
-            if config["session_ouverte"]: screen_key = "votes_open"
-            else: screen_key = "votes_closed"
-        effect_to_apply = config["screen_effects"].get(screen_key, "Aucun")
-
+    # --- DETERMINATION EFFET ACTIF ---
+    screen_key = "attente"
+    if config["mode_affichage"] == "attente": screen_key = "attente"
+    elif config["mode_affichage"] == "photos_live": screen_key = "photos_live"
+    elif config["reveal_resultats"]: screen_key = "podium"
+    elif config["mode_affichage"] == "votes":
+        if config["session_ouverte"]: screen_key = "votes_open"
+        else: screen_key = "votes_closed"
+        
+    effect_to_apply = config["screen_effects"].get(screen_key, "Aucun")
     inject_visual_effect(effect_to_apply)
 
     if config["mode_affichage"] != "photos_live":
@@ -689,9 +732,12 @@ else:
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+        
         logo_live = ""
-        if config.get("logo_b64"): logo_live = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
+        if config.get("logo_b64"):
+            logo_live = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
         title_html = '<h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>'
+
         st.markdown(f"""<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:20px;">{logo_live}{title_html}<div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);"><img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;"></div><div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">📸 SCANNEZ POUR PARTICIPER</div></div>""", unsafe_allow_html=True)
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
