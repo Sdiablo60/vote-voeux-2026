@@ -38,7 +38,7 @@ def load_json(file, default):
 
 config = load_json(CONFIG_FILE, default_config)
 
-# Sécurités (mise à jour structure fichier)
+# Sécurités
 if "candidats" not in config: config["candidats"] = DEFAULT_CANDIDATS
 if "candidats_images" not in config: config["candidats_images"] = {}
 if "points_ponderation" not in config: config["points_ponderation"] = [5, 3, 1]
@@ -135,7 +135,7 @@ if est_admin:
                 else: st.info("Aucun vote pour les candidats actifs.")
             else: st.info("En attente du premier vote...")
 
-        # 2. PARAMÉTRAGE (DESIGN REFONDU)
+        # 2. PARAMÉTRAGE (DESIGN COMPACT)
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage de l'événement")
             
@@ -164,8 +164,8 @@ if est_admin:
 
                 st.markdown("---")
                 
-                # --- NOUVEAU VISUEL GESTION CANDIDATS ---
-                st.subheader("📋 Liste des Questions / Candidats")
+                # --- NOUVEAU VISUEL COMPACT ---
+                st.subheader("📋 Liste des Questions")
                 
                 # Zone Ajout
                 with st.container():
@@ -179,67 +179,72 @@ if est_admin:
 
                 st.markdown("<br>", unsafe_allow_html=True)
 
-                # Liste sous forme de cartes avec ORDONNANCEMENT
                 if not config["candidats"]:
                     st.warning("La liste est vide.")
                 else:
+                    # En-têtes pour la clarté
+                    cols_head = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5])
+                    cols_head[0].markdown("**Img**")
+                    cols_head[1].markdown("**Nom (Éditable)**")
+                    
                     for i, cand in enumerate(config["candidats"]):
-                        # Cadre visuel pour chaque candidat
-                        with st.container(border=True):
-                            col_img, col_name, col_move, col_act = st.columns([0.8, 2, 0.8, 1.5])
-                            
-                            # 1. Image actuelle
-                            with col_img:
-                                if cand in config["candidats_images"]:
-                                    st.image(BytesIO(base64.b64decode(config["candidats_images"][cand])), width=60)
-                                else:
-                                    st.markdown("🚫 *Aucune*")
+                        # Colonnes : Image | Nom | Haut | Bas | Photo | Suppr
+                        cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5], vertical_alignment="center")
+                        
+                        # 1. Aperçu Image
+                        with cols[0]:
+                            if cand in config["candidats_images"]:
+                                st.image(BytesIO(base64.b64decode(config["candidats_images"][cand])), width=40)
+                            else:
+                                st.write("⚪")
 
-                            # 2. Nom du candidat (Modifiable)
-                            with col_name:
-                                new_name = st.text_input("Nom", value=cand, key=f"name_{i}", label_visibility="collapsed")
-                                if new_name != cand:
-                                    if st.button("💾 Sauver Nom", key=f"save_name_{i}"):
-                                        # Migration de l'image si renommage
-                                        if cand in config["candidats_images"]:
-                                            config["candidats_images"][new_name] = config["candidats_images"].pop(cand)
-                                        config["candidats"][i] = new_name
-                                        json.dump(config, open(CONFIG_FILE, "w"))
-                                        st.rerun()
-
-                            # 3. Boutons Monter / Descendre (Remplacement Drag n Drop)
-                            with col_move:
-                                c_up, c_down = st.columns(2)
-                                if c_up.button("⬆️", key=f"up_{i}", help="Monter"):
-                                    if i > 0:
-                                        config["candidats"][i], config["candidats"][i-1] = config["candidats"][i-1], config["candidats"][i]
-                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
-                                if c_down.button("⬇️", key=f"down_{i}", help="Descendre"):
-                                    if i < len(config["candidats"]) - 1:
-                                        config["candidats"][i], config["candidats"][i+1] = config["candidats"][i+1], config["candidats"][i]
-                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
-
-                            # 4. Actions (Upload / Suppr)
-                            with col_act:
-                                with st.expander("🖼️ / 🗑️ Actions"):
-                                    # Gestion Image
-                                    upl = st.file_uploader("Changer Photo", type=["png", "jpg"], key=f"u_{i}", label_visibility="collapsed")
-                                    if upl:
-                                        b64 = process_image_upload(upl)
-                                        if b64:
-                                            config["candidats_images"][cand] = b64
-                                            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
-                                    
+                        # 2. Nom (Modifiable)
+                        with cols[1]:
+                            new_name = st.text_input("Nom", value=cand, key=f"n_{i}", label_visibility="collapsed")
+                            if new_name != cand:
+                                # Auto-save logic si changement détecté (ou bouton save)
+                                if st.button("💾", key=f"s_{i}", help="Sauver le nom"):
                                     if cand in config["candidats_images"]:
-                                        if st.button("❌ Supprimer Photo", key=f"del_img_{i}"):
-                                            del config["candidats_images"][cand]
-                                            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                        config["candidats_images"][new_name] = config["candidats_images"].pop(cand)
+                                    config["candidats"][i] = new_name
+                                    json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-                                    st.markdown("---")
-                                    if st.button("🗑️ Supprimer Question", key=f"del_quest_{i}"):
-                                        config["candidats"].pop(i)
-                                        if cand in config["candidats_images"]: del config["candidats_images"][cand]
+                        # 3. Monter
+                        with cols[2]:
+                            if st.button("⬆️", key=f"up_{i}"):
+                                if i > 0:
+                                    config["candidats"][i], config["candidats"][i-1] = config["candidats"][i-1], config["candidats"][i]
+                                    json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+
+                        # 4. Descendre
+                        with cols[3]:
+                            if st.button("⬇️", key=f"dw_{i}"):
+                                if i < len(config["candidats"]) - 1:
+                                    config["candidats"][i], config["candidats"][i+1] = config["candidats"][i+1], config["candidats"][i]
+                                    json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+
+                        # 5. Gestion Photo (POPOVER pour ne pas agrandir la ligne)
+                        with cols[4]:
+                            with st.popover("🖼️", use_container_width=True):
+                                st.write(f"Image pour : **{cand}**")
+                                upl = st.file_uploader("Fichier", type=["png", "jpg"], key=f"upl_{i}")
+                                if upl:
+                                    b64 = process_image_upload(upl)
+                                    if b64:
+                                        config["candidats_images"][cand] = b64
                                         json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                
+                                if cand in config["candidats_images"]:
+                                    if st.button("Supprimer Photo", key=f"rm_img_{i}"):
+                                        del config["candidats_images"][cand]
+                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+
+                        # 6. Supprimer Ligne
+                        with cols[5]:
+                            if st.button("🗑️", key=f"rm_row_{i}"):
+                                config["candidats"].pop(i)
+                                if cand in config["candidats_images"]: del config["candidats_images"][cand]
+                                json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
         # 3. MÉDIATHÈQUE
         elif menu == "📸 Médiathèque":
