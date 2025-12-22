@@ -77,8 +77,8 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
-# --- BIBLIOTHEQUE D'EFFETS (FULL SCREEN / PARENT) ---
-# Ces effets utilisent 'window.parent' pour couvrir tout l'écran du mur social
+# --- 1. BIBLIOTHEQUE D'EFFETS (MUR SOCIAL - PLEIN ECRAN) ---
+# Utilise window.parent pour sortir de l'iframe
 EFFECTS_LIB = {
     "Aucun": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>""",
     "🎈 Ballons": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-50px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom '+(Math.random()*5+5)+'s linear,left '+(Math.random()*5+5)+'s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';});setTimeout(()=>{d.remove()},12000);}setInterval(c,600);</script>""",
@@ -89,83 +89,86 @@ EFFECTS_LIB = {
     "🟢 Matrix": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,30);</script>"""
 }
 
-# --- BIBLIOTHEQUE D'EFFETS (PREVIEW BOX) ---
-# Ces effets restent DANS l'iframe pour la prévisualisation Admin
+# --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - DANS LA BOITE) ---
+# Code HTML/JS autonome qui reste DANS l'iframe de prévisualisation
 PREVIEW_LIB = {
-    "Aucun": "<div style='background:#111;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#555;'>Aucun effet</div>",
+    "Aucun": "<div style='width:100%;height:100%;background:#333;display:flex;align-items:center;justify-content:center;color:#777;font-family:sans-serif;'>Aucun effet</div>",
     
     "🎈 Ballons": """
-    <div style='background:#111;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <div style='background:#222;width:100%;height:100%;overflow:hidden;position:relative;'>
     <script>
-    setInterval(()=>{
-        const d=document.createElement('div');d.innerHTML='🎈';
-        d.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*100+'%;font-size:20px;transition:bottom 3s linear;';
-        document.body.firstChild.appendChild(d);
-        setTimeout(()=>{d.style.bottom='120%';},50);
-        setTimeout(()=>{d.remove()},3000);
-    },300);
+    setInterval(function(){
+        var d = document.createElement('div');
+        d.innerHTML = '🎈';
+        d.style.cssText = 'position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:24px;transition:bottom 3s linear;';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.style.bottom = '120%'; }, 50);
+        setTimeout(function(){ d.remove(); }, 3000);
+    }, 500);
     </script></div>""",
     
     "❄️ Neige": """
-    <div style='background:#111;width:100%;height:100%;overflow:hidden;position:relative;'>
-    <style>.sf{position:absolute;top:-10px;color:#FFF;animation:f 2s linear forwards}@keyframes f{to{transform:translateY(300px)}}</style>
+    <div style='background:#222;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <style>.f {position:absolute;color:#FFF;animation:d 2s linear forwards} @keyframes d{to{transform:translateY(250px)}}</style>
     <script>
-    setInterval(()=>{
-        const f=document.createElement('div');f.className='sf';f.textContent='❄';
-        f.style.left=Math.random()*100+'%';f.style.fontSize=(Math.random()*10+10)+'px';
-        document.body.firstChild.appendChild(f);
-        setTimeout(()=>{f.remove()},2000);
-    },100);
+    setInterval(function(){
+        var d = document.createElement('div');
+        d.className = 'f'; d.innerHTML = '❄';
+        d.style.left = Math.random()*95+'%'; d.style.top = '-20px'; d.style.fontSize = (Math.random()*15+10)+'px';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.remove(); }, 2000);
+    }, 100);
     </script></div>""",
     
     "🎉 Confettis": """
-    <div style='background:#111;width:100%;height:100%;'>
+    <div style='background:#222;width:100%;height:100%;overflow:hidden;'>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script>
-    setInterval(()=>{
-        confetti({particleCount:5,spread:50,origin:{y:0.5},colors:['#E2001A','#FFF'],disableForReducedMotion:true});
-    },500);
+    setInterval(function(){
+        confetti({particleCount:7, spread:60, origin:{y:0.6}, colors:['#E2001A','#ffffff'], disableForReducedMotion:true, zIndex:100});
+    }, 600);
     </script></div>""",
     
     "🌌 Espace": """
-    <div style='background:black;width:100%;height:100%;position:relative;overflow:hidden;'>
-    <style>.st{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(3)}}</style>
+    <div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0} @keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(3)}}</style>
     <script>
-    setInterval(()=>{
-        const d=document.createElement('div');d.className='st';
-        d.style.left=Math.random()*100+'%';d.style.top=Math.random()*100+'%';d.style.width='2px';d.style.height='2px';
-        document.body.firstChild.appendChild(d);
-        setTimeout(()=>{d.remove()},2000);
-    },100);
+    setInterval(function(){
+        var d = document.createElement('div'); d.className='s';
+        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='2px'; d.style.height='2px';
+        document.body.appendChild(d);
+        setTimeout(function(){ d.remove(); }, 2000);
+    }, 50);
     </script></div>""",
     
     "💸 Billets": """
-    <div style='background:#111;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <div style='background:#222;width:100%;height:100%;overflow:hidden;position:relative;'>
     <script>
-    setInterval(()=>{
-        const d=document.createElement('div');d.innerHTML='💸';
-        d.style.cssText='position:absolute;top:-30px;left:'+Math.random()*100+'%;font-size:20px;';
-        document.body.firstChild.appendChild(d);
-        d.animate([{transform:'translateY(0)'},{transform:'translateY(300px)'}],{duration:2000,iterations:1});
-        setTimeout(()=>{d.remove()},2000);
-    },300);
+    setInterval(function(){
+        var d = document.createElement('div'); d.innerHTML = '💸';
+        d.style.cssText = 'position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:24px;';
+        document.body.appendChild(d);
+        d.animate([{transform:'translateY(0)'}, {transform:'translateY(250px)'}], {duration:2000, iterations:1});
+        setTimeout(function(){ d.remove(); }, 1900);
+    }, 400);
     </script></div>""",
     
     "🟢 Matrix": """
-    <canvas id="m" style="background:black;width:100%;height:100%;"></canvas>
+    <div style='background:black;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <canvas id="m" style="width:100%;height:100%;"></canvas>
     <script>
-    const c=document.getElementById('m');const x=c.getContext('2d');
-    c.width=window.innerWidth;c.height=window.innerHeight;
-    const l='01';const fs=10;const col=c.width/fs;const r=[];for(let i=0;i<col;i++)r[i]=1;
-    setInterval(()=>{
-        x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,c.width,c.height);
-        x.fillStyle='#0F0';x.font=fs+'px monospace';
-        for(let i=0;i<r.length;i++){
-            x.fillText(l.charAt(Math.floor(Math.random()*2)),i*fs,r[i]*fs);
-            if(r[i]*fs>c.height&&Math.random()>0.9)r[i]=0;r[i]++;
+    var c=document.getElementById('m'); var x=c.getContext('2d');
+    c.width=300; c.height=200;
+    var col=c.width/10; var r=[]; for(var i=0;i<col;i++)r[i]=1;
+    setInterval(function(){
+        x.fillStyle='rgba(0,0,0,0.1)'; x.fillRect(0,0,c.width,c.height);
+        x.fillStyle='#0F0'; x.font='10px monospace';
+        for(var i=0;i<r.length;i++){
+            x.fillText(Math.floor(Math.random()*2), i*10, r[i]*10);
+            if(r[i]*10>c.height && Math.random()>0.9) r[i]=0; r[i]++;
         }
-    },50);
-    </script>"""
+    }, 50);
+    </script></div>"""
 }
 
 # --- FONCTIONS CRITIQUES ---
@@ -303,8 +306,8 @@ if est_admin:
             
             with col_prev:
                 st.caption("📺 Aperçu en direct (Admin)")
-                # AFFICHE LA VERSION "CONTENUE" DANS UNE BOITE
                 if new_eff in PREVIEW_LIB:
+                    # Utilisation d'un container dédié pour l'aperçu
                     components.html(PREVIEW_LIB[new_eff], height=200)
 
             st.divider()
