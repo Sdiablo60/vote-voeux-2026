@@ -24,7 +24,7 @@ default_config = {
     "timestamp_podium": 0,
     "logo_b64": None,
     "candidats": DEFAULT_CANDIDATS,
-    "points_ponderation": [5, 3, 1]  # [Points 1er choix, Points 2eme, Points 3eme]
+    "points_ponderation": [5, 3, 1]
 }
 
 def load_json(file, default):
@@ -36,7 +36,7 @@ def load_json(file, default):
 
 config = load_json(CONFIG_FILE, default_config)
 
-# Sécurités de mise à jour de config (pour compatibilité)
+# Sécurités de mise à jour config
 if "candidats" not in config: config["candidats"] = DEFAULT_CANDIDATS
 if "points_ponderation" not in config: config["points_ponderation"] = [5, 3, 1]
 
@@ -112,14 +112,18 @@ if est_admin:
             st.subheader("2️⃣ Monitoring des Votes")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
-                # On filtre pour n'afficher que les candidats qui sont actuellement dans la liste config (optionnel)
-                df = pd.DataFrame(list(v_data.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
-                st.bar_chart(df.set_index('Candidat'), color="#E2001A")
-                with st.expander("Voir le tableau détaillé"):
-                    st.dataframe(df, use_container_width=True)
+                # Filtrer les candidats affichés pour ne garder que ceux actifs
+                active_votes = {k: v for k, v in v_data.items() if k in config["candidats"]}
+                if active_votes:
+                    df = pd.DataFrame(list(active_votes.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
+                    st.bar_chart(df.set_index('Candidat'), color="#E2001A")
+                    with st.expander("Voir le tableau détaillé"):
+                        st.dataframe(df, use_container_width=True)
+                else:
+                    st.info("Aucun vote pour les candidats actifs.")
             else: st.info("En attente du premier vote...")
 
-        # 2. PARAMÉTRAGE (CANDIDATS + PONDÉRATION)
+        # 2. PARAMÉTRAGE (CANDIDATS MODIFIABLES + PONDÉRATION)
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage de l'événement")
             
@@ -139,49 +143,64 @@ if est_admin:
 
             with tab_quest:
                 st.subheader("⚖️ Pondération des Votes")
-                st.write("Définissez le nombre de points attribués pour chaque position dans le classement des votants.")
-                
                 col_p1, col_p2, col_p3 = st.columns(3)
-                p1 = col_p1.number_input("Points pour le 1er Choix", min_value=1, value=config["points_ponderation"][0])
-                p2 = col_p2.number_input("Points pour le 2ème Choix", min_value=1, value=config["points_ponderation"][1])
-                p3 = col_p3.number_input("Points pour le 3ème Choix", min_value=1, value=config["points_ponderation"][2])
+                p1 = col_p1.number_input("Points 1er Choix", min_value=1, value=config["points_ponderation"][0])
+                p2 = col_p2.number_input("Points 2ème Choix", min_value=1, value=config["points_ponderation"][1])
+                p3 = col_p3.number_input("Points 3ème Choix", min_value=1, value=config["points_ponderation"][2])
                 
                 if st.button("💾 Sauvegarder la Pondération"):
                     config["points_ponderation"] = [p1, p2, p3]
                     json.dump(config, open(CONFIG_FILE, "w"))
-                    st.success(f"Nouveau barème : {p1} / {p2} / {p3} points")
-                    time.sleep(1); st.rerun()
+                    st.success("Barème mis à jour !"); time.sleep(1); st.rerun()
 
                 st.markdown("---")
                 
                 st.subheader("📋 Liste des Candidats / BU")
+                st.info("Modifiez le texte directement et cliquez sur '💾' pour enregistrer. Utilisez '➕' pour ajouter.")
                 
-                # Ajout
+                # --- AJOUT ---
                 c_add1, c_add2 = st.columns([3, 1])
                 new_cand = c_add1.text_input("Nouveau candidat :", placeholder="Ex: Service Marketing")
                 if c_add2.button("➕ Ajouter", use_container_width=True):
                     if new_cand and new_cand not in config["candidats"]:
                         config["candidats"].append(new_cand)
                         json.dump(config, open(CONFIG_FILE, "w"))
-                        st.success(f"Ajouté : {new_cand}")
-                        time.sleep(1); st.rerun()
+                        st.success(f"Ajouté : {new_cand}"); time.sleep(1); st.rerun()
                 
-                # Liste et suppression
+                st.markdown("---")
+
+                # --- LISTE ÉDITABLE ---
                 if not config["candidats"]:
                     st.warning("Aucun candidat dans la liste !")
                 else:
                     for i, cand in enumerate(config["candidats"]):
-                        c_text, c_del = st.columns([4, 1])
-                        c_text.text_input(f"Pos {i+1}", value=cand, disabled=True, key=f"txt_{i}")
-                        if c_del.button("🗑️ Suppr.", key=f"del_{i}"):
-                            config["candidats"].pop(i)
-                            json.dump(config, open(CONFIG_FILE, "w"))
-                            st.rerun()
+                        col_txt, col_act = st.columns([3, 1.5])
+                        
+                        # Champ modifiable (n'est plus disabled)
+                        val_edit = col_txt.text_input(f"Pos {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
+                        
+                        with col_act:
+                            c_save, c_del = st.columns(2)
+                            
+                            # Si le texte a changé, on affiche le bouton Sauver
+                            if val_edit != cand:
+                                if c_save.button("💾", key=f"save_{i}", help="Enregistrer la modification"):
+                                    config["candidats"][i] = val_edit
+                                    json.dump(config, open(CONFIG_FILE, "w"))
+                                    st.success("OK")
+                                    time.sleep(0.5)
+                                    st.rerun()
+                            
+                            # Bouton Supprimer toujours là
+                            if c_del.button("🗑️", key=f"del_{i}"):
+                                config["candidats"].pop(i)
+                                json.dump(config, open(CONFIG_FILE, "w"))
+                                st.rerun()
                 
+                st.markdown("---")
                 if st.button("♻️ Réinitialiser liste par défaut"):
                     config["candidats"] = DEFAULT_CANDIDATS
-                    json.dump(config, open(CONFIG_FILE, "w"))
-                    st.rerun()
+                    json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
         # 3. MÉDIATHÈQUE
         elif menu == "📸 Médiathèque":
@@ -210,31 +229,24 @@ if est_admin:
                     if os.path.exists(PARTICIPANTS_FILE): os.remove(PARTICIPANTS_FILE)
                     st.success("Reset effectué !"); time.sleep(1); st.rerun()
 
-# --- 4. UTILISATEUR (VOTES AVEC PONDÉRATION DYNAMIQUE) ---
+# --- 4. UTILISATEUR ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
     if not config["session_ouverte"]:
         st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
     else:
-        # Récupération de la liste dynamique
         choix = st.multiselect("Sélectionnez vos 3 favoris (dans l'ordre) :", config["candidats"])
-        
-        # Affichage du rappel des points
         pts = config.get("points_ponderation", [5, 3, 1])
-        st.caption(f"ℹ️ Barème : 1er = {pts[0]}pts, 2ème = {pts[1]}pts, 3ème = {pts[2]}pts")
+        st.caption(f"ℹ️ Points : 1er={pts[0]}, 2ème={pts[1]}, 3ème={pts[2]}")
 
         if len(choix) == 3:
             if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
                 vts = load_json(VOTES_FILE, {})
-                # Application de la pondération dynamique
-                ponderation = config.get("points_ponderation", [5, 3, 1])
-                for v, p in zip(choix, ponderation): 
+                for v, p in zip(choix, pts): 
                     vts[v] = vts.get(v, 0) + p
-                
                 json.dump(vts, open(VOTES_FILE, "w"))
-                st.success("✅ Vote enregistré !")
-                time.sleep(2); st.rerun()
+                st.success("✅ Vote enregistré !"); time.sleep(2); st.rerun()
         elif len(choix) > 3: st.error("Maximum 3 choix !")
 
 # --- 5. MUR SOCIAL ---
@@ -265,20 +277,19 @@ else:
             st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div>', unsafe_allow_html=True)
             st.markdown("<style>@keyframes blink{50%{opacity:0.5;}}</style>", unsafe_allow_html=True)
             
-            # --- LISTE DYNAMIQUE ---
+            # Liste Dynamique Split
             candidats = config["candidats"]
-            mid_index = (len(candidats) + 1) // 2
-            left_list = candidats[:mid_index]
-            right_list = candidats[mid_index:]
+            mid = (len(candidats) + 1) // 2
+            left, right = candidats[:mid], candidats[mid:]
 
             st.markdown("<div style='margin-top:30px;'>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 0.8, 1])
             with c1:
-                for opt in left_list: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:10px; border-left:5px solid #E2001A; font-weight:bold; font-size:20px;">🎥 {opt}</div>', unsafe_allow_html=True)
+                for opt in left: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:10px; border-left:5px solid #E2001A; font-weight:bold; font-size:20px;">🎥 {opt}</div>', unsafe_allow_html=True)
             with c2:
                 st.markdown(f'<div style="background:white; padding:15px; border-radius:15px; text-align:center;"><img src="data:image/png;base64,{qr_b64}" width="220"><p style="color:black; font-weight:bold; margin-top:10px; font-size:20px;">SCANNEZ POUR VOTER</p></div>', unsafe_allow_html=True)
             with c3:
-                for opt in right_list: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:10px; border-left:5px solid #E2001A; font-weight:bold; font-size:20px;">🎥 {opt}</div>', unsafe_allow_html=True)
+                for opt in right: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:10px; border-left:5px solid #E2001A; font-weight:bold; font-size:20px;">🎥 {opt}</div>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
         else:
@@ -308,7 +319,10 @@ if (Date.now() < end) requestAnimationFrame(frame);
         else:
             v_data = load_json(VOTES_FILE, {})
             if v_data:
-                sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
+                # On ne garde que ceux dans la config actuelle pour éviter d'afficher des candidats supprimés
+                valid = {k: v for k, v in v_data.items() if k in config["candidats"]}
+                sorted_v = sorted(valid.items(), key=lambda x: x[1], reverse=True)[:3]
+                
                 st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS}">🏆 LE PODIUM 2026</div><h2 style="color:white; font-style:italic; margin-top:10px;">✨ Félicitations aux grands gagnants ! ✨</h2></div>', unsafe_allow_html=True)
                 cols = st.columns(3)
                 m_txt, colors = ["🥇 1er", "🥈 2ème", "🥉 3ème"], ["#FFD700", "#C0C0C0", "#CD7F32"]
