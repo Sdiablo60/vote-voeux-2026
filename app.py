@@ -58,6 +58,16 @@ def process_image_upload(uploaded_file):
         st.error(f"Erreur image: {e}")
         return None
 
+# Fonction pour sauvegarder proprement
+def save_config():
+    json.dump(config, open(CONFIG_FILE, "w"))
+
+# Fonction pour nettoyer le cache des inputs (Fix du bug de doublon)
+def clear_input_cache():
+    for key in list(st.session_state.keys()):
+        if key.startswith("n_"): # On efface la mémoire des champs textes
+            del st.session_state[key]
+
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
@@ -87,7 +97,6 @@ if est_admin:
             )
             st.markdown("---")
             
-            # Monitoring État
             curr_mode = config["mode_affichage"]
             if curr_mode == "attente": st.info("⏸️ MODE : ATTENTE")
             elif curr_mode == "votes" and config["session_ouverte"]: st.success("🟢 VOTES : OUVERTS")
@@ -113,16 +122,16 @@ if est_admin:
 
             with col1:
                 if st.button("1. ACCUEIL / ATTENTE", use_container_width=True, type="primary" if m=="attente" else "secondary"):
-                    config.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                    config.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); save_config(); st.rerun()
             with col2:
                 if st.button("2. OUVRIR LES VOTES", use_container_width=True, type="primary" if (m=="votes" and vo) else "secondary"):
-                    config.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                    config.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); save_config(); st.rerun()
             with col3:
                 if st.button("3. CLÔTURER VOTES", use_container_width=True, type="primary" if (m=="votes" and not vo and not re) else "secondary"):
-                    config.update({"session_ouverte": False}); json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                    config.update({"session_ouverte": False}); save_config(); st.rerun()
             with col4:
                 if st.button("4. RÉVÉLER PODIUM 🏆", use_container_width=True, type="primary" if re else "secondary"):
-                    config.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                    config.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); save_config(); st.rerun()
 
             st.markdown("---")
             st.subheader("2️⃣ Monitoring des Votes")
@@ -135,7 +144,7 @@ if est_admin:
                 else: st.info("Aucun vote pour les candidats actifs.")
             else: st.info("En attente du premier vote...")
 
-        # 2. PARAMÉTRAGE (DESIGN COMPACT)
+        # 2. PARAMÉTRAGE (CORRECTIF BUG DOUBLON & SUPPRESSION)
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage de l'événement")
             
@@ -146,12 +155,12 @@ if est_admin:
                 new_title = st.text_input("Titre principal du mur", value=config["titre_mur"])
                 if new_title != config["titre_mur"]:
                     if st.button("💾 Sauvegarder le Titre"):
-                        config["titre_mur"] = new_title; json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                        config["titre_mur"] = new_title; save_config(); st.rerun()
                 
                 uploaded_logo = st.file_uploader("Changer le Logo (PNG/JPG)", type=["png", "jpg", "jpeg"])
                 if uploaded_logo:
                     if st.button("💾 Appliquer ce Logo"):
-                        config["logo_b64"] = base64.b64encode(uploaded_logo.read()).decode(); json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                        config["logo_b64"] = base64.b64encode(uploaded_logo.read()).decode(); save_config(); st.rerun()
 
             with tab_quest:
                 st.subheader("⚖️ Pondération")
@@ -160,21 +169,21 @@ if est_admin:
                 p2 = c_p2.number_input("Points 2ème", min_value=1, value=config["points_ponderation"][1])
                 p3 = c_p3.number_input("Points 3ème", min_value=1, value=config["points_ponderation"][2])
                 if st.button("💾 Mettre à jour la pondération"):
-                    config["points_ponderation"] = [p1, p2, p3]; json.dump(config, open(CONFIG_FILE, "w")); st.success("OK"); time.sleep(0.5); st.rerun()
+                    config["points_ponderation"] = [p1, p2, p3]; save_config(); st.success("OK"); time.sleep(0.5); st.rerun()
 
                 st.markdown("---")
                 
-                # --- NOUVEAU VISUEL COMPACT ---
                 st.subheader("📋 Liste des Questions")
                 
-                # Zone Ajout
+                # Ajout
                 with st.container():
                     col_add_input, col_add_btn = st.columns([3, 1])
-                    new_cand = col_add_input.text_input("Ajouter un candidat", placeholder="Nom du candidat ou de la vidéo", label_visibility="collapsed")
+                    new_cand = col_add_input.text_input("Ajouter un candidat", placeholder="Nom du candidat", label_visibility="collapsed")
                     if col_add_btn.button("➕ AJOUTER", use_container_width=True):
                         if new_cand and new_cand not in config["candidats"]:
                             config["candidats"].append(new_cand)
-                            json.dump(config, open(CONFIG_FILE, "w"))
+                            save_config()
+                            clear_input_cache() # Important pour éviter décalage
                             st.rerun()
 
                 st.markdown("<br>", unsafe_allow_html=True)
@@ -182,13 +191,11 @@ if est_admin:
                 if not config["candidats"]:
                     st.warning("La liste est vide.")
                 else:
-                    # En-têtes pour la clarté
                     cols_head = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5])
                     cols_head[0].markdown("**Img**")
                     cols_head[1].markdown("**Nom (Éditable)**")
                     
                     for i, cand in enumerate(config["candidats"]):
-                        # Colonnes : Image | Nom | Haut | Bas | Photo | Suppr
                         cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5], vertical_alignment="center")
                         
                         # 1. Aperçu Image
@@ -200,30 +207,37 @@ if est_admin:
 
                         # 2. Nom (Modifiable)
                         with cols[1]:
+                            # Utilisation d'une clé unique pour chaque rendu
                             new_name = st.text_input("Nom", value=cand, key=f"n_{i}", label_visibility="collapsed")
                             if new_name != cand:
-                                # Auto-save logic si changement détecté (ou bouton save)
                                 if st.button("💾", key=f"s_{i}", help="Sauver le nom"):
+                                    # Migration image
                                     if cand in config["candidats_images"]:
                                         config["candidats_images"][new_name] = config["candidats_images"].pop(cand)
                                     config["candidats"][i] = new_name
-                                    json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                    save_config()
+                                    clear_input_cache() # FORCE LE CLEAN
+                                    st.rerun()
 
                         # 3. Monter
                         with cols[2]:
                             if st.button("⬆️", key=f"up_{i}"):
                                 if i > 0:
                                     config["candidats"][i], config["candidats"][i-1] = config["candidats"][i-1], config["candidats"][i]
-                                    json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                    save_config()
+                                    clear_input_cache() # FORCE LE CLEAN pour éviter doublons
+                                    st.rerun()
 
                         # 4. Descendre
                         with cols[3]:
                             if st.button("⬇️", key=f"dw_{i}"):
                                 if i < len(config["candidats"]) - 1:
                                     config["candidats"][i], config["candidats"][i+1] = config["candidats"][i+1], config["candidats"][i]
-                                    json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                    save_config()
+                                    clear_input_cache() # FORCE LE CLEAN pour éviter doublons
+                                    st.rerun()
 
-                        # 5. Gestion Photo (POPOVER pour ne pas agrandir la ligne)
+                        # 5. Gestion Photo (Popover)
                         with cols[4]:
                             with st.popover("🖼️", use_container_width=True):
                                 st.write(f"Image pour : **{cand}**")
@@ -232,19 +246,22 @@ if est_admin:
                                     b64 = process_image_upload(upl)
                                     if b64:
                                         config["candidats_images"][cand] = b64
-                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                        save_config(); st.rerun()
                                 
                                 if cand in config["candidats_images"]:
                                     if st.button("Supprimer Photo", key=f"rm_img_{i}"):
                                         del config["candidats_images"][cand]
-                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                        save_config()
+                                        st.rerun() # Refresh immédiat
 
                         # 6. Supprimer Ligne
                         with cols[5]:
                             if st.button("🗑️", key=f"rm_row_{i}"):
                                 config["candidats"].pop(i)
                                 if cand in config["candidats_images"]: del config["candidats_images"][cand]
-                                json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                save_config()
+                                clear_input_cache() # FORCE LE CLEAN
+                                st.rerun()
 
         # 3. MÉDIATHÈQUE
         elif menu == "📸 Médiathèque":
