@@ -44,6 +44,7 @@ if "config" not in st.session_state:
 
 if "refresh_id" not in st.session_state: st.session_state.refresh_id = 0
 if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
+if "confirm_delete" not in st.session_state: st.session_state.confirm_delete = False
 
 # Sécurités structure
 if "candidats" not in st.session_state.config: st.session_state.config["candidats"] = DEFAULT_CANDIDATS
@@ -118,7 +119,7 @@ if est_admin:
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
             st.markdown("---")
-            menu = st.radio("Navigation :", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque (Export)", "📊 Data & Exports"], label_visibility="collapsed")
+            menu = st.radio("Navigation :", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque (Gestion)", "📊 Data & Exports"], label_visibility="collapsed")
             st.markdown("---")
             if st.button("🔓 Déconnexion", use_container_width=True):
                 st.session_state["auth"] = False
@@ -233,17 +234,17 @@ if est_admin:
                             if b64:
                                 st.session_state.config["candidats_images"][sel] = b64; save_config(); st.rerun()
 
-        # --- MÉDIATHÈQUE AVEC DOUBLE VUE ---
-        elif menu == "📸 Médiathèque (Export)":
+        # --- MÉDIATHÈQUE AVEC GESTION COMPLÈTE ---
+        elif menu == "📸 Médiathèque (Gestion)":
             st.title("📸 Médiathèque & Export")
             
             files = glob.glob(f"{LIVE_DIR}/*")
             files.sort(key=os.path.getmtime, reverse=True)
             
-            # 1. ZONE EXPORT
-            st.markdown("### 📤 Exportation")
+            # --- ZONE EXPORT & ACTIONS DE MASSE ---
+            st.markdown("### 📤 Actions de masse")
             if not files:
-                st.warning("Aucune photo.")
+                st.warning("Aucune photo dans la galerie.")
             else:
                 col_ex_all, col_ex_sel = st.columns(2)
                 with col_ex_all:
@@ -251,7 +252,7 @@ if est_admin:
                     with zipfile.ZipFile(zip_buffer_all, "w") as zf:
                         for f in files: zf.write(f, os.path.basename(f))
                     st.download_button(
-                        label=f"📥 TÉLÉCHARGER TOUT ({len(files)} photos)",
+                        label=f"📥 TOUT TÉLÉCHARGER (.ZIP)",
                         data=zip_buffer_all.getvalue(),
                         file_name=f"photos_live_tout_{int(time.time())}.zip",
                         mime="application/zip", use_container_width=True, type="primary"
@@ -259,14 +260,14 @@ if est_admin:
 
             st.divider()
             
-            # 2. SÉLECTEUR DE VUE
+            # --- GALERIE ---
             st.markdown("### 🖼️ Galerie")
-            view_mode = st.radio("Mode d'affichage :", ["▦ Grille (Aperçu)", "☰ Liste (Détail & Gestion)"], horizontal=True, label_visibility="collapsed")
+            view_mode = st.radio("Affichage :", ["▦ Grille", "☰ Liste Détaillée"], horizontal=True, label_visibility="collapsed")
             
             if files:
                 selected_files = []
                 
-                # --- VUE GRILLE (5 COLONNES) ---
+                # --- VUE GRILLE ---
                 if "Grille" in view_mode:
                     cols = st.columns(6)
                     for i, f in enumerate(files):
@@ -274,55 +275,65 @@ if est_admin:
                             st.image(f, use_container_width=True)
                             if st.checkbox("Select", key=f"sel_g_{i}", label_visibility="collapsed"):
                                 selected_files.append(f)
-                            if st.button("🗑️", key=f"del_g_{i}"):
-                                os.remove(f); st.rerun()
 
-                # --- VUE LISTE (DÉTAILLÉE) ---
+                # --- VUE LISTE ---
                 else:
-                    # Bouton "Tout sélectionner" (Simulation visuelle)
-                    if st.checkbox("Tout sélectionner pour export/suppression"):
+                    if st.checkbox("✅ Tout cocher"):
                         selected_files = files
                     
                     st.markdown("---")
                     for i, f in enumerate(files):
                         c1, c2, c3, c4 = st.columns([0.5, 0.5, 3, 1], vertical_alignment="center")
-                        
-                        # Miniature
-                        with c1:
-                            st.image(f, width=50)
-                        
-                        # Checkbox
+                        with c1: st.image(f, width=50)
                         with c2:
-                            if f in selected_files:
-                                st.checkbox("✅", value=True, key=f"sel_l_d_{i}", disabled=True)
+                            if f in selected_files: st.checkbox("✅", value=True, key=f"sel_l_d_{i}", disabled=True)
                             else:
-                                if st.checkbox("✅", key=f"sel_l_{i}", label_visibility="collapsed"):
-                                    selected_files.append(f)
-                        
-                        # Infos fichier
+                                if st.checkbox("✅", key=f"sel_l_{i}", label_visibility="collapsed"): selected_files.append(f)
                         with c3:
                             ts = os.path.getmtime(f)
                             dt_str = datetime.fromtimestamp(ts).strftime('%H:%M:%S')
-                            st.write(f"**{os.path.basename(f)}** | 🕒 {dt_str}")
-                        
-                        # Delete
+                            st.write(f"**{os.path.basename(f)}** | {dt_str}")
                         with c4:
-                            if st.button("🗑️ Suppr.", key=f"del_l_{i}"):
+                            if st.button("🗑️", key=f"del_l_{i}"):
                                 os.remove(f); st.rerun()
 
-                # 3. EXPORT SÉLECTION
+                # --- BARRE D'ACTIONS SÉLECTION ---
                 if selected_files:
                     st.markdown("---")
-                    st.success(f"{len(selected_files)} photos sélectionnées.")
-                    zip_buffer_sel = BytesIO()
-                    with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
-                        for f in selected_files: zf.write(f, os.path.basename(f))
-                    st.download_button(
-                        label="📥 TÉLÉCHARGER SÉLECTION (.ZIP)",
-                        data=zip_buffer_sel.getvalue(),
-                        file_name=f"photos_live_selection_{int(time.time())}.zip",
-                        mime="application/zip", type="primary"
-                    )
+                    st.info(f"**{len(selected_files)} photos sélectionnées**")
+                    
+                    c_down, c_del = st.columns(2)
+                    
+                    # 1. TÉLÉCHARGER LA SÉLECTION
+                    with c_down:
+                        zip_buffer_sel = BytesIO()
+                        with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
+                            for f in selected_files: zf.write(f, os.path.basename(f))
+                        st.download_button(
+                            label="📥 TÉLÉCHARGER SÉLECTION",
+                            data=zip_buffer_sel.getvalue(),
+                            file_name=f"selection_{int(time.time())}.zip",
+                            mime="application/zip", use_container_width=True, type="primary"
+                        )
+                    
+                    # 2. SUPPRIMER LA SÉLECTION (SÉCURISÉ)
+                    with c_del:
+                        if st.button("🗑️ SUPPRIMER SÉLECTION", use_container_width=True):
+                            st.session_state.confirm_delete = True
+                        
+                        if st.session_state.confirm_delete:
+                            st.error("⚠️ ACTION IRRÉVERSIBLE !")
+                            st.write("Voulez-vous vraiment supprimer définitivement ces photos ?")
+                            col_conf_yes, col_conf_no = st.columns(2)
+                            if col_conf_yes.button("✅ OUI, CONFIRMER"):
+                                for f in selected_files:
+                                    if os.path.exists(f): os.remove(f)
+                                st.session_state.confirm_delete = False
+                                st.success("Supprimé !")
+                                time.sleep(1); st.rerun()
+                            if col_conf_no.button("❌ Annuler"):
+                                st.session_state.confirm_delete = False
+                                st.rerun()
             else:
                 st.info("Vide.")
 
