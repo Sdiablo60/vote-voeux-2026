@@ -48,23 +48,23 @@ if est_admin:
             st.session_state["auth"] = True
             st.rerun()
     else:
-        # TOUS LES MENUS DANS LA SIDEBAR
+        # NAVIGATION DANS LA BARRE LATÉRALE
         with st.sidebar:
-            st.title("🎮 RÉGIE")
-            onglet = st.radio("Navigation", ["🕹️ Pilotage Live", "⚙️ Configuration", "📸 Galerie Photos", "📥 Données & Exports"])
+            st.title("🎮 MENU RÉGIE")
+            onglet = st.radio("Aller vers :", ["🕹️ Pilotage Live", "⚙️ Paramétrage", "📸 Gestion Photos", "📥 Exports & Data"])
             st.markdown("---")
             if st.button("🔓 Déconnexion", use_container_width=True):
                 st.session_state["auth"] = False
                 st.rerun()
 
-        # CONTENU CENTRAL SELON L'ONGLET SÉLECTIONNÉ DANS LA SIDEBAR
+        # CONTENU CENTRAL SELON L'ONGLET
         if onglet == "🕹️ Pilotage Live":
-            st.header("🎮 Pilotage du Mur Social")
-            col_btn, col_stats = st.columns([1, 1.5])
+            st.header("🕹️ Pilotage du Mur Social")
+            col_ctrl, col_stats = st.columns([1, 1.5])
             
-            with col_btn:
+            with col_ctrl:
                 m, vo, re = config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"]
-                
+                st.subheader("Actions")
                 if st.button("1️⃣ Mode Attente", use_container_width=True, type="primary" if m=="attente" else "secondary"):
                     config.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False})
                     json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
@@ -82,70 +82,71 @@ if est_admin:
                     json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
             with col_stats:
+                st.subheader("Scores en direct")
                 v_data = load_json(VOTES_FILE, {})
                 nb_p = len(load_json(PARTICIPANTS_FILE, []))
-                st.metric("Participants Connectés", nb_p)
+                st.metric("Participants connectés", nb_p)
                 if v_data:
                     df = pd.DataFrame(list(v_data.items()), columns=['BU', 'Points']).sort_values('Points', ascending=False)
                     st.bar_chart(df.set_index('BU'))
-                else: st.info("Aucun vote enregistré.")
+                else: st.info("Aucun vote pour le moment.")
 
-        elif onglet == "⚙️ Configuration":
-            st.header("⚙️ Paramètres")
-            config["titre_mur"] = st.text_input("Titre de l'événement", value=config["titre_mur"])
-            uploaded_logo = st.file_uploader("Logo PNG", type=["png", "jpg"])
+        elif onglet == "⚙️ Paramétrage":
+            st.header("⚙️ Configuration")
+            config["titre_mur"] = st.text_input("Titre du Mur", value=config["titre_mur"])
+            uploaded_logo = st.file_uploader("Télécharger le Logo", type=["png", "jpg"])
             if uploaded_logo:
                 config["logo_b64"] = base64.b64encode(uploaded_logo.read()).decode()
                 st.success("Logo chargé !")
-            if st.button("💾 Sauvegarder"):
+            if st.button("💾 Enregistrer les réglages"):
                 json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-        elif onglet == "📸 Galerie Photos":
-            st.header("📸 Gestion des images")
-            col_a, col_u = st.columns(2)
-            with col_a:
+        elif onglet == "📸 Gestion Photos":
+            st.header("📸 Galerie")
+            col_adm, col_usr = st.columns(2)
+            with col_adm:
                 st.subheader("Photos Admin")
                 for f in glob.glob(f"{ADMIN_DIR}/*"):
-                    st.image(f, width=100)
+                    st.image(f, width=150)
                     if st.button(f"Supprimer", key=f): os.remove(f); st.rerun()
-            with col_u:
+            with col_usr:
                 st.subheader("Photos Utilisateurs")
                 for f in glob.glob(f"{GALLERY_DIR}/*"):
-                    st.image(f, width=100)
+                    st.image(f, width=150)
                     if st.button(f"Supprimer", key=f+"u"): os.remove(f); st.rerun()
 
-        elif onglet == "📥 Données & Exports":
+        elif onglet == "📥 Exports & Data":
             st.header("📥 Exports")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 df = pd.DataFrame(list(v_data.items()), columns=['BU', 'Points'])
-                st.download_button("📥 Télécharger CSV", df.to_csv(index=False).encode('utf-8'), "votes.csv")
-            if st.button("🔴 RÉINITIALISER TOUT", type="secondary"):
-                for f_reset in [VOTES_FILE, PARTICIPANTS_FILE]:
-                    if os.path.exists(f_reset): os.remove(f_reset)
-                st.warning("Système remis à zéro.")
+                st.download_button("📥 Télécharger CSV", df.to_csv(index=False).encode('utf-8'), "resultats_votes.csv")
+            if st.button("🔴 RESET COMPLET", type="secondary"):
+                for f in [VOTES_FILE, PARTICIPANTS_FILE]:
+                    if os.path.exists(f): os.remove(f)
+                st.warning("Système réinitialisé.")
 
-# --- 4. UTILISATEUR (VOTES) ---
+# --- 4. UTILISATEUR ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote Transdev")
     if not config["session_ouverte"]:
         st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
     else:
-        choix = st.multiselect("Sélectionnez 3 Vidéos :", OPTS_BU)
+        choix = st.multiselect("Sélectionnez vos 3 favoris :", OPTS_BU)
         if len(choix) == 3 and st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
             vts = load_json(VOTES_FILE, {})
             for v, pts in zip(choix, [5, 3, 1]): vts[v] = vts.get(v, 0) + pts
             json.dump(vts, open(VOTES_FILE, "w"))
-            st.success("✅ Merci ! Votre vote a été pris en compte.")
+            st.success("✅ Vote enregistré !")
 
 # --- 5. MUR SOCIAL ---
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
-    
-    # Correction de l'en-tête (encapsulé dans st.markdown)
     logo_img = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; margin-bottom:10px;">' if config.get("logo_b64") else ""
+    
+    # TITRE FIXE ET COMPTEUR (CORRIGÉ)
     st.markdown(f"""
         <div style="text-align:center; color:white; padding-top:40px;">
             {logo_img}
@@ -176,6 +177,7 @@ else:
                 for opt in OPTS_BU[5:]: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:12px; border-left:5px solid #E2001A; font-weight:bold; font-size:18px;">🎥 {opt}</div>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
+            # MODE CLOS : PLUIE DE CONFETTIS
             components.html(f"""
                 <div style="text-align:center; font-family:sans-serif; color:white; background:black;">
                     <div style="{BADGE_CSS} background:#333;">🏁 LES VOTES SONT CLOS</div>
