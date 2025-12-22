@@ -39,6 +39,7 @@ default_config = {
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
     "session_id": "session_init_001",
+    "effect_intensity": 5, # NOUVEAU: Intensité par défaut (1-10)
     "screen_effects": {       
         "attente": "Aucun",
         "votes_open": "Aucun",
@@ -61,6 +62,9 @@ if "config" not in st.session_state:
 
 if "screen_effects" not in st.session_state.config:
     st.session_state.config["screen_effects"] = default_config["screen_effects"]
+
+if "effect_intensity" not in st.session_state.config:
+    st.session_state.config["effect_intensity"] = 5
 
 if "session_id" not in st.session_state.config:
     st.session_state.config["session_id"] = str(int(time.time()))
@@ -87,34 +91,55 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
-# --- 1. BIBLIOTHEQUE D'EFFETS (MUR SOCIAL - PLEIN ECRAN) ---
-EFFECTS_LIB = {
-    "Aucun": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>""",
-    "🎈 Ballons": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-50px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom '+(Math.random()*5+5)+'s linear,left '+(Math.random()*5+5)+'s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';});setTimeout(()=>{d.remove()},12000);}setInterval(c,600);</script>""",
-    "❄️ Neige": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}@keyframes f{to{transform:translateY(105vh)}}';l.appendChild(s);setInterval(()=>{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=Math.random()*3+3+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),6000)},100);</script>""",
-    "🎉 Confettis": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){(function f(){if(!window.parent.document.body.contains(s))return;window.parent.confetti({particleCount:2,angle:90,spread:90,origin:{x:Math.random(),y:-0.1},colors:['#E2001A','#ffffff'],zIndex:0});requestAnimationFrame(f)}())};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>""",
-    "🌌 Espace": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{position:absolute;background:white;border-radius:50%;animation:z 3s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(5)}}';l.appendChild(s);setInterval(()=>{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=Math.random()*3+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),3000)},50);</script>""",
-    "💸 Billets": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);setInterval(()=>{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;';l.appendChild(d);d.animate([{transform:'translateY(0)'},{transform:'translateY(110vh)'}],{duration:3000,iterations:1});setTimeout(()=>d.remove(),3000)},200);</script>""",
-    "🟢 Matrix": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,30);</script>"""
-}
+# --- 1. GENERATEUR D'EFFETS DYNAMIQUES (MUR SOCIAL) ---
+# Cette fonction génère le JS en fonction de l'intensité
+def get_live_effect_html(effect_name, intensity):
+    # Intensity est entre 1 et 10
+    if effect_name == "Aucun":
+        return """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>"""
+    
+    elif effect_name == "🎈 Ballons":
+        # Plus l'intensité est haute, plus l'intervalle est court (max speed)
+        interval = max(100, 1200 - (intensity * 100)) 
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-50px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom '+(Math.random()*5+5)+'s linear,left '+(Math.random()*5+5)+'s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';}});setTimeout(()=>{{d.remove()}},12000);}}setInterval(c,{interval});</script>"""
 
-# --- 2. GENERATEUR HTML DE TV RETRO AVEC PREVIEW ---
+    elif effect_name == "❄️ Neige":
+        interval = max(20, 300 - (intensity * 25))
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}}@keyframes f{{to{{transform:translateY(105vh)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=Math.random()*3+3+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),6000)}},{interval});</script>"""
+
+    elif effect_name == "🎉 Confettis":
+        count = max(1, int(intensity * 0.8)) # De 1 à 8 particules par tick
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){{(function f(){{if(!window.parent.document.body.contains(s))return;window.parent.confetti({{particleCount:{count},angle:90,spread:90,origin:{{x:Math.random(),y:-0.1}},colors:['#E2001A','#ffffff'],zIndex:0}});requestAnimationFrame(f)}}())}};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>"""
+
+    elif effect_name == "🌌 Espace":
+        interval = max(10, 100 - (intensity * 8))
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{{position:absolute;background:white;border-radius:50%;animation:z 3s infinite linear;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(5)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=Math.random()*3+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),3000)}},{interval});</script>"""
+
+    elif effect_name == "💸 Billets":
+        interval = max(50, 600 - (intensity * 50))
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;';l.appendChild(d);d.animate([{{transform:'translateY(0)'}},{{transform:'translateY(110vh)'}}],{{duration:3000,iterations:1}});setTimeout(()=>d.remove(),3000)}},{interval});</script>"""
+
+    elif effect_name == "🟢 Matrix":
+        return """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,30);</script>"""
+    
+    return ""
+
+# LISTE DES NOMS D'EFFETS
+EFFECT_NAMES = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
+
+# --- 2. GENERATEUR HTML DE TV RETRO (PREVIEW ADMIN) ---
 def get_tv_html(effect_js):
     return f"""
     <html>
     <head>
         <style>
             body {{ margin: 0; padding: 0; background: transparent; font-family: sans-serif; display: flex; justify-content: center; overflow: hidden; }}
-            .tv-container {{
-                position: relative; width: 300px; height: 260px; margin-top: 30px;
-            }}
-            
+            .tv-container {{ position: relative; width: 300px; height: 260px; margin-top: 30px; }}
             /* ANTENNA */
             .antenna {{ position: absolute; top: -35px; left: 50%; transform: translateX(-50%); width: 80px; height: 35px; z-index: 0; }}
             .ant-l {{ position: absolute; bottom: 0; left: 0; width: 3px; height: 45px; background: #888; transform: rotate(-30deg); transform-origin: bottom; }}
             .ant-r {{ position: absolute; bottom: 0; right: 0; width: 3px; height: 45px; background: #888; transform: rotate(30deg); transform-origin: bottom; }}
             .ant-base {{ position: absolute; bottom: 0; left: 25px; width: 30px; height: 15px; background: #222; border-radius: 50% 50% 0 0; }}
-
             /* CABINET */
             .cabinet {{
                 position: absolute; width: 100%; height: 200px; top: 0; left: 0;
@@ -122,7 +147,6 @@ def get_tv_html(effect_js):
                 box-shadow: 5px 5px 15px rgba(0,0,0,0.5); z-index: 2;
                 display: flex; align-items: center; padding: 10px; box-sizing: border-box;
             }}
-            
             /* SCREEN AREA (LEFT) */
             .screen-bezel {{
                 width: 200px; height: 160px;
@@ -133,9 +157,8 @@ def get_tv_html(effect_js):
             .screen-content {{
                 width: 180px; height: 140px;
                 background: black; border-radius: 16px;
-                position: relative; overflow: hidden; /* Effect lives here */
+                position: relative; overflow: hidden;
             }}
-            
             /* CONTROLS (RIGHT) */
             .controls {{
                 flex-grow: 1; height: 100%; margin-left: 10px;
@@ -145,20 +168,17 @@ def get_tv_html(effect_js):
             }}
             .knob {{ width: 30px; height: 30px; background: #BCAAA4; border-radius: 50%; border: 2px solid #222; box-shadow: 2px 2px 5px rgba(0,0,0,0.5); }}
             .speaker {{ width: 30px; height: 50px; background: repeating-linear-gradient(0deg, #222, #222 2px, #444 2px, #444 4px); border: 1px solid #000; border-radius: 4px; }}
-
             /* LEGS */
             .legs {{ position: absolute; bottom: 15px; left: 0; width: 100%; height: 45px; z-index: 1; }}
             .leg {{ position: absolute; bottom: 0; width: 20px; height: 45px; background: #3E2723; }}
             .leg-l {{ left: 30px; transform: rotate(15deg); }}
             .leg-r {{ right: 30px; transform: rotate(-15deg); }}
-
         </style>
     </head>
     <body>
         <div class="tv-container">
             <div class="antenna"><div class="ant-l"></div><div class="ant-base"></div><div class="ant-r"></div></div>
             <div class="legs"><div class="leg leg-l"></div><div class="leg leg-r"></div></div>
-            
             <div class="cabinet">
                 <div class="screen-bezel">
                     <div class="screen-content" id="preview-screen">
@@ -176,17 +196,29 @@ def get_tv_html(effect_js):
     </html>
     """
 
-# SCRIPTS JS SPECIFIQUES POUR LA PREVIEW (CIBLANT #preview-screen)
-PREVIEW_SCRIPTS = {
-    "Aucun": "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>",
-    "🎈 Ballons": """<script>const c=document.getElementById('preview-screen'); setInterval(()=>{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-20px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom 3s linear;';c.appendChild(e);setTimeout(()=>{e.style.bottom='150px'},50);setTimeout(()=>{e.remove()},3000)},500);</script>""",
-    "❄️ Neige": """<style>.sf{position:absolute;color:white;animation:f 2s linear infinite}@keyframes f{to{transform:translateY(150px)}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';c.appendChild(e);setTimeout(()=>{e.remove()},2000)},100);</script>""",
-    # FIX: Création d'un canvas dédié dans l'écran pour confiner les confettis
-    "🎉 Confettis": """<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, { resize: true, useWorker: true }); setInterval(()=>{myConfetti({particleCount:5,spread:50,origin:{y:0.6},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6});},800);</script>""",
-    "🌌 Espace": """<style>.st{position:absolute;background:white;border-radius:50%;animation:z 2s linear infinite;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(2)}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{const e=document.createElement('div');e.className='st';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';c.appendChild(e);setTimeout(()=>{e.remove()},2000)},80);</script>""",
-    "💸 Billets": """<script>const c=document.getElementById('preview-screen'); setInterval(()=>{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{transform:'translateY(0)'},{transform:'translateY(160px)'}],{duration:2000});setTimeout(()=>{e.remove()},1900)},500);</script>""",
-    "🟢 Matrix": """<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++})},50);</script>"""
-}
+# --- 3. GENERATEUR JS POUR PREVIEW (DANS TV) ---
+# On réutilise la même logique d'intensité pour la preview
+def get_preview_js(effect_name, intensity):
+    if effect_name == "Aucun":
+        return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
+    elif effect_name == "🎈 Ballons":
+        interval = max(100, 1200 - (intensity * 100))
+        return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-20px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom 3s linear;';c.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},3000)}},{interval});</script>"""
+    elif effect_name == "❄️ Neige":
+        interval = max(20, 300 - (intensity * 25))
+        return f"""<style>.sf{{position:absolute;color:white;animation:f 2s linear infinite}}@keyframes f{{to{{transform:translateY(150px)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';c.appendChild(e);setTimeout(()=>{{e.remove()}},2000)}},{interval});</script>"""
+    elif effect_name == "🎉 Confettis":
+        count = max(1, int(intensity * 0.8))
+        return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:50,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},800);</script>"""
+    elif effect_name == "🌌 Espace":
+        interval = max(10, 100 - (intensity * 8))
+        return f"""<style>.st{{position:absolute;background:white;border-radius:50%;animation:z 2s linear infinite;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(2)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';c.appendChild(e);setTimeout(()=>{{e.remove()}},2000)}},{interval});</script>"""
+    elif effect_name == "💸 Billets":
+        interval = max(50, 600 - (intensity * 50))
+        return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:2000}});setTimeout(()=>{{e.remove()}},1900)}},{interval});</script>"""
+    elif effect_name == "🟢 Matrix":
+        return """<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++})},50);</script>"""
+    return ""
 
 # --- FONCTIONS CRITIQUES ---
 
@@ -271,9 +303,10 @@ def generate_pdf_report(dataframe, title):
         pdf.ln()
     return pdf.output(dest='S').encode('latin-1')
 
-def inject_visual_effect(effect_name):
-    if effect_name in EFFECTS_LIB:
-        components.html(EFFECTS_LIB[effect_name], height=0)
+def inject_visual_effect(effect_name, intensity):
+    # Appel de la fonction dynamique pour generer le JS live
+    js_code = get_live_effect_html(effect_name, intensity)
+    components.html(js_code, height=0)
 
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -313,21 +346,33 @@ if est_admin:
             with c_test_sel:
                 st.markdown("#### 1. Choix Aperçu")
                 # Liste déroulante pour la preview
-                prev_sel = st.radio("Effet à tester :", list(PREVIEW_SCRIPTS.keys()), index=list(PREVIEW_SCRIPTS.keys()).index(st.session_state.preview_selected), key="radio_preview", label_visibility="collapsed")
+                prev_sel = st.radio("Effet à tester :", EFFECT_NAMES, index=EFFECT_NAMES.index(st.session_state.preview_selected) if st.session_state.preview_selected in EFFECT_NAMES else 0, key="radio_preview", label_visibility="collapsed")
                 if prev_sel != st.session_state.preview_selected:
                     st.session_state.preview_selected = prev_sel
                     st.rerun()
 
             with c_test_tv:
-                # GENERATION ET AFFICHAGE DE LA TV "TOUT EN UN"
-                js_code = PREVIEW_SCRIPTS.get(st.session_state.preview_selected, "")
-                full_tv_code = get_tv_html(js_code)
+                # GENERATION DE LA TV PREVIEW (AVEC INTENSITE ACTUELLE)
+                current_intensity = st.session_state.config.get("effect_intensity", 5)
+                js_preview = get_preview_js(st.session_state.preview_selected, current_intensity)
+                full_tv_code = get_tv_html(js_preview)
                 components.html(full_tv_code, height=350)
             
             st.divider()
 
             # --- ZONE 2: CONFIGURATION LIVE PAR ECRAN ---
             st.markdown("### 📡 Diffusion Live (Par Écran)")
+            
+            # SLIDER D'INTENSITE
+            st.markdown("#### 🎚️ Intensité des Effets")
+            intensity = st.slider("Régler la densité (Ballons, Neige, Confettis...)", 1, 10, st.session_state.config.get("effect_intensity", 5), key="slider_intensity")
+            if intensity != st.session_state.config.get("effect_intensity"):
+                st.session_state.config["effect_intensity"] = intensity
+                save_config()
+                # On rerun pour mettre à jour la preview et le live si besoin
+                st.rerun()
+
+            st.markdown("<br>", unsafe_allow_html=True)
             st.caption("ℹ️ *Sélectionnez un effet pour l'activer. Remettez 'Aucun' pour arrêter.*")
             
             def update_screen_effect(key_widget, key_config):
@@ -340,25 +385,25 @@ if est_admin:
             
             with c_1:
                 st.markdown("#### 🏠 Accueil")
-                def_idx = list(EFFECTS_LIB.keys()).index(screen_map.get("attente", "Aucun"))
-                st.selectbox("Effet", list(EFFECTS_LIB.keys()), index=def_idx, key="s_attente", on_change=update_screen_effect, args=("s_attente", "attente"), label_visibility="collapsed")
+                def_idx = EFFECT_NAMES.index(screen_map.get("attente", "Aucun")) if screen_map.get("attente", "Aucun") in EFFECT_NAMES else 0
+                st.selectbox("Effet", EFFECT_NAMES, index=def_idx, key="s_attente", on_change=update_screen_effect, args=("s_attente", "attente"), label_visibility="collapsed")
                 
                 st.markdown("#### 🗳️ Votes Ouverts")
-                def_idx = list(EFFECTS_LIB.keys()).index(screen_map.get("votes_open", "Aucun"))
-                st.selectbox("Effet", list(EFFECTS_LIB.keys()), index=def_idx, key="s_open", on_change=update_screen_effect, args=("s_open", "votes_open"), label_visibility="collapsed")
+                def_idx = EFFECT_NAMES.index(screen_map.get("votes_open", "Aucun")) if screen_map.get("votes_open", "Aucun") in EFFECT_NAMES else 0
+                st.selectbox("Effet", EFFECT_NAMES, index=def_idx, key="s_open", on_change=update_screen_effect, args=("s_open", "votes_open"), label_visibility="collapsed")
                 
                 st.markdown("#### 🏁 Votes Clos")
-                def_idx = list(EFFECTS_LIB.keys()).index(screen_map.get("votes_closed", "Aucun"))
-                st.selectbox("Effet", list(EFFECTS_LIB.keys()), index=def_idx, key="s_closed", on_change=update_screen_effect, args=("s_closed", "votes_closed"), label_visibility="collapsed")
+                def_idx = EFFECT_NAMES.index(screen_map.get("votes_closed", "Aucun")) if screen_map.get("votes_closed", "Aucun") in EFFECT_NAMES else 0
+                st.selectbox("Effet", EFFECT_NAMES, index=def_idx, key="s_closed", on_change=update_screen_effect, args=("s_closed", "votes_closed"), label_visibility="collapsed")
 
             with c_2:
                 st.markdown("#### 🏆 Podium")
-                def_idx = list(EFFECTS_LIB.keys()).index(screen_map.get("podium", "Aucun"))
-                st.selectbox("Effet", list(EFFECTS_LIB.keys()), index=def_idx, key="s_podium", on_change=update_screen_effect, args=("s_podium", "podium"), label_visibility="collapsed")
+                def_idx = EFFECT_NAMES.index(screen_map.get("podium", "Aucun")) if screen_map.get("podium", "Aucun") in EFFECT_NAMES else 0
+                st.selectbox("Effet", EFFECT_NAMES, index=def_idx, key="s_podium", on_change=update_screen_effect, args=("s_podium", "podium"), label_visibility="collapsed")
                 
                 st.markdown("#### 📸 Mur Photos")
-                def_idx = list(EFFECTS_LIB.keys()).index(screen_map.get("photos_live", "Aucun"))
-                st.selectbox("Effet", list(EFFECTS_LIB.keys()), index=def_idx, key="s_photos", on_change=update_screen_effect, args=("s_photos", "photos_live"), label_visibility="collapsed")
+                def_idx = EFFECT_NAMES.index(screen_map.get("photos_live", "Aucun")) if screen_map.get("photos_live", "Aucun") in EFFECT_NAMES else 0
+                st.selectbox("Effet", EFFECT_NAMES, index=def_idx, key="s_photos", on_change=update_screen_effect, args=("s_photos", "photos_live"), label_visibility="collapsed")
 
             st.divider()
 
@@ -732,7 +777,9 @@ else:
         else: screen_key = "votes_closed"
         
     effect_to_apply = config["screen_effects"].get(screen_key, "Aucun")
-    inject_visual_effect(effect_to_apply)
+    intensity_to_apply = config.get("effect_intensity", 5)
+    
+    inject_visual_effect(effect_to_apply, intensity_to_apply)
 
     if config["mode_affichage"] != "photos_live":
         st.markdown(f'<div style="text-align:center; color:white;">{logo_html}<h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
