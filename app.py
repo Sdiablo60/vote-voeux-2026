@@ -37,7 +37,7 @@ BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 
-# --- 3. ADMINISTRATION ---
+# --- 3. ADMINISTRATION (Menus en Sidebar) ---
 if est_admin:
     if "auth" not in st.session_state: st.session_state["auth"] = False
     
@@ -48,10 +48,10 @@ if est_admin:
             st.session_state["auth"] = True
             st.rerun()
     else:
-        # NAVIGATION DANS LA BARRE LATÉRALE (SIDEBAR)
+        # NAVIGATION DANS LA BARRE LATÉRALE
         with st.sidebar:
             st.title("🎮 RÉGIE")
-            onglet = st.radio("Menu Gestion", ["🕹️ Pilotage Live", "⚙️ Paramétrage", "📸 Gestion Photos", "📥 Exports & Data"])
+            onglet = st.radio("Navigation", ["🕹️ Pilotage Live", "⚙️ Paramétrage", "📸 Gestion Photos", "📥 Exports & Data"])
             st.markdown("---")
             if st.button("🔓 Déconnexion", use_container_width=True):
                 st.session_state["auth"] = False
@@ -108,12 +108,12 @@ if est_admin:
                 st.subheader("Photos Admin")
                 for f in glob.glob(f"{ADMIN_DIR}/*"):
                     st.image(f, width=150)
-                    if st.button(f"Supprimer", key=f): os.remove(f); st.rerun()
+                    if st.button("Supprimer", key=f): os.remove(f); st.rerun()
             with col_usr:
                 st.subheader("Photos Utilisateurs")
                 for f in glob.glob(f"{GALLERY_DIR}/*"):
                     st.image(f, width=150)
-                    if st.button(f"Supprimer", key=f+"u"): os.remove(f); st.rerun()
+                    if st.button("Supprimer", key=f+"u"): os.remove(f); st.rerun()
 
         elif onglet == "📥 Exports & Data":
             st.header("📥 Exports")
@@ -140,13 +140,20 @@ elif est_utilisateur:
             json.dump(vts, open(VOTES_FILE, "w"))
             st.success("✅ Vote enregistré !")
 
-# --- 5. MUR SOCIAL ---
+# --- 5. MUR SOCIAL (CORRECTION AFFICHAGE) ---
 else:
-    st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
+    # Suppression de tout le contenu par défaut et mise en noir
+    st.markdown("""
+        <style>
+            body, .stApp { background-color: black !important; }
+            [data-testid='stHeader'], footer { display: none !important; }
+        </style>
+    """, unsafe_allow_html=True)
+    
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     logo_img = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; margin-bottom:10px;">' if config.get("logo_b64") else ""
     
-    # TITRE FIXE ET COMPTEUR (AFFICHAGE SÉCURISÉ)
+    # EN-TÊTE MUR SOCIAL
     st.markdown(f"""
         <div style="text-align:center; color:white; padding-top:40px;">
             {logo_img}
@@ -167,6 +174,7 @@ else:
             qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div>', unsafe_allow_html=True)
+            
             st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 0.8, 1])
             with c1:
@@ -177,7 +185,7 @@ else:
                 for opt in OPTS_BU[5:]: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:12px; border-left:5px solid #E2001A; font-weight:bold; font-size:18px;">🎥 {opt}</div>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
-            # MODE CLOS : PLUIE DE CONFETTIS TOMBANTE
+            # MODE CLOS : PLUIE DE CONFETTIS
             components.html(f"""
                 <div style="text-align:center; font-family:sans-serif; color:white; background:black; height:100%;">
                     <div style="{BADGE_CSS} background:#333;">🏁 LES VOTES SONT CLOS</div>
