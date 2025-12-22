@@ -1,5 +1,5 @@
 import streamlit as st
-import os, glob, base64, qrcode, json, random
+import os, glob, base64, qrcode, json, random, pandas as pd
 from io import BytesIO
 import streamlit.components.v1 as components
 
@@ -52,8 +52,14 @@ if est_admin:
             
     # Interface Admin Connectée
     else:
+        # --- SESSION ADMIN ---
         st.sidebar.success("✅ Connecté en Admin")
-        
+        if st.sidebar.button("🔓 Se déconnecter", use_container_width=True):
+            st.session_state["auth"] = False
+            st.rerun()
+            
+        st.sidebar.markdown("---")
+
         # Stats en direct
         try:
             nb_p = len(load_json(PARTICIPANTS_FILE, []))
@@ -64,6 +70,8 @@ if est_admin:
         except: pass
 
         st.sidebar.markdown("---")
+        
+        # --- RÉGLAGES ---
         config["titre_mur"] = st.sidebar.text_input("Titre du Mur", value=config["titre_mur"])
         config["session_ouverte"] = st.sidebar.checkbox("📢 Ouvrir les votes", value=config["session_ouverte"])
         config["reveal_resultats"] = st.sidebar.checkbox("🏆 RÉVÉLER LE PODIUM", value=config["reveal_resultats"])
@@ -76,12 +84,10 @@ if est_admin:
         if st.sidebar.button("🔵 METTRE À JOUR LE MUR", type="primary", use_container_width=True):
             with open(CONFIG_FILE, "w") as f: json.dump(config, f)
             st.rerun()
-
-        if st.sidebar.button("🔓 Se déconnecter", use_container_width=True):
-            st.session_state["auth"] = False
-            st.rerun()
             
         st.sidebar.markdown("---")
+        
+        # --- ZONE DE DANGER ---
         if st.sidebar.button("🔴 RESET COMPLET", type="secondary", use_container_width=True):
             config.update({"vote_version": VOTE_VERSION+1, "session_ouverte": False, "reveal_resultats": False, "mode_affichage": "attente"})
             with open(CONFIG_FILE, "w") as f: json.dump(config, f)
@@ -89,12 +95,25 @@ if est_admin:
             with open(PARTICIPANTS_FILE, "w") as f: json.dump([], f)
             st.rerun()
 
+    # Page principale Admin
     if st.session_state.get("auth"):
         st.title("📊 Résultats en temps réel")
         v_data = load_json(VOTES_FILE, {})
         if v_data:
+            # Graphique
             sorted_v = dict(sorted(v_data.items(), key=lambda x: x[1], reverse=True))
             st.bar_chart(sorted_v)
+            
+            # Export CSV
+            st.markdown("---")
+            df = pd.DataFrame(list(sorted_v.items()), columns=['Service/BU', 'Points'])
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="📥 Télécharger les résultats (CSV)",
+                data=csv,
+                file_name=f'resultats_votes_v{VOTE_VERSION}.csv',
+                mime='text/csv',
+            )
         else:
             st.info("Aucun vote pour le moment.")
 
