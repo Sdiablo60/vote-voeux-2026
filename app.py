@@ -69,10 +69,6 @@ if est_admin:
             config.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()})
             json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-        if st.sidebar.button("5️⃣ Mode Live Photos", use_container_width=True):
-            config.update({"mode_affichage": "live", "session_ouverte": False, "reveal_resultats": False})
-            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
-
 # --- 4. UTILISATEUR (VOTE) ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
@@ -94,7 +90,7 @@ else:
     st.markdown(f'<div style="text-align:center; color:white; padding-top:40px;"><h1 style="font-size:55px; font-weight:bold; text-transform:uppercase;">{config["titre_mur"]}</h1><div style="background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold;">👥 {nb_p} CONNECTÉS</div></div>', unsafe_allow_html=True)
 
     if config["mode_affichage"] == "attente":
-        st.markdown(f'<div style="text-align:center; color:white;"><div style="{BADGE_CSS}">⌛ En attente des votes...</div><h2 style="font-size:55px; margin-top:60px;">Bienvenue ! 👋</h2></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align:center; color:white;"><div style="{BADGE_CSS}">⌛ En attente de l\'ouverture des Votes</div><h2 style="font-size:55px; margin-top:60px;">Bienvenue ! 👋</h2></div>', unsafe_allow_html=True)
 
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         if config["session_ouverte"]:
@@ -102,70 +98,51 @@ else:
             qr_url = f"https://{host}/?mode=vote"
             qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS}">🚀 VOTES OUVERTS</div><div style="margin-top:40px; background:white; display:inline-block; padding:15px; border-radius:15px;"><img src="data:image/png;base64,{qr_b64}" width="180"></div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS}">🚀 LES VOTES SONT OUVERTS</div><div style="margin-top:40px; background:white; display:inline-block; padding:15px; border-radius:15px;"><img src="data:image/png;base64,{qr_b64}" width="180"></div></div>', unsafe_allow_html=True)
         else:
+            # --- MODE CLOS : PLUIE DE CONFETTIS DU HAUT ---
             components.html(f"""
                 <div style="text-align:center; font-family:sans-serif; color:white;">
-                    <div style="{BADGE_CSS} background:#333;">🏁 VOTES CLOS</div>
+                    <div style="{BADGE_CSS} background:#333;">🏁 LES VOTES SONT CLOS</div>
                     <div style="font-size:100px; animation: clap 0.5s infinite alternate; margin-top:30px;">👏</div>
                     <h1 style="color:#E2001A;">MERCI À TOUS !</h1>
                 </div>
                 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
                 <script>
-                    var end = Date.now() + 5000;
+                    var end = Date.now() + 7000;
                     (function frame() {{
-                        confetti({{ particleCount: 3, angle: 60, spread: 55, origin: {{ x: 0 }}, colors: ['#E2001A', '#ffffff'] }});
-                        confetti({{ particleCount: 3, angle: 120, spread: 55, origin: {{ x: 1 }}, colors: ['#E2001A', '#ffffff'] }});
+                        // Pluie tombante sur tout l'écran
+                        confetti({{ particleCount: 3, origin: {{ y: -0.2, x: Math.random() }}, spread: 360, gravity: 0.8, colors: ['#E2001A', '#ffffff'] }});
                         if (Date.now() < end) requestAnimationFrame(frame);
                     }}());
                 </script>
                 <style> @keyframes clap {{ from {{ transform: scale(1); }} to {{ transform: scale(1.2); }} }} </style>
-            """, height=400)
+            """, height=500)
 
     elif config["reveal_resultats"]:
         temps_ecoule = time.time() - config.get("timestamp_podium", 0)
         compte_a_rebours = 10 - int(temps_ecoule)
 
         if compte_a_rebours > 0:
-            st.markdown(f"""
-                <div style="text-align:center; margin-top:100px;">
-                    <h2 style="color:white; font-size:40px; text-transform:uppercase;">Podium dans...</h2>
-                    <div class="countdown">{compte_a_rebours}</div>
-                </div>
-                <style>
-                    .countdown {{ font-size: 200px; color: #E2001A; font-weight: bold; animation: pulse 1s infinite; }}
-                    @keyframes pulse {{ 0% {{ transform: scale(1); }} 50% {{ transform: scale(1.1); }} 100% {{ transform: scale(1); }} }}
-                </style>
-            """, unsafe_allow_html=True)
-            time.sleep(0.5)
-            st.rerun()
+            st.markdown(f'<div style="text-align:center; margin-top:100px;"><h2 style="color:white; text-transform:uppercase;">Podium dans...</h2><div style="font-size:200px; color:#E2001A; font-weight:bold;">{compte_a_rebours}</div></div>', unsafe_allow_html=True)
+            time.sleep(0.5); st.rerun()
         else:
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
-                st.markdown(f"""
-                    <div style="text-align:center;">
-                        <div style="{BADGE_CSS}">🏆 LE PODIUM 2026</div>
-                        <h2 style="color: #ffffff; font-size: 35px; margin-top: 25px; font-style: italic; animation: fadeIn 2s;">
-                            ✨ Félicitations aux grands gagnants ! ✨
-                        </h2>
-                    </div>
-                    <style>
-                        @keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
-                    </style>
-                """, unsafe_allow_html=True)
-                
+                st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS}">🏆 LE PODIUM 2026</div><h2 style="color:white; font-style:italic;">✨ Félicitations aux gagnants ! ✨</h2></div>', unsafe_allow_html=True)
                 cols = st.columns(3)
                 m_txt = ["🥇 1er", "🥈 2ème", "🥉 3ème"]
                 for i, (name, score) in enumerate(sorted_v):
-                    cols[i].markdown(f'<div style="background:#222;padding:40px 20px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;margin-top:40px;"><h2>{m_txt[i]}</h2><h1 style="font-size:40px;">{name}</h1><p>{score} pts</p></div>', unsafe_allow_html=True)
+                    cols[i].markdown(f'<div style="background:#222;padding:40px 20px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;margin-top:40px;"><h2>{m_txt[i]}</h2><h1>{name}</h1><p>{score} pts</p></div>', unsafe_allow_html=True)
                 
+                # --- PODIUM : PLUIE DE VICTOIRE (ROUGE, BLANC, OR) ---
                 components.html("""
                     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
                     <script>
                         var end = Date.now() + 10000;
                         (function frame() {
-                            confetti({ particleCount: 10, spread: 80, origin: { y: 0.6 }, colors: ['#E2001A', '#ffffff', '#ffd700'] });
+                            confetti({ particleCount: 5, origin: { y: -0.2, x: Math.random() }, spread: 360, gravity: 0.7, colors: ['#E2001A', '#ffffff', '#ffd700'] });
                             if (Date.now() < end) requestAnimationFrame(frame);
                         }());
                     </script>
