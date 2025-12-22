@@ -39,8 +39,8 @@ default_config = {
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
     "session_id": "session_init_001",
-    "effect_intensity": 25, # Densité (Nombre)
-    "effect_speed": 25,     # Vitesse (Animation)
+    "effect_intensity": 25, 
+    "effect_speed": 25,     
     "screen_effects": {       
         "attente": "Aucun",
         "votes_open": "Aucun",
@@ -99,36 +99,23 @@ BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:
 EFFECT_NAMES = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
 
 # --- 2. GENERATEUR D'EFFETS DYNAMIQUES (MUR SOCIAL) ---
-# Calibré pour 0-50 sur deux axes (Intensité / Vitesse)
 def get_live_effect_html(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>"""
     
     elif effect_name == "🎈 Ballons":
-        # Densité: Intervalle d'apparition (Plus petit = Plus de ballons)
-        # 0 -> 2000ms, 50 -> 40ms (Mitraillette à ballons)
         interval = max(40, 2000 - (intensity * 39)) 
-        
-        # Vitesse: Durée de la transition CSS (Plus petit = Plus rapide)
-        # 0 -> 20s (Lent), 50 -> 3s (Rapide)
         duration = max(3, 20 - (speed * 0.34))
-        
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom {duration}s linear,left {duration}s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';}});setTimeout(()=>{{d.remove()}},{duration*1000 + 1000});}}setInterval(c,{interval});</script>"""
 
     elif effect_name == "❄️ Neige":
-        # Densité
         interval = max(10, 400 - (intensity * 7.8))
-        # Vitesse
         duration = max(2, 10 - (speed * 0.16))
-        
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}}@keyframes f{{to{{transform:translateY(105vh)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=(Math.random()*{duration} + {duration/2})+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),{duration*1000 + 2000})}},{interval});</script>"""
 
     elif effect_name == "🎉 Confettis":
-        # Densité: Nombre de particules par tick
-        count = max(1, int(intensity * 1.5)) # Jusqu'à 75 particules par coup
-        # Vitesse: Intervalle de tir
+        count = max(1, int(intensity * 1.5)) 
         interval = max(100, 1500 - (speed * 28))
-        
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){{(function f(){{if(!window.parent.document.body.contains(s))return;window.parent.confetti({{particleCount:{count},angle:90,spread:120,origin:{{x:Math.random(),y:-0.1}},colors:['#E2001A','#ffffff','#000000'],zIndex:0,gravity:1.2,drift:0}}); setTimeout(()=>{{requestAnimationFrame(f)}}, {interval})}}())}};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>"""
 
     elif effect_name == "🌌 Espace":
@@ -142,9 +129,9 @@ def get_live_effect_html(effect_name, intensity, speed):
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;';l.appendChild(d);d.animate([{{transform:'translateY(0)'}},{{transform:'translateY(110vh)'}}],{{duration:{duration},iterations:1}});setTimeout(()=>d.remove(),{duration})}},{interval});</script>"""
 
     elif effect_name == "🟢 Matrix":
-        # Vitesse de rafraichissement
         fps = max(10, 100 - (speed * 1.5))
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,{fps});</script>"""
+        # CORRECTIF: Doubles accolades pour le JS, simples pour la variable Python {fps}
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){{const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}}}};setInterval(d,{fps});</script>"""
     
     return ""
 
@@ -156,33 +143,28 @@ def get_tv_html(effect_js):
         <style>
             body {{ margin: 0; padding: 0; background: transparent; font-family: sans-serif; display: flex; justify-content: center; overflow: hidden; }}
             .tv-container {{ position: relative; width: 320px; height: 240px; margin: 0 auto; }}
-            /* ANTENNA */
             .antenna {{ position: absolute; top: -50px; left: 50%; transform: translateX(-50%); width: 100px; height: 50px; z-index: 0; }}
             .ant-l {{ position: absolute; bottom: 0; left: 0; width: 3px; height: 100%; background: #666; transform: rotate(-25deg); transform-origin: bottom; }}
             .ant-r {{ position: absolute; bottom: 0; right: 0; width: 3px; height: 100%; background: #666; transform: rotate(25deg); transform-origin: bottom; }}
             .ant-base {{ position: absolute; bottom: 0; left: 35px; width: 30px; height: 15px; background: #222; border-radius: 50% 50% 0 0; }}
-            /* CABINET */
             .cabinet {{
                 position: absolute; width: 100%; height: 100%; top: 0; left: 0;
                 background: #5D4037; border: 6px solid #3E2723; border-radius: 20px;
                 box-shadow: 5px 5px 15px rgba(0,0,0,0.6); z-index: 5;
                 display: flex; padding: 12px; box-sizing: border-box;
             }}
-            /* SCREEN AREA (LEFT) */
             .screen-bezel {{
                 flex: 1; background: #222; border: 4px solid #8D6E63; border-radius: 16px;
                 box-shadow: inset 0 0 20px #000; margin-right: 12px;
                 position: relative; overflow: hidden;
             }}
             .screen-content {{ width: 100%; height: 100%; background: black; position: relative; overflow: hidden; }}
-            /* CONTROLS (RIGHT) */
             .controls {{
                 width: 60px; background: #3E2723; border-radius: 8px;
                 display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; padding: 5px 0;
             }}
             .knob {{ width: 30px; height: 30px; background: #BCAAA4; border-radius: 50%; border: 2px solid #222; box-shadow: 1px 2px 3px rgba(0,0,0,0.5); }}
             .speaker {{ width: 30px; height: 40px; background: repeating-linear-gradient(0deg, #222, #222 3px, #4E342E 3px, #4E342E 6px); border: 1px solid #111; border-radius: 4px; }}
-            /* LEGS */
             .legs {{ position: absolute; bottom: -40px; left: 0; width: 100%; display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; z-index: 1; }}
             .leg {{ width: 15px; height: 50px; background: #222; }}
             .leg-l {{ transform: skewX(10deg); }} .leg-r {{ transform: skewX(-10deg); }}
@@ -210,7 +192,6 @@ def get_tv_html(effect_js):
     """
 
 # --- 4. GENERATEUR JS POUR PREVIEW (DANS TV) ---
-# Calibrage identique au live
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
@@ -236,6 +217,7 @@ def get_preview_js(effect_name, intensity, speed):
         return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:{duration}}});setTimeout(()=>{{e.remove()}},{duration})}},{interval});</script>"""
     elif effect_name == "🟢 Matrix":
         fps = max(10, 100 - (speed * 1.5))
+        # CORRECTIF: Doubles accolades pour le JS, simples pour la variable Python {fps}
         return f"""<canvas id="mc" style="width:100%;height:100%;"></canvas><script>const v=document.getElementById('mc');const x=v.getContext('2d');v.width=180;v.height=140;const cl=v.width/10;const r=Array(Math.floor(cl)).fill(1);setInterval(()=>{x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,v.width,v.height);x.fillStyle='#0F0';x.font='10px mono';r.forEach((y,i)=>{x.fillText(Math.random()>0.5?'1':'0',i*10,y*10);if(y*10>v.height&&Math.random()>0.9)r[i]=0;r[i]++})},{fps});</script>"""
     return ""
 
@@ -388,7 +370,6 @@ if est_admin:
                 st.markdown("#### 🚀 Vitesse (Animation)")
                 speed = st.slider("Vitesse de mouvement", 0, 50, st.session_state.config.get("effect_speed", 25), key="slider_speed")
 
-            # Sauvegarde si changement
             if intensity != st.session_state.config.get("effect_intensity") or speed != st.session_state.config.get("effect_speed"):
                 st.session_state.config["effect_intensity"] = intensity
                 st.session_state.config["effect_speed"] = speed
