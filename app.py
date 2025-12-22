@@ -77,140 +77,95 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
-# --- BIBLIOTHEQUE D'EFFETS ---
+# --- BIBLIOTHEQUE D'EFFETS (FULL SCREEN / PARENT) ---
+# Ces effets utilisent 'window.parent' pour couvrir tout l'écran du mur social
 EFFECTS_LIB = {
-    "Aucun": "",
+    "Aucun": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>""",
+    "🎈 Ballons": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-50px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom '+(Math.random()*5+5)+'s linear,left '+(Math.random()*5+5)+'s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';});setTimeout(()=>{d.remove()},12000);}setInterval(c,600);</script>""",
+    "❄️ Neige": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}@keyframes f{to{transform:translateY(105vh)}}';l.appendChild(s);setInterval(()=>{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=Math.random()*3+3+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),6000)},100);</script>""",
+    "🎉 Confettis": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){(function f(){if(!window.parent.document.body.contains(s))return;window.parent.confetti({particleCount:2,angle:90,spread:90,origin:{x:Math.random(),y:-0.1},colors:['#E2001A','#ffffff'],zIndex:0});requestAnimationFrame(f)}())};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>""",
+    "🌌 Espace": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{position:absolute;background:white;border-radius:50%;animation:z 3s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(5)}}';l.appendChild(s);setInterval(()=>{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=Math.random()*3+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),3000)},50);</script>""",
+    "💸 Billets": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);setInterval(()=>{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;';l.appendChild(d);d.animate([{transform:'translateY(0)'},{transform:'translateY(110vh)'}],{duration:3000,iterations:1});setTimeout(()=>d.remove(),3000)},200);</script>""",
+    "🟢 Matrix": """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var c=document.createElement('canvas');c.id='effect-layer';c.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;';window.parent.document.body.appendChild(c);const x=c.getContext('2d');c.width=window.innerWidth;c.height=window.innerHeight;const l='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';const fs=16;const cols=c.width/fs;const r=[];for(let i=0;i<cols;i++)r[i]=1;const d=()=>{if(!window.parent.document.getElementById('effect-layer'))return;x.fillStyle='rgba(0,0,0,0.05)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font=fs+'px monospace';for(let i=0;i<r.length;i++){const t=l.charAt(Math.floor(Math.random()*l.length));x.fillText(t,i*fs,r[i]*fs);if(r[i]*fs>c.height&&Math.random()>0.975)r[i]=0;r[i]++}};setInterval(d,30);</script>"""
+}
+
+# --- BIBLIOTHEQUE D'EFFETS (PREVIEW BOX) ---
+# Ces effets restent DANS l'iframe pour la prévisualisation Admin
+PREVIEW_LIB = {
+    "Aucun": "<div style='background:#111;width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#555;'>Aucun effet</div>",
     
     "🎈 Ballons": """
-    <div id="balloon-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;"></div>
+    <div style='background:#111;width:100%;height:100%;overflow:hidden;position:relative;'>
     <script>
-    function createBalloon() {
-        const div = document.createElement('div');
-        div.innerHTML = '🎈';
-        div.style.position = 'absolute';
-        div.style.bottom = '-50px';
-        div.style.left = Math.random() * 100 + 'vw';
-        div.style.fontSize = (Math.random() * 30 + 30) + 'px';
-        div.style.opacity = Math.random() * 0.5 + 0.5;
-        div.style.transition = `bottom ${Math.random() * 5 + 5}s linear, left ${Math.random() * 5 + 5}s ease-in-out`;
-        document.getElementById('balloon-container').appendChild(div);
-        setTimeout(() => {
-            div.style.bottom = '110vh';
-            div.style.left = (parseFloat(div.style.left) + (Math.random() * 20 - 10)) + 'vw';
-        }, 100);
-        setTimeout(() => { div.remove(); }, 12000);
-    }
-    setInterval(createBalloon, 400);
-    </script>
-    """,
+    setInterval(()=>{
+        const d=document.createElement('div');d.innerHTML='🎈';
+        d.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*100+'%;font-size:20px;transition:bottom 3s linear;';
+        document.body.firstChild.appendChild(d);
+        setTimeout(()=>{d.style.bottom='120%';},50);
+        setTimeout(()=>{d.remove()},3000);
+    },300);
+    </script></div>""",
     
     "❄️ Neige": """
-    <div style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;">
-        <style>
-            .snowflake { position: absolute; top: -10px; color: #FFF; animation: fall linear infinite; }
-            @keyframes fall { to { transform: translateY(105vh); } }
-        </style>
-        <script>
-            const container = document.currentScript.parentElement;
-            setInterval(() => {
-                const flake = document.createElement('div');
-                flake.className = 'snowflake';
-                flake.textContent = '❄';
-                flake.style.left = Math.random() * 100 + 'vw';
-                flake.style.animationDuration = Math.random() * 3 + 2 + 's';
-                flake.style.fontSize = Math.random() * 10 + 10 + 'px';
-                flake.style.opacity = Math.random();
-                container.appendChild(flake);
-                setTimeout(() => flake.remove(), 5000);
-            }, 50);
-        </script>
-    </div>
-    """,
+    <div style='background:#111;width:100%;height:100%;overflow:hidden;position:relative;'>
+    <style>.sf{position:absolute;top:-10px;color:#FFF;animation:f 2s linear forwards}@keyframes f{to{transform:translateY(300px)}}</style>
+    <script>
+    setInterval(()=>{
+        const f=document.createElement('div');f.className='sf';f.textContent='❄';
+        f.style.left=Math.random()*100+'%';f.style.fontSize=(Math.random()*10+10)+'px';
+        document.body.firstChild.appendChild(f);
+        setTimeout(()=>{f.remove()},2000);
+    },100);
+    </script></div>""",
     
-    "🎉 Confettis (Pluie)": """
+    "🎉 Confettis": """
+    <div style='background:#111;width:100%;height:100%;'>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <script>
-    var duration = 15 * 1000;
-    var animationEnd = Date.now() + duration;
-    var skew = 1;
-    (function frame() {
-        confetti({ particleCount: 1, startVelocity: 0, ticks: 200, origin: { x: Math.random(), y: 0 }, colors: ['#E2001A', '#ffffff'], gravity: 0.8, scalar: 1.2, drift: 0 });
-        requestAnimationFrame(frame);
-    }());
-    </script>
-    """,
+    setInterval(()=>{
+        confetti({particleCount:5,spread:50,origin:{y:0.5},colors:['#E2001A','#FFF'],disableForReducedMotion:true});
+    },500);
+    </script></div>""",
     
     "🌌 Espace": """
-    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:transparent; z-index:0; pointer-events:none;">
-    <style>
-    .star { position: absolute; background: white; border-radius: 50%; animation: zoom 3s infinite linear; opacity: 0; }
-    @keyframes zoom { 0% { opacity: 0; transform: scale(0.1) translateZ(0); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(5) translateZ(0); } }
-    </style>
+    <div style='background:black;width:100%;height:100%;position:relative;overflow:hidden;'>
+    <style>.st{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(3)}}</style>
     <script>
-        setInterval(() => {
-            const star = document.createElement('div');
-            star.className = 'star';
-            const x = Math.random() * 100; const y = Math.random() * 100;
-            star.style.left = x + 'vw'; star.style.top = y + 'vh';
-            star.style.width = Math.random() * 3 + 'px'; star.style.height = star.style.width;
-            document.body.appendChild(star);
-            setTimeout(() => star.remove(), 3000);
-        }, 30);
-    </script>
-    </div>
-    """,
+    setInterval(()=>{
+        const d=document.createElement('div');d.className='st';
+        d.style.left=Math.random()*100+'%';d.style.top=Math.random()*100+'%';d.style.width='2px';d.style.height='2px';
+        document.body.firstChild.appendChild(d);
+        setTimeout(()=>{d.remove()},2000);
+    },100);
+    </script></div>""",
     
-    "🎆 Feu d'Artifice": """
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+    "💸 Billets": """
+    <div style='background:#111;width:100%;height:100%;overflow:hidden;position:relative;'>
     <script>
-    var interval = setInterval(function() {
-        var randomInRange = (min, max) => Math.random() * (max - min) + min;
-        confetti({ startVelocity: 30, spread: 360, ticks: 60, zIndex: 99999, particleCount: 50, origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 } });
-    }, 800);
-    </script>
-    """,
-    
-    "💸 Pluie de Billets": """
-    <div id="money-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;"></div>
-    <script>
-    setInterval(() => {
-        const div = document.createElement('div');
-        div.innerHTML = '💸';
-        div.style.position = 'absolute';
-        div.style.top = '-50px';
-        div.style.left = Math.random() * 100 + 'vw';
-        div.style.fontSize = '30px';
-        div.style.animation = 'fall 3s linear';
-        document.getElementById('money-container').appendChild(div);
-        
-        div.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(110vh)' }], { duration: 3000, iterations: 1 });
-        setTimeout(() => div.remove(), 3000);
-    }, 200);
-    </script>
-    """,
+    setInterval(()=>{
+        const d=document.createElement('div');d.innerHTML='💸';
+        d.style.cssText='position:absolute;top:-30px;left:'+Math.random()*100+'%;font-size:20px;';
+        document.body.firstChild.appendChild(d);
+        d.animate([{transform:'translateY(0)'},{transform:'translateY(300px)'}],{duration:2000,iterations:1});
+        setTimeout(()=>{d.remove()},2000);
+    },300);
+    </script></div>""",
     
     "🟢 Matrix": """
-    <canvas id="matrix" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;"></canvas>
+    <canvas id="m" style="background:black;width:100%;height:100%;"></canvas>
     <script>
-    const canvas = document.getElementById('matrix'); const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレヱゲゼデベペオォコソトノホモヨョロヲゴゾドボポヴッン';
-    const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'; const nums = '0123456789'; const alphabet = katakana + latin + nums;
-    const fontSize = 16; const columns = canvas.width/fontSize; const rainDrops = [];
-    for( let x = 0; x < columns; x++ ) { rainDrops[x] = 1; }
-    const draw = () => {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#0F0'; ctx.font = fontSize + 'px monospace';
-        for(let i = 0; i < rainDrops.length; i++) {
-            const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
-            ctx.fillText(text, i*fontSize, rainDrops[i]*fontSize);
-            if(rainDrops[i]*fontSize > canvas.height && Math.random() > 0.975){ rainDrops[i] = 0; }
-            rainDrops[i]++;
+    const c=document.getElementById('m');const x=c.getContext('2d');
+    c.width=window.innerWidth;c.height=window.innerHeight;
+    const l='01';const fs=10;const col=c.width/fs;const r=[];for(let i=0;i<col;i++)r[i]=1;
+    setInterval(()=>{
+        x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,c.width,c.height);
+        x.fillStyle='#0F0';x.font=fs+'px monospace';
+        for(let i=0;i<r.length;i++){
+            x.fillText(l.charAt(Math.floor(Math.random()*2)),i*fs,r[i]*fs);
+            if(r[i]*fs>c.height&&Math.random()>0.9)r[i]=0;r[i]++;
         }
-    };
-    setInterval(draw, 30);
-    </script>
-    """
+    },50);
+    </script>"""
 }
 
 # --- FONCTIONS CRITIQUES ---
@@ -296,9 +251,8 @@ def generate_pdf_report(dataframe, title):
         pdf.ln()
     return pdf.output(dest='S').encode('latin-1')
 
-# Fonction pour injecter l'effet (Admin & Social)
 def inject_visual_effect(effect_name):
-    if effect_name in EFFECTS_LIB and effect_name != "Aucun":
+    if effect_name in EFFECTS_LIB:
         components.html(EFFECTS_LIB[effect_name], height=0)
 
 # --- 2. NAVIGATION ---
@@ -332,22 +286,26 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # 1. AMBIANCE VISUELLE (AVEC PREVIEW)
-            st.subheader("✨ AMBIANCE VISUELLE (Mur)")
-            current_eff = st.session_state.config.get("active_effect", "Aucun")
-            new_eff = st.selectbox("Choisir un effet d'animation :", list(EFFECTS_LIB.keys()), index=list(EFFECTS_LIB.keys()).index(current_eff) if current_eff in EFFECTS_LIB else 0)
+            # 1. AMBIANCE VISUELLE (AVEC PREVIEW BOITE NOIRE)
+            st.subheader("✨ AMBIANCE VISUELLE")
+            col_sel, col_prev = st.columns([1, 1])
             
-            if new_eff != current_eff:
-                st.session_state.config["active_effect"] = new_eff
-                save_config()
-                st.toast(f"✨ Effet activé : {new_eff}")
-                time.sleep(0.5)
-                st.rerun()
+            with col_sel:
+                current_eff = st.session_state.config.get("active_effect", "Aucun")
+                new_eff = st.selectbox("Choisir un effet d'animation :", list(EFFECTS_LIB.keys()), index=list(EFFECTS_LIB.keys()).index(current_eff) if current_eff in EFFECTS_LIB else 0)
+                
+                if new_eff != current_eff:
+                    st.session_state.config["active_effect"] = new_eff
+                    save_config()
+                    st.toast(f"✨ Effet activé : {new_eff}")
+                    time.sleep(0.5)
+                    st.rerun()
             
-            # PREVISUALISATION IMMEDIATE ADMIN
-            if new_eff != "Aucun":
-                st.caption("👀 Vous voyez ci-dessus la prévisualisation de l'effet actif.")
-                inject_visual_effect(new_eff)
+            with col_prev:
+                st.caption("📺 Aperçu en direct (Admin)")
+                # AFFICHE LA VERSION "CONTENUE" DANS UNE BOITE
+                if new_eff in PREVIEW_LIB:
+                    components.html(PREVIEW_LIB[new_eff], height=200)
 
             st.divider()
 
