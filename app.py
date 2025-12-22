@@ -276,12 +276,21 @@ if est_admin:
 
 # --- 4. UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
-    st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     cfg = load_json(CONFIG_FILE, default_config)
     
-    if cfg.get("logo_b64"):
-        st.markdown(f'<div style="text-align:center; margin-bottom:20px; background:transparent;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto; background:transparent;"></div>', unsafe_allow_html=True)
+    # CSS POUR "COMPACTER" L'AFFICHAGE MOBILE
+    st.markdown("""
+    <style>
+        .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
+        .stApp { background-color: black !important; color: white !important; }
+        [data-testid="stHeader"] { display: none !important; }
+        h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
+        .stTabs [data-baseweb="tab-list"] { justify-content: center; }
+        div[data-testid="stCameraInput"] button { width: 100%; }
+    </style>
+    """, unsafe_allow_html=True)
     
+    # Enregistrement présence
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
@@ -290,32 +299,40 @@ elif est_utilisateur:
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
-        st.title("📸 Mur Live")
-        st.info("Participez au mur photo en direct !")
+        # TITRE SPÉCIFIQUE
+        st.markdown("<h1 style='color:#E2001A;'>📸 MUR PHOTO LIVE</h1>", unsafe_allow_html=True)
         
-        tab_native, tab_web = st.tabs(["📱 Caméra Téléphone", "💻 Webcam"])
+        # LOGO REDUIT
+        if cfg.get("logo_b64"):
+            st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:60px; width:auto;"></div>', unsafe_allow_html=True)
+        
+        # ONGLETS COMPACTS
+        tab_native, tab_web = st.tabs(["📱 Téléphone", "💻 Webcam"])
+        
         with tab_native:
-            st.write("**Utilisez l'appareil photo de votre téléphone :**")
-            photo_native = st.file_uploader("Prendre une photo", type=["png", "jpg", "jpeg"], key=f"upl_{st.session_state.cam_reset_id}")
+            # File Uploader prend moins de place visuellement au départ
+            photo_native = st.file_uploader("Prendre une photo", type=["png", "jpg", "jpeg"], key=f"upl_{st.session_state.cam_reset_id}", label_visibility="collapsed")
             if photo_native:
                 if save_live_photo(photo_native):
                     st.balloons()
-                    st.toast("✅ Photo envoyée sur le mur !", icon="📸")
+                    st.toast("✅ Envoyé !", icon="🚀")
                     st.session_state.cam_reset_id += 1
                     time.sleep(1.5); st.rerun()
-                else: st.error("Erreur d'envoi.")
+        
         with tab_web:
-            st.write("Utiliser la caméra du navigateur (Nécessite HTTPS) :")
-            photo_web = st.camera_input("Photo", key=f"cam_{st.session_state.cam_reset_id}")
+            photo_web = st.camera_input("Photo", key=f"cam_{st.session_state.cam_reset_id}", label_visibility="collapsed")
             if photo_web:
                 if save_live_photo(photo_web):
-                    st.toast("✅ Photo envoyée !", icon="📸")
+                    st.toast("✅ Envoyé !", icon="🚀")
                     st.session_state.cam_reset_id += 1
                     time.sleep(0.5); st.rerun()
 
-    # --- MODE VOTE ---
+    # --- MODE VOTE (STANDARD) ---
     else:
         st.title("🗳️ Vote Transdev")
+        if cfg.get("logo_b64"):
+            st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
+
         if "user_id" not in st.session_state: st.session_state.user_id = None
         if not st.session_state.user_id:
             nom = st.text_input("Votre Nom / Matricule :")
@@ -378,6 +395,9 @@ else:
         # ÉLÉMENT CENTRAL FIXE
         st.markdown(f"""
         <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;">
+            <div style="margin-bottom:10px; background:transparent;">
+                <h1 style="font-size:40px; font-weight:bold; color:white; text-shadow: 0 0 20px #000; margin:0;">MUR PHOTO LIVE</h1>
+            </div>
             <div style="margin-bottom:10px;">{logo_html}</div>
             <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
                 <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
@@ -388,7 +408,7 @@ else:
         </div>
         """, unsafe_allow_html=True)
 
-        # --- JAVASCRIPT ANIMATION ENGINE (Bubbles + Collision + Bouncing) ---
+        # --- JAVASCRIPT ANIMATION ENGINE ---
         photos = glob.glob(f"{LIVE_DIR}/*")
         photos.sort(key=os.path.getmtime, reverse=True)
         recent_photos = photos[:40] 
@@ -424,7 +444,6 @@ else:
                 const bubbles = [];
                 const speed = 2.5;
 
-                // Zone centrale (QR Code) à éviter
                 const centerX_min = window.innerWidth * 0.35;
                 const centerX_max = window.innerWidth * 0.65;
                 const centerY_min = window.innerHeight * 0.30;
@@ -434,11 +453,8 @@ else:
                     const img = document.createElement('img');
                     img.src = src;
                     img.className = 'bubble';
-                    
-                    // Tailles variables (80 à 230px)
                     const size = 80 + Math.random() * 150;
                     
-                    // Position aléatoire hors zone centrale
                     let startX, startY;
                     do {{
                         startX = Math.random() * (window.innerWidth - 150);
@@ -456,7 +472,6 @@ else:
                     
                     img.style.width = bubble.size + 'px';
                     img.style.height = bubble.size + 'px';
-                    
                     container.appendChild(img);
                     bubbles.push(bubble);
                 }});
@@ -468,26 +483,18 @@ else:
                     bubbles.forEach(b => {{
                         b.x += b.vx;
                         b.y += b.vy;
-
-                        // Rebond murs externes
                         if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1;
                         if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1;
-
-                        // Rebond Zone Centrale (QR Code)
                         if (b.x + b.size > centerX_min && b.x < centerX_max && 
                             b.y + b.size > centerY_min && b.y < centerY_max) {{
-                            
                             const centerX = (centerX_min + centerX_max) / 2;
                             if (b.x < centerX) b.vx = -Math.abs(b.vx); 
                             else b.vx = Math.abs(b.vx);
                         }}
-
                         b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                     }});
-
                     requestAnimationFrame(animate);
                 }}
-
                 animate();
             </script>
         </body>
