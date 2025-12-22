@@ -19,6 +19,7 @@ for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
 
 DEFAULT_CANDIDATS = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
 
+# AJOUT D'UN ID DE SESSION POUR GERER LE RESET COTÉ CLIENT
 default_config = {
     "mode_affichage": "attente", 
     "titre_mur": "CONCOURS VIDÉO PÔLE AEROPORTUAIRE", 
@@ -28,7 +29,8 @@ default_config = {
     "logo_b64": None,
     "candidats": DEFAULT_CANDIDATS,
     "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1]
+    "points_ponderation": [5, 3, 1],
+    "session_id": "init_1" # Clé unique qui changera à chaque Reset
 }
 
 def load_json(file, default):
@@ -42,10 +44,13 @@ def load_json(file, default):
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
+# S'assurer que le session_id existe (pour compatibilité)
+if "session_id" not in st.session_state.config:
+    st.session_state.config["session_id"] = str(int(time.time()))
+
 if "refresh_id" not in st.session_state: st.session_state.refresh_id = 0
 if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 if "confirm_delete" not in st.session_state: st.session_state.confirm_delete = False
-if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
 
 # Sécurités structure
 if "candidats" not in st.session_state.config: st.session_state.config["candidats"] = DEFAULT_CANDIDATS
@@ -79,7 +84,6 @@ def save_live_photo(uploaded_file):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"live_{timestamp}_{random.randint(100,999)}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
-        
         img = Image.open(uploaded_file)
         try:
             from PIL import ExifTags
@@ -92,7 +96,6 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
-
         img = img.convert("RGB")
         img.thumbnail((500, 500)) 
         img.save(filepath, "JPEG", quality=85)
@@ -304,21 +307,28 @@ if est_admin:
                  for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
                      if os.path.exists(f): os.remove(f)
                  for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
-                 st.success("✅ Reset OK !"); time.sleep(1); st.rerun()
+                 # GENERATION D'UNE NOUVELLE CLÉ DE SESSION POUR INVALIDER LES COOKIES
+                 st.session_state.config["session_id"] = str(int(time.time()))
+                 save_config()
+                 st.success("✅ Reset OK ! Session renouvelée."); time.sleep(1); st.rerun()
 
 # --- 4. UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
+    
+    # Génération du Nom de la clé LocalStorage basée sur l'ID de session Serveur
+    # C'est ce qui permet au téléphone de savoir s'il doit "oublier" qu'il a voté.
+    session_key_vote = f"vote_record_{cfg.get('session_id', 'v1')}"
+
     st.markdown("""
     <style>
         .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
-        .stApp { background-color: black !important; color: white !important; }
+        .stApp { background-color: black !important; color: white !important; visibility: hidden; } /* CACHÉ PAR DÉFAUT */
         [data-testid="stHeader"] { display: none !important; }
         h1 { font-size: 1.5rem !important; text-align: center; margin-bottom: 0.5rem !important; }
         .stTabs [data-baseweb="tab-list"] { justify-content: center; }
         div[data-testid="stCameraInput"] button { width: 100%; }
         
-        /* DESIGN SELECT */
         .stMultiSelect div[data-baseweb="select"] {
             border: 4px solid white !important;
             border-radius: 12px !important;
@@ -331,12 +341,15 @@ elif est_utilisateur:
     </style>
     """, unsafe_allow_html=True)
     
-    # --- SECURITÉ JS OVERLAY ---
+    # --- SECURITÉ JS DYNAMIQUE ---
     if cfg["mode_affichage"] != "photos_live": 
-        components.html("""
+        components.html(f"""
         <script>
-            var voted = localStorage.getItem('transdev_final_secure_v2');
-            if (voted === 'true') {
+            var key = "{session_key_vote}";
+            var voted = localStorage.getItem(key);
+            
+            if (voted === 'true') {{
+                // Overlay de blocage
                 var overlay = document.createElement('div');
                 overlay.style.position = 'fixed'; overlay.style.top = '0'; overlay.style.left = '0';
                 overlay.style.width = '100%'; overlay.style.height = '100%';
@@ -348,15 +361,20 @@ elif est_utilisateur:
                 window.parent.document.body.appendChild(overlay);
                 var app = window.parent.document.querySelector('.stApp');
                 if (app) app.style.filter = 'blur(10px)';
-            }
+            }} else {{
+                window.parent.document.querySelector('.stApp').style.visibility = 'visible';
+            }}
         </script>
         """, height=0)
+    else:
+        components.html("""<script>window.parent.document.querySelector('.stApp').style.visibility = 'visible';</script>""", height=0)
 
-    if "participant_recorded" not in st.session_state:
-        parts = load_json(PARTICIPANTS_FILE, [])
-        parts.append(time.time())
-        with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
-        st.session_state["participant_recorded"] = True
+    # COMPTEUR CONNECTES
+    parts = load_json(PARTICIPANTS_FILE, [])
+    now = time.time()
+    parts = [t for t in parts if now - t < 30]
+    parts.append(now)
+    with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
@@ -373,20 +391,17 @@ elif est_utilisateur:
             if photo_web:
                 if save_live_photo(photo_web): st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(0.5); st.rerun()
 
-    # --- MODE VOTE (LOGIQUE) ---
+    # --- MODE VOTE ---
     else:
-        # 1. MESSAGE SUCCÈS SI VOTE DANS LA SESSION
         if st.session_state.get("a_vote", False):
             st.balloons()
             st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">✅</div><h1 style="color:#E2001A;">Votre vote a été enregistré</h1><p>Merci d'avoir participé !</p></div>""", unsafe_allow_html=True)
         
-        # 2. VOTE FERMÉ
         elif not cfg["session_ouverte"]:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
             st.warning("⌛ Votes clos ou attente.")
             
-        # 3. ÉTAPES VOTE
         else:
             st.title("🗳️ Vote Transdev")
             if cfg.get("logo_b64"): st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
@@ -402,31 +417,18 @@ elif est_utilisateur:
                         else: st.session_state.user_id = clean_id; st.rerun()
                     else: st.warning("Nom invalide.")
             
-            # ETAPE 2 : RÈGLES & POINTS (NOUVEAU)
+            # ETAPE 2 : RÈGLES
             elif not st.session_state.rules_accepted:
                 st.markdown("""<div style="background:#222; padding:20px; border-radius:10px; border:2px solid #E2001A; margin-bottom:20px;">
                 <h3 style="color:#E2001A; margin-top:0;">📜 RÈGLES DU JEU</h3>
-                <ul>
-                    <li>Vous ne pouvez voter qu'<strong>UNE SEULE FOIS</strong>.</li>
-                    <li>Vous devez sélectionner <strong>3 CHOIX</strong> exactement.</li>
-                </ul>
-                <hr style="border-color:#555;">
-                <h3 style="color:white; margin-top:10px;">🏆 ATTRIBUTION DES POINTS</h3>
-                """, unsafe_allow_html=True)
-                
+                <ul><li>Vous ne pouvez voter qu'<strong>UNE SEULE FOIS</strong>.</li><li>Vous devez sélectionner <strong>3 CHOIX</strong> exactement.</li></ul>
+                <hr style="border-color:#555;"><h3 style="color:white; margin-top:10px;">🏆 ATTRIBUTION DES POINTS</h3>""", unsafe_allow_html=True)
                 pts = cfg.get("points_ponderation", [5, 3, 1])
-                st.markdown(f"""
-                * 🥇 **1er Choix :** {pts[0]} Points
-                * 🥈 **2ème Choix :** {pts[1]} Points
-                * 🥉 **3ème Choix :** {pts[2]} Points
-                </div>
-                """, unsafe_allow_html=True)
-                
+                st.markdown(f"""* 🥇 **1er Choix :** {pts[0]} Points\n* 🥈 **2ème Choix :** {pts[1]} Points\n* 🥉 **3ème Choix :** {pts[2]} Points</div>""", unsafe_allow_html=True)
                 if st.button("✅ J'AI COMPRIS, PASSER AU VOTE", type="primary", use_container_width=True):
-                    st.session_state.rules_accepted = True
-                    st.rerun()
+                    st.session_state.rules_accepted = True; st.rerun()
 
-            # ETAPE 3 : FORMULAIRE DE VOTE
+            # ETAPE 3 : VOTE
             else:
                 choix = st.multiselect("Sélectionnez vos 3 favoris (dans l'ordre) :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER MON VOTE", type="primary", use_container_width=True):
@@ -439,8 +441,8 @@ elif est_utilisateur:
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                     
                     st.session_state["a_vote"] = True
-                    # Injection de la marque de vote
-                    components.html("""<script>localStorage.setItem('transdev_final_secure_v2', 'true'); location.reload();</script>""", height=0)
+                    # ON MARQUE LE NAVIGATEUR AVEC LA CLÉ DE SESSION ACTUELLE
+                    components.html(f"""<script>localStorage.setItem('{session_key_vote}', 'true'); location.reload();</script>""", height=0)
                     time.sleep(1)
                 elif len(choix) > 3: st.error("⚠️ Vous ne pouvez choisir que 3 candidats maximum !")
                 elif len(choix) > 0 and len(choix) < 3: st.warning(f"Encore {3-len(choix)} choix à faire.")
@@ -449,11 +451,9 @@ elif est_utilisateur:
 else:
     st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; } img { background-color: transparent !important; }</style>""", unsafe_allow_html=True)
     config = load_json(CONFIG_FILE, default_config)
-    
     parts = load_json(PARTICIPANTS_FILE, [])
     now = time.time()
     nb_p = len([t for t in parts if now - t < 30])
-    
     logo_html = ""
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
 
