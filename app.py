@@ -102,7 +102,7 @@ EFFECTS_LIB = {
 # --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
 # Fond forcé à NOIR pour tous les effets
 PREVIEW_LIB = {
-    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h3 style='color:#555;font-family:sans-serif;'>NO SIGNAL</h3></body></html>",
+    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h3 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:2px;'>Signal coupé</h3></body></html>",
     
     "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>
     setInterval(function(){
@@ -285,20 +285,62 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
+            # Inject CSS for Retro TV
+            st.markdown("""
+            <style>
+                .tv-container {
+                    background-color: #6d4c41; /* Brown/Wood */
+                    border-radius: 30px;
+                    padding: 25px;
+                    box-shadow: inset 0 0 60px rgba(0,0,0,0.8), 5px 5px 20px rgba(0,0,0,0.6);
+                    border: 8px solid #3e2723;
+                    position: relative;
+                }
+                .tv-screen-bezel {
+                    background-color: #111;
+                    border-radius: 20px;
+                    padding: 15px;
+                    box-shadow: inset 0 0 20px rgba(0,0,0,1);
+                    border: 2px solid #333;
+                }
+                /* Fake controls at bottom */
+                .tv-controls {
+                    display: flex;
+                    justify-content: space-around;
+                    align-items: center;
+                    margin-top: 20px;
+                    padding: 0 20px;
+                }
+                .tv-knob { width: 45px; height: 45px; background: radial-gradient(circle, #5d4037 40%, #3e2723 100%); border-radius: 50%; border: 4px solid #212121; box-shadow: 3px 3px 8px rgba(0,0,0,0.7); }
+                .tv-speaker { flex-grow: 1; height: 30px; margin: 0 30px; background: repeating-linear-gradient(90deg, #212121, #212121 4px, #111 4px, #111 8px); border-radius: 5px; border: 2px solid #111; }
+            </style>
+            """, unsafe_allow_html=True)
+
             # --- ZONE 1: LABORATOIRE DE TEST (PREVIEW) ---
             st.markdown("### 🧪 Laboratoire de Test (Visualisation)")
             
-            # Ecran noir de preview
-            prev_sel = st.session_state.get("preview_selected", "Aucun")
-            if prev_sel in PREVIEW_LIB:
-                # Affichage TV
-                components.html(PREVIEW_LIB[prev_sel], height=300)
-            
-            # Selecteur pour changer la preview (sans impacter le live)
-            new_prev = st.selectbox("Choisir l'effet à tester :", list(PREVIEW_LIB.keys()), index=list(PREVIEW_LIB.keys()).index(prev_sel))
-            if new_prev != prev_sel:
-                st.session_state.preview_selected = new_prev
-                st.rerun()
+            # Layout 2 colonnes : Selection gauche, TV droite
+            c_test_sel, c_test_tv = st.columns([1, 2], gap="large", vertical_alignment="center")
+
+            with c_test_sel:
+                st.markdown("#### 🕹️ Sélection de l'effet")
+                # Use radio for distinct choice look
+                prev_sel = st.radio("Choisir pour prévisualiser :", list(PREVIEW_LIB.keys()), index=list(PREVIEW_LIB.keys()).index(st.session_state.preview_selected), key="radio_preview", label_visibility="collapsed")
+                if prev_sel != st.session_state.preview_selected:
+                    st.session_state.preview_selected = prev_sel
+                    st.rerun()
+
+            with c_test_tv:
+                 # Start TV Container HTML
+                st.markdown('<div class="tv-container"><div class="tv-screen-bezel">', unsafe_allow_html=True)
+
+                # THE ACTUAL PREVIEW COMPONENT (sits inside the bezel visually due to order)
+                if st.session_state.preview_selected in PREVIEW_LIB:
+                    # Ensure height matches the TV proportion roughly
+                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=350)
+
+                # Close TV Container HTML and add controls
+                st.markdown('</div><div class="tv-controls"><div class="tv-knob"></div><div class="tv-speaker"></div><div class="tv-knob"></div></div></div>', unsafe_allow_html=True)
             
             st.divider()
 
