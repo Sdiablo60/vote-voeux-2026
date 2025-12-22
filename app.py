@@ -365,4 +365,13 @@ else:
             ranks = ["🥇", "🥈", "🥉"]
             colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
             for i, (name, score) in enumerate(sorted_v):
-                img_p =
+                img_p = ""
+                if name in config.get("candidats_images", {}):
+                     img_p = f'<img src="data:image/png;base64,{config["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; border:4px solid {colors[i]}; display:block; margin:0 auto 15px auto;">'
+                cols[i].markdown(f"""<div style="background:#1a1a1a; padding:30px; border:4px solid {colors[i]}; text-align:center; color:white; margin-top:30px; border-radius:20px;"><h2>{ranks[i]}</h2>{img_p}<h1>{name}</h1><p>{score} pts</p></div>""", unsafe_allow_html=True)
+            components.html('<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>confetti({particleCount:100,spread:70,origin:{y:0.6}});</script>', height=0)
+
+    try:
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(5000, key="wall_ref")
+    except: pass
