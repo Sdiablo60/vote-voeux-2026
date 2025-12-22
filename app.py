@@ -100,8 +100,9 @@ EFFECTS_LIB = {
 }
 
 # --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
+# Fond forcé à NOIR pour tous les effets
 PREVIEW_LIB = {
-    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h4 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:12px;margin:0;'>OFF</h4></body></html>",
+    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100%;'><h4 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:12px;margin:0;'>OFF</h4></body></html>",
     
     "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>
     setInterval(function(){
@@ -135,7 +136,7 @@ PREVIEW_LIB = {
     <script>
     setInterval(function(){
         var d = document.createElement('div'); d.className='s';
-        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='2px'; d.style.height='2px';
+        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='1px'; d.style.height='1px';
         document.body.appendChild(d);
         setTimeout(function(){ d.remove(); }, 2000);
     }, 80);
@@ -151,7 +152,7 @@ PREVIEW_LIB = {
     }, 500);
     </script></body></html>""",
     
-    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100vh;"></canvas><script>
+    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100%;"></canvas><script>
     var c=document.getElementById('m'); var x=c.getContext('2d');
     c.width=200; c.height=150;
     var col=c.width/10; var r=[]; for(var i=0;i<col;i++)r[i]=1;
@@ -284,11 +285,47 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # CSS pour la TV Mini
+            # CSS renforcé pour la superposition
             st.markdown("""
             <style>
-                .tv-wrapper { position: relative; width: 260px; margin: 0 auto; }
-                .tv-antenna { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 80px; height: 30px; display: flex; justify-content: space-between; z-index: 0; }
+                /* Conteneur principal relatif pour le positionnement */
+                .tv-composition-container {
+                    position: relative;
+                    width: 260px;
+                    height: 250px;
+                    margin: 0 auto;
+                }
+                
+                /* COUCHE 1 : Le dessin de la TV en arrière-plan (Z-index bas) */
+                .tv-art-layer {
+                    position: absolute;
+                    top: 0; left: 0; width: 100%; height: 100%;
+                    z-index: 0;
+                    pointer-events: none; /* Laisse passer les clics */
+                }
+
+                /* COUCHE 2 : L'écran (iframe) en superposition (Z-index haut) */
+                .tv-screen-overlay {
+                    position: absolute;
+                    z-index: 10; /* Au-dessus du dessin */
+                    /* Positionnement précis au pixel près sur le trou de l'écran */
+                    top: 49px;
+                    left: 19px;
+                    width: 176px;
+                    height: 146px;
+                    overflow: hidden;
+                    border-radius: 8px;
+                    background-color: black; /* Fond noir si l'iframe charge mal */
+                }
+                /* Force l'iframe à remplir le conteneur d'overlay */
+                .tv-screen-overlay iframe {
+                    width: 100% !important;
+                    height: 100% !important;
+                    border: none !important;
+                }
+
+                /* Styles du dessin de la TV (identique avant) */
+                .tv-antenna { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); width: 80px; height: 30px; display: flex; justify-content: space-between; }
                 .antenna-rod { width: 3px; background: #999; border-radius: 4px; height: 100%; transform-origin: bottom; }
                 .rod-left { transform: rotate(-25deg); } .rod-right { transform: rotate(25deg); }
                 .antenna-base { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 20px; height: 10px; background: #333; border-radius: 50% 50% 0 0; }
@@ -296,14 +333,15 @@ if est_admin:
                     background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%);
                     border-radius: 15px; padding: 10px;
                     box-shadow: 0 5px 15px rgba(0,0,0,0.4);
-                    border: 4px solid #3e2723; position: relative; z-index: 1;
-                    display: flex; gap: 10px;
+                    border: 4px solid #3e2723; position: relative;
+                    display: flex; gap: 10px; top: 30px; /* Pousse le meuble sous l'antenne */
                 }
                 .tv-screen-section { flex-grow: 1; }
                 .tv-screen-bezel {
                     background-color: #111; border-radius: 10px; padding: 5px;
                     box-shadow: inset 0 0 10px rgba(0,0,0,1); border: 2px solid #444; overflow: hidden;
                     height: 160px; display: flex; align-items: center; justify-content: center;
+                    /* LE TROU EST ICI, MAIS VIDE DANS CETTE COUCHE */
                 }
                 .tv-controls-panel {
                      display: flex; flex-direction: column; justify-content: center; gap: 8px;
@@ -317,7 +355,7 @@ if est_admin:
                      width: 25px; height: 40px; background: repeating-linear-gradient(0deg, #333, #333 2px, #222 2px, #222 4px);
                      border-radius: 2px; border: 1px solid #111; margin: 0 auto;
                 }
-                .tv-legs-container { display: flex; justify-content: space-between; width: 60%; margin: -5px auto 0 auto; position: relative; z-index: 0; }
+                .tv-legs-container { display: flex; justify-content: space-between; width: 60%; margin: -5px auto 0 auto; position: relative; top: 30px; }
                 .tv-leg {
                      width: 15px; height: 30px; background: linear-gradient(to right, #5d4037, #3e2723);
                      clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%);
@@ -338,24 +376,29 @@ if est_admin:
                     st.rerun()
 
             with c_test_tv:
+                # Conteneur principal de composition
+                st.markdown('<div class="tv-composition-container">', unsafe_allow_html=True)
+
+                # COUCHE 1 : Le dessin de la TV (Arrière-plan)
                 st.markdown("""
-                <div class="tv-wrapper">
+                <div class="tv-art-layer">
                     <div class="tv-antenna"><div class="antenna-rod rod-left"></div><div class="antenna-base"></div><div class="antenna-rod rod-right"></div></div>
                     <div class="tv-cabinet">
-                        <div class="tv-screen-section"><div class="tv-screen-bezel">
-                """, unsafe_allow_html=True)
-                
-                # COMPOSANT PREVIEW (CARRÉ)
-                if st.session_state.preview_selected in PREVIEW_LIB:
-                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=150)
-
-                st.markdown("""
-                        </div></div>
-                        <div class="tv-controls-panel"><div class="tv-knob"></div><div class="tv-knob"></div><div class="tv-speaker-grille"></div></div>
+                        <div class="tv-screen-section"><div class="tv-screen-bezel"></div></div> <div class="tv-controls-panel"><div class="tv-knob"></div><div class="tv-knob"></div><div class="tv-speaker-grille"></div></div>
                     </div>
                     <div class="tv-legs-container"><div class="tv-leg leg-left"></div><div class="tv-leg leg-right"></div></div>
                 </div>
                 """, unsafe_allow_html=True)
+
+                # COUCHE 2 : L'écran interactif (Avant-plan absolu)
+                st.markdown('<div class="tv-screen-overlay">', unsafe_allow_html=True)
+                if st.session_state.preview_selected in PREVIEW_LIB:
+                    # La hauteur ici n'est qu'indicative, le CSS force 100% du conteneur overlay
+                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=146)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+                # Fermeture du conteneur principal
+                st.markdown('</div>', unsafe_allow_html=True)
             
             st.divider()
 
