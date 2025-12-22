@@ -38,7 +38,7 @@ default_config = {
     "candidats_images": {}, 
     "points_ponderation": [5, 3, 1],
     "session_id": "session_init_001",
-    "active_effect": "Aucun" # NOUVEAU : Variable pour l'effet visuel
+    "active_effect": "Aucun"
 }
 
 def load_json(file, default):
@@ -77,12 +77,12 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
-# --- BIBLIOTHEQUE D'EFFETS HTML/JS/CSS ---
+# --- BIBLIOTHEQUE D'EFFETS ---
 EFFECTS_LIB = {
     "Aucun": "",
     
     "🎈 Ballons": """
-    <div id="balloon-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden;"></div>
+    <div id="balloon-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;"></div>
     <script>
     function createBalloon() {
         const div = document.createElement('div');
@@ -94,19 +94,18 @@ EFFECTS_LIB = {
         div.style.opacity = Math.random() * 0.5 + 0.5;
         div.style.transition = `bottom ${Math.random() * 5 + 5}s linear, left ${Math.random() * 5 + 5}s ease-in-out`;
         document.getElementById('balloon-container').appendChild(div);
-        
         setTimeout(() => {
             div.style.bottom = '110vh';
             div.style.left = (parseFloat(div.style.left) + (Math.random() * 20 - 10)) + 'vw';
         }, 100);
         setTimeout(() => { div.remove(); }, 12000);
     }
-    setInterval(createBalloon, 600);
+    setInterval(createBalloon, 400);
     </script>
     """,
     
     "❄️ Neige": """
-    <div style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;background:transparent;">
+    <div style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;">
         <style>
             .snowflake { position: absolute; top: -10px; color: #FFF; animation: fall linear infinite; }
             @keyframes fall { to { transform: translateY(105vh); } }
@@ -123,7 +122,7 @@ EFFECTS_LIB = {
                 flake.style.opacity = Math.random();
                 container.appendChild(flake);
                 setTimeout(() => flake.remove(), 5000);
-            }, 100);
+            }, 50);
         </script>
     </div>
     """,
@@ -142,7 +141,7 @@ EFFECTS_LIB = {
     """,
     
     "🌌 Espace": """
-    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:black; z-index:-1; pointer-events:none;">
+    <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:transparent; z-index:0; pointer-events:none;">
     <style>
     .star { position: absolute; background: white; border-radius: 50%; animation: zoom 3s infinite linear; opacity: 0; }
     @keyframes zoom { 0% { opacity: 0; transform: scale(0.1) translateZ(0); } 50% { opacity: 1; } 100% { opacity: 0; transform: scale(5) translateZ(0); } }
@@ -156,7 +155,7 @@ EFFECTS_LIB = {
             star.style.width = Math.random() * 3 + 'px'; star.style.height = star.style.width;
             document.body.appendChild(star);
             setTimeout(() => star.remove(), 3000);
-        }, 50);
+        }, 30);
     </script>
     </div>
     """,
@@ -166,13 +165,13 @@ EFFECTS_LIB = {
     <script>
     var interval = setInterval(function() {
         var randomInRange = (min, max) => Math.random() * (max - min) + min;
-        confetti({ startVelocity: 30, spread: 360, ticks: 60, zIndex: 0, particleCount: 50, origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 } });
+        confetti({ startVelocity: 30, spread: 360, ticks: 60, zIndex: 99999, particleCount: 50, origin: { x: randomInRange(0.1, 0.9), y: Math.random() - 0.2 } });
     }, 800);
     </script>
     """,
     
     "💸 Pluie de Billets": """
-    <div id="money-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden;"></div>
+    <div id="money-container" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;"></div>
     <script>
     setInterval(() => {
         const div = document.createElement('div');
@@ -191,7 +190,7 @@ EFFECTS_LIB = {
     """,
     
     "🟢 Matrix": """
-    <canvas id="matrix" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;"></canvas>
+    <canvas id="matrix" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:-1;opacity:0.3;pointer-events:none;"></canvas>
     <script>
     const canvas = document.getElementById('matrix'); const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
@@ -297,6 +296,11 @@ def generate_pdf_report(dataframe, title):
         pdf.ln()
     return pdf.output(dest='S').encode('latin-1')
 
+# Fonction pour injecter l'effet (Admin & Social)
+def inject_visual_effect(effect_name):
+    if effect_name in EFFECTS_LIB and effect_name != "Aucun":
+        components.html(EFFECTS_LIB[effect_name], height=0)
+
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
@@ -328,7 +332,7 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # 1. AMBIANCE VISUELLE
+            # 1. AMBIANCE VISUELLE (AVEC PREVIEW)
             st.subheader("✨ AMBIANCE VISUELLE (Mur)")
             current_eff = st.session_state.config.get("active_effect", "Aucun")
             new_eff = st.selectbox("Choisir un effet d'animation :", list(EFFECTS_LIB.keys()), index=list(EFFECTS_LIB.keys()).index(current_eff) if current_eff in EFFECTS_LIB else 0)
@@ -339,6 +343,11 @@ if est_admin:
                 st.toast(f"✨ Effet activé : {new_eff}")
                 time.sleep(0.5)
                 st.rerun()
+            
+            # PREVISUALISATION IMMEDIATE ADMIN
+            if new_eff != "Aucun":
+                st.caption("👀 Vous voyez ci-dessus la prévisualisation de l'effet actif.")
+                inject_visual_effect(new_eff)
 
             st.divider()
 
@@ -702,10 +711,8 @@ else:
     logo_html = ""
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
 
-    # INJECTION EFFET VISUEL (OVERLAY)
-    effect_name = config.get("active_effect", "Aucun")
-    if effect_name in EFFECTS_LIB and effect_name != "Aucun":
-        components.html(EFFECTS_LIB[effect_name], height=0)
+    # APPLICATION DE L'EFFET GLOBAL (SUPERPOSITION)
+    inject_visual_effect(config.get("active_effect", "Aucun"))
 
     if config["mode_affichage"] != "photos_live":
         st.markdown(f'<div style="text-align:center; color:white;">{logo_html}<h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
