@@ -76,9 +76,7 @@ if est_admin:
 
         if st.sidebar.button("3️⃣ Clôturer les Votes", type="primary" if (not vo and m == "votes" and not re) else "secondary", use_container_width=True):
             config.update({"session_ouverte": False})
-            with open(CONFIG_FILE, "w") as f: json.dump(config, f)
-            st.sidebar.success("✅ Votes clôturés !")
-            st.rerun()
+            with open(CONFIG_FILE, "w") as f: json.dump(config, f); st.rerun()
 
         if st.sidebar.button("4️⃣ Afficher le Podium 🏆", type="primary" if re else "secondary", use_container_width=True):
             config.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False})
@@ -146,9 +144,33 @@ else:
 
     badge_style = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:20px; font-weight:bold; border:2px solid white; color:white;"
 
-    # LOGIQUE SONORE (Invisible)
-    if (config["mode_affichage"] == "votes" and not config["session_ouverte"] and not config["reveal_resultats"]) or config["reveal_resultats"]:
-        components.html("""<audio autoplay><source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mpeg"></audio>""", height=0)
+    # SCRIPT FEU D'ARTIFICE (JavaScript)
+    if (config["mode_affichage"] == "votes" and not config["session_ouverte"]) or config["reveal_resultats"]:
+        components.html("""
+            <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+            <script>
+                var duration = 5 * 1000;
+                var animationEnd = Date.now() + duration;
+                var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+                function randomInRange(min, max) {
+                  return Math.random() * (max - min) + min;
+                }
+
+                var interval = setInterval(function() {
+                  var timeLeft = animationEnd - Date.now();
+
+                  if (timeLeft <= 0) {
+                    return clearInterval(interval);
+                  }
+
+                  var particleCount = 50 * (timeLeft / duration);
+                  // since particles fall down, start a bit higher than average
+                  confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
+                  confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
+                }, 250);
+            </script>
+        """, height=0)
 
     # 1. MODE ATTENTE
     if config["mode_affichage"] == "attente":
@@ -159,8 +181,28 @@ else:
         if config["session_ouverte"]:
             st.markdown(f'<div style="text-align:center;"><div style="{badge_style} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div><style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>', unsafe_allow_html=True)
         else:
-            st.snow()
-            st.markdown(f"""<div style="text-align:center;"><div style="{badge_style} background:#333;">🏁 LES VOTES SONT CLOS</div><div style="margin-top:40px; color:white;"><h1 style="font-size:60px; animation: bounce 2s infinite;">👏👏👏</h1><h2 style="font-size:45px; color:#E2001A;">MERCI À TOUS !</h2><p style="font-size:25px; color:#ccc;">Suspense... Les résultats arrivent !</p></div></div><style>@keyframes bounce {{ 0%, 100% {{ transform: translateY(0); }} 50% {{ transform: translateY(-20px); }} }}</style>""", unsafe_allow_html=True)
+            # MESSAGE DE REMERCIEMENT ET APPLAUDISSEMENTS ANIMÉS
+            st.markdown(f"""
+                <div style="text-align:center;">
+                    <div style="{badge_style} background:#333;">🏁 LES VOTES SONT CLOS</div>
+                    <div style="margin-top:40px; color:white;">
+                        <div class="claps">👏</div>
+                        <h2 style="font-size:45px; color:#E2001A; margin-top:20px;">MERCI À TOUS !</h2>
+                        <p style="font-size:25px; color:#ccc;">Votre participation a été incroyable.<br>Suspense... Les résultats arrivent !</p>
+                    </div>
+                </div>
+                <style>
+                    .claps {{
+                        font-size: 100px;
+                        display: inline-block;
+                        animation: clap-anim 0.6s infinite alternate;
+                    }}
+                    @keyframes clap-anim {{
+                        from {{ transform: scale(1) rotate(-10deg); }}
+                        to {{ transform: scale(1.3) rotate(10deg); }}
+                    }}
+                </style>
+            """, unsafe_allow_html=True)
 
         st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 0.8, 1])
@@ -179,7 +221,6 @@ else:
 
     # 3. MODE PODIUM
     elif config["mode_affichage"] == "votes" and config["reveal_resultats"]:
-        st.balloons()
         if v_data:
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
             cols = st.columns(3)
