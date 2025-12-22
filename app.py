@@ -104,14 +104,11 @@ def get_live_effect_html(effect_name, intensity, speed):
         return """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>"""
     
     elif effect_name == "🎈 Ballons":
-        # Formule logarithmique : 50 = ~60ms, 40 = ~75ms, 10 = ~300ms
         interval = int(3500 / (intensity + 5)) 
-        # Vitesse
         duration = max(3, 20 - (speed * 0.34))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom {duration}s linear,left {duration}s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';}});setTimeout(()=>{{d.remove()}},{duration*1000 + 1000});}}setInterval(c,{interval});</script>"""
 
     elif effect_name == "❄️ Neige":
-        # Formule logarithmique pour la neige aussi
         interval = int(1000 / (intensity + 2))
         duration = max(2, 10 - (speed * 0.16))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}}@keyframes f{{to{{transform:translateY(105vh)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=(Math.random()*{duration} + {duration/2})+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),{duration*1000 + 2000})}},{interval});</script>"""
@@ -119,7 +116,8 @@ def get_live_effect_html(effect_name, intensity, speed):
     elif effect_name == "🎉 Confettis":
         count = max(1, int(intensity * 1.5)) 
         interval = max(100, 1500 - (speed * 28))
-        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){{(function f(){{if(!window.parent.document.body.contains(s))return;window.parent.confetti({{particleCount:{count},angle:90,spread:120,origin:{{x:Math.random(),y:-0.1}},colors:['#E2001A','#ffffff','#000000'],zIndex:0,gravity:1.2,drift:0}}); setTimeout(()=>{{requestAnimationFrame(f)}}, {interval})}}())}};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>"""
+        # CORRECTIF: Ajout de 'ticks: 300' et 'gravity' pour forcer la descente en bas de l'écran
+        return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var s=document.createElement('script');s.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js";s.onload=function(){{(function f(){{if(!window.parent.document.body.contains(s))return;window.parent.confetti({{particleCount:{count},angle:90,spread:100,origin:{{x:Math.random(),y:-0.2}},colors:['#E2001A','#ffffff','#ffcc00'],zIndex:0,gravity:0.8,drift:0,ticks:400,scalar:1.2}}); setTimeout(()=>{{requestAnimationFrame(f)}}, {interval})}}())}};var l=document.createElement('div');l.id='effect-layer';l.appendChild(s);window.parent.document.body.appendChild(l);</script>"""
 
     elif effect_name == "🌌 Espace":
         interval = max(5, 200 - (intensity * 3.8))
@@ -194,7 +192,6 @@ def get_tv_html(effect_js):
     """
 
 # --- 4. GENERATEUR JS POUR PREVIEW (DANS TV) ---
-# Calibrage identique au live
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
@@ -209,7 +206,7 @@ def get_preview_js(effect_name, intensity, speed):
     elif effect_name == "🎉 Confettis":
         count = max(1, int(intensity * 1.5))
         interval = max(100, 1500 - (speed * 28))
-        return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:50,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},{interval});</script>"""
+        return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:60,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},{interval});</script>"""
     elif effect_name == "🌌 Espace":
         interval = max(10, 300 - (intensity * 5.5))
         duration = max(1, 8 - (speed * 0.14))
