@@ -151,23 +151,31 @@ else:
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     v_data = load_json(VOTES_FILE, {})
 
-    # En-tête Mur
-    st.markdown(f'<div style="text-align:center;color:white;padding-top:20px;"><p style="color:#E2001A;font-size:30px;font-weight:bold;margin:0;">MUR LIVE TRANSDEV</p><div style="background:white;display:inline-block;padding:5px 25px;border-radius:20px;margin:10px 0;color:black;font-weight:bold;">{nb_p} CONNECTÉS</div><h1 style="font-size:55px;margin:0;text-transform:uppercase;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
+    # En-tête Mur Épuré
+    st.markdown(f"""
+        <div style="text-align:center; color:white; padding-top:40px;">
+            <h1 style="font-size:65px; margin:0; text-transform:uppercase; letter-spacing:2px; font-weight:bold;">{config["titre_mur"]}</h1>
+            <div style="margin-top:15px; background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold; font-size:18px;">
+                👥 {nb_p} PARTICIPANTS CONNECTÉS
+            </div>
+    """, unsafe_allow_html=True)
 
-    # 1. MODE ATTENTE (Message sympa, PAS de QR Code)
+    # 1. MODE ATTENTE (Bandeau repositionné et réduit)
     if config["mode_affichage"] == "attente":
         st.markdown(f"""
-            <div style="text-align:center; margin-top:80px; color:white;">
-                <h1 style="font-size:70px;">Bienvenue à tous ! 👋</h1>
-                <p style="font-size:35px; color:#ccc; margin-top:20px;">Installez-vous confortablement...</p>
-                <div style="margin-top:60px; background:#E2001A; display:inline-block; padding:20px 50px; border-radius:15px; font-size:35px; font-weight:bold; border:3px solid white;">
+                <div style="margin-top:25px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;">
                     ⌛ En attente de l'ouverture des Votes
                 </div>
+            </div>
+            <div style="text-align:center; margin-top:60px; color:white;">
+                <h2 style="font-size:55px; opacity:0.9;">Bienvenue à tous ! 👋</h2>
+                <p style="font-size:30px; color:#ccc; margin-top:15px;">Installez-vous confortablement, le live commence bientôt.</p>
             </div>
         """, unsafe_allow_html=True)
 
     # 2. MODE VOTES (QR Code géant + Liste des vidéos)
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
+        st.markdown("</div>", unsafe_allow_html=True) 
         col1, col2 = st.columns([1, 1])
         with col1:
             st.markdown(f"""
@@ -185,23 +193,23 @@ else:
 
     # 3. MODE PODIUM
     elif config["mode_affichage"] == "votes" and config["reveal_resultats"]:
+        st.markdown("</div>", unsafe_allow_html=True)
         if v_data:
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
             cols = st.columns(3)
             m_txt = ["🥇 1er", "🥈 2ème", "🥉 3ème"]
             for i, (name, score) in enumerate(sorted_v):
                 cols[i].markdown(f'<div style="background:#222;padding:30px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;min-height:250px;"><h2 style="color:#E2001A;">{m_txt[i]}</h2><h1 style="font-size:45px;">{name}</h1><p style="font-size:25px;">{score} pts</p></div>', unsafe_allow_html=True)
-        else:
-            st.info("Aucun vote enregistré.")
 
     # 4. MODE LIVE PHOTOS
     elif config["mode_affichage"] == "live":
+        st.markdown("</div>", unsafe_allow_html=True)
         img_list = glob.glob(os.path.join(ADMIN_DIR, "*")) + glob.glob(os.path.join(GALLERY_DIR, "*"))
         if img_list:
             p_html = "".join([f'<img src="data:image/png;base64,{base64.b64encode(open(p,"rb").read()).decode()}" style="position:absolute;width:280px;border:5px solid white;border-radius:10px;top:{random.randint(10,50)}%;left:{random.randint(5,75)}%;transform:rotate({random.randint(-10,10)}deg);box-shadow:5px 5px 15px rgba(0,0,0,0.5);">' for p in img_list[-12:]])
             components.html(f'<div style="position:relative;width:100%;height:600px;overflow:hidden;">{p_html}</div>', height=650)
         else:
-            st.markdown(f'<div style="text-align:center;margin-top:100px;"><img src="data:image/png;base64,{qr_b64}" width="200" style="border:5px solid white;border-radius:15px;"><h3 style="color:gray;margin-top:20px;">En attente des photos live...</h3></div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center;margin-top:100px;"><h3 style="color:gray;">En attente des photos live...</h3></div>', unsafe_allow_html=True)
 
     try: 
         from streamlit_autorefresh import st_autorefresh
