@@ -534,7 +534,6 @@ else:
         .participant-badge { display: inline-block; background: rgba(255, 255, 255, 0.1); color: #ccc; border: 1px solid #444; border-radius: 15px; padding: 4px 12px; margin: 4px; font-size: 14px; font-weight: bold; white-space: nowrap; }
         .badges-container { display: flex; flex-wrap: wrap; justify-content: center; max-height: 25vh; overflow-y: auto; margin-top: 10px; padding: 10px; scrollbar-width: none; }
         .badges-container::-webkit-scrollbar { display: none; }
-        
         @keyframes pulse-winner { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(255, 215, 0, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 215, 0, 0); } }
         .winner-card { animation: pulse-winner 2s infinite; border-color: #FFD700 !important; border-width: 6px !important; z-index: 10; }
     </style>
@@ -556,7 +555,27 @@ else:
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-        st.markdown(f"""<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:25px;"><div style="margin-bottom:10px;">{logo_html}</div><div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);"><img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;"></div><div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">📸 PRENEZ AUTANT DE PHOTOS QUE VOUS VOULEZ !</div></div>""", unsafe_allow_html=True)
+        
+        # LOGO SPECIAL POUR CE MODE
+        logo_live = ""
+        if config.get("logo_b64"):
+            logo_live = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
+        
+        title_html = '<h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>'
+
+        st.markdown(f"""
+        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:20px;">
+            {logo_live}
+            {title_html}
+            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
+                <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
+            </div>
+            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
+                📸 SCANNEZ POUR PARTICIPER
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
         for photo_path in recent_photos:
@@ -609,7 +628,6 @@ else:
             valid = {k:v for k,v in v_data.items() if k in config["candidats"]}
             sorted_v = sorted(valid.items(), key=lambda x: x[1], reverse=True)[:3]
             
-            # GESTION EX AEQUO
             top_score = sorted_v[0][1] if sorted_v else 0
             winners = [x for x in sorted_v if x[1] == top_score]
             is_tie = len(winners) > 1
@@ -620,18 +638,13 @@ else:
             cols = st.columns(3)
             ranks = ["🥇", "🥈", "🥉"]
             colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
-            
             for i, (name, score) in enumerate(sorted_v):
                 is_winner = (score == top_score)
                 css_class = "winner-card" if is_winner else ""
                 rank_icon = ranks[0] if is_winner else (ranks[i] if i < 3 else "")
                 border_col = colors[0] if is_winner else (colors[i] if i < 3 else "#333")
-                
                 img_p = ""
                 if name in config.get("candidats_images", {}):
                      img_p = f'<img src="data:image/png;base64,{config["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; border:4px solid {border_col}; display:block; margin:0 auto 15px auto;">'
-                
                 cols[i].markdown(f"""<div class="{css_class}" style="background:#1a1a1a; padding:30px; border:4px solid {border_col}; text-align:center; color:white; margin-top:30px; border-radius:20px;"><h2>{rank_icon}</h2>{img_p}<h1>{name}</h1><p>{score} pts</p></div>""", unsafe_allow_html=True)
-            
-            # Confettis du haut
             components.html('<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>confetti({particleCount:300,spread:120,origin:{y:0},gravity:1.2,drift:0});</script>', height=0)
