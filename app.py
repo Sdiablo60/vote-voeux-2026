@@ -39,7 +39,6 @@ def load_json(file, default):
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
-# Ce compteur sert à forcer le re-rendu des widgets (champs textes)
 if "refresh_id" not in st.session_state:
     st.session_state.refresh_id = 0
 
@@ -53,7 +52,6 @@ BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:
 # --- FONCTIONS CRITIQUES ---
 
 def force_refresh():
-    """Incrémente le compteur pour obliger Streamlit à tout redessiner"""
     st.session_state.refresh_id += 1
     save_config()
 
@@ -130,7 +128,6 @@ if est_admin:
             t1, t2 = st.tabs(["Identité", "Gestion Questions"])
             
             with t1:
-                # Utilisation d'une clé dynamique pour le titre aussi
                 new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"], key=f"titre_{st.session_state.refresh_id}")
                 if new_t != st.session_state.config["titre_mur"]:
                     if st.button("Sauver Titre"):
@@ -145,7 +142,6 @@ if est_admin:
             with t2:
                 # Ajout
                 c_add1, c_add2 = st.columns([3, 1])
-                # Key dynamique pour vider le champ après ajout
                 new_cand = c_add1.text_input("Nouveau candidat", key=f"new_cand_{st.session_state.refresh_id}", label_visibility="collapsed", placeholder="Nom...")
                 if c_add2.button("➕ Ajouter", use_container_width=True):
                     if new_cand and new_cand not in st.session_state.config["candidats"]:
@@ -162,7 +158,6 @@ if est_admin:
                     cols_head[0].markdown("**Img**")
                     cols_head[1].markdown("**Nom (Éditable)**")
                     
-                    # On utilise l'ID de rafraîchissement dans TOUTES les clés
                     rid = st.session_state.refresh_id
                     
                     for i, cand in enumerate(st.session_state.config["candidats"]):
@@ -174,33 +169,28 @@ if est_admin:
                                 st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][cand])), width=40)
                             else: st.write("⚪")
                         
-                        # 2. Input Nom (KEY DYNAMIQUE = SOLUTION)
+                        # 2. Input Nom
                         with cols[1]:
                             val_edit = st.text_input("Nom", value=cand, key=f"n_{i}_{rid}", label_visibility="collapsed")
-                            # Si l'utilisateur a changé le texte et pressé entrée (ou clic ailleurs)
                             if val_edit != cand:
-                                # Migration image
                                 if cand in st.session_state.config["candidats_images"]:
                                     st.session_state.config["candidats_images"][val_edit] = st.session_state.config["candidats_images"].pop(cand)
                                 st.session_state.config["candidats"][i] = val_edit
-                                force_refresh() # Sauve et incrémente l'ID pour le prochain rendu
-                                st.rerun()
+                                force_refresh(); st.rerun()
                         
                         # 3. Monter
                         with cols[2]:
                             if i > 0:
                                 if st.button("⬆️", key=f"u_{i}_{rid}"):
                                     st.session_state.config["candidats"][i], st.session_state.config["candidats"][i-1] = st.session_state.config["candidats"][i-1], st.session_state.config["candidats"][i]
-                                    force_refresh()
-                                    st.rerun()
+                                    force_refresh(); st.rerun()
                         
                         # 4. Descendre
                         with cols[3]:
                             if i < len(st.session_state.config["candidats"]) - 1:
                                 if st.button("⬇️", key=f"d_{i}_{rid}"):
                                     st.session_state.config["candidats"][i], st.session_state.config["candidats"][i+1] = st.session_state.config["candidats"][i+1], st.session_state.config["candidats"][i]
-                                    force_refresh()
-                                    st.rerun()
+                                    force_refresh(); st.rerun()
 
                         # 5. Photo Popover
                         with cols[4]:
@@ -211,22 +201,19 @@ if est_admin:
                                     b64 = process_image_upload(up_p)
                                     if b64:
                                         st.session_state.config["candidats_images"][cand] = b64
-                                        force_refresh()
-                                        st.rerun()
+                                        force_refresh(); st.rerun()
                                 
                                 if cand in st.session_state.config["candidats_images"]:
                                     if st.button("Supprimer Photo", key=f"di_{i}_{rid}"):
                                         del st.session_state.config["candidats_images"][cand]
-                                        force_refresh()
-                                        st.rerun()
+                                        force_refresh(); st.rerun()
 
                         # 6. Supprimer Ligne
                         with cols[5]:
                             if st.button("🗑️", key=f"del_{i}_{rid}"):
                                 st.session_state.config["candidats"].pop(i)
                                 if cand in st.session_state.config["candidats_images"]: del st.session_state.config["candidats_images"][cand]
-                                force_refresh()
-                                st.rerun()
+                                force_refresh(); st.rerun()
 
         elif menu == "📸 Médiathèque":
             st.write("Gestion fichiers...")
@@ -304,7 +291,8 @@ else:
             with c1:
                 for c in cands[:mid]: st.markdown(get_html(c), unsafe_allow_html=True)
             with c2:
-                st.markdown(f'<div style="background:white; padding:15px; border-radius:15px; text-align:center;"><img src="data:image/png;base64,{qr_b64}" width="220"><p style="color:black; font-weight:bold;">SCANNEZ</p></div>', unsafe_allow_html=True)
+                # --- MODIFICATION ICI : Cadre blanc réduit et code QR plus petit ---
+                st.markdown(f'<div style="background:white; padding:8px; border-radius:10px; text-align:center;"><img src="data:image/png;base64,{qr_b64}" width="180"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0;">SCANNEZ</p></div>', unsafe_allow_html=True)
             with c3:
                 for c in cands[mid:]: st.markdown(get_html(c), unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
