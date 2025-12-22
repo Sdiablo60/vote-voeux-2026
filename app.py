@@ -118,6 +118,16 @@ if est_admin:
     else:
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
+            
+            # --- BOUTON D'OUVERTURE DU MUR (NOUVEAU) ---
+            st.markdown("""
+            <a href="/" target="_blank" style="text-decoration:none;">
+                <div style="background-color: #E2001A; color: white; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 20px; border: 1px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+                    📺 OUVRIR LE MUR SOCIAL ⧉
+                </div>
+            </a>
+            """, unsafe_allow_html=True)
+            
             st.markdown("---")
             menu = st.radio("Navigation :", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque (Gestion)", "📊 Data & Exports"], label_visibility="collapsed")
             st.markdown("---")
@@ -234,108 +244,93 @@ if est_admin:
                             if b64:
                                 st.session_state.config["candidats_images"][sel] = b64; save_config(); st.rerun()
 
-        # --- MÉDIATHÈQUE AVEC GESTION COMPLÈTE ---
+        # --- MÉDIATHÈQUE AVEC BARRE D'OUTILS EN HAUT ---
         elif menu == "📸 Médiathèque (Gestion)":
+            st.markdown("""
+            <style>
+            div[data-testid="stButton"] button[key="btn_download"] { background-color: #007bff; color: white; border-color: #007bff; }
+            div[data-testid="stButton"] button[key="btn_download"]:hover { background-color: #0056b3; border-color: #0056b3; }
+            div[data-testid="stButton"] button[key="btn_delete"] { background-color: #dc3545; color: white; border-color: #dc3545; }
+            div[data-testid="stButton"] button[key="btn_delete"]:hover { background-color: #a71d2a; border-color: #a71d2a; }
+            </style>
+            """, unsafe_allow_html=True)
+
             st.title("📸 Médiathèque & Export")
             
             files = glob.glob(f"{LIVE_DIR}/*")
             files.sort(key=os.path.getmtime, reverse=True)
             
-            # --- ZONE EXPORT & ACTIONS DE MASSE ---
-            st.markdown("### 📤 Actions de masse")
+            st.markdown("### 🛠️ Outils de Gestion")
+            
             if not files:
                 st.warning("Aucune photo dans la galerie.")
             else:
-                col_ex_all, col_ex_sel = st.columns(2)
-                with col_ex_all:
-                    zip_buffer_all = BytesIO()
-                    with zipfile.ZipFile(zip_buffer_all, "w") as zf:
-                        for f in files: zf.write(f, os.path.basename(f))
-                    st.download_button(
-                        label=f"📥 TOUT TÉLÉCHARGER (.ZIP)",
-                        data=zip_buffer_all.getvalue(),
-                        file_name=f"photos_live_tout_{int(time.time())}.zip",
-                        mime="application/zip", use_container_width=True, type="primary"
-                    )
-
-            st.divider()
-            
-            # --- GALERIE ---
-            st.markdown("### 🖼️ Galerie")
-            view_mode = st.radio("Affichage :", ["▦ Grille", "☰ Liste Détaillée"], horizontal=True, label_visibility="collapsed")
-            
-            if files:
-                selected_files = []
+                c_sel_all, c_dl, c_del = st.columns([1, 1.5, 1.5], vertical_alignment="center")
                 
-                # --- VUE GRILLE ---
+                with c_sel_all:
+                    select_all = st.checkbox("✅ Tout sélectionner", value=False)
+                
+                final_selection = []
+                if select_all: final_selection = files
+
+                with c_dl:
+                    if select_all:
+                        zip_buffer = BytesIO()
+                        with zipfile.ZipFile(zip_buffer, "w") as zf:
+                            for f in files: zf.write(f, os.path.basename(f))
+                        st.download_button(label=f"📥 TÉLÉCHARGER TOUT ({len(files)})", data=zip_buffer.getvalue(), file_name=f"photos_full_{int(time.time())}.zip", mime="application/zip", use_container_width=True, key="btn_download")
+                    else: st.caption("Cochez 'Tout sélectionner' ou utilisez la liste.")
+
+                with c_del:
+                    if select_all:
+                        if st.button(f"🗑️ SUPPRIMER TOUT ({len(files)})", use_container_width=True, key="btn_delete"):
+                            st.session_state.confirm_delete = True
+                    else: st.caption("Sélectionnez tout pour suppression de masse.")
+
+                if st.session_state.confirm_delete:
+                    st.error("⚠️ ATTENTION : SUPPRESSION DÉFINITIVE DE TOUTES LES PHOTOS !")
+                    col_conf_1, col_conf_2 = st.columns(2)
+                    if col_conf_1.button("✅ OUI, TOUT EFFACER"):
+                        for f in files: os.remove(f)
+                        st.session_state.confirm_delete = False
+                        st.success("Galerie vidée !"); time.sleep(1); st.rerun()
+                    if col_conf_2.button("❌ ANNULER"):
+                        st.session_state.confirm_delete = False; st.rerun()
+
+                st.divider()
+                view_mode = st.radio("Affichage :", ["▦ Grille", "☰ Liste Détaillée"], horizontal=True, label_visibility="collapsed")
+                
                 if "Grille" in view_mode:
                     cols = st.columns(6)
                     for i, f in enumerate(files):
                         with cols[i%6]:
                             st.image(f, use_container_width=True)
-                            if st.checkbox("Select", key=f"sel_g_{i}", label_visibility="collapsed"):
-                                selected_files.append(f)
-
-                # --- VUE LISTE ---
+                            if st.button("🗑️", key=f"del_g_{i}"): os.remove(f); st.rerun()
                 else:
-                    if st.checkbox("✅ Tout cocher"):
-                        selected_files = files
-                    
+                    manual_selection = []
+                    st.write("Sélection manuelle pour export partiel :")
+                    h1, h2, h3, h4 = st.columns([0.5, 0.5, 3, 1])
+                    h1.write("**Img**"); h2.write("**Sel**"); h3.write("**Infos**"); h4.write("**Action**")
                     st.markdown("---")
                     for i, f in enumerate(files):
                         c1, c2, c3, c4 = st.columns([0.5, 0.5, 3, 1], vertical_alignment="center")
                         with c1: st.image(f, width=50)
-                        with c2:
-                            if f in selected_files: st.checkbox("✅", value=True, key=f"sel_l_d_{i}", disabled=True)
-                            else:
-                                if st.checkbox("✅", key=f"sel_l_{i}", label_visibility="collapsed"): selected_files.append(f)
+                        with c2: 
+                            if st.checkbox("", key=f"sel_man_{i}", label_visibility="collapsed"): manual_selection.append(f)
                         with c3:
                             ts = os.path.getmtime(f)
                             dt_str = datetime.fromtimestamp(ts).strftime('%H:%M:%S')
                             st.write(f"**{os.path.basename(f)}** | {dt_str}")
                         with c4:
-                            if st.button("🗑️", key=f"del_l_{i}"):
-                                os.remove(f); st.rerun()
-
-                # --- BARRE D'ACTIONS SÉLECTION ---
-                if selected_files:
-                    st.markdown("---")
-                    st.info(f"**{len(selected_files)} photos sélectionnées**")
+                            if st.button("🗑️", key=f"del_l_{i}"): os.remove(f); st.rerun()
                     
-                    c_down, c_del = st.columns(2)
-                    
-                    # 1. TÉLÉCHARGER LA SÉLECTION
-                    with c_down:
-                        zip_buffer_sel = BytesIO()
-                        with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
-                            for f in selected_files: zf.write(f, os.path.basename(f))
-                        st.download_button(
-                            label="📥 TÉLÉCHARGER SÉLECTION",
-                            data=zip_buffer_sel.getvalue(),
-                            file_name=f"selection_{int(time.time())}.zip",
-                            mime="application/zip", use_container_width=True, type="primary"
-                        )
-                    
-                    # 2. SUPPRIMER LA SÉLECTION (SÉCURISÉ)
-                    with c_del:
-                        if st.button("🗑️ SUPPRIMER SÉLECTION", use_container_width=True):
-                            st.session_state.confirm_delete = True
-                        
-                        if st.session_state.confirm_delete:
-                            st.error("⚠️ ACTION IRRÉVERSIBLE !")
-                            st.write("Voulez-vous vraiment supprimer définitivement ces photos ?")
-                            col_conf_yes, col_conf_no = st.columns(2)
-                            if col_conf_yes.button("✅ OUI, CONFIRMER"):
-                                for f in selected_files:
-                                    if os.path.exists(f): os.remove(f)
-                                st.session_state.confirm_delete = False
-                                st.success("Supprimé !")
-                                time.sleep(1); st.rerun()
-                            if col_conf_no.button("❌ Annuler"):
-                                st.session_state.confirm_delete = False
-                                st.rerun()
-            else:
-                st.info("Vide.")
+                    if manual_selection:
+                        st.markdown("---")
+                        st.info(f"{len(manual_selection)} fichiers sélectionnés manuellement.")
+                        zip_man = BytesIO()
+                        with zipfile.ZipFile(zip_man, "w") as zf:
+                            for f in manual_selection: zf.write(f, os.path.basename(f))
+                        st.download_button("📥 Télécharger la sélection manuelle", data=zip_man.getvalue(), file_name="selection.zip", mime="application/zip")
 
         elif menu == "📊 Data & Exports":
             if st.button("RESET TOUT"):
@@ -347,7 +342,6 @@ if est_admin:
 # --- 4. UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    
     st.markdown("""
     <style>
         .block-container { padding-top: 1rem !important; padding-bottom: 2rem !important; }
@@ -371,29 +365,21 @@ elif est_utilisateur:
             st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:60px; width:auto;"></div>', unsafe_allow_html=True)
         
         tab_native, tab_web = st.tabs(["📱 Téléphone", "💻 Webcam"])
-        
         with tab_native:
             photo_native = st.file_uploader("Prendre une photo", type=["png", "jpg", "jpeg"], key=f"upl_{st.session_state.cam_reset_id}", label_visibility="collapsed")
             if photo_native:
                 if save_live_photo(photo_native):
-                    st.balloons()
-                    st.toast("✅ Envoyé !", icon="🚀")
-                    st.session_state.cam_reset_id += 1
-                    time.sleep(1.5); st.rerun()
-        
+                    st.balloons(); st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(1.5); st.rerun()
         with tab_web:
             photo_web = st.camera_input("Photo", key=f"cam_{st.session_state.cam_reset_id}", label_visibility="collapsed")
             if photo_web:
                 if save_live_photo(photo_web):
-                    st.toast("✅ Envoyé !", icon="🚀")
-                    st.session_state.cam_reset_id += 1
-                    time.sleep(0.5); st.rerun()
+                    st.toast("✅ Envoyé !", icon="🚀"); st.session_state.cam_reset_id += 1; time.sleep(0.5); st.rerun()
 
     else:
         st.title("🗳️ Vote Transdev")
         if cfg.get("logo_b64"):
             st.markdown(f'<div style="text-align:center; margin-bottom:20px;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto;"></div>', unsafe_allow_html=True)
-
         if "user_id" not in st.session_state: st.session_state.user_id = None
         if not st.session_state.user_id:
             nom = st.text_input("Votre Nom / Matricule :")
@@ -408,8 +394,7 @@ elif est_utilisateur:
             if st.session_state.get("a_vote", False):
                 st.balloons()
                 st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1></div>""", unsafe_allow_html=True)
-            elif not cfg["session_ouverte"]: 
-                st.warning("⌛ Votes clos ou attente.")
+            elif not cfg["session_ouverte"]: st.warning("⌛ Votes clos ou attente.")
             else:
                 choix = st.multiselect("Top 3 :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER"):
