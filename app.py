@@ -39,10 +39,7 @@ def load_json(file, default):
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
-if "refresh_id" not in st.session_state:
-    st.session_state.refresh_id = 0
-
-# Sécurités
+# Sécurités structure
 if "candidats" not in st.session_state.config: st.session_state.config["candidats"] = DEFAULT_CANDIDATS
 if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
 if "points_ponderation" not in st.session_state.config: st.session_state.config["points_ponderation"] = [5, 3, 1]
@@ -50,10 +47,6 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
 # --- FONCTIONS CRITIQUES ---
-
-def force_refresh():
-    st.session_state.refresh_id += 1
-    save_config()
 
 def save_config():
     with open(CONFIG_FILE, "w") as f:
@@ -63,9 +56,9 @@ def process_image_upload(uploaded_file):
     try:
         img = Image.open(uploaded_file)
         if img.mode != "RGBA": img = img.convert("RGBA")
-        img.thumbnail((200, 200))
+        img.thumbnail((300, 300))
         buffered = BytesIO()
-        img.save(buffered, format="PNG", quality=85)
+        img.save(buffered, format="PNG") # PNG force transparence
         return base64.b64encode(buffered.getvalue()).decode()
     except: return None
 
@@ -104,13 +97,13 @@ if est_admin:
             m, vo, re = cfg["mode_affichage"], cfg["session_ouverte"], cfg["reveal_resultats"]
 
             if c1.button("1. ACCUEIL", use_container_width=True, type="primary" if m=="attente" else "secondary"):
-                cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); force_refresh(); st.rerun()
+                cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); save_config(); st.rerun()
             if c2.button("2. VOTES ON", use_container_width=True, type="primary" if (m=="votes" and vo) else "secondary"):
-                cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); force_refresh(); st.rerun()
+                cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); save_config(); st.rerun()
             if c3.button("3. VOTES OFF", use_container_width=True, type="primary" if (m=="votes" and not vo and not re) else "secondary"):
-                cfg.update({"session_ouverte": False}); force_refresh(); st.rerun()
+                cfg.update({"session_ouverte": False}); save_config(); st.rerun()
             if c4.button("4. PODIUM", use_container_width=True, type="primary" if re else "secondary"):
-                cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); force_refresh(); st.rerun()
+                cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); save_config(); st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
             with st.expander("🗑️ OPTIONS DE RÉINITIALISATION (Zone de danger)"):
@@ -161,77 +154,84 @@ if est_admin:
             t1, t2 = st.tabs(["Identité", "Gestion Questions"])
             
             with t1:
-                # Titre géré proprement
-                new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"], key=f"titre_{st.session_state.refresh_id}")
-                if new_t != st.session_state.config["titre_mur"]:
-                    if st.button("Sauver Titre"):
-                        st.session_state.config["titre_mur"] = new_t; force_refresh(); st.rerun()
+                # Titre
+                new_t = st.text_input("Titre de l'événement", value=st.session_state.config["titre_mur"])
+                if st.button("Sauvegarder le Titre"):
+                    st.session_state.config["titre_mur"] = new_t; save_config(); st.success("Enregistré !")
                 
-                up_l = st.file_uploader("Logo (PNG Transparent recommandé)", type=["png", "jpg"])
+                # Logo
+                st.markdown("---")
+                st.write("Logo de l'événement")
+                up_l = st.file_uploader("Fichier image (PNG transparent recommandé)", type=["png", "jpg"])
                 if up_l:
                     b64 = process_image_upload(up_l)
                     if b64:
-                        st.session_state.config["logo_b64"] = b64; force_refresh(); st.success("Logo OK"); st.rerun()
+                        st.session_state.config["logo_b64"] = b64; save_config(); st.success("Logo chargé !"); st.rerun()
+                
+                if st.session_state.config.get("logo_b64"):
+                    st.write("Aperçu actuel :")
+                    st.markdown(f'<img src="data:image/png;base64,{st.session_state.config["logo_b64"]}" width="150" style="background:gray; padding:10px;">', unsafe_allow_html=True)
 
             with t2:
-                c_add1, c_add2 = st.columns([3, 1])
-                new_cand = c_add1.text_input("Nouveau candidat", key=f"new_cand_{st.session_state.refresh_id}", label_visibility="collapsed", placeholder="Nom...")
-                if c_add2.button("➕ Ajouter", use_container_width=True):
-                    if new_cand and new_cand not in st.session_state.config["candidats"]:
-                        st.session_state.config["candidats"].append(new_cand)
-                        force_refresh(); st.rerun()
+                st.subheader("📋 Liste des Questions / Candidats")
+                st.info("Utilisez le tableau ci-dessous pour modifier les noms, ajouter ou supprimer des lignes.")
+
+                # --- TABLEAU ÉDITABLE (Solution au problème de texte figé) ---
+                current_list = st.session_state.config["candidats"]
+                # Création DataFrame
+                df_cands = pd.DataFrame(current_list, columns=["Nom du Candidat"])
                 
-                st.markdown("---")
-                
-                if not st.session_state.config["candidats"]:
-                    st.warning("Liste vide.")
-                else:
-                    cols_head = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5])
-                    cols_head[0].markdown("**Img**")
-                    cols_head[1].markdown("**Nom (Éditable)**")
-                    rid = st.session_state.refresh_id
+                # Éditeur de données
+                edited_df = st.data_editor(
+                    df_cands, 
+                    num_rows="dynamic", 
+                    use_container_width=True,
+                    key="editor_cands"
+                )
+
+                # Bouton de validation global pour la liste
+                if st.button("💾 ENREGISTRER LES MODIFICATIONS DE LA LISTE", type="primary"):
+                    # Récupération de la nouvelle liste propre
+                    new_list = edited_df["Nom du Candidat"].astype(str).tolist()
+                    # Nettoyage des vides
+                    new_list = [x for x in new_list if x.strip() != ""]
                     
-                    for i, cand in enumerate(st.session_state.config["candidats"]):
-                        cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5], vertical_alignment="center")
-                        with cols[0]:
-                            if cand in st.session_state.config["candidats_images"]:
-                                st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][cand])), width=40)
-                            else: st.write("⚪")
-                        with cols[1]:
-                            val_edit = st.text_input("Nom", value=cand, key=f"n_{i}_{rid}", label_visibility="collapsed")
-                            if val_edit != cand:
-                                if cand in st.session_state.config["candidats_images"]:
-                                    st.session_state.config["candidats_images"][val_edit] = st.session_state.config["candidats_images"].pop(cand)
-                                st.session_state.config["candidats"][i] = val_edit
-                                force_refresh(); st.rerun()
-                        with cols[2]:
-                            if i > 0:
-                                if st.button("⬆️", key=f"u_{i}_{rid}"):
-                                    st.session_state.config["candidats"][i], st.session_state.config["candidats"][i-1] = st.session_state.config["candidats"][i-1], st.session_state.config["candidats"][i]
-                                    force_refresh(); st.rerun()
-                        with cols[3]:
-                            if i < len(st.session_state.config["candidats"]) - 1:
-                                if st.button("⬇️", key=f"d_{i}_{rid}"):
-                                    st.session_state.config["candidats"][i], st.session_state.config["candidats"][i+1] = st.session_state.config["candidats"][i+1], st.session_state.config["candidats"][i]
-                                    force_refresh(); st.rerun()
-                        with cols[4]:
-                            with st.popover("🖼️"):
-                                st.write(f"**{cand}**")
-                                up_p = st.file_uploader("Fichier", type=["png", "jpg"], key=f"up_{i}_{rid}")
-                                if up_p:
-                                    b64 = process_image_upload(up_p)
-                                    if b64:
-                                        st.session_state.config["candidats_images"][cand] = b64
-                                        force_refresh(); st.rerun()
-                                if cand in st.session_state.config["candidats_images"]:
-                                    if st.button("Supprimer Photo", key=f"di_{i}_{rid}"):
-                                        del st.session_state.config["candidats_images"][cand]
-                                        force_refresh(); st.rerun()
-                        with cols[5]:
-                            if st.button("🗑️", key=f"del_{i}_{rid}"):
-                                st.session_state.config["candidats"].pop(i)
-                                if cand in st.session_state.config["candidats_images"]: del st.session_state.config["candidats_images"][cand]
-                                force_refresh(); st.rerun()
+                    st.session_state.config["candidats"] = new_list
+                    save_config()
+                    st.success("✅ Liste mise à jour avec succès !")
+                    time.sleep(1)
+                    st.rerun()
+
+                st.markdown("---")
+                st.subheader("🖼️ Associer des Photos")
+                st.write("Sélectionnez un nom dans la liste pour lui ajouter/changer sa photo.")
+                
+                # Sélecteur pour gérer les images
+                if st.session_state.config["candidats"]:
+                    selected_cand = st.selectbox("Choisir le candidat :", st.session_state.config["candidats"])
+                    
+                    c1, c2 = st.columns([1, 2])
+                    with c1:
+                        # Afficher l'image actuelle si elle existe
+                        if selected_cand in st.session_state.config["candidats_images"]:
+                            st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][selected_cand])), width=100, caption="Actuelle")
+                            if st.button("🗑️ Supprimer Photo"):
+                                del st.session_state.config["candidats_images"][selected_cand]
+                                save_config()
+                                st.rerun()
+                        else:
+                            st.info("Pas d'image")
+                    
+                    with c2:
+                        up_p = st.file_uploader(f"Charger une image pour : {selected_cand}", type=["png", "jpg", "jpeg"])
+                        if up_p:
+                            b64_p = process_image_upload(up_p)
+                            if b64_p:
+                                st.session_state.config["candidats_images"][selected_cand] = b64_p
+                                save_config()
+                                st.success("Image associée !")
+                                time.sleep(1)
+                                st.rerun()
 
         elif menu == "📸 Médiathèque":
             st.write("Gestion fichiers...")
@@ -257,11 +257,17 @@ elif est_utilisateur:
     
     cfg = load_json(CONFIG_FILE, default_config)
     
+    # 1. AFFICHAGE DU LOGO (CSS forcée pour transparence)
     if cfg.get("logo_b64"):
-        st.markdown(f"""<div style="text-align:center; margin-bottom:20px; background:transparent;"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto; background:transparent;"></div>""", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="text-align:center; margin-bottom:20px; background-color:transparent !important;">
+            <img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:80px; width:auto; background-color:transparent !important;">
+        </div>
+        """, unsafe_allow_html=True)
     
     st.title("🗳️ Vote Transdev")
     
+    # 2. ENREGISTREMENT COMPTEUR
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
@@ -271,6 +277,7 @@ elif est_utilisateur:
     if "user_id" not in st.session_state:
         st.session_state.user_id = None
 
+    # Écran 1 : Identification
     if not st.session_state.user_id:
         st.info("Pour garantir un vote unique, merci de vous identifier.")
         nom = st.text_input("Votre Nom et Prénom / Matricule :")
@@ -285,10 +292,18 @@ elif est_utilisateur:
                     st.rerun()
             else: st.warning("Merci d'entrer un nom valide.")
     
+    # Écran 2 : Vote
     else:
         if st.session_state.get("a_vote", False):
             st.balloons()
-            st.markdown("""<div style="text-align:center; padding-top:50px;"><div style="font-size:80px;">👏</div><h1 style="color:#E2001A;">MERCI !</h1><p style="font-size:20px;">Votre vote a bien été pris en compte.</p></div>""", unsafe_allow_html=True)
+            st.markdown("""
+            <div style="text-align:center; padding-top:50px;">
+                <div style="font-size:80px;">👏</div>
+                <h1 style="color:#E2001A;">MERCI !</h1>
+                <p style="font-size:20px;">Votre vote a bien été pris en compte.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
         elif not cfg["session_ouverte"]: 
             st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
         else:
@@ -298,26 +313,39 @@ elif est_utilisateur:
 
             if len(choix) == 3:
                 if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
+                    # Save votes
                     vts = load_json(VOTES_FILE, {})
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     json.dump(vts, open(VOTES_FILE, "w"))
+                    
+                    # Save voter
                     voters = load_json(VOTERS_FILE, [])
                     voters.append(st.session_state.user_id)
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
+                    
                     st.session_state["a_vote"] = True
                     st.rerun()
             elif len(choix) > 3: st.error("Maximum 3 choix !")
 
 # --- 5. MUR SOCIAL ---
 else:
-    st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; }</style>""", unsafe_allow_html=True)
+    # CSS GLOBAL POUR FORCER LE FOND NOIR ET TRANSPARENCE IMAGES
+    st.markdown("""
+    <style>
+        body, .stApp { background-color: black !important; } 
+        [data-testid='stHeader'], footer { display: none !important; } 
+        .block-container { padding-top: 2rem !important; }
+        img { background-color: transparent !important; }
+    </style>
+    """, unsafe_allow_html=True)
     
     config = load_json(CONFIG_FILE, default_config)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
     logo_html = ""
     if config.get("logo_b64"): 
-        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
+        # Ajout du style inline pour garantir la transparence
+        logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background-color: transparent !important;">'
 
     counter_html = ""
     if config["mode_affichage"] != "attente":
@@ -363,6 +391,7 @@ else:
             with c1:
                 for c in cands[:mid]: st.markdown(get_html(c), unsafe_allow_html=True)
             with c2:
+                # Ajout style width: fit-content et margin: auto pour centrage parfait
                 st.markdown(f'<div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;"><img src="data:image/png;base64,{qr_b64}" width="180" style="display:block;"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p></div>', unsafe_allow_html=True)
             with c3:
                 for c in cands[mid:]: st.markdown(get_html(c), unsafe_allow_html=True)
