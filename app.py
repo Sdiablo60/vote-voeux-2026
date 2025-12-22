@@ -76,7 +76,9 @@ if est_admin:
 
         if st.sidebar.button("3️⃣ Clôturer les Votes", type="primary" if (not vo and m == "votes" and not re) else "secondary", use_container_width=True):
             config.update({"session_ouverte": False})
-            with open(CONFIG_FILE, "w") as f: json.dump(config, f); st.rerun()
+            with open(CONFIG_FILE, "w") as f: json.dump(config, f)
+            st.sidebar.success("✅ Votes clôturés sur le mur !")
+            st.rerun()
 
         if st.sidebar.button("4️⃣ Afficher le Podium 🏆", type="primary" if re else "secondary", use_container_width=True):
             config.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False})
@@ -114,7 +116,7 @@ elif est_utilisateur:
     components.html(f'<script>if(localStorage.getItem("{v_key}")){{ window.parent.postMessage({{type: "streamlit:setComponentValue", value: true, key: "voted"}}, "*"); }}</script>', height=0)
 
     if st.session_state.get("voted") or st.session_state.get("voted_final"):
-        st.balloons(); st.success("✅ Vote enregistré !")
+        st.success("✅ Votre vote est enregistré !")
     else:
         if "pseudo" not in st.session_state:
             with st.form("p"):
@@ -126,7 +128,7 @@ elif est_utilisateur:
                         if name not in ps: ps.append(name); json.dump(ps, open(PARTICIPANTS_FILE, "w"))
                         st.rerun()
         elif not config["session_ouverte"]:
-            st.warning("⌛ Votes bientôt ouverts...")
+            st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
             try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(5000, key="u_ref")
             except: pass
         else:
@@ -159,16 +161,13 @@ else:
         </div>
     """, unsafe_allow_html=True)
 
-    # Styles communs pour les bandeaux rouges
     badge_style = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:20px; font-weight:bold; border:2px solid white; color:white;"
 
     # 1. MODE ATTENTE
     if config["mode_affichage"] == "attente":
         st.markdown(f"""
             <div style="text-align:center; color:white;">
-                <div style="{badge_style}">
-                    ⌛ En attente de l'ouverture des Votes
-                </div>
+                <div style="{badge_style}">⌛ En attente de l'ouverture des Votes</div>
                 <div style="margin-top:60px;">
                     <h2 style="font-size:55px; opacity:0.9;">Bienvenue à tous ! 👋</h2>
                     <p style="font-size:30px; color:#ccc; margin-top:15px;">Installez-vous confortablement.</p>
@@ -176,36 +175,25 @@ else:
             </div>
         """, unsafe_allow_html=True)
 
-    # 2. MODE VOTES
+    # 2. MODE VOTES (OUVERT OU CLOS)
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
-        st.markdown(f"""
-            <div style="text-align:center;">
-                <div style="{badge_style} animation:blink 1.5s infinite;">
-                    🚀 LES VOTES SONT OUVERTS
-                </div>
-            </div>
-            <style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>
-        """, unsafe_allow_html=True)
+        if config["session_ouverte"]:
+            # VOTES OUVERTS
+            st.markdown(f"""<div style="text-align:center;"><div style="{badge_style} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div><style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>""", unsafe_allow_html=True)
+        else:
+            # VOTES CLOS (Nouveau message !)
+            st.markdown(f"""<div style="text-align:center;"><div style="{badge_style} background:#333;">🏁 LES VOTES SONT CLOS</div></div>""", unsafe_allow_html=True)
 
         st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 0.8, 1])
-        
         with col1:
             for opt in OPTS_BU[:5]:
                 st.markdown(f'<div style="background:#222; color:white; padding:12px 15px; border-radius:10px; margin-bottom:12px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
-        
         with col2:
-            st.markdown(f"""
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;">
-                    <div style="background:white; padding:8px; border-radius:12px; display:inline-block;">
-                        <img src="data:image/png;base64,{qr_b64}" width="180">
-                    </div>
-                    <div style="text-align:center; margin-top:15px; color:white; font-size:14px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">
-                        Scannez pour voter
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-
+            if config["session_ouverte"]:
+                st.markdown(f"""<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;"><div style="background:white; padding:8px; border-radius:12px; display:inline-block;"><img src="data:image/png;base64,{qr_b64}" width="180"></div><div style="text-align:center; margin-top:15px; color:white; font-size:14px; font-weight:bold; letter-spacing:1px; text-transform:uppercase;">Scannez pour voter</div></div>""", unsafe_allow_html=True)
+            else:
+                st.markdown(f"""<div style="text-align:center; margin-top:50px; color:white; opacity:0.5;"><h1 style="font-size:80px;">🔒</h1><h3>Merci pour vos votes !</h3><p>Calcul des résultats en cours...</p></div>""", unsafe_allow_html=True)
         with col3:
             for opt in OPTS_BU[5:]:
                 st.markdown(f'<div style="background:#222; color:white; padding:12px 15px; border-radius:10px; margin-bottom:12px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
