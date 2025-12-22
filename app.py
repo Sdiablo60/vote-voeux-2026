@@ -104,12 +104,15 @@ def get_live_effect_html(effect_name, intensity, speed):
         return """<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();</script>"""
     
     elif effect_name == "🎈 Ballons":
-        interval = max(40, 2000 - (intensity * 39)) 
+        # Formule logarithmique : 50 = ~60ms, 40 = ~75ms, 10 = ~300ms
+        interval = int(3500 / (intensity + 5)) 
+        # Vitesse
         duration = max(3, 20 - (speed * 0.34))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);function c(){{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*30+30)+'px;opacity:'+(Math.random()*0.5+0.5)+';transition:bottom {duration}s linear,left {duration}s ease-in-out;';l.appendChild(d);requestAnimationFrame(()=>{{d.style.bottom='110vh';d.style.left=(parseFloat(d.style.left)+(Math.random()*20-10))+'vw';}});setTimeout(()=>{{d.remove()}},{duration*1000 + 1000});}}setInterval(c,{interval});</script>"""
 
     elif effect_name == "❄️ Neige":
-        interval = max(10, 400 - (intensity * 7.8))
+        # Formule logarithmique pour la neige aussi
+        interval = int(1000 / (intensity + 2))
         duration = max(2, 10 - (speed * 0.16))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.sf{{position:absolute;top:-20px;color:#FFF;animation:f linear forwards}}@keyframes f{{to{{transform:translateY(105vh)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const f=document.createElement('div');f.className='sf';f.textContent='❄';f.style.left=Math.random()*100+'vw';f.style.animationDuration=(Math.random()*{duration} + {duration/2})+'s';f.style.fontSize=Math.random()*15+10+'px';f.style.opacity=Math.random();l.appendChild(f);setTimeout(()=>f.remove(),{duration*1000 + 2000})}},{interval});</script>"""
 
@@ -124,7 +127,7 @@ def get_live_effect_html(effect_name, intensity, speed):
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:-1;background:transparent;';window.parent.document.body.appendChild(l);var s=document.createElement('style');s.innerHTML='.st{{position:absolute;background:white;border-radius:50%;animation:z {duration}s infinite linear;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(5)}}}}';l.appendChild(s);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.className='st';d.style.left=Math.random()*100+'vw';d.style.top=Math.random()*100+'vh';d.style.width=Math.random()*3+'px';d.style.height=d.style.width;l.appendChild(d);setTimeout(()=>d.remove(),{duration*1000})}},{interval});</script>"""
 
     elif effect_name == "💸 Billets":
-        interval = max(30, 800 - (intensity * 15))
+        interval = int(2500 / (intensity + 3))
         duration = max(1000, 5000 - (speed * 80))
         return f"""<script>var old=window.parent.document.getElementById('effect-layer');if(old)old.remove();var l=document.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;overflow:hidden;';window.parent.document.body.appendChild(l);setInterval(()=>{{if(!window.parent.document.getElementById('effect-layer'))return;const d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;font-size:30px;';l.appendChild(d);d.animate([{{transform:'translateY(0)'}},{{transform:'translateY(110vh)'}}],{{duration:{duration},iterations:1}});setTimeout(()=>d.remove(),{duration})}},{interval});</script>"""
 
@@ -196,23 +199,23 @@ def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
     elif effect_name == "🎈 Ballons":
-        interval = max(40, 2000 - (intensity * 39)) 
+        interval = int(3500 / (intensity + 5))
         duration = max(3, 20 - (speed * 0.34))
         return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-20px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom {duration}s linear;';c.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
     elif effect_name == "❄️ Neige":
-        interval = max(10, 400 - (intensity * 7.8))
+        interval = int(1000 / (intensity + 2))
         duration = max(2, 10 - (speed * 0.16))
         return f"""<style>.sf{{position:absolute;color:white;animation:f 2s linear infinite}}@keyframes f{{to{{transform:translateY(150px)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='sf';e.innerHTML='❄';e.style.left=Math.random()*90+'%';e.style.top='-10px';e.style.fontSize=(Math.random()*10+5)+'px';e.style.animationDuration=(Math.random()*{duration} + {duration/2})+'s';c.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000 + 1000})}},{interval});</script>"""
     elif effect_name == "🎉 Confettis":
         count = max(1, int(intensity * 1.5))
         interval = max(100, 1500 - (speed * 28))
-        return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:60,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},{interval});</script>"""
+        return f"""<canvas id="confetti-canvas" style="width:100%;height:100%;"></canvas><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>const myCanvas = document.getElementById('confetti-canvas'); const myConfetti = confetti.create(myCanvas, {{ resize: true, useWorker: true }}); setInterval(()=>{{myConfetti({{particleCount:{count},spread:50,origin:{{y:0.6}},colors:['#E2001A','#fff'],disableForReducedMotion:true,scalar:0.6}});}},{interval});</script>"""
     elif effect_name == "🌌 Espace":
-        interval = max(5, 200 - (intensity * 3.8))
+        interval = max(10, 300 - (intensity * 5.5))
         duration = max(1, 8 - (speed * 0.14))
         return f"""<style>.st{{position:absolute;background:white;border-radius:50%;animation:z {duration}s linear infinite;opacity:0}}@keyframes z{{0%{{opacity:0;transform:scale(0.1)}}50%{{opacity:1}}100%{{opacity:0;transform:scale(2)}}}}</style><script>const c=document.getElementById('preview-screen');setInterval(()=>{{const e=document.createElement('div');e.className='st';e.style.left=Math.random()*100+'%';e.style.top=Math.random()*100+'%';e.style.width='2px';e.style.height='2px';c.appendChild(e);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
     elif effect_name == "💸 Billets":
-        interval = max(30, 800 - (intensity * 15))
+        interval = int(2500 / (intensity + 3))
         duration = max(1000, 5000 - (speed * 80))
         return f"""<script>const c=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='💸';e.style.cssText='position:absolute;top:-20px;left:'+Math.random()*90+'%;font-size:18px;';c.appendChild(e);e.animate([{{transform:'translateY(0)'}},{{transform:'translateY(160px)'}}],{{duration:{duration}}});setTimeout(()=>{{e.remove()}},{duration})}},{interval});</script>"""
     elif effect_name == "🟢 Matrix":
