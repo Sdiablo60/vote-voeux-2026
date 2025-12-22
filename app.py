@@ -33,14 +33,13 @@ config = load_json(CONFIG_FILE, default_config)
 VOTE_VERSION = config.get("vote_version", 1)
 OPTS_BU = ["BU PAX", "BU FRET", "BU B2B", "SERVICE RH", "SERVICE IT", "DPMI (Atelier)", "SERVICE FINANCIES", "Service AO", "Service QSSE", "DIRECTION POLE"]
 
-# Style harmonisé pour tous les badges de titre
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 
-# --- 3. ADMINISTRATION ---
+# --- 3. ADMINISTRATION (Commandes en Sidebar) ---
 if est_admin:
     st.sidebar.title("🎮 Régie Master")
     if "auth" not in st.session_state: st.session_state["auth"] = False
@@ -51,42 +50,42 @@ if est_admin:
             st.session_state["auth"] = True
             st.rerun()
     else:
-        # Infos à droite (Zone Principale Admin)
-        col_ctrl, col_stats = st.columns([1.5, 1])
+        # BOUTONS DE COMMANDE DANS LA SIDEBAR
+        st.sidebar.subheader("🕹️ Pilotage")
+        m, vo, re = config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"]
         
-        with col_ctrl:
-            st.subheader("🕹️ Pilotage")
-            m, vo, re = config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"]
-            
-            if st.button("1️⃣ Mode Attente", use_container_width=True):
-                config.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False})
-                json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+        if st.sidebar.button("1️⃣ Mode Attente", use_container_width=True):
+            config.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False})
+            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-            if st.button("2️⃣ Lancer les Votes", use_container_width=True):
-                config.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False})
-                json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+        if st.sidebar.button("2️⃣ Lancer les Votes", use_container_width=True):
+            config.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False})
+            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-            if st.button("3️⃣ Clôturer les Votes", use_container_width=True):
-                config.update({"session_ouverte": False})
-                json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+        if st.sidebar.button("3️⃣ Clôturer les Votes", use_container_width=True):
+            config.update({"session_ouverte": False})
+            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-            if st.button("4️⃣ Afficher Podium 🏆 (Décompte 10s)", use_container_width=True):
-                config.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()})
-                json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
-            
-            st.markdown("---")
-            config["titre_mur"] = st.text_input("Titre du Mur", value=config["titre_mur"])
-            if st.button("💾 Sauver Titre"):
-                json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+        if st.sidebar.button("4️⃣ Afficher Podium 🏆", use_container_width=True):
+            config.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()})
+            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+        
+        st.sidebar.markdown("---")
+        config["titre_mur"] = st.sidebar.text_input("Titre du Mur", value=config["titre_mur"])
+        if st.sidebar.button("💾 Sauver Titre", use_container_width=True):
+            json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
-        with col_stats:
-            st.subheader("📊 État & Résultats")
-            nb_p = len(load_json(PARTICIPANTS_FILE, []))
-            st.info(f"👥 {nb_p} Participants connectés")
-            v_data = load_json(VOTES_FILE, {})
-            if v_data:
-                df = pd.DataFrame(list(v_data.items()), columns=['BU', 'Points']).sort_values('Points', ascending=False)
-                st.dataframe(df, use_container_width=True)
+        # PAGE CENTRALE ADMIN : STATISTIQUES
+        st.title("📊 Tableau de Bord")
+        nb_p = len(load_json(PARTICIPANTS_FILE, []))
+        st.metric("Participants Connectés", nb_p)
+        
+        v_data = load_json(VOTES_FILE, {})
+        if v_data:
+            st.subheader("Classement en Temps Réel")
+            df = pd.DataFrame(list(v_data.items()), columns=['Unité (BU)', 'Points']).sort_values('Points', ascending=False)
+            st.bar_chart(df.set_index('Unité (BU)'))
+            st.table(df)
 
 # --- 4. UTILISATEUR (VOTE) ---
 elif est_utilisateur:
@@ -102,55 +101,37 @@ elif est_utilisateur:
             json.dump(vts, open(VOTES_FILE, "w"))
             st.success("✅ Vote enregistré !")
 
-# --- 5. MUR SOCIAL (AFFICHAGE PUBLIC) ---
+# --- 5. MUR SOCIAL ---
 else:
     st.markdown("<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; }</style>", unsafe_allow_html=True)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
-    
-    # Titre et Compteur Participants
-    st.markdown(f"""
-        <div style="text-align:center; color:white; padding-top:40px;">
-            <h1 style="font-size:50px; font-weight:bold; text-transform:uppercase; margin:0;">{config["titre_mur"]}</h1>
-            <div style="background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; margin-top:10px;">
-                👥 {nb_p} CONNECTÉS
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f'<div style="text-align:center; color:white; padding-top:40px;"><h1 style="font-size:55px; font-weight:bold; text-transform:uppercase; margin:0;">{config["titre_mur"]}</h1><div style="background:white; display:inline-block; padding:3px 15px; border-radius:20px; color:black; font-weight:bold; margin-top:10px;">👥 {nb_p} CONNECTÉS</div></div>', unsafe_allow_html=True)
 
-    # 1. MODE ATTENTE
     if config["mode_affichage"] == "attente":
         st.markdown(f'<div style="text-align:center; color:white;"><div style="{BADGE_CSS}">⌛ En attente de l\'ouverture des Votes</div><h2 style="font-size:55px; margin-top:60px;">Bienvenue ! 👋</h2></div>', unsafe_allow_html=True)
 
-    # 2. MODE VOTES (OUVERT OU CLOS)
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
         if config["session_ouverte"]:
-            # --- INTERFACE VOTE ACTIF ---
             host = st.context.headers.get('host', 'localhost')
             qr_url = f"https://{host}/?mode=vote"
             qr_buf = BytesIO(); qrcode.make(qr_url).save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            
-            st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div><style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>', unsafe_allow_html=True)
-            
+            st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div>', unsafe_allow_html=True)
             st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
-            col1, col2, col3 = st.columns([1, 0.8, 1])
-            with col1: # Liste Gauche
-                for opt in OPTS_BU[:5]:
-                    st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:12px; border-left:5px solid #E2001A; font-weight:bold; font-size:18px;">🎥 {opt}</div>', unsafe_allow_html=True)
-            with col2: # QR Code Centré
+            c1, c2, c3 = st.columns([1, 0.8, 1])
+            with c1:
+                for opt in OPTS_BU[:5]: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:12px; border-left:5px solid #E2001A; font-weight:bold; font-size:18px;">🎥 {opt}</div>', unsafe_allow_html=True)
+            with c2:
                 st.markdown(f'<div style="background:white; padding:10px; border-radius:15px; text-align:center;"><img src="data:image/png;base64,{qr_b64}" width="180"><p style="color:black; font-weight:bold; margin-top:10px; font-size:14px;">SCANNEZ POUR VOTER</p></div>', unsafe_allow_html=True)
-            with col3: # Liste Droite
-                for opt in OPTS_BU[5:]:
-                    st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:12px; border-left:5px solid #E2001A; font-weight:bold; font-size:18px;">🎥 {opt}</div>', unsafe_allow_html=True)
+            with c3:
+                for opt in OPTS_BU[5:]: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:12px; border-left:5px solid #E2001A; font-weight:bold; font-size:18px;">🎥 {opt}</div>', unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
-            # --- INTERFACE VOTE CLOS + PLUIE CONFETTIS ---
             components.html(f"""
-                <div style="text-align:center; font-family: sans-serif; color:white; background:black; height:100%;">
+                <div style="text-align:center; font-family: sans-serif; color:white; background:black;">
                     <div style="{BADGE_CSS} background:#333;">🏁 LES VOTES SONT CLOS</div>
                     <div style="font-size:100px; animation: clap 0.5s infinite alternate; margin-top:30px;">👏</div>
                     <h1 style="color:#E2001A; font-size:45px;">MERCI À TOUS !</h1>
-                    <p style="font-size:25px; color:#ccc;">La participation est terminée.<br>Calcul des résultats en cours...</p>
                 </div>
                 <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
                 <script>
@@ -163,19 +144,11 @@ else:
                 <style> @keyframes clap {{ from {{ transform: scale(1); }} to {{ transform: scale(1.2); }} }} </style>
             """, height=600)
 
-    # 3. MODE PODIUM
     elif config["reveal_resultats"]:
         temps_ecoule = time.time() - config.get("timestamp_podium", 0)
         compte_a_rebours = 10 - int(temps_ecoule)
-
         if compte_a_rebours > 0:
-            st.markdown(f"""
-                <div style="text-align:center; margin-top:100px;">
-                    <h2 style="color:white; font-size:40px; text-transform:uppercase;">Révélation du Podium dans...</h2>
-                    <div style="font-size:200px; color:#E2001A; font-weight:bold; animation: pulse 1s infinite;">{compte_a_rebours}</div>
-                </div>
-                <style> @keyframes pulse {{ 0% {{ transform: scale(1); }} 50% {{ transform: scale(1.1); }} 100% {{ transform: scale(1); }} }} </style>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div style="text-align:center; margin-top:100px;"><h2 style="color:white; font-size:40px;">Révélation du Podium dans...</h2><div style="font-size:200px; color:#E2001A; font-weight:bold; animation: pulse 1s infinite;">{compte_a_rebours}</div></div>', unsafe_allow_html=True)
             time.sleep(0.5); st.rerun()
         else:
             v_data = load_json(VOTES_FILE, {})
@@ -186,8 +159,6 @@ else:
                 m_txt = ["🥇 1er", "🥈 2ème", "🥉 3ème"]
                 for i, (name, score) in enumerate(sorted_v):
                     cols[i].markdown(f'<div style="background:#222;padding:40px 20px;border-radius:20px;border:4px solid #E2001A;text-align:center;color:white;margin-top:40px;"><h2>{m_txt[i]}</h2><h1 style="font-size:38px;">{name}</h1><p style="font-size:22px;">{score} pts</p></div>', unsafe_allow_html=True)
-                
-                # Pluie de confettis de victoire (Or inclu)
                 components.html("""
                     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
                     <script>
@@ -199,7 +170,6 @@ else:
                     </script>
                 """, height=0)
 
-    # Rafraîchissement automatique du Mur
     try:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(5000, key="wall_ref")
