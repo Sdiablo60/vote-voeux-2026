@@ -101,11 +101,11 @@ EFFECTS_LIB = {
 # --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
 PREVIEW_LIB = {
     "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h4 style='color:#555;font-family:sans-serif;margin:0;'>OFF</h4></body></html>",
-    "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:24px;transition:bottom 3s linear;';document.body.appendChild(d);setTimeout(function(){d.style.bottom='120%';},50);setTimeout(function(){d.remove()},3000);},500);</script></body></html>""",
+    "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='🎈';d.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:20px;transition:bottom 3s linear;';document.body.appendChild(d);setTimeout(function(){d.style.bottom='120%';},50);setTimeout(function(){d.remove()},3000);},500);</script></body></html>""",
     "❄️ Neige": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.f{position:absolute;color:#FFF;animation:d 2s linear forwards}@keyframes d{to{transform:translateY(200px)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='f';d.innerHTML='❄';d.style.left=Math.random()*95+'%';d.style.top='-20px';d.style.fontSize=(Math.random()*10+8)+'px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},100);</script></body></html>""",
     "🎉 Confettis": """<html><body style='background:black;margin:0;overflow:hidden;'><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>setInterval(function(){confetti({particleCount:5,spread:50,origin:{y:0.6},colors:['#E2001A','#ffffff'],disableForReducedMotion:true,zIndex:100,scalar:0.6});},800);</script></body></html>""",
-    "🌌 Espace": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(2)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='s';d.style.left=Math.random()*100+'%';d.style.top=Math.random()*100+'%';d.style.width='1px';d.style.height='1px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},50);</script></body></html>""",
-    "💸 Billets": """<html><body style='background:black;margin:0;overflow:hidden;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:24px;';document.body.appendChild(d);d.animate([{transform:'translateY(0)'},{transform:'translateY(200px)'}],{duration:2000,iterations:1});setTimeout(function(){d.remove()},1900);},400);</script></body></html>""",
+    "🌌 Espace": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0}@keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(2)}}</style><script>setInterval(function(){var d=document.createElement('div');d.className='s';d.style.left=Math.random()*100+'%';d.style.top=Math.random()*100+'%';d.style.width='1px';d.style.height='1px';document.body.appendChild(d);setTimeout(function(){d.remove()},2000);},80);</script></body></html>""",
+    "💸 Billets": """<html><body style='background:black;margin:0;overflow:hidden;'><script>setInterval(function(){var d=document.createElement('div');d.innerHTML='💸';d.style.cssText='position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:18px;';document.body.appendChild(d);d.animate([{transform:'translateY(0)'},{transform:'translateY(200px)'}],{duration:2000,iterations:1});setTimeout(function(){d.remove()},1900);},400);</script></body></html>""",
     "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100vh;"></canvas><script>var c=document.getElementById('m');var x=c.getContext('2d');c.width=160;c.height=140;var col=c.width/10;var r=[];for(var i=0;i<col;i++)r[i]=1;setInterval(function(){x.fillStyle='rgba(0,0,0,0.1)';x.fillRect(0,0,c.width,c.height);x.fillStyle='#0F0';x.font='8px monospace';for(var i=0;i<r.length;i++){x.fillText(Math.floor(Math.random()*2),i*10,r[i]*10);if(r[i]*10>c.height&&Math.random()>0.95)r[i]=0;r[i]++;}},50);</script></body></html>"""
 }
 
@@ -227,82 +227,90 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # CSS TV RIGIDE & ROBUSTE
+            # CSS TV RETRO FIDÈLE (BOIS + CONTROLES A DROITE)
             st.markdown("""
             <style>
-                /* Conteneur principal TV - FLEX pour alignement */
-                .retro-tv-container {
-                    width: 300px;
+                .tv-retro-container {
+                    position: relative;
+                    width: 320px;
                     height: 240px;
-                    margin: 20px auto;
-                    position: relative;
-                }
-
-                /* Les antennes */
-                .retro-antennas {
-                    position: absolute; top: -40px; left: 50%; transform: translateX(-50%);
-                    width: 100px; height: 40px;
-                }
-                .ant-left, .ant-right { width: 3px; height: 100%; background: #888; position: absolute; bottom: 0; transform-origin: bottom; }
-                .ant-left { left: 0; transform: rotate(-30deg); }
-                .ant-right { right: 0; transform: rotate(30deg); }
-                .ant-base { width: 40px; height: 15px; background: #333; border-radius: 20px 20px 0 0; position: absolute; bottom: 0; left: 30px; }
-
-                /* Le corps de la TV */
-                .retro-tv-body {
-                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-                    background: #5D4037; /* Marron bois */
-                    border: 6px solid #3E2723;
-                    border-radius: 20px;
-                    box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
-                    display: flex; /* Flexbox pour structure interne */
-                    align-items: center;
-                    padding: 10px;
-                    box-sizing: border-box;
-                    z-index: 5;
-                }
-
-                /* Partie gauche : L'écran */
-                .retro-screen-area {
-                    flex: 1; /* Prend tout l'espace restant */
-                    height: 100%;
-                    background: #222;
-                    border: 4px solid #444;
-                    border-radius: 15px;
-                    box-shadow: inset 0 0 15px black;
-                    overflow: hidden; /* Coupe ce qui dépasse */
-                    position: relative;
+                    margin: 0 auto;
                 }
                 
-                /* L'iframe doit remplir la zone écran */
-                .retro-screen-area iframe {
-                    width: 100% !important;
-                    height: 100% !important;
-                    border: none;
+                /* LES ANTENNES */
+                .tv-antennas {
+                    position: absolute; top: -50px; left: 50%; transform: translateX(-50%);
+                    width: 100px; height: 50px; z-index: 0;
+                }
+                .ant-rod { width: 3px; background: #666; height: 100%; position: absolute; bottom: 0; transform-origin: bottom; }
+                .ant-l { left: 0; transform: rotate(-25deg); }
+                .ant-r { right: 0; transform: rotate(25deg); }
+                .ant-base { width: 30px; height: 15px; background: #222; border-radius: 50% 50% 0 0; position: absolute; bottom: 0; left: 35px; }
+
+                /* BOITIER TV */
+                .tv-box {
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                    background: #5D4037; /* Marron bois */
+                    border: 6px solid #3E2723; /* Bordure bois foncé */
+                    border-radius: 20px;
+                    box-shadow: 5px 5px 15px rgba(0,0,0,0.6);
+                    z-index: 5;
+                    display: flex; /* Flexbox pour séparer écran et contrôles */
+                    padding: 12px;
+                    box-sizing: border-box;
                 }
 
-                /* Partie droite : Contrôles */
-                .retro-controls-area {
+                /* ZONE ECRAN (GAUCHE) */
+                .tv-screen-zone {
+                    flex: 1; /* Prend la place restante */
+                    background: #222;
+                    border: 4px solid #8D6E63; /* Bordure beige/clair */
+                    border-radius: 16px;
+                    box-shadow: inset 0 0 20px #000;
+                    margin-right: 12px;
+                    position: relative;
+                    overflow: hidden;
+                }
+                
+                /* OVERLAY ECRAN (IFRAME) */
+                .tv-screen-content {
+                    width: 100%; height: 100%;
+                    background: black; /* Fond noir forcé */
+                }
+                .tv-screen-content iframe {
+                    width: 100% !important; height: 100% !important; border: none;
+                }
+
+                /* ZONE CONTROLES (DROITE) */
+                .tv-controls-zone {
                     width: 60px;
-                    height: 100%;
-                    margin-left: 10px;
-                    background: #4E342E;
-                    border: 2px solid #3E2723;
-                    border-radius: 10px;
-                    display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 15px;
+                    background: #3E2723;
+                    border-radius: 8px;
+                    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px;
+                    padding: 5px 0;
                 }
-                .retro-knob { width: 35px; height: 35px; border-radius: 50%; background: #795548; border: 3px solid #222; box-shadow: 1px 2px 3px rgba(0,0,0,0.5); }
-                .retro-speaker { width: 35px; height: 50px; background: repeating-linear-gradient(0deg, #222, #222 2px, #444 2px, #444 4px); border: 1px solid #000; }
-
-                /* Les pieds */
-                .retro-legs {
-                    position: absolute; bottom: -20px; left: 0; width: 100%;
-                    display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box;
+                .tv-knob {
+                    width: 30px; height: 30px;
+                    border-radius: 50%;
+                    background: #BCAAA4; /* Bouton clair */
+                    border: 2px solid #222;
+                    box-shadow: 1px 2px 3px rgba(0,0,0,0.5);
                 }
-                .leg { width: 20px; height: 30px; background: #3E2723; }
-                .leg-l { transform: skewX(20deg); }
-                .leg-r { transform: skewX(-20deg); }
+                .tv-speaker {
+                    width: 30px; height: 40px;
+                    background: repeating-linear-gradient(0deg, #222, #222 3px, #4E342E 3px, #4E342E 6px);
+                    border: 1px solid #111;
+                    border-radius: 4px;
+                }
 
+                /* PIEDS */
+                .tv-legs {
+                    position: absolute; bottom: -40px; left: 0; width: 100%;
+                    display: flex; justify-content: space-between; padding: 0 40px; box-sizing: border-box; z-index: 1;
+                }
+                .tv-leg { width: 15px; height: 50px; background: #222; }
+                .leg-l { transform: skewX(10deg); }
+                .leg-r { transform: skewX(-10deg); }
             </style>
             """, unsafe_allow_html=True)
 
@@ -318,34 +326,37 @@ if est_admin:
                     st.rerun()
 
             with c_test_tv:
-                # CONSTRUCTION DE LA TV HTML
-                tv_html = f"""
-                <div class="retro-tv-container">
-                    <div class="retro-antennas">
-                        <div class="ant-left"></div>
+                # CONSTRUCTION DE LA TV HTML STRUCTUREE
+                # 1. Container global
+                html_tv = f"""
+                <div class="tv-retro-container">
+                    <div class="tv-antennas">
+                        <div class="ant-rod ant-l"></div>
                         <div class="ant-base"></div>
-                        <div class="ant-right"></div>
+                        <div class="ant-rod ant-r"></div>
                     </div>
                     
-                    <div class="retro-tv-body">
-                        <div class="retro-screen-area">
-                            {PREVIEW_LIB[st.session_state.preview_selected] if st.session_state.preview_selected in PREVIEW_LIB else ''}
+                    <div class="tv-box">
+                        <div class="tv-screen-zone">
+                            <div class="tv-screen-content">
+                                {PREVIEW_LIB[st.session_state.preview_selected] if st.session_state.preview_selected in PREVIEW_LIB else ''}
+                            </div>
                         </div>
                         
-                        <div class="retro-controls-area">
-                            <div class="retro-knob"></div>
-                            <div class="retro-knob"></div>
-                            <div class="retro-speaker"></div>
+                        <div class="tv-controls-zone">
+                            <div class="tv-knob" style="transform: rotate(45deg);"></div>
+                            <div class="tv-knob" style="transform: rotate(-20deg);"></div>
+                            <div class="tv-speaker"></div>
                         </div>
                     </div>
 
-                    <div class="retro-legs">
-                        <div class="leg leg-l"></div>
-                        <div class="leg leg-r"></div>
+                    <div class="tv-legs">
+                        <div class="tv-leg leg-l"></div>
+                        <div class="tv-leg leg-r"></div>
                     </div>
                 </div>
                 """
-                components.html(tv_html, height=300)
+                components.html(html_tv, height=320) # Hauteur suffisante pour inclure pieds et antennes
             
             st.divider()
 
