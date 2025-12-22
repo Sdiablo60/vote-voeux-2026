@@ -88,10 +88,6 @@ def inject_visual_effect(effect_name, intensity, speed):
 def get_tv_html(effect_js):
     return f"""<html><head><style>body {{ margin: 0; display: flex; justify-content: center; background: transparent; overflow: hidden; }} .tv {{ position: relative; width: 300px; height: 180px; background: #5D4037; border: 5px solid #3E2723; border-radius: 20px; display: flex; padding: 10px; box-sizing: border-box; }} .screen {{ flex: 1; background: black; border: 3px solid #222; border-radius: 10px; overflow: hidden; position: relative; }}</style></head><body><div class="tv"><div class="screen">{effect_js}</div></div></body></html>"""
 
-def get_preview_js(effect_name, intensity, speed):
-    if effect_name == "Aucun": return "<div style='color:white;text-align:center;margin-top:60px;'>OFF</div>"
-    return "<div style='color:white;text-align:center;margin-top:60px;'>Aperçu Actif</div>"
-
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
@@ -122,28 +118,16 @@ if est_admin:
             st.divider()
             c1, c2 = st.columns([1, 1.5])
             with c1:
-                EFFECT_LIST = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace", "💸 Billets", "🟢 Matrix"]
                 intensity = st.slider("🔢 Densité", 0, 50, cfg["effect_intensity"])
                 speed = st.slider("🚀 Vitesse", 0, 50, cfg["effect_speed"])
                 if intensity != cfg["effect_intensity"] or speed != cfg["effect_speed"]:
                     cfg["effect_intensity"] = intensity; cfg["effect_speed"] = speed; save_config(); st.rerun()
-            with c2: components.html(get_tv_html(get_preview_js("Aperçu", intensity, speed)), height=220)
-
-            st.divider()
-            st.subheader("⚙️ Config par écran")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.selectbox("Effet Accueil", EFFECT_LIST, index=EFFECT_LIST.index(cfg["screen_effects"].get("attente","Aucun")), key="s1")
-            with col2:
-                st.selectbox("Effet Podium", EFFECT_LIST, index=EFFECT_LIST.index(cfg["screen_effects"].get("podium","Aucun")), key="s3")
-            if st.button("💾 SAUVEGARDER CONFIG"):
-                cfg["screen_effects"].update({"attente":st.session_state.s1, "podium":st.session_state.s3})
-                save_config(); st.toast("Config OK")
+            with c2: components.html(get_tv_html("<div style='color:white;text-align:center;margin-top:60px;'>Régie Active</div>"), height=220)
 
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black; color: white; }</style>", unsafe_allow_html=True)
     st.title("🗳️ Vote / 📸 Photo")
-    photo = st.camera_input("Smile !")
+    photo = st.camera_input("Partagez un moment !")
     if photo:
         img = Image.open(photo)
         img.save(f"{LIVE_DIR}/img_{int(time.time())}_{random.randint(0,1000)}.jpg", "JPEG")
@@ -170,7 +154,7 @@ else:
         
         st.markdown(f"""
             <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; text-align:center; width:100%; pointer-events:none;">
-                <div style="display:inline-block; pointer-events:auto;">
+                <div style="display:inline-block; pointer-events:auto; background: rgba(0,0,0,0.4); padding: 40px; border-radius: 40px; backdrop-filter: blur(5px);">
                     {logo_html}
                     <h1 style="color:white; font-size:60px; text-transform:uppercase; margin-bottom:30px; text-shadow: 2px 2px 10px rgba(0,0,0,0.8);">Mur Photos Live</h1>
                     <div style="background:white; padding:20px; border-radius:30px; box-shadow: 0 0 50px rgba(0,0,0,0.5); display:inline-block; margin-bottom:30px;">
@@ -186,29 +170,26 @@ else:
         
         files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
         if files:
-            img_list = [f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in files[:25]]
+            img_list = [f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in files[:20]]
             components.html(f"""<script>
-                // Nettoyage des bulles existantes
                 window.parent.document.querySelectorAll('.bubble').forEach(b => b.remove());
                 var imgs = {json.dumps(img_list)};
                 imgs.forEach(src => {{
                     var i = document.createElement('img'); i.src = src; i.className = 'bubble';
                     var size = Math.random()*150 + 100;
                     i.style.width = size+'px'; i.style.height = size+'px';
-                    // Position initiale hors centre pour ne pas masquer le QR
                     i.style.left = Math.random()*90 + 'vw'; i.style.top = Math.random()*90 + 'vh';
                     window.parent.document.body.appendChild(i);
                     
-                    // Vitesse aléatoire garantie sans 0
-                    var vx = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.8 + 0.4);
-                    var vy = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.8 + 0.4);
+                    // VITESSE RALENTIE : 0.1 à 0.3 pour un effet flottant doux
+                    var vx = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.2 + 0.1);
+                    var vy = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 0.2 + 0.1);
                     
                     function anim() {{
                         if(!i.parentElement) return;
                         var l = parseFloat(i.style.left);
                         var t = parseFloat(i.style.top);
                         
-                        // Rebond sur les bords (0 à 95% pour la sécurité)
                         if(l <= 1 || l >= 94) vx *= -1;
                         if(t <= 1 || t >= 94) vy *= -1;
                         
