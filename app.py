@@ -13,7 +13,8 @@ st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wi
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
 LIVE_DIR = "galerie_live_users"
-VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE, VOTERS_FILE = "votes.json", "participants.json", "config_mur.json", "voters.json"
+# AJOUT DE DETAILED_VOTES_FILE POUR LE LOG COMPLET
+VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE, VOTERS_FILE, DETAILED_VOTES_FILE = "votes.json", "participants.json", "config_mur.json", "voters.json", "detailed_votes.json"
 
 for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
@@ -110,6 +111,17 @@ def save_live_photo(uploaded_file):
     except Exception as e:
         return False
 
+def update_presence(is_active_user=False):
+    presence_data = load_json(PARTICIPANTS_FILE, {})
+    if isinstance(presence_data, list): presence_data = {}
+    now = time.time()
+    clean_data = {uid: ts for uid, ts in presence_data.items() if now - ts < 10} # 10s timeout
+    if is_active_user:
+        clean_data[st.session_state.my_uuid] = now
+    with open(PARTICIPANTS_FILE, "w") as f:
+        json.dump(clean_data, f)
+    return len(clean_data)
+
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
@@ -166,7 +178,7 @@ if est_admin:
                 col_rst, col_info = st.columns([1, 2])
                 with col_rst:
                     if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet tout à 0"):
-                        for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
+                        for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE, DETAILED_VOTES_FILE]:
                             if os.path.exists(f): os.remove(f)
                         st.session_state.config["session_id"] = str(int(time.time()))
                         save_config()
@@ -181,9 +193,37 @@ if est_admin:
 
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
+            
+            # --- 2.1 KPIS ---
             voters_list = load_json(VOTERS_FILE, [])
             st.metric("👥 Participants Validés", len(voters_list))
             
+            # --- 2.2 LOG DETAILLE DES VOTES (NOUVEAU) ---
+            st.markdown("##### 🕵️‍♂️ Détail des votes (Live)")
+            detailed_votes = load_json(DETAILED_VOTES_FILE, [])
+            if detailed_votes:
+                # Création d'un DataFrame joli pour l'admin
+                df_details = pd.DataFrame(detailed_votes)
+                # On renomme et réorganise si nécessaire
+                if not df_details.empty:
+                    st.dataframe(
+                        df_details, 
+                        use_container_width=True, 
+                        hide_index=True,
+                        column_config={
+                            "timestamp": "Heure",
+                            "user": "Pseudo / Nom",
+                            "choix_1": "🥇 1er Choix",
+                            "choix_2": "🥈 2ème Choix",
+                            "choix_3": "🥉 3ème Choix"
+                        }
+                    )
+            else:
+                st.info("Aucun vote détaillé enregistré pour le moment.")
+
+            st.markdown("---")
+            
+            # --- 2.3 GRAPHIQUE ---
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in cfg["candidats"]}
@@ -312,10 +352,20 @@ if est_admin:
                 else: st.info("Aucun vote valide.")
             else: st.info("Aucun vote.")
             st.divider()
+            
+            # EXPORT DES DETAILS
+            st.subheader("2️⃣ Export Log Détaillé")
+            detailed_votes = load_json(DETAILED_VOTES_FILE, [])
+            if detailed_votes:
+                df_det = pd.DataFrame(detailed_votes)
+                st.download_button(label="📥 Télécharger Log Complet CSV", data=df_det.to_csv(index=False).encode('utf-8'), file_name=f"log_votes_complet_{int(time.time())}.csv", mime="text/csv")
+            else: st.info("Pas de log détaillé.")
+
+            st.divider()
             st.subheader("⚠️ Réinitialisation")
             st.markdown("""<div style="border: 1px solid red; padding: 15px; border-radius: 5px; background-color: #fff5f5; color: #8b0000;"><strong>ATTENTION :</strong> Efface TOUTES les données.</div><br>""", unsafe_allow_html=True)
             if st.button("🔥 RESET TOUT", type="primary"):
-                 for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
+                 for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE, DETAILED_VOTES_FILE]:
                      if os.path.exists(f): os.remove(f)
                  for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
                  st.session_state.config["session_id"] = str(int(time.time()))
@@ -416,13 +466,27 @@ elif est_utilisateur:
             else:
                 choix = st.multiselect("Sélectionnez vos 3 favoris :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER MON VOTE", type="primary", use_container_width=True):
+                    # 1. Enregistrer le score global
                     vts = load_json(VOTES_FILE, {})
                     pts = cfg.get("points_ponderation", [5, 3, 1])
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     json.dump(vts, open(VOTES_FILE, "w"))
+                    
+                    # 2. Enregistrer le votant (Liste des Pseudos)
                     voters = load_json(VOTERS_FILE, [])
                     voters.append(st.session_state.user_id)
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
+                    
+                    # 3. Enregistrer le détail (Pour Admin Monitoring)
+                    details = load_json(DETAILED_VOTES_FILE, [])
+                    details.append({
+                        "timestamp": datetime.now().strftime("%H:%M:%S"),
+                        "user": st.session_state.user_id,
+                        "choix_1": choix[0],
+                        "choix_2": choix[1],
+                        "choix_3": choix[2]
+                    })
+                    with open(DETAILED_VOTES_FILE, "w") as f: json.dump(details, f)
                     
                     st.session_state["a_vote"] = True
                     components.html(f"""<script>localStorage.setItem('{ls_key}', 'true'); location.reload();</script>""", height=0)
@@ -432,14 +496,12 @@ elif est_utilisateur:
 
 # --- 5. MUR SOCIAL ---
 else:
-    # CSS GLOBAL POUR BLOQUER LE SCROLL ET AJUSTER LES BADGES
     st.markdown("""
     <style>
         body, .stApp { background-color: black !important; overflow: hidden; height: 100vh; } 
         [data-testid='stHeader'], footer { display: none !important; } 
         .block-container { padding-top: 1rem !important; padding-bottom: 0 !important; max-width: 98% !important; }
         
-        /* STYLE BADGES PARTICIPANTS */
         .participant-badge {
             display: inline-block;
             background: rgba(255, 255, 255, 0.1);
@@ -453,16 +515,14 @@ else:
             white-space: nowrap;
         }
         
-        /* CONTENEUR SCROLLABLE POUR LES BADGES */
         .badges-container {
             display: flex;
             flex-wrap: wrap;
             justify-content: center;
-            max-height: 25vh; /* Limite hauteur pour ne pas tout manger */
+            max-height: 25vh; 
             overflow-y: auto;
             margin-top: 10px;
             padding: 10px;
-            /* Scrollbar invisible pour propreté */
             scrollbar-width: none; 
         }
         .badges-container::-webkit-scrollbar { display: none; }
@@ -531,10 +591,8 @@ else:
         """, height=900)
 
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
-        # --- COMPTEUR REDUIT ---
         st.markdown(f'<div style="text-align:center; margin-top:5px; margin-bottom:5px;"><div style="background:white; display:inline-block; padding:2px 15px; border-radius:15px; color:black; font-weight:bold; font-size:16px;">👥 {nb_p} PARTICIPANTS</div></div>', unsafe_allow_html=True)
         
-        # --- BADGES PSEUDOS (Nouveau Container Flex) ---
         if voters_list:
             badges_html = "".join([f'<div class="participant-badge">{v}</div>' for v in voters_list[::-1]])
             st.markdown(f'<div class="badges-container">{badges_html}</div>', unsafe_allow_html=True)
