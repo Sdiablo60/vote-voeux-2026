@@ -118,8 +118,6 @@ elif est_utilisateur:
                         st.rerun()
         elif not config["session_ouverte"]:
             st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
-            try: from streamlit_autorefresh import st_autorefresh; st_autorefresh(5000, key="u_ref")
-            except: pass
         else:
             choix = st.multiselect("Top 3 :", OPTS_BU)
             if len(choix) == 3 and st.button("🚀 VALIDER", use_container_width=True, type="primary"):
@@ -144,73 +142,27 @@ else:
 
     badge_style = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:20px; font-weight:bold; border:2px solid white; color:white;"
 
-    # SCRIPT FEU D'ARTIFICE (JavaScript)
-    # Déclenchement quand les votes sont clos (mais pas encore le podium) ou quand le podium est révélé.
-    if (config["mode_affichage"] == "votes" and not config["session_ouverte"] and not config["reveal_resultats"]) or \
-       (config["mode_affichage"] == "votes" and config["reveal_resultats"]):
+    # LOGIQUE SONORE ET FEUX D'ARTIFICE
+    if (config["mode_affichage"] == "votes" and not config["session_ouverte"]) or config["reveal_resultats"]:
         components.html("""
             <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
             <script>
-                // Pour déclencher un effet de "feu d'artifice" plus intense
-                function fireConfetti() {
-                    var count = 200;
-                    var defaults = {
-                        origin: { y: 0.7 }
-                    };
-
-                    function fire(particleRatio, opts) {
-                        confetti(Object.assign({}, defaults, opts, {
-                            particleCount: Math.floor(count * particleRatio)
-                        }));
-                    }
-
-                    fire(0.25, {
-                        spread: 26,
-                        startVelocity: 55,
-                    });
-                    fire(0.2, {
-                        spread: 60,
-                    });
-                    fire(0.35, {
-                        spread: 100,
-                        decay: 0.91,
-                        scalar: 0.8
-                    });
-                    fire(0.1, {
-                        spread: 120,
-                        startVelocity: 25,
-                        decay: 0.92,
-                        scalar: 1.2
-                    });
-                    fire(0.1, {
-                        spread: 120,
-                        startVelocity: 45,
-                    });
-                }
-                
-                // Pour le son (déclenchement une seule fois par passage dans cet état)
-                if (!window.hasPlayedSound) {
+                if (!window.hasFired) {
                     var audio = new Audio("https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3");
                     audio.play();
-                    window.hasPlayedSound = true; // Empêche de jouer le son à chaque rafraîchissement
+                    
+                    var duration = 5 * 1000;
+                    var end = Date.now() + duration;
+
+                    (function frame() {
+                      confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 } });
+                      confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 } });
+                      if (Date.now() < end) { requestAnimationFrame(frame); }
+                    }());
+                    window.hasFired = true;
                 }
-
-                // Déclenchement des confettis
-                fireConfetti();
-                // Assurez-vous que l'effet ne se répète pas indéfiniment si l'utilisateur reste sur la page
-                setTimeout(() => {
-                    if (window.confetti && typeof window.confetti.reset === 'function') {
-                        window.confetti.reset();
-                    }
-                }, 5000); // Arrête les confettis après 5 secondes
-
             </script>
         """, height=0)
-        # Reset de la variable de son quand on sort de cet état
-        if "sound_played" not in st.session_state or st.session_state.sound_played != (config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"]):
-             st.session_state.sound_played = (config["mode_affichage"], config["session_ouverte"], config["reveal_resultats"])
-             components.html("""<script>window.hasPlayedSound = false;</script>""", height=0)
-
 
     # 1. MODE ATTENTE
     if config["mode_affichage"] == "attente":
@@ -221,28 +173,7 @@ else:
         if config["session_ouverte"]:
             st.markdown(f'<div style="text-align:center;"><div style="{badge_style} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div><style>@keyframes blink{{50%{{opacity:0.3;}}}}</style>', unsafe_allow_html=True)
         else:
-            # MESSAGE DE REMERCIEMENT ET APPLAUDISSEMENTS ANIMÉS
-            st.markdown(f"""
-                <div style="text-align:center;">
-                    <div style="{badge_style} background:#333;">🏁 LES VOTES SONT CLOS</div>
-                    <div style="margin-top:40px; color:white;">
-                        <div class="claps">👏</div>
-                        <h2 style="font-size:45px; color:#E2001A; margin-top:20px;">MERCI À TOUS !</h2>
-                        <p style="font-size:25px; color:#ccc;">Votre participation a été incroyable.<br>Suspense... Les résultats arrivent !</p>
-                    </div>
-                </div>
-                <style>
-                    .claps {{
-                        font-size: 100px;
-                        display: inline-block;
-                        animation: clap-anim 0.6s infinite alternate;
-                    }}
-                    @keyframes clap-anim {{
-                        0% {{ transform: scale(1) rotate(-10deg); }}
-                        100% {{ transform: scale(1.3) rotate(10deg); }}
-                    }}
-                </style>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div style="text-align:center;"><div style="{badge_style} background:#333;">🏁 LES VOTES SONT CLOS</div><div style="margin-top:40px; color:white;"><div class="claps">👏</div><h2 style="font-size:45px; color:#E2001A; margin-top:20px;">MERCI À TOUS !</h2><p style="font-size:25px; color:#ccc;">Suspense... Les résultats arrivent !</p></div></div><style>.claps {{ font-size: 100px; display: inline-block; animation: clap-anim 0.5s infinite alternate; }} @keyframes clap-anim {{ from {{ transform: scale(1) rotate(-10deg); }} to {{ transform: scale(1.3) rotate(10deg); }} }}</style>""", unsafe_allow_html=True)
 
         st.markdown("<div style='margin-top:40px;'>", unsafe_allow_html=True)
         col1, col2, col3 = st.columns([1, 0.8, 1])
@@ -253,7 +184,7 @@ else:
             if config["session_ouverte"]:
                 st.markdown(f'<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;"><div style="background:white; padding:8px; border-radius:12px; display:inline-block;"><img src="data:image/png;base64,{qr_b64}" width="180"></div></div>', unsafe_allow_html=True)
             else:
-                st.markdown('<div style="text-align:center; margin-top:30px; font-size:100px; opacity:0;"></div>', unsafe_allow_html=True) # Espace vide pour ne pas perturber le centrage des mains
+                st.markdown('<div style="height:180px;"></div>', unsafe_allow_html=True)
         with col3:
             for opt in OPTS_BU[5:]:
                 st.markdown(f'<div style="background:#222; color:white; padding:12px 15px; border-radius:10px; margin-bottom:12px; border-left:5px solid #E2001A; font-size:18px; font-weight:bold;">🎥 {opt}</div>', unsafe_allow_html=True)
@@ -279,4 +210,3 @@ else:
         from streamlit_autorefresh import st_autorefresh
         st_autorefresh(5000, key="wall_ref")
     except: pass
-```http://googleusercontent.com/image_generation_content/2
