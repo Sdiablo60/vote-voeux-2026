@@ -3,6 +3,7 @@ import os, glob, base64, qrcode, json, random, pandas as pd
 from io import BytesIO
 import streamlit.components.v1 as components
 import time
+from PIL import Image
 
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
@@ -24,6 +25,7 @@ default_config = {
     "timestamp_podium": 0,
     "logo_b64": None,
     "candidats": DEFAULT_CANDIDATS,
+    "candidats_images": {}, # Nouveau : Stockage des images par candidat
     "points_ponderation": [5, 3, 1]
 }
 
@@ -38,9 +40,23 @@ config = load_json(CONFIG_FILE, default_config)
 
 # Sécurités de mise à jour config
 if "candidats" not in config: config["candidats"] = DEFAULT_CANDIDATS
+if "candidats_images" not in config: config["candidats_images"] = {}
 if "points_ponderation" not in config: config["points_ponderation"] = [5, 3, 1]
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
+
+# Fonction utilitaire pour redimensionner et encoder l'image (évite les fichiers config trop lourds)
+def process_image_upload(uploaded_file):
+    try:
+        img = Image.open(uploaded_file)
+        # Redimensionner pour optimiser (max 150x150 px pour des icônes)
+        img.thumbnail((150, 150))
+        buffered = BytesIO()
+        img.save(buffered, format="PNG")
+        return base64.b64encode(buffered.getvalue()).decode()
+    except Exception as e:
+        st.error(f"Erreur image: {e}")
+        return None
 
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -112,7 +128,6 @@ if est_admin:
             st.subheader("2️⃣ Monitoring des Votes")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
-                # Filtrer les candidats affichés pour ne garder que ceux actifs
                 active_votes = {k: v for k, v in v_data.items() if k in config["candidats"]}
                 if active_votes:
                     df = pd.DataFrame(list(active_votes.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
@@ -123,11 +138,11 @@ if est_admin:
                     st.info("Aucun vote pour les candidats actifs.")
             else: st.info("En attente du premier vote...")
 
-        # 2. PARAMÉTRAGE (CANDIDATS MODIFIABLES + PONDÉRATION)
+        # 2. PARAMÉTRAGE
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage de l'événement")
             
-            tab_gen, tab_quest = st.tabs(["🎨 Identité Visuelle", "📝 Gestion Candidats & Règles"])
+            tab_gen, tab_quest = st.tabs(["🎨 Identité Visuelle", "📝 Gestion Questions & Photos"])
 
             with tab_gen:
                 st.subheader("Textes & Logos")
@@ -142,7 +157,7 @@ if est_admin:
                         config["logo_b64"] = base64.b64encode(uploaded_logo.read()).decode(); json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
             with tab_quest:
-                st.subheader("⚖️ Pondération des Votes")
+                st.subheader("⚖️ Pondération")
                 col_p1, col_p2, col_p3 = st.columns(3)
                 p1 = col_p1.number_input("Points 1er Choix", min_value=1, value=config["points_ponderation"][0])
                 p2 = col_p2.number_input("Points 2ème Choix", min_value=1, value=config["points_ponderation"][1])
@@ -155,8 +170,8 @@ if est_admin:
 
                 st.markdown("---")
                 
-                st.subheader("📋 Liste des Candidats / BU")
-                st.info("Modifiez le texte directement et cliquez sur '💾' pour enregistrer. Utilisez '➕' pour ajouter.")
+                st.subheader("📋 Liste des Questions / Candidats")
+                st.info("Ajoutez un candidat, modifiez son nom ou ajoutez une photo.")
                 
                 # --- AJOUT ---
                 c_add1, c_add2 = st.columns([3, 1])
@@ -169,37 +184,56 @@ if est_admin:
                 
                 st.markdown("---")
 
-                # --- LISTE ÉDITABLE ---
+                # --- LISTE ÉDITABLE AVEC PHOTOS ---
                 if not config["candidats"]:
                     st.warning("Aucun candidat dans la liste !")
                 else:
                     for i, cand in enumerate(config["candidats"]):
-                        col_txt, col_act = st.columns([3, 1.5])
+                        col_txt, col_act = st.columns([2.5, 2])
                         
-                        # Champ modifiable (n'est plus disabled)
+                        # Champ modifiable
                         val_edit = col_txt.text_input(f"Pos {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
                         
                         with col_act:
-                            c_save, c_del = st.columns(2)
-                            
-                            # Si le texte a changé, on affiche le bouton Sauver
+                            # Gestion de l'image via un expander pour ne pas surcharger
+                            with st.expander("🖼️ Gérer la photo"):
+                                # Afficher image existante
+                                if cand in config["candidats_images"]:
+                                    st.write("Actuelle :")
+                                    st.image(BytesIO(base64.b64decode(config["candidats_images"][cand])), width=80)
+                                    if st.button("Supprimer photo", key=f"del_img_{i}"):
+                                        del config["candidats_images"][cand]
+                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                
+                                # Upload nouvelle image
+                                upl_img = st.file_uploader("Changer", type=["png", "jpg"], key=f"upl_{i}")
+                                if upl_img:
+                                    b64_new = process_image_upload(upl_img)
+                                    if b64_new:
+                                        config["candidats_images"][cand] = b64_new
+                                        json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+
+                            # Sauvegarde du nom si modifié
                             if val_edit != cand:
-                                if c_save.button("💾", key=f"save_{i}", help="Enregistrer la modification"):
+                                if st.button("💾 Sauver Nom", key=f"save_{i}"):
+                                    # Gestion renommage : on déplace aussi l'image
+                                    if cand in config["candidats_images"]:
+                                        config["candidats_images"][val_edit] = config["candidats_images"].pop(cand)
                                     config["candidats"][i] = val_edit
                                     json.dump(config, open(CONFIG_FILE, "w"))
-                                    st.success("OK")
-                                    time.sleep(0.5)
                                     st.rerun()
                             
-                            # Bouton Supprimer toujours là
-                            if c_del.button("🗑️", key=f"del_{i}"):
+                            # Suppression
+                            if st.button("🗑️ Suppr. Ligne", key=f"del_{i}"):
                                 config["candidats"].pop(i)
-                                json.dump(config, open(CONFIG_FILE, "w"))
-                                st.rerun()
+                                if cand in config["candidats_images"]: del config["candidats_images"][cand]
+                                json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
+                                
+                        st.markdown("<hr style='margin:5px 0; opacity:0.2;'>", unsafe_allow_html=True)
                 
-                st.markdown("---")
                 if st.button("♻️ Réinitialiser liste par défaut"):
                     config["candidats"] = DEFAULT_CANDIDATS
+                    config["candidats_images"] = {}
                     json.dump(config, open(CONFIG_FILE, "w")); st.rerun()
 
         # 3. MÉDIATHÈQUE
@@ -277,19 +311,28 @@ else:
             st.markdown(f'<div style="text-align:center;"><div style="{BADGE_CSS} animation:blink 1.5s infinite;">🚀 LES VOTES SONT OUVERTS</div></div>', unsafe_allow_html=True)
             st.markdown("<style>@keyframes blink{50%{opacity:0.5;}}</style>", unsafe_allow_html=True)
             
-            # Liste Dynamique Split
+            # --- LISTE DYNAMIQUE AVEC PHOTOS ---
             candidats = config["candidats"]
             mid = (len(candidats) + 1) // 2
             left, right = candidats[:mid], candidats[mid:]
 
+            # Fonction pour générer le HTML d'un item avec image
+            def get_item_html(label):
+                img_html = "🎥 " # Défaut
+                if label in config.get("candidats_images", {}):
+                    # Si image présente : rond et alignée
+                    b64 = config["candidats_images"][label]
+                    img_html = f'<img src="data:image/png;base64,{b64}" style="width:50px; height:50px; object-fit:cover; border-radius:50%; vertical-align:middle; margin-right:10px; border:2px solid #E2001A;"> '
+                return f'<div style="background:#222; color:white; padding:10px; margin-bottom:10px; border-left:5px solid #E2001A; font-weight:bold; font-size:20px; display:flex; align-items:center;">{img_html}<span>{label}</span></div>'
+
             st.markdown("<div style='margin-top:30px;'>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 0.8, 1])
             with c1:
-                for opt in left: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:10px; border-left:5px solid #E2001A; font-weight:bold; font-size:20px;">🎥 {opt}</div>', unsafe_allow_html=True)
+                for opt in left: st.markdown(get_item_html(opt), unsafe_allow_html=True)
             with c2:
                 st.markdown(f'<div style="background:white; padding:15px; border-radius:15px; text-align:center;"><img src="data:image/png;base64,{qr_b64}" width="220"><p style="color:black; font-weight:bold; margin-top:10px; font-size:20px;">SCANNEZ POUR VOTER</p></div>', unsafe_allow_html=True)
             with c3:
-                for opt in right: st.markdown(f'<div style="background:#222; color:white; padding:12px; margin-bottom:10px; border-left:5px solid #E2001A; font-weight:bold; font-size:20px;">🎥 {opt}</div>', unsafe_allow_html=True)
+                for opt in right: st.markdown(get_item_html(opt), unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
             
         else:
@@ -319,7 +362,6 @@ if (Date.now() < end) requestAnimationFrame(frame);
         else:
             v_data = load_json(VOTES_FILE, {})
             if v_data:
-                # On ne garde que ceux dans la config actuelle pour éviter d'afficher des candidats supprimés
                 valid = {k: v for k, v in v_data.items() if k in config["candidats"]}
                 sorted_v = sorted(valid.items(), key=lambda x: x[1], reverse=True)[:3]
                 
@@ -328,7 +370,12 @@ if (Date.now() < end) requestAnimationFrame(frame);
                 m_txt, colors = ["🥇 1er", "🥈 2ème", "🥉 3ème"], ["#FFD700", "#C0C0C0", "#CD7F32"]
                 for i, (name, score) in enumerate(sorted_v):
                     border_c = colors[i]
-                    cols[i].markdown(f"""<div style="background:#1a1a1a; padding:30px 10px; border-radius:20px; border:4px solid {border_c}; text-align:center; color:white; margin-top:30px; box-shadow: 0 0 20px {border_c};"><h2 style="color:{border_c}; font-size:40px; margin:0;">{m_txt[i]}</h2><h1 style="font-size:35px; margin:15px 0;">{name}</h1><p style="font-size:24px; color:#ccc;">{score} pts</p></div>""", unsafe_allow_html=True)
+                    # Récupération photo si existe
+                    img_podium = ""
+                    if name in config.get("candidats_images", {}):
+                         img_podium = f'<img src="data:image/png;base64,{config["candidats_images"][name]}" style="width:100px; height:100px; object-fit:cover; border-radius:50%; border:3px solid {border_c}; margin-bottom:10px;">'
+                    
+                    cols[i].markdown(f"""<div style="background:#1a1a1a; padding:30px 10px; border-radius:20px; border:4px solid {border_c}; text-align:center; color:white; margin-top:30px; box-shadow: 0 0 20px {border_c};"><h2 style="color:{border_c}; font-size:40px; margin:0;">{m_txt[i]}</h2>{img_podium}<h1 style="font-size:35px; margin:15px 0;">{name}</h1><p style="font-size:24px; color:#ccc;">{score} pts</p></div>""", unsafe_allow_html=True)
                 components.html('<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>var end=Date.now()+10000;(function frame(){confetti({particleCount:5,origin:{y:-0.2,x:Math.random()},spread:360,gravity:0.7,colors:["#E2001A","#ffffff","#ffd700"]});if(Date.now()<end)requestAnimationFrame(frame);})();</script>', height=0)
 
     try:
