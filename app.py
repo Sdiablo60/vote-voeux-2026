@@ -1,6 +1,5 @@
 import streamlit as st
 import os, glob, base64, qrcode, json, random, pandas as pd
-import altair as alt  # NOUVEAU : Import pour le graphique personnalisé
 from io import BytesIO
 import streamlit.components.v1 as components
 import time
@@ -10,7 +9,8 @@ from PIL import Image
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
-VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE = "votes.json", "participants.json", "config_mur.json"
+# NOUVEAU FICHIER : voters.json pour stocker les noms de ceux qui ont voté
+VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE, VOTERS_FILE = "votes.json", "participants.json", "config_mur.json", "voters.json"
 
 for d in [GALLERY_DIR, ADMIN_DIR]:
     if not os.path.exists(d): os.makedirs(d)
@@ -117,65 +117,47 @@ if est_admin:
             with st.expander("🗑️ OPTIONS DE RÉINITIALISATION (Zone de danger)"):
                 col_rst, col_info = st.columns([1, 2])
                 with col_rst:
-                    if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet les scores et les participants à 0"):
-                        if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
-                        if os.path.exists(PARTICIPANTS_FILE): os.remove(PARTICIPANTS_FILE)
+                    if st.button("♻️ VIDER LES VOTES", use_container_width=True, help="Remet tout à 0 (Scores, Participants, Votants)"):
+                        # Suppression de TOUS les fichiers de données
+                        for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
+                            if os.path.exists(f): os.remove(f)
                         st.toast("✅ Session entièrement réinitialisée !")
                         time.sleep(1); st.rerun()
                 with col_info:
-                    st.info("Efface les scores ET le compteur de participants.")
+                    st.info("Efface les scores, le compteur de participants ET la liste des personnes ayant déjà voté.")
 
             st.markdown("---")
-            st.subheader("2️⃣ Monitoring des Résultats")
-            
-            # --- VISUALISATION GRAPHIQUE AMÉLIORÉE ---
+            st.subheader("2️⃣ Monitoring")
             v_data = load_json(VOTES_FILE, {})
-            all_cands = st.session_state.config["candidats"]
-            
-            # Construction des données complètes (même ceux à 0)
-            full_data = {c: v_data.get(c, 0) for c in all_cands}
-            
-            if full_data:
-                # Création DataFrame
-                df = pd.DataFrame(list(full_data.items()), columns=['Candidat', 'Points'])
-                df = df.sort_values('Points', ascending=False).reset_index(drop=True)
-                df['Rang'] = df.index + 1
-                
-                # Définition des couleurs : Or, Argent, Bronze, puis Rouge Transdev pour les autres
-                def get_color(rank):
-                    if rank == 1: return '#FFD700' # Or
-                    if rank == 2: return '#C0C0C0' # Argent
-                    if rank == 3: return '#CD7F32' # Bronze
-                    return '#E2001A' # Rouge
-                
-                df['Color'] = df['Rang'].apply(get_color)
+            if v_data:
+                valid = {k:v for k,v in v_data.items() if k in cfg["candidats"]}
+                if valid:
+                    # Conversion pour Altair
+                    import altair as alt
+                    df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points'])
+                    df = df.sort_values('Points', ascending=False).reset_index(drop=True)
+                    df['Rang'] = df.index + 1
+                    
+                    def get_color(rank):
+                        if rank == 1: return '#FFD700'
+                        if rank == 2: return '#C0C0C0'
+                        if rank == 3: return '#CD7F32'
+                        return '#E2001A'
+                    
+                    df['Color'] = df['Rang'].apply(get_color)
 
-                # Graphique Altair personnalisé (Fixe, propre, avec labels)
-                base = alt.Chart(df).encode(
-                    x=alt.X('Points', axis=None), # Pas d'axe X
-                    y=alt.Y('Candidat', sort='-x', axis=alt.Axis(labelFontSize=14, title=None)) # Noms plus gros
-                )
-
-                bars = base.mark_bar().encode(
-                    color=alt.Color('Color', scale=None), # Utilise la colonne couleur définie plus haut
-                    tooltip=['Candidat', 'Points', 'Rang']
-                )
-
-                text = base.mark_text(
-                    align='left',
-                    baseline='middle',
-                    dx=3,  # Décalage du texte
-                    fontSize=14,
-                    fontWeight='bold'
-                ).encode(
-                    text='Points'
-                )
-
-                chart = (bars + text).properties(height=500).configure_view(strokeWidth=0)
-                
-                st.altair_chart(chart, use_container_width=True)
-            else:
-                st.info("En attente de votes...")
+                    base = alt.Chart(df).encode(
+                        x=alt.X('Points', axis=None),
+                        y=alt.Y('Candidat', sort='-x', axis=alt.Axis(labelFontSize=14, title=None))
+                    )
+                    bars = base.mark_bar().encode(
+                        color=alt.Color('Color', scale=None),
+                        tooltip=['Candidat', 'Points']
+                    )
+                    text = base.mark_text(align='left', baseline='middle', dx=3, fontSize=14, fontWeight='bold').encode(text='Points')
+                    st.altair_chart((bars + text).properties(height=500).configure_view(strokeWidth=0), use_container_width=True)
+                else: st.info("Aucun vote actif.")
+            else: st.info("En attente de votes...")
 
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
@@ -209,17 +191,14 @@ if est_admin:
                     cols_head = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5])
                     cols_head[0].markdown("**Img**")
                     cols_head[1].markdown("**Nom (Éditable)**")
-                    
                     rid = st.session_state.refresh_id
                     
                     for i, cand in enumerate(st.session_state.config["candidats"]):
                         cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5], vertical_alignment="center")
-                        
                         with cols[0]:
                             if cand in st.session_state.config["candidats_images"]:
                                 st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][cand])), width=40)
                             else: st.write("⚪")
-                        
                         with cols[1]:
                             val_edit = st.text_input("Nom", value=cand, key=f"n_{i}_{rid}", label_visibility="collapsed")
                             if val_edit != cand:
@@ -227,19 +206,16 @@ if est_admin:
                                     st.session_state.config["candidats_images"][val_edit] = st.session_state.config["candidats_images"].pop(cand)
                                 st.session_state.config["candidats"][i] = val_edit
                                 force_refresh(); st.rerun()
-                        
                         with cols[2]:
                             if i > 0:
                                 if st.button("⬆️", key=f"u_{i}_{rid}"):
                                     st.session_state.config["candidats"][i], st.session_state.config["candidats"][i-1] = st.session_state.config["candidats"][i-1], st.session_state.config["candidats"][i]
                                     force_refresh(); st.rerun()
-                        
                         with cols[3]:
                             if i < len(st.session_state.config["candidats"]) - 1:
                                 if st.button("⬇️", key=f"d_{i}_{rid}"):
                                     st.session_state.config["candidats"][i], st.session_state.config["candidats"][i+1] = st.session_state.config["candidats"][i+1], st.session_state.config["candidats"][i]
                                     force_refresh(); st.rerun()
-
                         with cols[4]:
                             with st.popover("🖼️"):
                                 st.write(f"**{cand}**")
@@ -249,12 +225,10 @@ if est_admin:
                                     if b64:
                                         st.session_state.config["candidats_images"][cand] = b64
                                         force_refresh(); st.rerun()
-                                
                                 if cand in st.session_state.config["candidats_images"]:
                                     if st.button("Supprimer Photo", key=f"di_{i}_{rid}"):
                                         del st.session_state.config["candidats_images"][cand]
                                         force_refresh(); st.rerun()
-
                         with cols[5]:
                             if st.button("🗑️", key=f"del_{i}_{rid}"):
                                 st.session_state.config["candidats"].pop(i)
@@ -275,17 +249,17 @@ if est_admin:
 
         elif menu == "📊 Data & Exports":
             if st.button("RESET TOUT"):
-                 if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
-                 if os.path.exists(PARTICIPANTS_FILE): os.remove(PARTICIPANTS_FILE)
+                 for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
+                     if os.path.exists(f): os.remove(f)
                  st.success("Reset!"); st.rerun()
 
-# --- 4. UTILISATEUR ---
+# --- 4. UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
     st.markdown("<style>.stApp { background-color: black !important; color: white !important; }</style>", unsafe_allow_html=True)
     
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # LOGO SUR MOBILE
+    # 1. AFFICHAGE LOGO SUR MOBILE
     if cfg.get("logo_b64"):
         st.markdown(f"""
         <div style="text-align:center; margin-bottom:20px;">
@@ -295,42 +269,73 @@ elif est_utilisateur:
     
     st.title("🗳️ Vote Transdev")
     
-    # Enregistrement Participant
+    # 2. ENREGISTREMENT COMPTEUR (1 seule fois par session browser)
     if "participant_recorded" not in st.session_state:
         parts = load_json(PARTICIPANTS_FILE, [])
         parts.append(time.time())
         with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
         st.session_state["participant_recorded"] = True
 
-    if st.session_state.get("a_vote", False):
-        st.balloons()
-        st.markdown("""
-        <div style="text-align:center; padding-top:50px;">
-            <div style="font-size:80px;">👏</div>
-            <h1 style="color:#E2001A;">MERCI !</h1>
-            <p style="font-size:20px;">Votre vote a bien été pris en compte.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Modifier mon vote"):
-             st.session_state["a_vote"] = False
-             st.rerun()
-    
-    elif not cfg["session_ouverte"]: 
-        st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
-    else:
-        choix = st.multiselect("Sélectionnez vos 3 favoris (dans l'ordre) :", cfg["candidats"])
-        pts = cfg.get("points_ponderation", [5, 3, 1])
-        st.caption(f"ℹ️ Points : 1er={pts[0]}, 2ème={pts[1]}, 3ème={pts[2]}")
+    # 3. VERIFICATION IDENTITÉ
+    if "user_id" not in st.session_state:
+        st.session_state.user_id = None
 
-        if len(choix) == 3:
-            if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
-                vts = load_json(VOTES_FILE, {})
-                for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-                json.dump(vts, open(VOTES_FILE, "w"))
+    # Écran 1: Identification
+    if not st.session_state.user_id:
+        st.info("Pour garantir un vote unique, merci de vous identifier.")
+        nom = st.text_input("Votre Nom et Prénom / Matricule :")
+        if st.button("Commencer"):
+            if len(nom) > 2:
+                # Nettoyage nom pour éviter doublons (ex: "Toto" == "toto ")
+                clean_id = nom.strip().lower()
                 
-                st.session_state["a_vote"] = True
-                st.rerun()
-        elif len(choix) > 3: st.error("Maximum 3 choix !")
+                # Vérification dans la base des votants
+                voters = load_json(VOTERS_FILE, [])
+                if clean_id in voters:
+                    st.error("❌ Ce nom a déjà été utilisé pour voter.")
+                else:
+                    st.session_state.user_id = clean_id
+                    st.rerun()
+            else:
+                st.warning("Merci d'entrer un nom valide.")
+    
+    # Écran 2: Vote ou Confirmation
+    else:
+        # Si déjà voté (Session locale)
+        if st.session_state.get("a_vote", False):
+            st.balloons()
+            st.markdown("""
+            <div style="text-align:center; padding-top:50px;">
+                <div style="font-size:80px;">👏</div>
+                <h1 style="color:#E2001A;">MERCI !</h1>
+                <p style="font-size:20px;">Votre vote a bien été pris en compte.</p>
+            </div>
+            """, unsafe_allow_html=True)
+            # Pas de bouton retour pour empêcher le spam
+        
+        elif not cfg["session_ouverte"]: 
+            st.warning("⌛ Les votes sont clos ou pas encore ouverts.")
+        else:
+            choix = st.multiselect("Sélectionnez vos 3 favoris (dans l'ordre) :", cfg["candidats"])
+            pts = cfg.get("points_ponderation", [5, 3, 1])
+            st.caption(f"ℹ️ Points : 1er={pts[0]}, 2ème={pts[1]}, 3ème={pts[2]}")
+
+            if len(choix) == 3:
+                if st.button("🚀 VALIDER MON VOTE", use_container_width=True, type="primary"):
+                    # 1. Enregistrement des points
+                    vts = load_json(VOTES_FILE, {})
+                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
+                    json.dump(vts, open(VOTES_FILE, "w"))
+                    
+                    # 2. Enregistrement du Votant (Bloque le nom pour le futur)
+                    voters = load_json(VOTERS_FILE, [])
+                    voters.append(st.session_state.user_id)
+                    with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
+                    
+                    # 3. Validation locale
+                    st.session_state["a_vote"] = True
+                    st.rerun()
+            elif len(choix) > 3: st.error("Maximum 3 choix !")
 
 # --- 5. MUR SOCIAL ---
 else:
