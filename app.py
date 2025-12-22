@@ -46,19 +46,27 @@ if "points_ponderation" not in st.session_state.config: st.session_state.config[
 
 BADGE_CSS = "margin-top:20px; background:#E2001A; display:inline-block; padding:10px 30px; border-radius:10px; font-size:22px; font-weight:bold; border:2px solid white; color:white;"
 
-# --- FONCTIONS UTILITAIRES ROBUSTES (CALLBACKS) ---
+# --- FONCTIONS UTILITAIRES (CALLBACKS) ---
 
 def save_config():
     """Sauvegarde l'état actuel dans le fichier JSON"""
     with open(CONFIG_FILE, "w") as f:
         json.dump(st.session_state.config, f)
 
+def force_clear_cache():
+    """Force l'oubli des valeurs des champs textes pour éviter les doublons visuels"""
+    keys_to_clear = [k for k in st.session_state.keys() if k.startswith("input_name_")]
+    for k in keys_to_clear:
+        del st.session_state[k]
+
 def action_monter(idx):
     """Callback pour monter un élément"""
     c_list = st.session_state.config["candidats"]
     if idx > 0:
+        # Echange dans la liste
         c_list[idx], c_list[idx-1] = c_list[idx-1], c_list[idx]
         save_config()
+        force_clear_cache() # IMPORTANT : On vide le cache visuel
 
 def action_descendre(idx):
     """Callback pour descendre un élément"""
@@ -66,33 +74,30 @@ def action_descendre(idx):
     if idx < len(c_list) - 1:
         c_list[idx], c_list[idx+1] = c_list[idx+1], c_list[idx]
         save_config()
+        force_clear_cache() # IMPORTANT
 
 def action_supprimer(idx):
     """Callback pour supprimer un élément"""
     nom = st.session_state.config["candidats"][idx]
-    # Suppr image associée
     if nom in st.session_state.config["candidats_images"]:
         del st.session_state.config["candidats_images"][nom]
-    # Suppr item
     st.session_state.config["candidats"].pop(idx)
     save_config()
+    force_clear_cache() # IMPORTANT
 
 def action_renommer(idx, old_name):
     """Callback quand le texte change"""
-    # On récupère la valeur du widget via son key
     key = f"input_name_{idx}"
-    new_name = st.session_state[key]
-    
-    if new_name != old_name:
-        # Transfert de l'image si elle existe
-        if old_name in st.session_state.config["candidats_images"]:
-            st.session_state.config["candidats_images"][new_name] = st.session_state.config["candidats_images"].pop(old_name)
-        
-        # Mise à jour liste
-        st.session_state.config["candidats"][idx] = new_name
-        save_config()
-        # Message toast pour confirmer visuellement
-        st.toast(f"Renommé : {new_name}")
+    # Vérification que la clé existe (sécurité)
+    if key in st.session_state:
+        new_name = st.session_state[key]
+        if new_name != old_name:
+            if old_name in st.session_state.config["candidats_images"]:
+                st.session_state.config["candidats_images"][new_name] = st.session_state.config["candidats_images"].pop(old_name)
+            
+            st.session_state.config["candidats"][idx] = new_name
+            save_config()
+            st.toast(f"✅ Renommé en : {new_name}")
 
 def action_ajouter():
     """Callback ajout"""
@@ -100,7 +105,8 @@ def action_ajouter():
     if new_val and new_val not in st.session_state.config["candidats"]:
         st.session_state.config["candidats"].append(new_val)
         save_config()
-        st.session_state.new_cand_input = "" # Reset champ
+        st.session_state.new_cand_input = ""
+        force_clear_cache()
 
 def process_image_upload(uploaded_file):
     try:
@@ -189,16 +195,15 @@ if est_admin:
                 
                 st.markdown("---")
                 
-                # Liste Robuste
                 if not st.session_state.config["candidats"]:
                     st.warning("Liste vide.")
                 else:
                     # En-tête
                     cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5])
                     cols[0].markdown("**Img**")
-                    cols[1].markdown("**Nom** (Entrée pour valider)")
+                    cols[1].markdown("**Nom (Éditable)**")
                     
-                    # On itère sur une copie pour éviter les erreurs d'index pendant modif
+                    # BOUCLE SUR LA LISTE
                     for i, cand in enumerate(st.session_state.config["candidats"]):
                         cols = st.columns([0.5, 3, 0.5, 0.5, 0.5, 0.5], vertical_alignment="center")
                         
@@ -216,15 +221,15 @@ if est_admin:
                                 key=f"input_name_{i}", 
                                 label_visibility="collapsed",
                                 on_change=action_renommer,
-                                args=(i, cand) # On passe l'index et l'ancien nom
+                                args=(i, cand)
                             )
                         
-                        # 3. Monter (CALLBACK)
+                        # 3. Monter (CALLBACK + CLEAR CACHE)
                         with cols[2]:
                             if i > 0:
                                 st.button("⬆️", key=f"u{i}", on_click=action_monter, args=(i,))
                         
-                        # 4. Descendre (CALLBACK)
+                        # 4. Descendre (CALLBACK + CLEAR CACHE)
                         with cols[3]:
                             if i < len(st.session_state.config["candidats"]) - 1:
                                 st.button("⬇️", key=f"d{i}", on_click=action_descendre, args=(i,))
@@ -246,13 +251,12 @@ if est_admin:
                                         save_config()
                                         st.rerun()
 
-                        # 6. Supprimer Ligne (CALLBACK)
+                        # 6. Supprimer Ligne (CALLBACK + CLEAR CACHE)
                         with cols[5]:
                             st.button("🗑️", key=f"del{i}", on_click=action_supprimer, args=(i,))
 
         elif menu == "📸 Médiathèque":
             st.write("Gestion fichiers...")
-            # (Code existant simplifié pour brièveté, fonctionne déjà)
             t1, t2 = st.tabs(["Admin", "User"])
             with t1:
                 for f in glob.glob(f"{ADMIN_DIR}/*"):
@@ -286,7 +290,7 @@ elif est_utilisateur:
 else:
     st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; }</style>""", unsafe_allow_html=True)
     
-    # Rechargement config à chaque refresh du mur pour être à jour
+    # Rechargement config à chaque refresh
     config = load_json(CONFIG_FILE, default_config)
     nb_p = len(load_json(PARTICIPANTS_FILE, []))
     
