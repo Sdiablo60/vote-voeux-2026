@@ -102,13 +102,13 @@ EFFECTS_LIB = {
 # --- 2. BIBLIOTHEQUE DE PREVISUALISATION (ADMIN - BOITE NOIRE) ---
 # Fond forcé à NOIR pour tous les effets
 PREVIEW_LIB = {
-    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100vh;'><h3 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:2px;'>Signal coupé</h3></body></html>",
+    "Aucun": "<html><body style='background:black;margin:0;display:flex;justify-content:center;align-items:center;height:100%;'><h4 style='color:#555;font-family:sans-serif;text-transform:uppercase;letter-spacing:1px;margin:0;'>Signal coupé</h4></body></html>",
     
     "🎈 Ballons": """<html><body style='background:black;margin:0;overflow:hidden;'><script>
     setInterval(function(){
         var d = document.createElement('div');
         d.innerHTML = '🎈';
-        d.style.cssText = 'position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:24px;transition:bottom 3s linear;';
+        d.style.cssText = 'position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:20px;transition:bottom 3s linear;';
         document.body.appendChild(d);
         setTimeout(function(){ d.style.bottom = '120%'; }, 50);
         setTimeout(function(){ d.remove(); }, 3000);
@@ -120,7 +120,7 @@ PREVIEW_LIB = {
     setInterval(function(){
         var d = document.createElement('div');
         d.className = 'f'; d.innerHTML = '❄';
-        d.style.left = Math.random()*95+'%'; d.style.top = '-20px'; d.style.fontSize = (Math.random()*15+10)+'px';
+        d.style.left = Math.random()*95+'%'; d.style.top = '-20px'; d.style.fontSize = (Math.random()*10+8)+'px';
         document.body.appendChild(d);
         setTimeout(function(){ d.remove(); }, 2000);
     }, 100);
@@ -128,40 +128,40 @@ PREVIEW_LIB = {
     
     "🎉 Confettis": """<html><body style='background:black;margin:0;overflow:hidden;'><script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>
     setInterval(function(){
-        confetti({particleCount:7, spread:60, origin:{y:0.6}, colors:['#E2001A','#ffffff'], disableForReducedMotion:true, zIndex:100});
-    }, 600);
+        confetti({particleCount:5, spread:50, origin:{y:0.7}, colors:['#E2001A','#ffffff'], disableForReducedMotion:true, zIndex:100, scalar:0.8});
+    }, 800);
     </script></body></html>""",
     
-    "🌌 Espace": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0} @keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(3)}}</style>
+    "🌌 Espace": """<html><body style='background:black;margin:0;overflow:hidden;'><style>.s{position:absolute;background:white;border-radius:50%;animation:z 2s infinite linear;opacity:0} @keyframes z{0%{opacity:0;transform:scale(0.1)}50%{opacity:1}100%{opacity:0;transform:scale(2)}}</style>
     <script>
     setInterval(function(){
         var d = document.createElement('div'); d.className='s';
-        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='2px'; d.style.height='2px';
+        d.style.left=Math.random()*100+'%'; d.style.top=Math.random()*100+'%'; d.style.width='1px'; d.style.height='1px';
         document.body.appendChild(d);
         setTimeout(function(){ d.remove(); }, 2000);
-    }, 50);
+    }, 80);
     </script></body></html>""",
     
     "💸 Billets": """<html><body style='background:black;margin:0;overflow:hidden;'><script>
     setInterval(function(){
         var d = document.createElement('div'); d.innerHTML = '💸';
-        d.style.cssText = 'position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:24px;';
+        d.style.cssText = 'position:absolute;top:-30px;left:'+Math.random()*90+'%;font-size:20px;';
         document.body.appendChild(d);
         d.animate([{transform:'translateY(0)'}, {transform:'translateY(250px)'}], {duration:2000, iterations:1});
         setTimeout(function(){ d.remove(); }, 1900);
-    }, 400);
+    }, 500);
     </script></body></html>""",
     
-    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100vh;"></canvas><script>
+    "🟢 Matrix": """<html><body style='background:black;margin:0;overflow:hidden;'><canvas id="m" style="width:100%;height:100%;"></canvas><script>
     var c=document.getElementById('m'); var x=c.getContext('2d');
-    c.width=window.innerWidth; c.height=window.innerHeight;
+    c.width=300; c.height=220;
     var col=c.width/10; var r=[]; for(var i=0;i<col;i++)r[i]=1;
     setInterval(function(){
         x.fillStyle='rgba(0,0,0,0.1)'; x.fillRect(0,0,c.width,c.height);
-        x.fillStyle='#0F0'; x.font='10px monospace';
+        x.fillStyle='#0F0'; x.font='8px monospace';
         for(var i=0;i<r.length;i++){
             x.fillText(Math.floor(Math.random()*2), i*10, r[i]*10);
-            if(r[i]*10>c.height && Math.random()>0.9) r[i]=0; r[i]++;
+            if(r[i]*10>c.height && Math.random()>0.95) r[i]=0; r[i]++;
         }
     }, 50);
     </script></body></html>"""
@@ -285,34 +285,53 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             st.title("🔴 COCKPIT LIVE")
             
-            # Inject CSS for Retro TV
+            # Inject CSS for Realistic Retro TV
             st.markdown("""
             <style>
-                .tv-container {
-                    background-color: #6d4c41; /* Brown/Wood */
-                    border-radius: 30px;
-                    padding: 25px;
-                    box-shadow: inset 0 0 60px rgba(0,0,0,0.8), 5px 5px 20px rgba(0,0,0,0.6);
-                    border: 8px solid #3e2723;
+                .tv-wrapper { position: relative; width: fit-content; margin: 0 auto; }
+                /* Antenna */
+                .tv-antenna { position: absolute; top: -40px; left: 50%; transform: translateX(-50%); width: 120px; height: 40px; display: flex; justify-content: space-between; z-index: 0; }
+                .antenna-rod { width: 4px; background: linear-gradient(to right, #999, #ccc, #999); border-radius: 4px; height: 100%; transform-origin: bottom; }
+                .rod-left { transform: rotate(-25deg); } .rod-right { transform: rotate(25deg); }
+                .antenna-base { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 30px; height: 15px; background: #333; border-radius: 50% 50% 0 0; }
+                
+                /* Cabinet */
+                .tv-cabinet {
+                    background: linear-gradient(135deg, #8d6e63 0%, #5d4037 100%); /* Rich wood */
+                    border-radius: 25px; padding: 15px;
+                    box-shadow: inset 0 0 40px rgba(0,0,0,0.8), 0 10px 20px rgba(0,0,0,0.4);
+                    border: 5px solid #3e2723; position: relative; z-index: 1;
+                    display: flex; gap: 15px;
+                }
+                /* Screen Section */
+                .tv-screen-section { flex-grow: 1; }
+                .tv-screen-bezel {
+                    background-color: #222; border-radius: 15px; padding: 12px;
+                    box-shadow: inset 0 0 20px rgba(0,0,0,1); border: 3px solid #444; overflow: hidden;
+                }
+                /* Control Panel Section (Side) */
+                .tv-controls-panel {
+                     display: flex; flex-direction: column; justify-content: center; gap: 15px;
+                     background: #4e342e; padding: 10px; border-radius: 10px; border: 2px solid #3e2723;
+                }
+                .tv-knob {
+                    width: 35px; height: 35px; background: radial-gradient(circle, #795548 30%, #3e2723 100%);
+                    border-radius: 50%; border: 2px solid #222; box-shadow: 1px 2px 4px rgba(0,0,0,0.6);
                     position: relative;
                 }
-                .tv-screen-bezel {
-                    background-color: #111;
-                    border-radius: 20px;
-                    padding: 15px;
-                    box-shadow: inset 0 0 20px rgba(0,0,0,1);
-                    border: 2px solid #333;
+                .tv-knob::after { content: ''; position: absolute; top: 5px; left: 50%; width: 4px; height: 12px; background: #ccc; transform: translateX(-50%); }
+                .tv-speaker-grille {
+                     width: 35px; height: 60px; background: repeating-linear-gradient(0deg, #333, #333 2px, #222 2px, #222 4px);
+                     border-radius: 4px; border: 1px solid #111;
                 }
-                /* Fake controls at bottom */
-                .tv-controls {
-                    display: flex;
-                    justify-content: space-around;
-                    align-items: center;
-                    margin-top: 20px;
-                    padding: 0 20px;
+                
+                /* Legs */
+                .tv-legs-container { display: flex; justify-content: space-between; width: 70%; margin: -10px auto 0 auto; position: relative; z-index: 0; }
+                .tv-leg {
+                     width: 25px; height: 50px; background: linear-gradient(to right, #5d4037, #3e2723);
+                     clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%);
                 }
-                .tv-knob { width: 45px; height: 45px; background: radial-gradient(circle, #5d4037 40%, #3e2723 100%); border-radius: 50%; border: 4px solid #212121; box-shadow: 3px 3px 8px rgba(0,0,0,0.7); }
-                .tv-speaker { flex-grow: 1; height: 30px; margin: 0 30px; background: repeating-linear-gradient(90deg, #212121, #212121 4px, #111 4px, #111 8px); border-radius: 5px; border: 2px solid #111; }
+                .leg-left { transform: rotate(15deg); } .leg-right { transform: rotate(-15deg); }
             </style>
             """, unsafe_allow_html=True)
 
@@ -320,27 +339,41 @@ if est_admin:
             st.markdown("### 🧪 Laboratoire de Test (Visualisation)")
             
             # Layout 2 colonnes : Selection gauche, TV droite
-            c_test_sel, c_test_tv = st.columns([1, 2], gap="large", vertical_alignment="center")
+            c_test_sel, c_test_tv = st.columns([1, 1.5], gap="large", vertical_alignment="center")
 
             with c_test_sel:
                 st.markdown("#### 🕹️ Sélection de l'effet")
-                # Use radio for distinct choice look
                 prev_sel = st.radio("Choisir pour prévisualiser :", list(PREVIEW_LIB.keys()), index=list(PREVIEW_LIB.keys()).index(st.session_state.preview_selected), key="radio_preview", label_visibility="collapsed")
                 if prev_sel != st.session_state.preview_selected:
                     st.session_state.preview_selected = prev_sel
                     st.rerun()
 
             with c_test_tv:
-                 # Start TV Container HTML
-                st.markdown('<div class="tv-container"><div class="tv-screen-bezel">', unsafe_allow_html=True)
+                 # Structure HTML de la TV Complete
+                st.markdown("""
+                <div class="tv-wrapper">
+                    <div class="tv-antenna"><div class="antenna-rod rod-left"></div><div class="antenna-base"></div><div class="antenna-rod rod-right"></div></div>
+                    <div class="tv-cabinet">
+                        <div class="tv-screen-section">
+                            <div class="tv-screen-bezel">
+                """, unsafe_allow_html=True)
 
-                # THE ACTUAL PREVIEW COMPONENT (sits inside the bezel visually due to order)
+                # LE COMPOSANT ECRAN (Taille réduite)
                 if st.session_state.preview_selected in PREVIEW_LIB:
-                    # Ensure height matches the TV proportion roughly
-                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=350)
+                    components.html(PREVIEW_LIB[st.session_state.preview_selected], height=220)
 
-                # Close TV Container HTML and add controls
-                st.markdown('</div><div class="tv-controls"><div class="tv-knob"></div><div class="tv-speaker"></div><div class="tv-knob"></div></div></div>', unsafe_allow_html=True)
+                st.markdown("""
+                            </div>
+                        </div>
+                        <div class="tv-controls-panel">
+                            <div class="tv-knob" style="transform: rotate(45deg);"></div>
+                            <div class="tv-knob" style="transform: rotate(-30deg);"></div>
+                            <div class="tv-speaker-grille"></div>
+                        </div>
+                    </div>
+                    <div class="tv-legs-container"><div class="tv-leg leg-left"></div><div class="tv-leg leg-right"></div></div>
+                </div>
+                """, unsafe_allow_html=True)
             
             st.divider()
 
