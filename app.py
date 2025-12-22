@@ -67,7 +67,9 @@ def inject_visual_effect(effect_name, intensity, speed):
         components.html("""<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>""", height=0)
         return
 
-    # Nettoyage et création du conteneur
+    duration = max(2, 20 - (speed * 0.35))
+    interval = int(4000 / (intensity + 5))
+    
     js_base = """
     <script>
         var doc = window.parent.document;
@@ -80,8 +82,6 @@ def inject_visual_effect(effect_name, intensity, speed):
     """
 
     if effect_name == "🎈 Ballons":
-        duration = max(3, 20 - (speed * 0.34))
-        interval = int(4000 / (intensity + 5))
         js_code = js_base + f"""
         function create() {{
             var e = doc.createElement('div');
@@ -95,8 +95,6 @@ def inject_visual_effect(effect_name, intensity, speed):
         </script>"""
 
     elif effect_name == "❄️ Neige":
-        duration = max(2, 12 - (speed * 0.2))
-        interval = int(1200 / (intensity + 2))
         js_code = js_base + f"""
         function create() {{
             var e = doc.createElement('div');
@@ -126,10 +124,6 @@ def inject_visual_effect(effect_name, intensity, speed):
         </script>"""
 
     elif effect_name == "🌌 Espace":
-        # Densité = nombre d'étoiles créées par cycle
-        interval = int(1000 / (intensity + 2))
-        # Vitesse = durée de vie / rapidité du scintillement
-        duration = max(0.5, 5 - (speed * 0.08))
         js_code = js_base + f"""
         function create() {{
             var e = doc.createElement('div');
@@ -144,8 +138,6 @@ def inject_visual_effect(effect_name, intensity, speed):
         </script>"""
 
     elif effect_name == "💸 Billets":
-        duration = max(1, 10 - (speed * 0.18))
-        interval = int(3000 / (intensity + 3))
         js_code = js_base + f"""
         function create() {{
             var e = doc.createElement('div');
@@ -159,9 +151,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         </script>"""
 
     elif effect_name == "🟢 Matrix":
-        # Densité = Taille de police (plus petit = plus dense)
         font_size = max(10, 40 - intensity)
-        # Vitesse = délai entre frames
         refresh = max(20, 150 - (speed * 2.5))
         js_code = js_base + f"""
         var canvas = doc.createElement('canvas');
@@ -241,7 +231,7 @@ def get_tv_html(effect_js):
     </html>
     """
 
-# --- 4. GENERATEUR JS POUR PREVIEW (DANS TV ADMIN) ---
+# --- 3. GENERATEUR JS POUR PREVIEW (DANS TV ADMIN) ---
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
@@ -275,6 +265,27 @@ est_utilisateur = st.query_params.get("mode") == "vote"
 
 # --- ADMINISTRATION ---
 if est_admin:
+    # CSS POUR FIGER LES TITRES (STICKY)
+    st.markdown("""
+        <style>
+            /* Cible tous les titres h1 (st.title) pour les figer */
+            div[data-testid="stVerticalBlock"] > div:has(h1) {
+                position: sticky;
+                top: 0;
+                background-color: white;
+                z-index: 1000;
+                padding: 1rem 0;
+                border-bottom: 2px solid #f0f2f6;
+            }
+            @media (prefers-color-scheme: dark) {
+                div[data-testid="stVerticalBlock"] > div:has(h1) {
+                    background-color: #0e1117;
+                    border-bottom: 2px solid #262730;
+                }
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
     if "auth" not in st.session_state: st.session_state["auth"] = False
     
     if not st.session_state["auth"]:
@@ -283,8 +294,7 @@ if est_admin:
         with col_p:
             pwd = st.text_input("Mot de passe", type="password")
             if pwd == "ADMIN_LIVE_MASTER":
-                st.session_state["auth"] = True
-                st.rerun()
+                st.session_state["auth"] = True; st.rerun()
     else:
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
@@ -356,7 +366,7 @@ if est_admin:
                 st.session_state.config["logo_b64"] = b64; save_config(); st.success("OK"); st.rerun()
 
         elif menu == "📸 Médiathèque":
-            st.title("📸 Photos")
+            st.title("📸 Médiathèque")
             files = glob.glob(f"{LIVE_DIR}/*")
             if files:
                 cols = st.columns(6)
@@ -366,15 +376,11 @@ if est_admin:
                         if st.button("🗑️", key=f"d_{i}"): os.remove(f); st.rerun()
 
         elif menu == "📊 Data":
-            st.title("📊 Export")
+            st.title("📊 Data")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 df = pd.DataFrame(list(v_data.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
                 st.dataframe(df, use_container_width=True)
-                if st.button("♻️ RESET VOTES"):
-                    for f in [VOTES_FILE, VOTERS_FILE]: 
-                        if os.path.exists(f): os.remove(f)
-                    st.rerun()
 
 # --- UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
@@ -385,18 +391,16 @@ elif est_utilisateur:
         photo = st.camera_input("Prendre une photo")
         if photo:
             img = Image.open(photo)
-            img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG")
-            st.success("Envoyé !"); st.balloons()
+            img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG"); st.success("Envoyé !"); st.balloons()
     else:
         if not cfg["session_ouverte"]: st.warning("⌛ Attente des votes...")
         else:
-            if st.session_state.get("a_vote", False): st.success("Merci ! Votre vote est bien pris en compte.")
+            if st.session_state.get("a_vote", False): st.success("Merci !")
             else:
                 st.title("🗳️ Vote Transdev")
                 choix = st.multiselect("Choisissez vos 3 favoris :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER"):
-                    vts = load_json(VOTES_FILE, {})
-                    pts = [5, 3, 1]
+                    vts = load_json(VOTES_FILE, {}); pts = [5, 3, 1]
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     with open(VOTES_FILE, "w") as f: json.dump(vts, f)
                     st.session_state.a_vote = True; st.rerun()
@@ -437,8 +441,6 @@ else:
             components.html(f"""<div id="grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;padding:20px;"></div><script>var imgs={js_imgs}; var g=document.getElementById('grid'); imgs.forEach(s=>{{var i=document.createElement('img');i.src=s;i.style.height='250px';i.style.borderRadius='15px';i.style.border='4px solid #E2001A';g.appendChild(i);}});</script>""", height=800)
 
     elif cfg["mode_affichage"] == "votes" and not cfg["reveal_resultats"]:
-        vts_count = len(load_json(VOTERS_FILE, []))
-        st.markdown(f'<div style="text-align:center; color:white;"><h3>👥 {vts_count} PARTICIPANTS</h3></div>', unsafe_allow_html=True)
         if cfg["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
             qr = qrcode.make(f"https://{host}/?mode=vote")
@@ -451,7 +453,6 @@ else:
         v_data = load_json(VOTES_FILE, {})
         sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
         st.markdown('<h1 style="text-align:center; color:gold;">🏆 PODIUM</h1>', unsafe_allow_html=True)
-        cols = st.columns(3)
-        ranks = ["🥇", "🥈", "🥉"]
+        cols = st.columns(3); ranks = ["🥇", "🥈", "🥉"]
         for i, (name, score) in enumerate(sorted_v):
             cols[i].markdown(f"""<div style="text-align:center; color:white; background:#111; padding:30px; border-radius:20px; border:4px solid gold;"><h1>{ranks[i]}</h1><h2>{name}</h2><h3>{score} pts</h3></div>""", unsafe_allow_html=True)
