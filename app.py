@@ -6,7 +6,7 @@ import time
 from PIL import Image
 from datetime import datetime
 import zipfile
-import uuid  # NÉCESSAIRE POUR LE COMPTAGE UNIQUE
+import uuid
 
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
@@ -47,7 +47,6 @@ if "config" not in st.session_state:
 if "session_id" not in st.session_state.config:
     st.session_state.config["session_id"] = str(int(time.time()))
 
-# --- INITIALISATION IDENTIFIANT UNIQUE (POUR COMPTEUR CONNECTÉS) ---
 if "my_uuid" not in st.session_state:
     st.session_state.my_uuid = str(uuid.uuid4())
 
@@ -110,31 +109,6 @@ def save_live_photo(uploaded_file):
         return True
     except Exception as e:
         return False
-
-# Fonction intelligente pour le compteur de participants
-def update_presence(is_active_user=False):
-    # On charge un DICTIONNAIRE { "uuid": timestamp } au lieu d'une liste
-    presence_data = load_json(PARTICIPANTS_FILE, {})
-    
-    # Si le fichier était au format liste (ancienne version), on le reset
-    if isinstance(presence_data, list):
-        presence_data = {}
-
-    now = time.time()
-    
-    # 1. Nettoyage des vieux connectés (> 30 secondes d'inactivité)
-    # On crée un nouveau dict en gardant seulement les récents
-    clean_data = {uid: ts for uid, ts in presence_data.items() if now - ts < 30}
-    
-    # 2. Si c'est un utilisateur actif (Mobile), on le met à jour/ajoute
-    if is_active_user:
-        clean_data[st.session_state.my_uuid] = now
-        
-    # 3. Sauvegarde
-    with open(PARTICIPANTS_FILE, "w") as f:
-        json.dump(clean_data, f)
-        
-    return len(clean_data)
 
 # --- 2. NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -207,6 +181,11 @@ if est_admin:
 
             st.markdown("---")
             st.subheader("2️⃣ Monitoring")
+            
+            # --- MONITORING MIS A JOUR ---
+            voters_list = load_json(VOTERS_FILE, [])
+            st.metric("👥 Participants Validés", len(voters_list))
+            
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in cfg["candidats"]}
@@ -271,7 +250,8 @@ if est_admin:
             else:
                 c_sel_all, c_dl, c_del = st.columns([1, 1.5, 1.5], vertical_alignment="center")
                 with c_sel_all: select_all = st.checkbox("✅ Tout sélectionner", value=False)
-                
+                final_selection = files if select_all else []
+
                 with c_dl:
                     if select_all:
                         zip_buffer = BytesIO()
@@ -341,7 +321,6 @@ if est_admin:
                  for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE]:
                      if os.path.exists(f): os.remove(f)
                  for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
-                 # GENERATION NOUVELLE SESSION ID
                  st.session_state.config["session_id"] = str(int(time.time()))
                  save_config()
                  st.success("✅ Reset OK ! Session renouvelée."); time.sleep(1); st.rerun()
@@ -389,9 +368,6 @@ elif est_utilisateur:
         """, height=0)
     else:
         components.html("""<script>window.parent.document.querySelector('.stApp').style.visibility = 'visible';</script>""", height=0)
-
-    # MISE A JOUR PRESENCE UTILISATEUR
-    update_presence(is_active_user=True)
 
     # --- MODE PHOTOS LIVE ---
     if cfg["mode_affichage"] == "photos_live":
@@ -458,7 +434,6 @@ elif est_utilisateur:
                     with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                     
                     st.session_state["a_vote"] = True
-                    # STOCKER LE COOKIE AVEC LE BON ID DE SESSION
                     components.html(f"""<script>localStorage.setItem('{ls_key}', 'true'); location.reload();</script>""", height=0)
                     time.sleep(1)
                 elif len(choix) > 3: st.error("⚠️ 3 choix maximum !")
@@ -469,8 +444,9 @@ else:
     st.markdown("""<style>body, .stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding-top: 2rem !important; } img { background-color: transparent !important; }</style>""", unsafe_allow_html=True)
     config = load_json(CONFIG_FILE, default_config)
     
-    # LECTURE COMPTEUR (SANS LE MODIFIER)
-    nb_p = update_presence(is_active_user=False)
+    # COMPTAGE CUMULATIF (VRAIS PARTICIPANTS)
+    voters_list = load_json(VOTERS_FILE, [])
+    nb_p = len(voters_list)
     
     logo_html = ""
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:100px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto; background:transparent;">'
@@ -519,7 +495,14 @@ else:
         """, height=900)
 
     elif config["mode_affichage"] == "votes" and not config["reveal_resultats"]:
-        st.markdown(f'<div style="text-align:center; margin-top:10px;"><div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold;">👥 {nb_p} CONNECTÉS</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="text-align:center; margin-top:10px;"><div style="background:white; display:inline-block; padding:5px 20px; border-radius:20px; color:black; font-weight:bold;">👥 {nb_p} PARTICIPANTS</div></div>', unsafe_allow_html=True)
+        
+        # --- LISTE DES PSEUDOS (BADGES) ---
+        if voters_list:
+            # On inverse la liste pour voir les derniers en premier
+            voters_badges = "".join([f'<span style="display:inline-block; background:#333; color:white; padding:5px 10px; margin:5px; border-radius:15px; border:1px solid #555; font-size:14px;">{v}</span>' for v in voters_list[::-1]])
+            st.markdown(f'<div style="text-align:center; margin-top:10px; max-height:100px; overflow-y:hidden; opacity:0.8;">{voters_badges}</div>', unsafe_allow_html=True)
+
         if config["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
