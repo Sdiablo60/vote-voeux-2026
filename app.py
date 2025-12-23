@@ -7,6 +7,7 @@ from PIL import Image
 from datetime import datetime
 import zipfile
 import uuid
+import textwrap  # Module essentiel pour corriger l'affichage HTML
 
 # --- GESTION PDF ---
 try:
@@ -388,7 +389,7 @@ if est_admin:
             st.markdown("""<div style="border: 1px solid red; padding: 15px; border-radius: 5px; background-color: #fff5f5; color: #8b0000;"><strong>ATTENTION :</strong> Efface TOUTES les données.</div><br>""", unsafe_allow_html=True)
             if st.button("🔥 RESET TOUT", type="primary"):
                  for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE, DETAILED_VOTES_FILE]:
-                     if os.path.exists(f): os.remove(f)
+                      if os.path.exists(f): os.remove(f)
                  for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
                  st.session_state.config["session_id"] = str(int(time.time()))
                  save_config()
@@ -546,10 +547,21 @@ else:
     if config.get("logo_b64"): logo_html = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:80px; display:block; margin: 0 auto 10px auto;">'
 
     if config["mode_affichage"] != "photos_live":
-        st.markdown(f'<div style="text-align:center; color:white;">{logo_html}<h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1></div>', unsafe_allow_html=True)
+        # Utilisation de textwrap.dedent pour corriger l'affichage du titre
+        st.markdown(textwrap.dedent(f"""
+        <div style="text-align:center; color:white;">
+            {logo_html}
+            <h1 style="font-size:40px; font-weight:bold; text-transform:uppercase; margin:0; line-height:1.1;">{config["titre_mur"]}</h1>
+        </div>
+        """), unsafe_allow_html=True)
 
     if config["mode_affichage"] == "attente":
-        st.markdown(f"""<div style="text-align:center; color:white; margin-top:80px;"><div style="{BADGE_CSS}">✨ BIENVENUE ✨</div><h2 style="font-size:50px; margin-top:40px; font-weight:lighter;">L'événement va commencer...</h2></div>""", unsafe_allow_html=True)
+        st.markdown(textwrap.dedent(f"""
+        <div style="text-align:center; color:white; margin-top:80px;">
+            <div style="{BADGE_CSS}">✨ BIENVENUE ✨</div>
+            <h2 style="font-size:50px; margin-top:40px; font-weight:lighter;">L'événement va commencer...</h2>
+        </div>
+        """), unsafe_allow_html=True)
 
     elif config["mode_affichage"] == "photos_live":
         host = st.context.headers.get('host', 'localhost')
@@ -563,7 +575,8 @@ else:
         
         title_html = '<h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>'
 
-        st.markdown(f"""
+        # Correction de l'affichage HTML avec textwrap.dedent
+        st.markdown(textwrap.dedent(f"""
         <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:9999; display:flex; flex-direction:column; align-items:center; gap:20px;">
             {logo_live}
             {title_html}
@@ -574,7 +587,7 @@ else:
                 📸 SCANNEZ POUR PARTICIPER
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """), unsafe_allow_html=True)
         
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
@@ -604,19 +617,25 @@ else:
             with c1:
                 for c in cands[:mid]: st.markdown(get_item_html(c), unsafe_allow_html=True)
             with c2:
-                st.markdown(f'<div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;"><img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;"><p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p></div>', unsafe_allow_html=True)
+                # Correction affichage QR code
+                st.markdown(textwrap.dedent(f"""
+                <div style="background:white; padding:4px; border-radius:10px; text-align:center; margin: 0 auto; width: fit-content;">
+                    <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
+                    <p style="color:black; font-weight:bold; margin-top:5px; margin-bottom:0; font-size:14px;">SCANNEZ</p>
+                </div>
+                """), unsafe_allow_html=True)
                 st.markdown(f'<div style="text-align:center; margin-top:15px;"><div style="{BADGE_CSS} animation:blink 1.5s infinite; font-size:18px; padding:8px 20px;">🚀 VOTES OUVERTS</div></div>', unsafe_allow_html=True)
             with c3:
                 for c in cands[mid:]: st.markdown(get_item_html(c), unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"""
+            st.markdown(textwrap.dedent(f"""
             <div style="text-align:center; color:white; margin-top:80px;">
                 <div style="{BADGE_CSS} background:#333; animation: none;">🏁 LES VOTES SONT CLOS</div>
                 <div style="font-size:120px; margin-top:40px;">🙏</div>
                 <h1 style="color:#E2001A; font-size:50px; margin-top:20px;">MERCI DE VOTRE PARTICIPATION</h1>
             </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 
     elif config["reveal_resultats"]:
         diff = 10 - int(time.time() - config.get("timestamp_podium", 0))
@@ -646,5 +665,13 @@ else:
                 img_p = ""
                 if name in config.get("candidats_images", {}):
                      img_p = f'<img src="data:image/png;base64,{config["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; border:4px solid {border_col}; display:block; margin:0 auto 15px auto;">'
-                cols[i].markdown(f"""<div class="{css_class}" style="background:#1a1a1a; padding:30px; border:4px solid {border_col}; text-align:center; color:white; margin-top:30px; border-radius:20px;"><h2>{rank_icon}</h2>{img_p}<h1>{name}</h1><p>{score} pts</p></div>""", unsafe_allow_html=True)
+                # Correction de l'affichage HTML dans le podium
+                cols[i].markdown(textwrap.dedent(f"""
+                <div class="{css_class}" style="background:#1a1a1a; padding:30px; border:4px solid {border_col}; text-align:center; color:white; margin-top:30px; border-radius:20px;">
+                    <h2>{rank_icon}</h2>
+                    {img_p}
+                    <h1>{name}</h1>
+                    <p>{score} pts</p>
+                </div>
+                """), unsafe_allow_html=True)
             components.html('<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script><script>confetti({particleCount:300,spread:120,origin:{y:0},gravity:1.2,drift:0});</script>', height=0)
