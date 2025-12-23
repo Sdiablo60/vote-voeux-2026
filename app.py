@@ -51,9 +51,13 @@ def load_json(file, default):
         except: return default
     return default
 
+# --- FONCTION CRITIQUE D'AFFICHAGE ---
 def render_html(html_code):
-    """Nettoie le HTML pour affichage propre"""
-    clean_code = textwrap.dedent(html_code).strip()
+    """
+    VERSION CORRIGÉE : Supprime les sauts de ligne pour éviter
+    que Streamlit n'interprète l'indentation comme du code.
+    """
+    clean_code = html_code.replace("\n", " ").strip()
     st.markdown(clean_code, unsafe_allow_html=True)
 
 # --- INIT SESSION ---
@@ -67,7 +71,7 @@ if "user_id" not in st.session_state: st.session_state.user_id = None
 if "a_vote" not in st.session_state: st.session_state.a_vote = False
 if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
 
-# --- LOGIQUE ---
+# --- LOGIQUE METIER ---
 def save_config():
     with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
 
@@ -90,8 +94,7 @@ def save_live_photo(uploaded_file):
         filename = f"live_{timestamp}_{random.randint(100,999)}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
         img = Image.open(uploaded_file)
-        # Rotation EXIF
-        try:
+        try: # Rotation EXIF
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -326,7 +329,7 @@ elif est_utilisateur:
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=3000, key="wall_autorefresh")
+    st_autorefresh(interval=2000, key="wall_autorefresh")
     cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown("""
