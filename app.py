@@ -59,7 +59,6 @@ def load_json(file, default):
     return default
 
 def render_html(html_code):
-    """Nettoie le HTML pour affichage propre sans bug d'indentation"""
     clean_code = textwrap.dedent(html_code).strip().replace("\n", " ")
     st.markdown(clean_code, unsafe_allow_html=True)
 
@@ -98,9 +97,9 @@ def save_live_photo(uploaded_file):
         unique_id = uuid.uuid4().hex[:6]
         filename = f"live_{timestamp}_{unique_id}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
-        
         img = Image.open(uploaded_file)
-        try: # Rotation EXIF
+        # Rotation EXIF
+        try: 
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -111,21 +110,11 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
-        
         img = img.convert("RGB")
         img.thumbnail((800, 800)) 
         img.save(filepath, "JPEG", quality=80, optimize=True)
         return True
     except: return False
-
-def update_presence(is_active_user=False):
-    presence_data = load_json(PARTICIPANTS_FILE, {})
-    if isinstance(presence_data, list): presence_data = {}
-    now = time.time()
-    clean_data = {uid: ts for uid, ts in presence_data.items() if now - ts < 10} 
-    if is_active_user: clean_data[st.session_state.my_uuid] = now
-    with open(PARTICIPANTS_FILE, "w") as f: json.dump(clean_data, f)
-    return len(clean_data)
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
@@ -193,23 +182,48 @@ is_blocked = st.query_params.get("blocked") == "true"
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
+    # --- CSS HEADER FIXE ADMIN ---
+    logo_admin_css = ""
+    if st.session_state.config.get("logo_b64"):
+        logo_admin_css = f"""background-image: url('data:image/png;base64,{st.session_state.config["logo_b64"]}');"""
+    
+    st.markdown(f"""
+    <style>
+        .fixed-header {{
+            position: fixed; top: 0; left: 0; width: 100%; height: 70px;
+            background-color: #1E1E1E; z-index: 999999;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-bottom: 2px solid #E2001A;
+        }}
+        .header-title {{ color: white; font-size: 24px; font-weight: bold; text-transform: uppercase; }}
+        .header-logo {{
+            position: absolute; right: 20px; top: 5px; width: 60px; height: 60px;
+            background-size: contain; background-repeat: no-repeat; background-position: center;
+            {logo_admin_css}
+        }}
+        .block-container {{ margin-top: 40px; }}
+        [data-testid="stSidebar"] {{ z-index: 999998; }}
+    </style>
+    <div class="fixed-header">
+        <div class="header-title">Console Admin Gestion des Votes</div>
+        <div class="header-logo"></div>
+    </div>
+    """, unsafe_allow_html=True)
+
     if "auth" not in st.session_state: st.session_state["auth"] = False
     if not st.session_state["auth"]:
-        st.markdown("<br><br><h1 style='text-align:center;'>🔐 ACCÈS RÉGIE</h1>", unsafe_allow_html=True)
+        st.markdown("<br><br><h2 style='text-align:center;'>🔐 Authentification</h2>", unsafe_allow_html=True)
         col_c, col_p, col_d = st.columns([1,2,1])
         with col_p:
             pwd = st.text_input("Mot de passe", type="password")
             if pwd == "ADMIN_LIVE_MASTER": st.session_state["auth"] = True; st.rerun()
     else:
         with st.sidebar:
-            st.title("🎛️ RÉGIE")
-            # Petit rappel logo
-            if st.session_state.config.get("logo_b64"):
-                st.image(BytesIO(base64.b64decode(st.session_state.config["logo_b64"])), use_container_width=True)
-            
-            st.markdown("""<a href="/" target="_blank"><div style="background-color: #E2001A; color: white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;">📺 OUVRIR MUR SOCIAL</div></a>""", unsafe_allow_html=True)
-            st.markdown("""<a href="/?mode=vote" target="_blank"><div style="background-color: #333; color: white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;">📱 APERÇU MOBILE</div></a>""", unsafe_allow_html=True)
+            st.title("🎛️ NAVIGATION")
+            st.markdown("---")
             menu = st.radio("Menu", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque", "📊 Data"], label_visibility="collapsed")
+            st.markdown("---")
+            st.markdown("""<a href="/" target="_blank"><div style="background-color: #E2001A; color: white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px;">📺 OUVRIR MUR SOCIAL</div></a>""", unsafe_allow_html=True)
             if st.button("🔓 Déconnexion"): st.session_state["auth"] = False; st.rerun()
 
         if menu == "🔴 PILOTAGE LIVE":
@@ -233,45 +247,26 @@ if est_admin:
                 cfg.update({"mode_affichage": "photos_live", "session_ouverte": False, "reveal_resultats": False}); save_config(); st.rerun()
 
             st.divider()
-            st.subheader("📡 Effets")
+            st.subheader("2️⃣ Effets & Monitoring")
             c_e1, c_e2 = st.columns(2)
             with c_e1:
-                intensity = st.slider("Densité", 0, 50, cfg["effect_intensity"])
-                speed = st.slider("Vitesse", 0, 50, cfg["effect_speed"])
-                if intensity != cfg["effect_intensity"] or speed != cfg["effect_speed"]:
-                    cfg["effect_intensity"] = intensity; cfg["effect_speed"] = speed; save_config(); st.rerun()
-            
-            EFFS = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace"]
+                EFFS = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace"]
+                cfg["screen_effects"]["attente"] = st.selectbox("Effet Accueil", EFFS, index=EFFS.index(cfg["screen_effects"].get("attente","Aucun")))
+                cfg["screen_effects"]["podium"] = st.selectbox("Effet Podium", EFFS, index=EFFS.index(cfg["screen_effects"].get("podium","Aucun")))
+                if st.button("💾 SAUVER EFFETS"): save_config(); st.toast("OK")
             with c_e2:
-                cfg["screen_effects"]["attente"] = st.selectbox("Accueil", EFFS, index=EFFS.index(cfg["screen_effects"].get("attente","Aucun")))
-                cfg["screen_effects"]["votes_open"] = st.selectbox("Vote On", EFFS, index=EFFS.index(cfg["screen_effects"].get("votes_open","Aucun")))
-                cfg["screen_effects"]["podium"] = st.selectbox("Podium", EFFS, index=EFFS.index(cfg["screen_effects"].get("podium","Aucun")))
-                cfg["screen_effects"]["photos_live"] = st.selectbox("Photos", EFFS, index=EFFS.index(cfg["screen_effects"].get("photos_live","Aucun")))
-            if st.button("💾 SAUVER EFFETS"): save_config(); st.toast("OK")
-
-            st.divider()
-            st.subheader("2️⃣ Monitoring")
-            voters_list = load_json(VOTERS_FILE, [])
-            st.metric("👥 Participants Validés", len(voters_list))
-            
-            with st.expander("🗑️ ZONE DE DANGER (Reset)"):
-                c_r1, c_r2 = st.columns(2)
-                if c_r1.button("♻️ RESET VOTES", type="primary", use_container_width=True):
+                voters_list = load_json(VOTERS_FILE, [])
+                st.metric("👥 Participants", len(voters_list))
+                if st.button("♻️ RESET VOTES", type="primary"):
                     for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE, DETAILED_VOTES_FILE]: 
                         if os.path.exists(f): os.remove(f)
                     st.session_state.config["session_id"] = str(int(time.time()))
                     save_config()
                     st.toast("✅ Votes effacés !"); time.sleep(1); st.rerun()
-                
-                if c_r2.button("🗑️ VIDER PHOTOS", type="primary", use_container_width=True):
-                    files = glob.glob(f"{LIVE_DIR}/*"); 
-                    for f in files: os.remove(f)
-                    st.toast("✅ Galerie vidée !"); time.sleep(1); st.rerun()
 
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
             
-            # 1. PARAMETRES GLOBAUX
             st.subheader("1️⃣ Identité & Logo")
             c_g1, c_g2 = st.columns([2, 1])
             with c_g1:
@@ -282,151 +277,133 @@ if est_admin:
                 if up_l:
                     b64 = process_image_upload(up_l)
                     if b64: st.session_state.config["logo_b64"] = b64; force_refresh(); st.success("Logo chargé !"); st.rerun()
-            
-            st.markdown("---")
-            
-            # 2. GESTION CANDIDATS (TABLEAU EDITABLE)
-            st.subheader("2️⃣ Gestion des Candidats (Vidéos)")
-            st.info("Modifiez la liste ci-dessous puis cliquez sur Enregistrer.")
-            
-            df_cands = pd.DataFrame([{"Nom": c} for c in st.session_state.config["candidats"]])
-            edited_df = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True, key="editor_cands")
-            
-            if st.button("💾 ENREGISTRER LA LISTE", type="primary"):
-                new_list = [str(x) for x in edited_df["Nom"].tolist() if str(x).strip() != ""]
-                st.session_state.config["candidats"] = new_list
-                save_config()
-                st.success("Liste mise à jour !"); time.sleep(1); st.rerun()
 
+            st.divider()
+            
+            # --- REFONTE GESTION CANDIDATS ---
+            st.subheader("2️⃣ Gestion des Candidats")
+            st.info("Ajoutez ou supprimez des candidats ici.")
+            
+            # Gestion liste brute
+            cands = st.session_state.config["candidats"]
+            new_cand = st.text_input("Ajouter un candidat", placeholder="Nom du service...")
+            if st.button("➕ Ajouter") and new_cand:
+                if new_cand not in cands:
+                    cands.append(new_cand)
+                    st.session_state.config["candidats"] = cands
+                    save_config(); st.rerun()
+            
             st.markdown("---")
+            st.subheader("3️⃣ Edition & Photos")
+            st.write("Modifiez les noms et associez les photos.")
             
-            # 3. ASSOCIATION PHOTOS (VUE EN FACE)
-            st.subheader("3️⃣ Association Photos")
-            st.write("Associez une image à chaque candidat.")
-            
-            for cand in st.session_state.config["candidats"]:
-                with st.container():
-                    c1, c2, c3 = st.columns([2, 1, 2], vertical_alignment="center")
-                    with c1:
-                        st.markdown(f"### 🎥 {cand}")
-                    with c2:
-                        if cand in st.session_state.config["candidats_images"]:
-                            st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][cand])), width=80)
-                        else:
-                            st.caption("🚫 Pas d'image")
-                    with c3:
-                        c_up, c_del = st.columns([3, 1])
-                        with c_up:
-                            up = st.file_uploader(f"Img {cand}", type=["png","jpg"], key=f"u_{cand}", label_visibility="collapsed")
-                            if up:
-                                b64 = process_image_upload(up)
-                                if b64: st.session_state.config["candidats_images"][cand] = b64; save_config(); st.rerun()
-                        with c_del:
+            # Affichage Ligne par Ligne
+            for i, cand in enumerate(cands):
+                # Colonnes : Photo | Nom (Grisé) | Boutons
+                c_img, c_txt, c_btns = st.columns([1, 4, 3], vertical_alignment="center")
+                
+                # 1. Photo
+                with c_img:
+                    if cand in st.session_state.config["candidats_images"]:
+                        st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][cand])), width=60)
+                    else:
+                        st.markdown("🚫")
+                
+                # 2. Nom (Grisé)
+                with c_txt:
+                    st.text_input("Nom", value=cand, disabled=True, key=f"dis_{i}", label_visibility="collapsed")
+                
+                # 3. Boutons
+                with c_btns:
+                    # Modifier le nom
+                    with st.popover("✏️"):
+                        new_name = st.text_input("Nouveau nom", value=cand, key=f"ren_{i}")
+                        if st.button("Valider", key=f"v_ren_{i}"):
+                            cands[i] = new_name
+                            # Migrer l'image si elle existe
                             if cand in st.session_state.config["candidats_images"]:
-                                if st.button("🗑️", key=f"d_{cand}"):
-                                    del st.session_state.config["candidats_images"][cand]
-                                    save_config(); st.rerun()
-                    st.divider()
+                                st.session_state.config["candidats_images"][new_name] = st.session_state.config["candidats_images"].pop(cand)
+                            st.session_state.config["candidats"] = cands
+                            save_config(); st.rerun()
+                    
+                    # Upload Photo
+                    with st.popover("🖼️"):
+                        up = st.file_uploader(f"Photo {cand}", type=["png","jpg"], key=f"up_{i}")
+                        if up:
+                            b64 = process_image_upload(up)
+                            if b64: st.session_state.config["candidats_images"][cand] = b64; save_config(); st.rerun()
+                    
+                    # Supprimer Photo
+                    if cand in st.session_state.config["candidats_images"]:
+                        if st.button("🗑️ Img", key=f"del_img_{i}"):
+                            del st.session_state.config["candidats_images"][cand]
+                            save_config(); st.rerun()
+                    
+                    # Supprimer Candidat
+                    if st.button("❌", key=f"del_cand_{i}", help="Supprimer ce candidat"):
+                        cands.pop(i)
+                        st.session_state.config["candidats"] = cands
+                        if cand in st.session_state.config["candidats_images"]:
+                            del st.session_state.config["candidats_images"][cand]
+                        save_config(); st.rerun()
 
         elif menu == "📸 Médiathèque":
-            st.title("📸 Médiathèque & Export")
+            st.title("📸 Médiathèque")
             files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
             
             if not files:
-                st.warning("Aucune photo dans la galerie.")
+                st.warning("Vide.")
             else:
-                c_act1, c_act2, c_act3 = st.columns([1, 1, 2])
-                with c_act1:
+                c1, c2 = st.columns(2)
+                with c1:
                     zip_buffer = BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w") as zf:
                         for f in files: zf.write(f, os.path.basename(f))
-                    st.download_button("📥 TOUT TÉLÉCHARGER", data=zip_buffer.getvalue(), file_name="photos_all.zip", mime="application/zip", use_container_width=True)
-                with c_act2:
-                    if st.button("🗑️ TOUT SUPPRIMER", type="primary", use_container_width=True):
+                    st.download_button("📥 TOUT TÉLÉCHARGER", data=zip_buffer.getvalue(), file_name="photos.zip", mime="application/zip")
+                with c2:
+                    if st.button("🗑️ TOUT SUPPRIMER"):
                         st.session_state.confirm_delete = True
                 
                 if st.session_state.confirm_delete:
-                    st.error("Êtes-vous sûr ?")
-                    c_yes, c_no = st.columns(2)
-                    if c_yes.button("OUI, TOUT EFFACER"):
+                    if st.button("CONFIRMER SUPPRESSION TOTALE"):
                         for f in files: os.remove(f)
-                        st.session_state.confirm_delete = False; st.success("Terminé !"); time.sleep(1); st.rerun()
-                    if c_no.button("NON"): st.session_state.confirm_delete = False; st.rerun()
+                        st.session_state.confirm_delete = False; st.rerun()
 
-                st.divider()
-                st.write(f"**{len(files)} Photos**")
+                st.write(f"{len(files)} photos.")
                 
-                view_mode = st.radio("Affichage :", ["🖼️ Pellicule (Grille)", "📝 Liste (Sélection)"], horizontal=True)
-                
-                if "Grille" in view_mode:
+                # Vue Liste avec sélection
+                view = st.radio("Vue", ["Grille", "Liste"], horizontal=True)
+                if view == "Grille":
                     cols = st.columns(6)
                     for i, f in enumerate(files):
                         with cols[i%6]:
                             st.image(f, use_container_width=True)
-                            if st.button("❌", key=f"del_g_{i}"): os.remove(f); st.rerun()
+                            if st.button("X", key=f"d{i}"): os.remove(f); st.rerun()
                 else:
-                    st.write("Sélectionnez les photos à exporter ou supprimer :")
-                    c1, c2, c3 = st.columns([0.5, 3, 1])
-                    c1.write("**Img**"); c2.write("**Fichier**"); c3.write("**Action**")
-                    
-                    selected_files = []
+                    sel = []
                     for i, f in enumerate(files):
-                        c1, c2, c3 = st.columns([0.5, 3, 1], vertical_alignment="center")
+                        c1, c2 = st.columns([1, 5])
                         with c1: st.image(f, width=50)
                         with c2: 
-                            if st.checkbox(os.path.basename(f), key=f"chk_{i}"):
-                                selected_files.append(f)
-                        with c3:
-                            if st.button("🗑️", key=f"del_l_{i}"): os.remove(f); st.rerun()
+                            if st.checkbox(os.path.basename(f), key=f"c{i}"): sel.append(f)
                     
-                    if selected_files:
-                        st.divider()
-                        st.write(f"{len(selected_files)} photos sélectionnées")
-                        sc1, sc2 = st.columns(2)
-                        with sc1:
-                            zip_sel = BytesIO()
-                            with zipfile.ZipFile(zip_sel, "w") as zf:
-                                for f in selected_files: zf.write(f, os.path.basename(f))
-                            st.download_button("📥 TÉLÉCHARGER SÉLECTION", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True)
-                        with sc2:
-                            if st.button("🗑️ SUPPRIMER SÉLECTION", type="primary", use_container_width=True):
-                                for f in selected_files: os.remove(f)
-                                st.rerun()
+                    if sel:
+                        if st.button(f"Supprimer {len(sel)} photos"):
+                            for f in sel: os.remove(f)
+                            st.rerun()
 
         elif menu == "📊 Data":
-            st.title("📊 Données & Exports")
+            st.title("📊 Données")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in st.session_state.config["candidats"]}
                 if valid:
-                    # 1. GRAPHIQUE
-                    if HAS_ALTAIR:
-                        df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
-                        st.subheader("Graphique des Scores")
-                        chart = alt.Chart(df).mark_bar().encode(
-                            x='Points',
-                            y=alt.Y('Candidat', sort='-x'),
-                            color=alt.Color('Points', scale=alt.Scale(scheme='goldorange'))
-                        )
-                        st.altair_chart(chart, use_container_width=True)
-
-                    # 2. TABLEAU
-                    st.subheader("Tableau des Scores")
                     df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
                     st.dataframe(df, use_container_width=True)
                     if HAS_FPDF:
-                        pdf_bytes = generate_pdf_report(df, "RESULTATS")
-                        st.download_button("📄 PDF RESULTATS", data=pdf_bytes, file_name="resultats.pdf", mime="application/pdf")
-            else: st.info("Aucun vote enregistré.")
-            
-            st.divider()
-            st.subheader("Détail des Votants")
-            det_votes = load_json(DETAILED_VOTES_FILE, [])
-            if det_votes:
-                df_det = pd.DataFrame(det_votes)
-                st.dataframe(df_det, use_container_width=True)
-                st.download_button("📥 CSV DETAILLÉ", data=df_det.to_csv().encode('utf-8'), file_name="votes_details.csv", mime="text/csv")
-            else: st.info("Aucun détail.")
+                        pdf = generate_pdf_report(df, "RESULTATS")
+                        st.download_button("PDF", data=pdf, file_name="res.pdf", mime="application/pdf")
+            else: st.info("Aucun vote.")
 
 # =========================================================
 # 2. APPLICATION MOBILE (UTILISATEUR)
@@ -453,6 +430,7 @@ elif est_utilisateur:
     # 2.1 ECRAN LOGIN
     if "user_pseudo" not in st.session_state:
         st.title("👋 Bienvenue")
+        if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
         st.write("Pour participer, entrez votre prénom :")
         pseudo = st.text_input("Votre Pseudo", label_visibility="collapsed")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
@@ -466,7 +444,6 @@ elif est_utilisateur:
     # 2.2 ECRAN REGLES (NOUVEAU)
     elif not st.session_state.rules_accepted and cfg.get("mode_affichage") != "photos_live":
         st.title("📜 Règles du vote")
-        
         st.markdown("""
         <div style="background:#222; padding:15px; border-radius:10px; border:1px solid #E2001A;">
             <ul style="font-size:18px;">
@@ -713,7 +690,7 @@ else:
             with open(photo_path, "rb") as f: b64 = base64.b64encode(f.read()).decode(); img_array_js.append(f"data:image/jpeg;base64,{b64}")
         js_img_list = json.dumps(img_array_js)
         
-        # JS CORRIGÉ : REBOND SUR LE CENTRE
+        # JS CORRIGÉ : REBOND SUR LE CENTRE + Z-INDEX
         components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>
             var doc = window.parent.document;
             var containerId = 'live-bubble-container';
@@ -747,12 +724,10 @@ else:
                 img.style.border = '4px solid #E2001A';
                 img.style.objectFit = 'cover';
                 
-                // Taille réduite
                 const size = 60 + Math.random() * 60; 
                 img.style.width = size + 'px'; 
                 img.style.height = size + 'px'; 
                 
-                // Position aléatoire initiale
                 let startX = Math.random() * (window.innerWidth - size);
                 let startY = Math.random() * (window.innerHeight - size);
                 
@@ -770,7 +745,6 @@ else:
                 const h = window.innerHeight; 
                 const centerX = w / 2;
                 const centerY = h / 2;
-                // Zone interdite (Rectangle central)
                 const safeZoneW = 400; 
                 const safeZoneH = 500; 
 
@@ -778,14 +752,11 @@ else:
                     b.x += b.vx; 
                     b.y += b.vy; 
                     
-                    // Rebond Bords Ecran
                     if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; 
                     if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; 
                     
-                    // Rebond Zone Centrale (QR Code)
                     if (b.x + b.size > centerX - safeZoneW/2 && b.x < centerX + safeZoneW/2 && 
                         b.y + b.size > centerY - safeZoneH/2 && b.y < centerY + safeZoneH/2) {{
-                        // Inverse direction
                         if(Math.abs(b.x - centerX) > Math.abs(b.y - centerY)) b.vx *= -1;
                         else b.vy *= -1;
                     }}
