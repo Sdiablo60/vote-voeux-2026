@@ -10,7 +10,7 @@ import uuid
 import textwrap
 import shutil
 
-# --- IMPORTS OPTIONNELS ---
+# --- GESTION PDF & ALTAIR ---
 try:
     from fpdf import FPDF
     HAS_FPDF = True
@@ -98,9 +98,9 @@ def save_live_photo(uploaded_file):
         unique_id = uuid.uuid4().hex[:6]
         filename = f"live_{timestamp}_{unique_id}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
-        
         img = Image.open(uploaded_file)
-        try: # Rotation EXIF
+        # Rotation EXIF
+        try: 
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -111,7 +111,6 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
-        
         img = img.convert("RGB")
         img.thumbnail((800, 800)) 
         img.save(filepath, "JPEG", quality=80, optimize=True)
@@ -203,6 +202,9 @@ if est_admin:
     else:
         with st.sidebar:
             st.title("🎛️ RÉGIE")
+            if st.session_state.config.get("logo_b64"):
+                st.image(BytesIO(base64.b64decode(st.session_state.config["logo_b64"])), use_container_width=True)
+            
             st.markdown("""<a href="/" target="_blank"><div style="background-color: #E2001A; color: white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;">📺 OUVRIR MUR SOCIAL</div></a>""", unsafe_allow_html=True)
             st.markdown("""<a href="/?mode=vote" target="_blank"><div style="background-color: #333; color: white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;">📱 APERÇU MOBILE</div></a>""", unsafe_allow_html=True)
             menu = st.radio("Menu", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque", "📊 Data"], label_visibility="collapsed")
@@ -266,21 +268,44 @@ if est_admin:
 
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
-            new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"])
-            if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; force_refresh(); st.rerun()
-            up_l = st.file_uploader("Logo", type=["png", "jpg"])
-            if up_l:
-                b64 = process_image_upload(up_l)
-                if b64: st.session_state.config["logo_b64"] = b64; force_refresh(); st.success("Logo chargé !"); st.rerun()
+            t1, t2 = st.tabs(["Général", "Candidats & Images"])
             
-            st.subheader("Liste des Questions")
-            df_cands = pd.DataFrame(st.session_state.config["candidats"], columns=["Candidat"])
-            edited_df = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True)
-            if st.button("💾 Enregistrer Liste"):
-                new_list = [x for x in edited_df["Candidat"].astype(str).tolist() if x.strip() != ""]
-                st.session_state.config["candidats"] = new_list; save_config(); st.rerun()
+            with t1:
+                new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"])
+                if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; force_refresh(); st.rerun()
+                st.write("---")
+                st.subheader("Logo Événement")
+                up_l = st.file_uploader("Logo (PNG/JPG)", type=["png", "jpg"])
+                if up_l:
+                    b64 = process_image_upload(up_l)
+                    if b64: st.session_state.config["logo_b64"] = b64; force_refresh(); st.success("Logo chargé !"); st.rerun()
+                if st.session_state.config.get("logo_b64"): 
+                    st.image(BytesIO(base64.b64decode(st.session_state.config["logo_b64"])), width=150)
 
-        # --- RESTAURATION FONCTIONNALITES MEDIATHEQUE ---
+            with t2:
+                st.subheader("Liste des Candidats")
+                df_cands = pd.DataFrame(st.session_state.config["candidats"], columns=["Candidat"])
+                edited_df = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True)
+                if st.button("💾 Enregistrer Liste"):
+                    new_list = [x for x in edited_df["Candidat"].astype(str).tolist() if x.strip() != ""]
+                    st.session_state.config["candidats"] = new_list; save_config(); st.rerun()
+                
+                st.write("---")
+                st.subheader("Images par Candidat")
+                sel_cand = st.selectbox("Choisir Candidat", st.session_state.config["candidats"])
+                c_img1, c_img2 = st.columns(2)
+                with c_img1:
+                    up_c = st.file_uploader(f"Image pour {sel_cand}", type=["png", "jpg"], key=f"up_{sel_cand}")
+                    if up_c:
+                        b64 = process_image_upload(up_c)
+                        if b64: st.session_state.config["candidats_images"][sel_cand] = b64; save_config(); st.rerun()
+                with c_img2:
+                    if sel_cand in st.session_state.config["candidats_images"]:
+                        st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][sel_cand])), width=100)
+                        if st.button("Supprimer Image"):
+                            del st.session_state.config["candidats_images"][sel_cand]; save_config(); st.rerun()
+                    else: st.info("Pas d'image")
+
         elif menu == "📸 Médiathèque":
             st.title("📸 Médiathèque & Export")
             files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
@@ -363,17 +388,15 @@ if est_admin:
                         )
                         st.altair_chart(chart, use_container_width=True)
 
-                    # 2. TABLEAU GLOBAL
+                    # 2. TABLEAU
                     st.subheader("Tableau des Scores")
                     df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
                     st.dataframe(df, use_container_width=True)
-                    
                     if HAS_FPDF:
-                        pdf_bytes = generate_pdf_report(df, "RESULTATS VOTES")
+                        pdf_bytes = generate_pdf_report(df, "RESULTATS")
                         st.download_button("📄 PDF RESULTATS", data=pdf_bytes, file_name="resultats.pdf", mime="application/pdf")
             else: st.info("Aucun vote enregistré.")
             
-            # 3. TABLEAU DETAILLE VOTANTS
             st.divider()
             st.subheader("Détail des Votants")
             det_votes = load_json(DETAILED_VOTES_FILE, [])
@@ -381,8 +404,7 @@ if est_admin:
                 df_det = pd.DataFrame(det_votes)
                 st.dataframe(df_det, use_container_width=True)
                 st.download_button("📥 CSV DETAILLÉ", data=df_det.to_csv().encode('utf-8'), file_name="votes_details.csv", mime="text/csv")
-            else:
-                st.info("Aucun détail disponible.")
+            else: st.info("Aucun détail.")
 
 # =========================================================
 # 2. APPLICATION MOBILE (UTILISATEUR)
@@ -391,6 +413,10 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
+    # LOGO MOBILE
+    if cfg.get("logo_b64"):
+        st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
+
     # --- SECURITE : JS POUR DETECTER LE LOCALSTORAGE ---
     if not is_blocked:
         components.html("""
@@ -418,8 +444,33 @@ elif est_utilisateur:
                 parts.append(pseudo)
                 with open(PARTICIPANTS_FILE, "w") as f: json.dump(parts, f)
             st.rerun()
+            
+    # 2.2 ECRAN REGLES (NOUVEAU)
+    elif not st.session_state.rules_accepted and cfg.get("mode_affichage") != "photos_live":
+        st.title("📜 Règles du vote")
+        st.info("Merci de lire attentivement avant de voter.")
+        
+        st.markdown("""
+        <div style="background:#222; padding:15px; border-radius:10px; border:1px solid #E2001A;">
+            <ul style="font-size:18px;">
+                <li>Vous devez sélectionner <strong>3 candidats</strong>.</li>
+                <li>Le vote est <strong>unique</strong> et définitif.</li>
+            </ul>
+            <hr>
+            <h3 style="color:#E2001A">🏆 Pondération des points :</h3>
+            <ul style="font-size:18px;">
+                <li>🥇 <strong>1er choix :</strong> 5 Points</li>
+                <li>🥈 <strong>2ème choix :</strong> 3 Points</li>
+                <li>🥉 <strong>3ème choix :</strong> 1 Point</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.button("✅ J'AI COMPRIS", type="primary", use_container_width=True):
+            st.session_state.rules_accepted = True
+            st.rerun()
     
-    # 2.2 ECRAN PRINCIPAL
+    # 2.3 ECRAN PRINCIPAL
     else:
         st.markdown(f"#### Bonjour {st.session_state.user_pseudo} !")
         
@@ -454,10 +505,10 @@ elif est_utilisateur:
                 if st.session_state.get("a_vote"):
                     st.success("✅ Vote enregistré. Merci !")
                 else:
-                    st.write("Choisissez vos 3 favoris :")
+                    st.write("Sélectionnez vos 3 favoris (Ordre : 1er, 2ème, 3ème) :")
                     choix = st.multiselect("Choix", cfg.get("candidats", []), label_visibility="collapsed")
                     if len(choix) == 3:
-                        if st.button("VALIDER MES CHOIX", type="primary", use_container_width=True):
+                        if st.button("VALIDER MES CHOIX (Définitif)", type="primary", use_container_width=True):
                             vts = load_json(VOTES_FILE, {})
                             pts = cfg.get("points_ponderation", [5, 3, 1])
                             for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
@@ -469,7 +520,7 @@ elif est_utilisateur:
                             
                             # Log détaillé
                             det = load_json(DETAILED_VOTES_FILE, [])
-                            det.append({"user": st.session_state.user_pseudo, "choix": choix, "time": str(datetime.now())})
+                            det.append({"user": st.session_state.user_pseudo, "choix_1": choix[0], "choix_2": choix[1], "choix_3": choix[2], "time": str(datetime.now())})
                             with open(DETAILED_VOTES_FILE, "w") as f: json.dump(det, f)
 
                             # Injection du marqueur de vote
@@ -561,6 +612,7 @@ else:
             <div style="display:flex; height:90vh; padding:20px;">
                 <div style="width:30%; overflow-y:auto;">{col_g}</div>
                 <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    {logo_part}
                     <h1 style="color:#E2001A; font-size:60px;">A VOS VOTES !</h1>
                     <div style="background:white; padding:20px; border-radius:20px; margin:30px;">
                         <img src="data:image/png;base64,{qr_b64}" width="250">
@@ -576,7 +628,7 @@ else:
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
             
-            render_html(f"<h1 style='text-align:center; color:#FFD700; font-size:80px; margin-top:20px;'>🏆 RÉSULTATS 🏆</h1>")
+            render_html(f"<div style='text-align:center;'>{logo_part}<h1 style='color:#FFD700; font-size:80px; margin-top:20px;'>🏆 RÉSULTATS 🏆</h1></div>")
             
             c1, c2, c3 = st.columns([1,1.2,1])
             
@@ -605,8 +657,9 @@ else:
 
         else:
             # Votes CLOS
-            render_html("""
+            render_html(f"""
             <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
+                {logo_part}
                 <div style="border: 10px solid #E2001A; padding: 60px 100px; border-radius: 40px; background:rgba(0,0,0,0.8);">
                     <h1 style="color:#E2001A; font-size:100px; margin:0;">🛑 VOTES CLOS</h1>
                     <h2 style="color:white; font-size:50px; margin-top:20px;">Calcul des résultats...</h2>
@@ -643,7 +696,7 @@ else:
             with open(photo_path, "rb") as f: b64 = base64.b64encode(f.read()).decode(); img_array_js.append(f"data:image/jpeg;base64,{b64}")
         js_img_list = json.dumps(img_array_js)
         
-        # JS CORRIGÉ POUR HAUTEUR 100% ET VITESSE
+        # JS CORRIGÉ : REBOND SUR LE CENTRE
         components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>
             var doc = window.parent.document;
             var containerId = 'live-bubble-container';
@@ -677,17 +730,17 @@ else:
                 img.style.border = '4px solid #E2001A';
                 img.style.objectFit = 'cover';
                 
-                const size = 100 + Math.random() * 200; 
+                // Taille réduite
+                const size = 60 + Math.random() * 60; 
                 img.style.width = size + 'px'; 
                 img.style.height = size + 'px'; 
                 
-                // Position aléatoire sur tout l'écran (y compris le bas)
+                // Position aléatoire initiale
                 let startX = Math.random() * (window.innerWidth - size);
                 let startY = Math.random() * (window.innerHeight - size);
                 
-                // Vitesse X et Y pour mouvement fluide
-                let vx = (Math.random() - 0.5) * speed * 4;
-                let vy = (Math.random() - 0.5) * speed * 4;
+                let vx = (Math.random() - 0.5) * speed * 3;
+                let vy = (Math.random() - 0.5) * speed * 3;
                 
                 const bubble = {{ element: img, x: startX, y: startY, vx: vx, vy: vy, size: size }}; 
                 
@@ -698,18 +751,31 @@ else:
             function animate() {{ 
                 const w = window.innerWidth; 
                 const h = window.innerHeight; 
-                
+                const centerX = w / 2;
+                const centerY = h / 2;
+                // Zone interdite (Rectangle central)
+                const safeZoneW = 400; 
+                const safeZoneH = 500; 
+
                 bubbles.forEach(b => {{ 
                     b.x += b.vx; 
                     b.y += b.vy; 
                     
-                    // Rebond sur les bords
+                    // Rebond Bords Ecran
                     if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; 
                     if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; 
                     
+                    // Rebond Zone Centrale (QR Code)
+                    if (b.x + b.size > centerX - safeZoneW/2 && b.x < centerX + safeZoneW/2 && 
+                        b.y + b.size > centerY - safeZoneH/2 && b.y < centerY + safeZoneH/2) {{
+                        // Inverse direction
+                        if(Math.abs(b.x - centerX) > Math.abs(b.y - centerY)) b.vx *= -1;
+                        else b.vy *= -1;
+                    }}
+
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`; 
                 }}); 
                 requestAnimationFrame(animate); 
             }} 
             animate();
-        </script></body></html>""", height=1000) # Hauteur forcée à 1000px
+        </script></body></html>""", height=1000)
