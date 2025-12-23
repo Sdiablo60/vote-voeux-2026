@@ -7,6 +7,14 @@ from PIL import Image
 from datetime import datetime
 import zipfile
 import uuid
+import textwrap
+
+# --- GESTION PDF ---
+try:
+    from fpdf import FPDF
+    HAS_FPDF = True
+except ImportError:
+    HAS_FPDF = False
 
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master", layout="wide")
@@ -43,14 +51,10 @@ def load_json(file, default):
         except: return default
     return default
 
-def save_json(file, data):
-    with open(file, "w") as f: json.dump(data, f)
-
-# --- FONCTION CRITIQUE : Nettoyage HTML ---
+# Fonction CRITIQUE corrigée : Nettoie le HTML avant affichage
 def render_html(html_code):
-    """Supprime l'indentation pour forcer le rendu HTML"""
-    import textwrap
-    st.markdown(textwrap.dedent(html_code), unsafe_allow_html=True)
+    html_code = textwrap.dedent(html_code).strip()
+    st.markdown(html_code, unsafe_allow_html=True)
 
 # --- INIT SESSION ---
 if "config" not in st.session_state:
@@ -324,7 +328,7 @@ elif est_utilisateur:
 else:
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2000, key="wall_autorefresh")
-    cfg = load_json(CONFIG_FILE, default_config)
+    cfg = load_json(CONFIG_FILE, default_config) # Correction ici : cfg partout
     
     st.markdown("""
     <style>
@@ -357,22 +361,20 @@ else:
         parts = load_json(PARTICIPANTS_FILE, [])
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-60:]])
         
-        # NOTEZ L'ABSENCE D'INDENTATION DANS LA CHAINE CI-DESSOUS
-        html = f"""
-<div style="text-align:center; padding-top:5vh;">
-    {logo_part}
-    <h1 style="color:white; font-size:80px; margin:0;">BIENVENUE</h1>
-    <h2 style="color:#E2001A; font-size:40px; margin-top:10px;">{cfg.get('titre_mur')}</h2>
-    <h3 style="color:#CCC; margin-top:30px;">Veuillez patienter, l'événement va commencer...</h3>
-    <div style="margin-top:50px;">
-        <div style="font-size:30px; color:white; font-weight:bold; margin-bottom:20px;">
-            👥 {len(parts)} PARTICIPANTS CONNECTÉS
+        render_html(f"""
+        <div style="text-align:center; padding-top:5vh;">
+            {logo_part}
+            <h1 style="color:white; font-size:80px; margin:0;">BIENVENUE</h1>
+            <h2 style="color:#E2001A; font-size:40px; margin-top:10px;">{cfg.get('titre_mur')}</h2>
+            <h3 style="color:#CCC; margin-top:30px;">Veuillez patienter, l'événement va commencer...</h3>
+            <div style="margin-top:50px;">
+                <div style="font-size:30px; color:white; font-weight:bold; margin-bottom:20px;">
+                    👥 {len(parts)} PARTICIPANTS CONNECTÉS
+                </div>
+                <div style="width:90%; margin:0 auto; line-height:1.5;">{tags_html}</div>
+            </div>
         </div>
-        <div style="width:90%; margin:0 auto; line-height:1.5;">{tags_html}</div>
-    </div>
-</div>
-"""
-        render_html(html)
+        """)
 
     # --- B. VOTES ---
     elif mode == "votes":
@@ -397,20 +399,19 @@ else:
             col_g = build_list(cands[:mid])
             col_d = build_list(cands[mid:])
             
-            html = f"""
-<div style="display:flex; height:90vh; padding:20px;">
-    <div style="width:30%; overflow-y:auto;">{col_g}</div>
-    <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-        <h1 style="color:#E2001A; font-size:60px;">A VOS VOTES !</h1>
-        <div style="background:white; padding:20px; border-radius:20px; margin:30px;">
-            <img src="data:image/png;base64,{qr_b64}" width="250">
-        </div>
-        <h2 style="color:white;">Scannez pour voter</h2>
-    </div>
-    <div style="width:30%; overflow-y:auto;">{col_d}</div>
-</div>
-"""
-            render_html(html)
+            render_html(f"""
+            <div style="display:flex; height:90vh; padding:20px;">
+                <div style="width:30%; overflow-y:auto;">{col_g}</div>
+                <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <h1 style="color:#E2001A; font-size:60px;">A VOS VOTES !</h1>
+                    <div style="background:white; padding:20px; border-radius:20px; margin:30px;">
+                        <img src="data:image/png;base64,{qr_b64}" width="250">
+                    </div>
+                    <h2 style="color:white;">Scannez pour voter</h2>
+                </div>
+                <div style="width:30%; overflow-y:auto;">{col_d}</div>
+            </div>
+            """)
         
         elif cfg.get("reveal_resultats"):
             # PODIUM
@@ -421,7 +422,6 @@ else:
             
             c1, c2, c3 = st.columns([1,1.2,1])
             
-            # Helpers pour affichage safe
             def get_card(rank_idx, data):
                 if not data: return ""
                 name, score = data
@@ -433,13 +433,13 @@ else:
                     img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; margin-bottom:10px; border:3px solid {colors[rank_idx]};">'
                 
                 return f"""
-<div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:20px; padding:30px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
-    <div style="font-size:60px;">{ranks[rank_idx]}</div>
-    {img_html}
-    <h2 style="font-size:35px; margin:10px 0;">{name}</h2>
-    <h3 style="font-size:25px; color:#ddd;">{score} pts</h3>
-</div>
-"""
+                <div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:20px; padding:30px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
+                    <div style="font-size:60px;">{ranks[rank_idx]}</div>
+                    {img_html}
+                    <h2 style="font-size:35px; margin:10px 0;">{name}</h2>
+                    <h3 style="font-size:25px; color:#ddd;">{score} pts</h3>
+                </div>
+                """
 
             with c1: render_html(get_card(1, sorted_v[1] if len(sorted_v)>1 else None))
             with c2: render_html(get_card(0, sorted_v[0] if len(sorted_v)>0 else None))
@@ -448,13 +448,13 @@ else:
         else:
             # Votes CLOS
             render_html("""
-<div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
-    <div style="border: 10px solid #E2001A; padding: 60px 100px; border-radius: 40px; background:rgba(0,0,0,0.8);">
-        <h1 style="color:#E2001A; font-size:100px; margin:0;">🛑 VOTES CLOS</h1>
-        <h2 style="color:white; font-size:50px; margin-top:20px;">Calcul des résultats...</h2>
-    </div>
-</div>
-""")
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
+                <div style="border: 10px solid #E2001A; padding: 60px 100px; border-radius: 40px; background:rgba(0,0,0,0.8);">
+                    <h1 style="color:#E2001A; font-size:100px; margin:0;">🛑 VOTES CLOS</h1>
+                    <h2 style="color:white; font-size:50px; margin-top:20px;">Calcul des résultats...</h2>
+                </div>
+            </div>
+            """)
 
     # --- C. PHOTOS LIVE ---
     elif mode == "photos_live":
@@ -462,27 +462,22 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         
-        # LOGO SPECIAL POUR CE MODE
         logo_live = ""
-        if config.get("logo_b64"):
-            logo_live = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
+        if cfg.get("logo_b64"):
+            logo_live = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
         
-        title_html = '<h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>'
-
-        # ATTENTION : PAS D'INDENTATION CI-DESSOUS DANS LA CHAINE F-STRING
-        html = f"""
-<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999; display:flex; flex-direction:column; align-items:center; gap:20px;">
-    {logo_live}
-    {title_html}
-    <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
-        <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
-    </div>
-    <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
-        📸 SCANNEZ POUR PARTICIPER
-    </div>
-</div>
-"""
-        render_html(html)
+        render_html(f"""
+        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999; display:flex; flex-direction:column; align-items:center; gap:20px;">
+            {logo_live}
+            <h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>
+            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
+                <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
+            </div>
+            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
+                📸 SCANNEZ POUR PARTICIPER
+            </div>
+        </div>
+        """)
         
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = []
