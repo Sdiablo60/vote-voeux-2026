@@ -10,12 +10,18 @@ import uuid
 import textwrap
 import shutil
 
-# --- GESTION PDF ---
+# --- IMPORTS OPTIONNELS ---
 try:
     from fpdf import FPDF
     HAS_FPDF = True
 except ImportError:
     HAS_FPDF = False
+
+try:
+    import altair as alt
+    HAS_ALTAIR = True
+except ImportError:
+    HAS_ALTAIR = False
 
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master", layout="wide")
@@ -282,7 +288,6 @@ if est_admin:
             if not files:
                 st.warning("Aucune photo dans la galerie.")
             else:
-                # Barre d'outils
                 c_act1, c_act2, c_act3 = st.columns([1, 1, 2])
                 with c_act1:
                     zip_buffer = BytesIO()
@@ -291,12 +296,19 @@ if est_admin:
                     st.download_button("📥 TOUT TÉLÉCHARGER", data=zip_buffer.getvalue(), file_name="photos_all.zip", mime="application/zip", use_container_width=True)
                 with c_act2:
                     if st.button("🗑️ TOUT SUPPRIMER", type="primary", use_container_width=True):
+                        st.session_state.confirm_delete = True
+                
+                if st.session_state.confirm_delete:
+                    st.error("Êtes-vous sûr ?")
+                    c_yes, c_no = st.columns(2)
+                    if c_yes.button("OUI, TOUT EFFACER"):
                         for f in files: os.remove(f)
-                        st.toast("Galerie vidée"); time.sleep(1); st.rerun()
-                
+                        st.session_state.confirm_delete = False; st.success("Terminé !"); time.sleep(1); st.rerun()
+                    if c_no.button("NON"): st.session_state.confirm_delete = False; st.rerun()
+
                 st.divider()
+                st.write(f"**{len(files)} Photos**")
                 
-                # Choix de la vue
                 view_mode = st.radio("Affichage :", ["🖼️ Pellicule (Grille)", "📝 Liste (Sélection)"], horizontal=True)
                 
                 if "Grille" in view_mode:
@@ -306,10 +318,7 @@ if est_admin:
                             st.image(f, use_container_width=True)
                             if st.button("❌", key=f"del_g_{i}"): os.remove(f); st.rerun()
                 else:
-                    # Mode Liste avec Sélection
                     st.write("Sélectionnez les photos à exporter ou supprimer :")
-                    
-                    # Header
                     c1, c2, c3 = st.columns([0.5, 3, 1])
                     c1.write("**Img**"); c2.write("**Fichier**"); c3.write("**Action**")
                     
@@ -343,12 +352,37 @@ if est_admin:
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in st.session_state.config["candidats"]}
                 if valid:
+                    # 1. GRAPHIQUE
+                    if HAS_ALTAIR:
+                        df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
+                        st.subheader("Graphique des Scores")
+                        chart = alt.Chart(df).mark_bar().encode(
+                            x='Points',
+                            y=alt.Y('Candidat', sort='-x'),
+                            color=alt.Color('Points', scale=alt.Scale(scheme='goldorange'))
+                        )
+                        st.altair_chart(chart, use_container_width=True)
+
+                    # 2. TABLEAU GLOBAL
+                    st.subheader("Tableau des Scores")
                     df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
                     st.dataframe(df, use_container_width=True)
+                    
                     if HAS_FPDF:
-                        pdf_bytes = generate_pdf_report(df, "RESULTATS")
-                        st.download_button("📄 TÉLÉCHARGER PDF", data=pdf_bytes, file_name="resultats.pdf", mime="application/pdf")
+                        pdf_bytes = generate_pdf_report(df, "RESULTATS VOTES")
+                        st.download_button("📄 PDF RESULTATS", data=pdf_bytes, file_name="resultats.pdf", mime="application/pdf")
             else: st.info("Aucun vote enregistré.")
+            
+            # 3. TABLEAU DETAILLE VOTANTS
+            st.divider()
+            st.subheader("Détail des Votants")
+            det_votes = load_json(DETAILED_VOTES_FILE, [])
+            if det_votes:
+                df_det = pd.DataFrame(det_votes)
+                st.dataframe(df_det, use_container_width=True)
+                st.download_button("📥 CSV DETAILLÉ", data=df_det.to_csv().encode('utf-8'), file_name="votes_details.csv", mime="text/csv")
+            else:
+                st.info("Aucun détail disponible.")
 
 # =========================================================
 # 2. APPLICATION MOBILE (UTILISATEUR)
@@ -433,6 +467,11 @@ elif est_utilisateur:
                             voters.append(st.session_state.user_pseudo) # On sauve le pseudo
                             with open(VOTERS_FILE, "w") as f: json.dump(voters, f)
                             
+                            # Log détaillé
+                            det = load_json(DETAILED_VOTES_FILE, [])
+                            det.append({"user": st.session_state.user_pseudo, "choix": choix, "time": str(datetime.now())})
+                            with open(DETAILED_VOTES_FILE, "w") as f: json.dump(det, f)
+
                             # Injection du marqueur de vote
                             components.html("""<script>localStorage.setItem('has_voted_session_v1', 'true');</script>""", height=0)
                             
@@ -604,7 +643,7 @@ else:
             with open(photo_path, "rb") as f: b64 = base64.b64encode(f.read()).decode(); img_array_js.append(f"data:image/jpeg;base64,{b64}")
         js_img_list = json.dumps(img_array_js)
         
-        # JS CORRIGÉ : ANIMATION PLEIN ECRAN
+        # JS CORRIGÉ POUR HAUTEUR 100% ET VITESSE
         components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>
             var doc = window.parent.document;
             var containerId = 'live-bubble-container';
@@ -626,7 +665,7 @@ else:
             }}
 
             const images = {js_img_list};
-            const speed = 1.0; // Vitesse de base
+            const speed = 1.0; 
             const bubbles = [];
 
             images.forEach((src) => {{ 
@@ -638,18 +677,17 @@ else:
                 img.style.border = '4px solid #E2001A';
                 img.style.objectFit = 'cover';
                 
-                // Taille variable
                 const size = 100 + Math.random() * 200; 
                 img.style.width = size + 'px'; 
                 img.style.height = size + 'px'; 
                 
-                // Position de départ aléatoire sur TOUT l'écran
+                // Position aléatoire sur tout l'écran (y compris le bas)
                 let startX = Math.random() * (window.innerWidth - size);
                 let startY = Math.random() * (window.innerHeight - size);
                 
-                // Vitesse aléatoire X et Y
-                let vx = (Math.random() - 0.5) * speed * 2;
-                let vy = (Math.random() - 0.5) * speed * 2;
+                // Vitesse X et Y pour mouvement fluide
+                let vx = (Math.random() - 0.5) * speed * 4;
+                let vy = (Math.random() - 0.5) * speed * 4;
                 
                 const bubble = {{ element: img, x: startX, y: startY, vx: vx, vy: vy, size: size }}; 
                 
@@ -674,4 +712,4 @@ else:
                 requestAnimationFrame(animate); 
             }} 
             animate();
-        </script></body></html>""", height=0)
+        </script></body></html>""", height=1000) # Hauteur forcée à 1000px
