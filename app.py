@@ -7,17 +7,22 @@ from PIL import Image
 from datetime import datetime
 import zipfile
 import uuid
+import textwrap  # IMPORTANT : Pour corriger l'affichage HTML
 
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wide")
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
 LIVE_DIR = "galerie_live_users"
-VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE = "votes.json", "participants.json", "config_mur.json"
+VOTES_FILE = "votes.json"
+CONFIG_FILE = "config_mur.json"
+PARTICIPANTS_FILE = "participants.json"
 
+# Création des dossiers
 for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
+# Liste des candidats
 DEFAULT_CANDIDATS = [
     "1. BU PAX", "2. BU FRET", "3. BU B2B", "4. SERVICE RH", 
     "5. SERVICE IT", "6. DPMI (Atelier)", "7. SERVICE FINANCIER", 
@@ -35,6 +40,11 @@ def load_json(file, default):
 def save_json(file, data):
     with open(file, "w") as f: json.dump(data, f)
 
+def display_clean_html(html_code):
+    """Fonction critique pour éviter l'affichage du code brut"""
+    st.markdown(textwrap.dedent(html_code), unsafe_allow_html=True)
+
+# Initialisation Config
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, {
         "mode_affichage": "attente", 
@@ -54,6 +64,7 @@ if "config" not in st.session_state:
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
+# --- COMPRESSION PHOTO ---
 def save_optimized_photo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -65,9 +76,10 @@ def save_optimized_photo(uploaded_file):
         return True
     except: return False
 
+# --- EFFETS VISUELS ---
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
-        components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
+        components.html("""<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>""", height=0)
         return
     
     duration = max(2, 20 - (speed * 0.35))
@@ -233,18 +245,24 @@ else:
     st_autorefresh(interval=3000, key="wall")
     cfg = load_json(CONFIG_FILE, {})
     
-    st.markdown("""
+    # CSS GLOBAL
+    display_clean_html("""
     <style>
         body, .stApp { background-color: black; overflow: hidden; font-family: 'Arial', sans-serif; }
         [data-testid='stHeader'] { display: none; }
         .block-container { padding: 0 !important; max-width: 100% !important; }
-        .user-tag { display: inline-block; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); color: white; padding: 8px 15px; margin: 5px; border-radius: 20px; font-size: 18px; backdrop-filter: blur(5px); }
+        .user-tag { 
+            display: inline-block; background: rgba(255, 255, 255, 0.15); 
+            border: 1px solid rgba(255, 255, 255, 0.3); color: white; 
+            padding: 8px 15px; margin: 5px; border-radius: 20px; font-size: 18px; 
+            backdrop-filter: blur(5px); 
+        }
         @keyframes zoomPulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); box-shadow: 0 0 30px gold; } 100% { transform: scale(1); } }
         .winner-zoom { animation: zoomPulse 3s infinite ease-in-out; border: 6px solid #FFD700 !important; background: rgba(255, 215, 0, 0.1) !important; z-index: 10; }
         .cand-item { color: white; font-size: 24px; padding: 10px; border-bottom: 1px solid #333; }
         .bubble { position: absolute; border-radius: 50%; border: 3px solid #E2001A; object-fit: cover; z-index: 1; pointer-events: none; }
     </style>
-    """, unsafe_allow_html=True)
+    """)
 
     mode = cfg.get("mode_affichage")
     session_open = cfg.get("session_ouverte")
@@ -257,15 +275,15 @@ else:
     
     inject_visual_effect(cfg["screen_effects"].get(key_eff, "Aucun"), cfg.get("effect_intensity", 25), cfg.get("effect_speed", 25))
 
-    # --- AFFICHAGE HTML CORRIGÉ ---
+    # --- AFFICHAGE PRINCIPAL (SANS BUG D'INDENTATION) ---
+
     if mode == "attente":
-        # Construction HTML propre pour éviter l'affichage du code brut
         logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:180px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
         parts = load_json(PARTICIPANTS_FILE, [])
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-70:]])
         
-        html_content = f"""
-            <div style="text-align:center; padding-top:10vh;">
+        display_clean_html(f"""
+            <div style="text-align:center; padding-top:5vh;">
                 {logo_part}
                 <h1 style="color:white; font-size:70px; margin-bottom:10px;">BIENVENUE</h1>
                 <h2 style="color:#E2001A; font-size:40px;">{cfg.get('titre_mur')}</h2>
@@ -274,13 +292,12 @@ else:
                     <div style="font-size:30px; color:white; font-weight:bold; margin-bottom:20px;">
                         👥 {len(parts)} PARTICIPANTS CONNECTÉS
                     </div>
-                    <div style="width:80%; margin:0 auto; line-height:1.5;">
+                    <div style="width:90%; margin:0 auto; line-height:1.5;">
                         {tags_html}
                     </div>
                 </div>
             </div>
-        """
-        st.markdown(html_content, unsafe_allow_html=True)
+        """)
 
     elif mode == "votes":
         host = st.context.headers.get('host', 'localhost')
@@ -293,7 +310,7 @@ else:
             col_g_html = "".join([f"<div class='cand-item'>{c}</div>" for c in cands[:mid]])
             col_d_html = "".join([f"<div class='cand-item'>{c}</div>" for c in cands[mid:]])
             
-            st.markdown(f"""
+            display_clean_html(f"""
                 <div style="display:flex; justify-content:space-between; align-items:center; padding:0 50px; height:90vh;">
                     <div style="width:30%; text-align:left;">{col_g_html}</div>
                     <div style="width:30%; text-align:center;">
@@ -305,20 +322,23 @@ else:
                     </div>
                     <div style="width:30%; text-align:right;">{col_d_html}</div>
                 </div>
-            """, unsafe_allow_html=True)
+            """)
         elif reveal:
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
-            st.markdown("<h1 style='text-align:center; color:#FFD700; font-size:70px; margin-top:30px;'>🏆 RÉSULTATS 🏆</h1>", unsafe_allow_html=True)
+            
+            # Préparation des podiums pour éviter les erreurs d'index
+            first = sorted_v[0] if len(sorted_v) > 0 else ("-", 0)
+            second = sorted_v[1] if len(sorted_v) > 1 else ("-", 0)
+            third = sorted_v[2] if len(sorted_v) > 2 else ("-", 0)
+
             c1, c2, c3 = st.columns([1,1.2,1])
-            if len(sorted_v) > 1:
-                with c1: st.markdown(f"<div style='margin-top:100px; background:rgba(192,192,192,0.1); border:4px solid #C0C0C0; border-radius:20px; padding:20px; text-align:center; color:white;'><div style='font-size:50px;'>🥈</div><h2 style='font-size:30px;'>{sorted_v[1][0]}</h2><h3>{sorted_v[1][1]} Pts</h3></div>", unsafe_allow_html=True)
-            if len(sorted_v) > 0:
-                with c2: st.markdown(f"<div class='winner-zoom' style='background:rgba(255,215,0,0.1); border:4px solid #FFD700; border-radius:30px; padding:40px; text-align:center; color:white;'><div style='font-size:80px;'>🥇</div><h1 style='font-size:50px; color:#FFD700;'>{sorted_v[0][0]}</h1><h2>{sorted_v[0][1]} Pts</h2></div>", unsafe_allow_html=True)
-            if len(sorted_v) > 2:
-                with c3: st.markdown(f"<div style='margin-top:120px; background:rgba(205,127,50,0.1); border:4px solid #CD7F32; border-radius:20px; padding:20px; text-align:center; color:white;'><div style='font-size:50px;'>🥉</div><h2 style='font-size:30px;'>{sorted_v[2][0]}</h2><h3>{sorted_v[2][1]} Pts</h3></div>", unsafe_allow_html=True)
+            with c1: display_clean_html(f"<div style='margin-top:100px; background:rgba(192,192,192,0.1); border:4px solid #C0C0C0; border-radius:20px; padding:20px; text-align:center; color:white;'><div style='font-size:50px;'>🥈</div><h2 style='font-size:30px;'>{second[0]}</h2><h3>{second[1]} Pts</h3></div>")
+            with c2: display_clean_html(f"<div class='winner-zoom' style='background:rgba(255,215,0,0.1); border:4px solid #FFD700; border-radius:30px; padding:40px; text-align:center; color:white;'><div style='font-size:80px;'>🥇</div><h1 style='font-size:50px; color:#FFD700;'>{first[0]}</h1><h2>{first[1]} Pts</h2></div>")
+            with c3: display_clean_html(f"<div style='margin-top:120px; background:rgba(205,127,50,0.1); border:4px solid #CD7F32; border-radius:20px; padding:20px; text-align:center; color:white;'><div style='font-size:50px;'>🥉</div><h2 style='font-size:30px;'>{third[0]}</h2><h3>{third[1]} Pts</h3></div>")
+
         else:
-            st.markdown("""<div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;"><div style="border: 8px solid #E2001A; padding: 40px 80px; border-radius: 30px; background:rgba(0,0,0,0.8);"><h1 style="color:#E2001A; font-size:80px; margin:0;">🛑 VOTES CLOS</h1><h2 style="color:white; font-size:40px; margin-top:20px;">Calcul des résultats en cours...</h2></div></div>""", unsafe_allow_html=True)
+            display_clean_html("""<div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;"><div style="border: 8px solid #E2001A; padding: 40px 80px; border-radius: 30px; background:rgba(0,0,0,0.8);"><h1 style="color:#E2001A; font-size:80px; margin:0;">🛑 VOTES CLOS</h1><h2 style="color:white; font-size:40px; margin-top:20px;">Calcul des résultats en cours...</h2></div></div>""")
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
@@ -326,7 +346,7 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:120px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
         
-        st.markdown(f"""
+        display_clean_html(f"""
             <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; text-align:center; width:100%; pointer-events:none;">
                 <div style="display:inline-block; pointer-events:auto; background: rgba(0,0,0,0.8); padding: 40px; border-radius: 40px; border: 2px solid #444;">
                     {logo_part}
@@ -339,7 +359,7 @@ else:
                     </div>
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+        """)
         
         files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
         if files:
