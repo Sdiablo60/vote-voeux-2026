@@ -51,10 +51,14 @@ def load_json(file, default):
         except: return default
     return default
 
-# Fonction CRITIQUE corrigée : Nettoie le HTML avant affichage
+# --- FONCTION CRITIQUE D'AFFICHAGE ---
 def render_html(html_code):
-    html_code = textwrap.dedent(html_code).strip()
-    st.markdown(html_code, unsafe_allow_html=True)
+    """
+    Nettoie le HTML pour empêcher Streamlit de l'afficher comme du code brut.
+    Supprime les sauts de ligne et l'indentation.
+    """
+    clean_code = textwrap.dedent(html_code).strip().replace("\n", " ")
+    st.markdown(clean_code, unsafe_allow_html=True)
 
 # --- INIT SESSION ---
 if "config" not in st.session_state:
@@ -328,7 +332,7 @@ elif est_utilisateur:
 else:
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2000, key="wall_autorefresh")
-    cfg = load_json(CONFIG_FILE, default_config) # Correction ici : cfg partout
+    cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown("""
     <style>
