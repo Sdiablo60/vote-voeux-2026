@@ -8,13 +8,6 @@ from datetime import datetime
 import zipfile
 import uuid
 
-# --- GESTION PDF ---
-try:
-    from fpdf import FPDF
-    HAS_FPDF = True
-except ImportError:
-    HAS_FPDF = False
-
 # --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master", layout="wide")
 
@@ -50,10 +43,14 @@ def load_json(file, default):
         except: return default
     return default
 
-# Fonction CRITIQUE corrigée : Nettoie le HTML avant affichage
+def save_json(file, data):
+    with open(file, "w") as f: json.dump(data, f)
+
+# --- FONCTION CRITIQUE : Nettoyage HTML ---
 def render_html(html_code):
-    html_code = html_code.strip() 
-    st.markdown(html_code, unsafe_allow_html=True)
+    """Supprime l'indentation pour forcer le rendu HTML"""
+    import textwrap
+    st.markdown(textwrap.dedent(html_code), unsafe_allow_html=True)
 
 # --- INIT SESSION ---
 if "config" not in st.session_state:
@@ -360,20 +357,21 @@ else:
         parts = load_json(PARTICIPANTS_FILE, [])
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-60:]])
         
+        # NOTEZ L'ABSENCE D'INDENTATION DANS LA CHAINE CI-DESSOUS
         html = f"""
-        <div style="text-align:center; padding-top:5vh;">
-            {logo_part}
-            <h1 style="color:white; font-size:80px; margin:0;">BIENVENUE</h1>
-            <h2 style="color:#E2001A; font-size:40px; margin-top:10px;">{cfg.get('titre_mur')}</h2>
-            <h3 style="color:#CCC; margin-top:30px;">Veuillez patienter, l'événement va commencer...</h3>
-            <div style="margin-top:50px;">
-                <div style="font-size:30px; color:white; font-weight:bold; margin-bottom:20px;">
-                    👥 {len(parts)} PARTICIPANTS CONNECTÉS
-                </div>
-                <div style="width:90%; margin:0 auto; line-height:1.5;">{tags_html}</div>
-            </div>
+<div style="text-align:center; padding-top:5vh;">
+    {logo_part}
+    <h1 style="color:white; font-size:80px; margin:0;">BIENVENUE</h1>
+    <h2 style="color:#E2001A; font-size:40px; margin-top:10px;">{cfg.get('titre_mur')}</h2>
+    <h3 style="color:#CCC; margin-top:30px;">Veuillez patienter, l'événement va commencer...</h3>
+    <div style="margin-top:50px;">
+        <div style="font-size:30px; color:white; font-weight:bold; margin-bottom:20px;">
+            👥 {len(parts)} PARTICIPANTS CONNECTÉS
         </div>
-        """
+        <div style="width:90%; margin:0 auto; line-height:1.5;">{tags_html}</div>
+    </div>
+</div>
+"""
         render_html(html)
 
     # --- B. VOTES ---
@@ -400,18 +398,18 @@ else:
             col_d = build_list(cands[mid:])
             
             html = f"""
-            <div style="display:flex; height:90vh; padding:20px;">
-                <div style="width:30%; overflow-y:auto;">{col_g}</div>
-                <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                    <h1 style="color:#E2001A; font-size:60px;">A VOS VOTES !</h1>
-                    <div style="background:white; padding:20px; border-radius:20px; margin:30px;">
-                        <img src="data:image/png;base64,{qr_b64}" width="250">
-                    </div>
-                    <h2 style="color:white;">Scannez pour voter</h2>
-                </div>
-                <div style="width:30%; overflow-y:auto;">{col_d}</div>
-            </div>
-            """
+<div style="display:flex; height:90vh; padding:20px;">
+    <div style="width:30%; overflow-y:auto;">{col_g}</div>
+    <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+        <h1 style="color:#E2001A; font-size:60px;">A VOS VOTES !</h1>
+        <div style="background:white; padding:20px; border-radius:20px; margin:30px;">
+            <img src="data:image/png;base64,{qr_b64}" width="250">
+        </div>
+        <h2 style="color:white;">Scannez pour voter</h2>
+    </div>
+    <div style="width:30%; overflow-y:auto;">{col_d}</div>
+</div>
+"""
             render_html(html)
         
         elif cfg.get("reveal_resultats"):
@@ -432,16 +430,16 @@ else:
                 cls = "winner-card" if rank_idx == 0 else ""
                 img_html = ""
                 if name in cfg.get("candidats_images", {}):
-                    img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; margin-bottom:10px; border:3px solid {colors[rank_idx]};">'
+                    img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; margin-bottom:10px; border:3px solid {colors[rank_idx]};">'
                 
                 return f"""
-                <div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:20px; padding:30px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
-                    <div style="font-size:60px;">{ranks[rank_idx]}</div>
-                    {img_html}
-                    <h2 style="font-size:35px; margin:10px 0;">{name}</h2>
-                    <h3 style="font-size:25px; color:#ddd;">{score} pts</h3>
-                </div>
-                """
+<div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:20px; padding:30px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
+    <div style="font-size:60px;">{ranks[rank_idx]}</div>
+    {img_html}
+    <h2 style="font-size:35px; margin:10px 0;">{name}</h2>
+    <h3 style="font-size:25px; color:#ddd;">{score} pts</h3>
+</div>
+"""
 
             with c1: render_html(get_card(1, sorted_v[1] if len(sorted_v)>1 else None))
             with c2: render_html(get_card(0, sorted_v[0] if len(sorted_v)>0 else None))
@@ -450,13 +448,13 @@ else:
         else:
             # Votes CLOS
             render_html("""
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
-                <div style="border: 10px solid #E2001A; padding: 60px 100px; border-radius: 40px; background:rgba(0,0,0,0.8);">
-                    <h1 style="color:#E2001A; font-size:100px; margin:0;">🛑 VOTES CLOS</h1>
-                    <h2 style="color:white; font-size:50px; margin-top:20px;">Calcul des résultats...</h2>
-                </div>
-            </div>
-            """)
+<div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
+    <div style="border: 10px solid #E2001A; padding: 60px 100px; border-radius: 40px; background:rgba(0,0,0,0.8);">
+        <h1 style="color:#E2001A; font-size:100px; margin:0;">🛑 VOTES CLOS</h1>
+        <h2 style="color:white; font-size:50px; margin-top:20px;">Calcul des résultats...</h2>
+    </div>
+</div>
+""")
 
     # --- C. PHOTOS LIVE ---
     elif mode == "photos_live":
@@ -464,49 +462,31 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         
-        # Overlay fixe
+        # LOGO SPECIAL POUR CE MODE
+        logo_live = ""
+        if config.get("logo_b64"):
+            logo_live = f'<img src="data:image/png;base64,{config["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
+        
+        title_html = '<h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>'
+
+        # ATTENTION : PAS D'INDENTATION CI-DESSOUS DANS LA CHAINE F-STRING
         html = f"""
-        <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999; text-align:center;">
-            <div style="background: rgba(0,0,0,0.85); padding: 40px; border-radius: 40px; border: 2px solid #555; box-shadow: 0 0 50px black;">
-                {logo_part}
-                <h1 style="color:white; font-size:60px; text-transform:uppercase; margin-bottom:20px;">MUR PHOTOS LIVE</h1>
-                <div style="background:white; padding:15px; border-radius:20px; display:inline-block; margin-bottom:20px;">
-                    <img src="data:image/png;base64,{qr_b64}" width="200">
-                </div>
-                <br>
-                <div style="background:#E2001A; color:white; padding:10px 40px; border-radius:50px; font-weight:bold; font-size:28px; display:inline-block; border:3px solid white;">
-                    📸 SCANNEZ POUR ENVOYER
-                </div>
-            </div>
-        </div>
-        """
+<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999; display:flex; flex-direction:column; align-items:center; gap:20px;">
+    {logo_live}
+    {title_html}
+    <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
+        <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
+    </div>
+    <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
+        📸 SCANNEZ POUR PARTICIPER
+    </div>
+</div>
+"""
         render_html(html)
         
-        # Bulles
-        files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
-        img_list = []
-        if files:
-            for f in files[:30]:
-                try: 
-                    with open(f, "rb") as i: img_list.append(f"data:image/jpeg;base64,{base64.b64encode(i.read()).decode()}")
-                except: pass
-            
-            components.html(f"""<script>
-                var imgs = {json.dumps(img_list)};
-                // Nettoyage radical
-                var old = window.parent.document.querySelectorAll('.bubble-img');
-                old.forEach(e => e.remove());
-                
-                imgs.forEach(src => {{
-                    var i = document.createElement('img'); i.src = src; i.className = 'bubble-img';
-                    var size = Math.random()*120 + 80;
-                    i.style.cssText = 'position:absolute; border-radius:50%; border:3px solid #E2001A; object-fit:cover; z-index:1; width:'+size+'px; height:'+size+'px; left:'+(Math.random()*90)+'vw; top:'+(Math.random()*90)+'vh; transition: all 3s ease-in-out;';
-                    window.parent.document.body.appendChild(i);
-                    
-                    // Mouvement simple CSS
-                    setInterval(() => {{
-                        i.style.left = (Math.random()*90) + 'vw';
-                        i.style.top = (Math.random()*90) + 'vh';
-                    }}, 3000 + Math.random()*2000);
-                }});
-            </script>""", height=0)
+        photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
+        img_array_js = []
+        for photo_path in recent_photos:
+            with open(photo_path, "rb") as f: b64 = base64.b64encode(f.read()).decode(); img_array_js.append(f"data:image/jpeg;base64,{b64}")
+        js_img_list = json.dumps(img_array_js)
+        components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>const images = {js_img_list}; const container = document.getElementById('container'); const bubbles = []; const speed = 2.5; const centerX_min = window.innerWidth * 0.35; const centerX_max = window.innerWidth * 0.65; const centerY_min = window.innerHeight * 0.30; const centerY_max = window.innerHeight * 0.70; images.forEach((src, index) => {{ const img = document.createElement('img'); img.src = src; img.className = 'bubble'; const size = 80 + Math.random() * 150; let startX, startY; do {{ startX = Math.random() * (window.innerWidth - 150); startY = Math.random() * (window.innerHeight - 150); }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max); const bubble = {{ element: img, x: startX, y: startY, vx: (Math.random() - 0.5) * speed * 2, vy: (Math.random() - 0.5) * speed * 2, size: size }}; img.style.width = bubble.size + 'px'; img.style.height = bubble.size + 'px'; container.appendChild(img); bubbles.push(bubble); }}); function animate() {{ const w = window.innerWidth; const h = window.innerHeight; bubbles.forEach(b => {{ b.x += b.vx; b.y += b.vy; if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; if (b.x + b.size > centerX_min && b.x < centerX_max && b.y + b.size > centerY_min && b.y < centerY_max) {{ const centerX = (centerX_min + centerX_max) / 2; if (b.x < centerX) b.vx = -Math.abs(b.vx); else b.vx = Math.abs(b.vx); }} b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`; }}); requestAnimationFrame(animate); }} animate();</script></body></html>""", height=900)
