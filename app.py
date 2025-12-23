@@ -13,15 +13,11 @@ st.set_page_config(page_title="Régie Master - Pôle Aéroportuaire", layout="wi
 
 GALLERY_DIR, ADMIN_DIR = "galerie_images", "galerie_admin"
 LIVE_DIR = "galerie_live_users"
-VOTES_FILE = "votes.json"
-CONFIG_FILE = "config_mur.json"
-PARTICIPANTS_FILE = "participants.json" # Nouveau fichier pour les pseudos
+VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE = "votes.json", "participants.json", "config_mur.json"
 
-# Création des dossiers
 for d in [GALLERY_DIR, ADMIN_DIR, LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
-# Liste des 10 vidéos/candidats
 DEFAULT_CANDIDATS = [
     "1. BU PAX", "2. BU FRET", "3. BU B2B", "4. SERVICE RH", 
     "5. SERVICE IT", "6. DPMI (Atelier)", "7. SERVICE FINANCIER", 
@@ -39,7 +35,6 @@ def load_json(file, default):
 def save_json(file, data):
     with open(file, "w") as f: json.dump(data, f)
 
-# Initialisation Config
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, {
         "mode_affichage": "attente", 
@@ -59,7 +54,6 @@ if "config" not in st.session_state:
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- COMPRESSION PHOTO ---
 def save_optimized_photo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -71,10 +65,9 @@ def save_optimized_photo(uploaded_file):
         return True
     except: return False
 
-# --- EFFETS VISUELS ---
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
-        components.html("""<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>""", height=0)
+        components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
         return
     
     duration = max(2, 20 - (speed * 0.35))
@@ -196,20 +189,16 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, {})
     st.markdown("<style>.stApp {background-color:black; color:white;}</style>", unsafe_allow_html=True)
     
-    # Étape 1 : Demande de Pseudo
     if "user_pseudo" not in st.session_state:
         st.title("👋 Bienvenue !")
         pseudo = st.text_input("Entrez votre Prénom / Pseudo :")
         if st.button("Entrer") and pseudo:
             st.session_state.user_pseudo = pseudo
-            # Enregistrement du participant
             parts = load_json(PARTICIPANTS_FILE, [])
             if pseudo not in parts:
                 parts.append(pseudo)
                 save_json(PARTICIPANTS_FILE, parts)
             st.rerun()
-    
-    # Étape 2 : Interface principale
     else:
         st.markdown(f"### Bonjour {st.session_state.user_pseudo} !")
         
@@ -218,7 +207,6 @@ elif est_utilisateur:
             photo = st.camera_input("Prendre une photo")
             if photo:
                 if save_optimized_photo(photo): st.success("Envoyée !")
-        
         else:
             if not cfg.get("session_ouverte"):
                 st.warning("⏳ Les votes ne sont pas encore ouverts.")
@@ -245,53 +233,23 @@ else:
     st_autorefresh(interval=3000, key="wall")
     cfg = load_json(CONFIG_FILE, {})
     
-    # CSS GLOBAL
     st.markdown("""
     <style>
         body, .stApp { background-color: black; overflow: hidden; font-family: 'Arial', sans-serif; }
         [data-testid='stHeader'] { display: none; }
         .block-container { padding: 0 !important; max-width: 100% !important; }
-        
-        /* Style des Tags Utilisateurs */
-        .user-tag {
-            display: inline-block;
-            background: rgba(255, 255, 255, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 8px 15px;
-            margin: 5px;
-            border-radius: 20px;
-            font-size: 18px;
-            backdrop-filter: blur(5px);
-        }
-        
-        /* Zoom Effect pour le vainqueur */
-        @keyframes zoomPulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.1); box-shadow: 0 0 30px gold; }
-            100% { transform: scale(1); }
-        }
-        .winner-zoom {
-            animation: zoomPulse 3s infinite ease-in-out;
-            border: 6px solid #FFD700 !important;
-            background: rgba(255, 215, 0, 0.1) !important;
-            z-index: 10;
-        }
-        
-        /* Listes des candidats */
+        .user-tag { display: inline-block; background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.3); color: white; padding: 8px 15px; margin: 5px; border-radius: 20px; font-size: 18px; backdrop-filter: blur(5px); }
+        @keyframes zoomPulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); box-shadow: 0 0 30px gold; } 100% { transform: scale(1); } }
+        .winner-zoom { animation: zoomPulse 3s infinite ease-in-out; border: 6px solid #FFD700 !important; background: rgba(255, 215, 0, 0.1) !important; z-index: 10; }
         .cand-item { color: white; font-size: 24px; padding: 10px; border-bottom: 1px solid #333; }
-        
-        /* Bulles Photos */
         .bubble { position: absolute; border-radius: 50%; border: 3px solid #E2001A; object-fit: cover; z-index: 1; pointer-events: none; }
     </style>
     """, unsafe_allow_html=True)
 
-    # Logique d'affichage
     mode = cfg.get("mode_affichage")
     session_open = cfg.get("session_ouverte")
     reveal = cfg.get("reveal_resultats")
     
-    # Définition de la clé d'effet
     if mode == "photos_live": key_eff = "photos_live"
     elif reveal: key_eff = "podium"
     elif mode == "votes": key_eff = "votes_open" if session_open else "votes_closed"
@@ -299,21 +257,19 @@ else:
     
     inject_visual_effect(cfg["screen_effects"].get(key_eff, "Aucun"), cfg.get("effect_intensity", 25), cfg.get("effect_speed", 25))
 
-    # --- CONTENU PAR MODE ---
-
-    # A. ACCUEIL (ATTENTE)
+    # --- AFFICHAGE HTML CORRIGÉ ---
     if mode == "attente":
-        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:180px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
+        # Construction HTML propre pour éviter l'affichage du code brut
+        logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:180px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
         parts = load_json(PARTICIPANTS_FILE, [])
-        tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-70:]]) # Max 70 derniers
+        tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-70:]])
         
-        st.markdown(f"""
+        html_content = f"""
             <div style="text-align:center; padding-top:10vh;">
-                {logo_html}
+                {logo_part}
                 <h1 style="color:white; font-size:70px; margin-bottom:10px;">BIENVENUE</h1>
                 <h2 style="color:#E2001A; font-size:40px;">{cfg.get('titre_mur')}</h2>
                 <h3 style="color:#AAA; margin-top:30px;">Veuillez patienter, l'événement va commencer...</h3>
-                
                 <div style="margin-top:50px;">
                     <div style="font-size:30px; color:white; font-weight:bold; margin-bottom:20px;">
                         👥 {len(parts)} PARTICIPANTS CONNECTÉS
@@ -323,16 +279,15 @@ else:
                     </div>
                 </div>
             </div>
-        """, unsafe_allow_html=True)
+        """
+        st.markdown(html_content, unsafe_allow_html=True)
 
-    # B. VOTES (ON / OFF)
     elif mode == "votes":
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         
         if session_open:
-            # Votes OUVERTS : 3 colonnes (Liste G, QR, Liste D)
             cands = cfg.get("candidats", [])
             mid = len(cands)//2
             col_g_html = "".join([f"<div class='cand-item'>{c}</div>" for c in cands[:mid]])
@@ -351,69 +306,30 @@ else:
                     <div style="width:30%; text-align:right;">{col_d_html}</div>
                 </div>
             """, unsafe_allow_html=True)
-        
         elif reveal:
-            # PODIUM
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
-            
             st.markdown("<h1 style='text-align:center; color:#FFD700; font-size:70px; margin-top:30px;'>🏆 RÉSULTATS 🏆</h1>", unsafe_allow_html=True)
-            
-            c1, c2, c3 = st.columns([1,1.2,1]) # Colonne du milieu plus large pour le 1er
-            
-            # Affichage 2ème
+            c1, c2, c3 = st.columns([1,1.2,1])
             if len(sorted_v) > 1:
-                with c1:
-                    st.markdown(f"""
-                    <div style="margin-top:100px; background:rgba(192,192,192,0.1); border:4px solid #C0C0C0; border-radius:20px; padding:20px; text-align:center; color:white;">
-                        <div style="font-size:50px;">🥈</div>
-                        <h2 style="font-size:30px;">{sorted_v[1][0]}</h2>
-                        <h3>{sorted_v[1][1]} Pts</h3>
-                    </div>""", unsafe_allow_html=True)
-            
-            # Affichage 1er (ZOOM)
+                with c1: st.markdown(f"<div style='margin-top:100px; background:rgba(192,192,192,0.1); border:4px solid #C0C0C0; border-radius:20px; padding:20px; text-align:center; color:white;'><div style='font-size:50px;'>🥈</div><h2 style='font-size:30px;'>{sorted_v[1][0]}</h2><h3>{sorted_v[1][1]} Pts</h3></div>", unsafe_allow_html=True)
             if len(sorted_v) > 0:
-                with c2:
-                    st.markdown(f"""
-                    <div class="winner-zoom" style="background:rgba(255,215,0,0.1); border:4px solid #FFD700; border-radius:30px; padding:40px; text-align:center; color:white;">
-                        <div style="font-size:80px;">🥇</div>
-                        <h1 style="font-size:50px; color:#FFD700;">{sorted_v[0][0]}</h1>
-                        <h2>{sorted_v[0][1]} Pts</h2>
-                    </div>""", unsafe_allow_html=True)
-            
-            # Affichage 3ème
+                with c2: st.markdown(f"<div class='winner-zoom' style='background:rgba(255,215,0,0.1); border:4px solid #FFD700; border-radius:30px; padding:40px; text-align:center; color:white;'><div style='font-size:80px;'>🥇</div><h1 style='font-size:50px; color:#FFD700;'>{sorted_v[0][0]}</h1><h2>{sorted_v[0][1]} Pts</h2></div>", unsafe_allow_html=True)
             if len(sorted_v) > 2:
-                with c3:
-                    st.markdown(f"""
-                    <div style="margin-top:120px; background:rgba(205,127,50,0.1); border:4px solid #CD7F32; border-radius:20px; padding:20px; text-align:center; color:white;">
-                        <div style="font-size:50px;">🥉</div>
-                        <h2 style="font-size:30px;">{sorted_v[2][0]}</h2>
-                        <h3>{sorted_v[2][1]} Pts</h3>
-                    </div>""", unsafe_allow_html=True)
-
+                with c3: st.markdown(f"<div style='margin-top:120px; background:rgba(205,127,50,0.1); border:4px solid #CD7F32; border-radius:20px; padding:20px; text-align:center; color:white;'><div style='font-size:50px;'>🥉</div><h2 style='font-size:30px;'>{sorted_v[2][0]}</h2><h3>{sorted_v[2][1]} Pts</h3></div>", unsafe_allow_html=True)
         else:
-            # Votes CLOS (Attente résultats)
-            st.markdown(f"""
-                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
-                    <div style="border: 8px solid #E2001A; padding: 40px 80px; border-radius: 30px; background:rgba(0,0,0,0.8);">
-                        <h1 style="color:#E2001A; font-size:80px; margin:0;">🛑 VOTES CLOS</h1>
-                        <h2 style="color:white; font-size:40px; margin-top:20px;">Calcul des résultats en cours...</h2>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
+            st.markdown("""<div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;"><div style="border: 8px solid #E2001A; padding: 40px 80px; border-radius: 30px; background:rgba(0,0,0,0.8);"><h1 style="color:#E2001A; font-size:80px; margin:0;">🛑 VOTES CLOS</h1><h2 style="color:white; font-size:40px; margin-top:20px;">Calcul des résultats en cours...</h2></div></div>""", unsafe_allow_html=True)
 
-    # C. MUR PHOTO LIVE
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:120px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
+        logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:120px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
         
-        # Bloc Central Fixe
         st.markdown(f"""
             <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1000; text-align:center; width:100%; pointer-events:none;">
                 <div style="display:inline-block; pointer-events:auto; background: rgba(0,0,0,0.8); padding: 40px; border-radius: 40px; border: 2px solid #444;">
-                    {logo_html}
+                    {logo_part}
                     <div style="background:white; padding:15px; border-radius:20px; display:inline-block; margin-bottom:20px;">
                         <img src="data:image/png;base64,{qr_b64}" width="200">
                     </div>
@@ -425,7 +341,6 @@ else:
             </div>
         """, unsafe_allow_html=True)
         
-        # Animation des bulles
         files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
         if files:
             img_list = [f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in files[:25]]
