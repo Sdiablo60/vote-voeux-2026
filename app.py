@@ -98,9 +98,9 @@ def save_live_photo(uploaded_file):
         unique_id = uuid.uuid4().hex[:6]
         filename = f"live_{timestamp}_{unique_id}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
+        
         img = Image.open(uploaded_file)
-        # Rotation EXIF
-        try: 
+        try: # Rotation EXIF
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -111,6 +111,7 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
+        
         img = img.convert("RGB")
         img.thumbnail((800, 800)) 
         img.save(filepath, "JPEG", quality=80, optimize=True)
@@ -202,6 +203,7 @@ if est_admin:
     else:
         with st.sidebar:
             st.title("🎛️ RÉGIE")
+            # Petit rappel logo
             if st.session_state.config.get("logo_b64"):
                 st.image(BytesIO(base64.b64decode(st.session_state.config["logo_b64"])), use_container_width=True)
             
@@ -268,43 +270,63 @@ if est_admin:
 
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
-            t1, t2 = st.tabs(["Général", "Candidats & Images"])
             
-            with t1:
-                new_t = st.text_input("Titre", value=st.session_state.config["titre_mur"])
+            # 1. PARAMETRES GLOBAUX
+            st.subheader("1️⃣ Identité & Logo")
+            c_g1, c_g2 = st.columns([2, 1])
+            with c_g1:
+                new_t = st.text_input("Titre de l'événement", value=st.session_state.config["titre_mur"])
                 if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; force_refresh(); st.rerun()
-                st.write("---")
-                st.subheader("Logo Événement")
+            with c_g2:
                 up_l = st.file_uploader("Logo (PNG/JPG)", type=["png", "jpg"])
                 if up_l:
                     b64 = process_image_upload(up_l)
                     if b64: st.session_state.config["logo_b64"] = b64; force_refresh(); st.success("Logo chargé !"); st.rerun()
-                if st.session_state.config.get("logo_b64"): 
-                    st.image(BytesIO(base64.b64decode(st.session_state.config["logo_b64"])), width=150)
+            
+            st.markdown("---")
+            
+            # 2. GESTION CANDIDATS (TABLEAU EDITABLE)
+            st.subheader("2️⃣ Gestion des Candidats (Vidéos)")
+            st.info("Modifiez la liste ci-dessous puis cliquez sur Enregistrer.")
+            
+            df_cands = pd.DataFrame([{"Nom": c} for c in st.session_state.config["candidats"]])
+            edited_df = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True, key="editor_cands")
+            
+            if st.button("💾 ENREGISTRER LA LISTE", type="primary"):
+                new_list = [str(x) for x in edited_df["Nom"].tolist() if str(x).strip() != ""]
+                st.session_state.config["candidats"] = new_list
+                save_config()
+                st.success("Liste mise à jour !"); time.sleep(1); st.rerun()
 
-            with t2:
-                st.subheader("Liste des Candidats")
-                df_cands = pd.DataFrame(st.session_state.config["candidats"], columns=["Candidat"])
-                edited_df = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True)
-                if st.button("💾 Enregistrer Liste"):
-                    new_list = [x for x in edited_df["Candidat"].astype(str).tolist() if x.strip() != ""]
-                    st.session_state.config["candidats"] = new_list; save_config(); st.rerun()
-                
-                st.write("---")
-                st.subheader("Images par Candidat")
-                sel_cand = st.selectbox("Choisir Candidat", st.session_state.config["candidats"])
-                c_img1, c_img2 = st.columns(2)
-                with c_img1:
-                    up_c = st.file_uploader(f"Image pour {sel_cand}", type=["png", "jpg"], key=f"up_{sel_cand}")
-                    if up_c:
-                        b64 = process_image_upload(up_c)
-                        if b64: st.session_state.config["candidats_images"][sel_cand] = b64; save_config(); st.rerun()
-                with c_img2:
-                    if sel_cand in st.session_state.config["candidats_images"]:
-                        st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][sel_cand])), width=100)
-                        if st.button("Supprimer Image"):
-                            del st.session_state.config["candidats_images"][sel_cand]; save_config(); st.rerun()
-                    else: st.info("Pas d'image")
+            st.markdown("---")
+            
+            # 3. ASSOCIATION PHOTOS (VUE EN FACE)
+            st.subheader("3️⃣ Association Photos")
+            st.write("Associez une image à chaque candidat.")
+            
+            for cand in st.session_state.config["candidats"]:
+                with st.container():
+                    c1, c2, c3 = st.columns([2, 1, 2], vertical_alignment="center")
+                    with c1:
+                        st.markdown(f"### 🎥 {cand}")
+                    with c2:
+                        if cand in st.session_state.config["candidats_images"]:
+                            st.image(BytesIO(base64.b64decode(st.session_state.config["candidats_images"][cand])), width=80)
+                        else:
+                            st.caption("🚫 Pas d'image")
+                    with c3:
+                        c_up, c_del = st.columns([3, 1])
+                        with c_up:
+                            up = st.file_uploader(f"Img {cand}", type=["png","jpg"], key=f"u_{cand}", label_visibility="collapsed")
+                            if up:
+                                b64 = process_image_upload(up)
+                                if b64: st.session_state.config["candidats_images"][cand] = b64; save_config(); st.rerun()
+                        with c_del:
+                            if cand in st.session_state.config["candidats_images"]:
+                                if st.button("🗑️", key=f"d_{cand}"):
+                                    del st.session_state.config["candidats_images"][cand]
+                                    save_config(); st.rerun()
+                    st.divider()
 
         elif menu == "📸 Médiathèque":
             st.title("📸 Médiathèque & Export")
@@ -413,10 +435,6 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # LOGO MOBILE
-    if cfg.get("logo_b64"):
-        st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
-
     # --- SECURITE : JS POUR DETECTER LE LOCALSTORAGE ---
     if not is_blocked:
         components.html("""
@@ -448,7 +466,6 @@ elif est_utilisateur:
     # 2.2 ECRAN REGLES (NOUVEAU)
     elif not st.session_state.rules_accepted and cfg.get("mode_affichage") != "photos_live":
         st.title("📜 Règles du vote")
-        st.info("Merci de lire attentivement avant de voter.")
         
         st.markdown("""
         <div style="background:#222; padding:15px; border-radius:10px; border:1px solid #E2001A;">
@@ -457,7 +474,7 @@ elif est_utilisateur:
                 <li>Le vote est <strong>unique</strong> et définitif.</li>
             </ul>
             <hr>
-            <h3 style="color:#E2001A">🏆 Pondération des points :</h3>
+            <h3 style="color:#E2001A">🏆 Pondération :</h3>
             <ul style="font-size:18px;">
                 <li>🥇 <strong>1er choix :</strong> 5 Points</li>
                 <li>🥈 <strong>2ème choix :</strong> 3 Points</li>
