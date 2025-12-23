@@ -59,6 +59,7 @@ def load_json(file, default):
     return default
 
 def render_html(html_code):
+    """Nettoie le HTML pour affichage propre sans bug d'indentation"""
     clean_code = textwrap.dedent(html_code).strip().replace("\n", " ")
     st.markdown(clean_code, unsafe_allow_html=True)
 
@@ -97,9 +98,9 @@ def save_live_photo(uploaded_file):
         unique_id = uuid.uuid4().hex[:6]
         filename = f"live_{timestamp}_{unique_id}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
+        
         img = Image.open(uploaded_file)
-        # Rotation EXIF
-        try: 
+        try: # Rotation EXIF
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -110,11 +111,21 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
+        
         img = img.convert("RGB")
         img.thumbnail((800, 800)) 
         img.save(filepath, "JPEG", quality=80, optimize=True)
         return True
     except: return False
+
+def update_presence(is_active_user=False):
+    presence_data = load_json(PARTICIPANTS_FILE, {})
+    if isinstance(presence_data, list): presence_data = {}
+    now = time.time()
+    clean_data = {uid: ts for uid, ts in presence_data.items() if now - ts < 10} 
+    if is_active_user: clean_data[st.session_state.my_uuid] = now
+    with open(PARTICIPANTS_FILE, "w") as f: json.dump(clean_data, f)
+    return len(clean_data)
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
@@ -219,11 +230,10 @@ if est_admin:
             if pwd == "ADMIN_LIVE_MASTER": st.session_state["auth"] = True; st.rerun()
     else:
         with st.sidebar:
-            st.title("🎛️ NAVIGATION")
-            st.markdown("---")
+            st.title("🎛️ RÉGIE")
+            st.markdown("""<a href="/" target="_blank"><div style="background-color: #E2001A; color: white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;">📺 OUVRIR MUR SOCIAL</div></a>""", unsafe_allow_html=True)
+            st.markdown("""<a href="/?mode=vote" target="_blank"><div style="background-color: #333; color: white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 20px;">📱 APERÇU MOBILE</div></a>""", unsafe_allow_html=True)
             menu = st.radio("Menu", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque", "📊 Data"], label_visibility="collapsed")
-            st.markdown("---")
-            st.markdown("""<a href="/" target="_blank"><div style="background-color: #E2001A; color: white; padding: 10px; border-radius: 5px; text-align: center; margin-bottom: 10px;">📺 OUVRIR MUR SOCIAL</div></a>""", unsafe_allow_html=True)
             if st.button("🔓 Déconnexion"): st.session_state["auth"] = False; st.rerun()
 
         if menu == "🔴 PILOTAGE LIVE":
@@ -247,22 +257,40 @@ if est_admin:
                 cfg.update({"mode_affichage": "photos_live", "session_ouverte": False, "reveal_resultats": False}); save_config(); st.rerun()
 
             st.divider()
-            st.subheader("2️⃣ Effets & Monitoring")
+            st.subheader("📡 Effets")
             c_e1, c_e2 = st.columns(2)
             with c_e1:
-                EFFS = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace"]
-                cfg["screen_effects"]["attente"] = st.selectbox("Effet Accueil", EFFS, index=EFFS.index(cfg["screen_effects"].get("attente","Aucun")))
-                cfg["screen_effects"]["podium"] = st.selectbox("Effet Podium", EFFS, index=EFFS.index(cfg["screen_effects"].get("podium","Aucun")))
-                if st.button("💾 SAUVER EFFETS"): save_config(); st.toast("OK")
+                intensity = st.slider("Densité", 0, 50, cfg["effect_intensity"])
+                speed = st.slider("Vitesse", 0, 50, cfg["effect_speed"])
+                if intensity != cfg["effect_intensity"] or speed != cfg["effect_speed"]:
+                    cfg["effect_intensity"] = intensity; cfg["effect_speed"] = speed; save_config(); st.rerun()
+            
+            EFFS = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis", "🌌 Espace"]
             with c_e2:
-                voters_list = load_json(VOTERS_FILE, [])
-                st.metric("👥 Participants", len(voters_list))
-                if st.button("♻️ RESET VOTES", type="primary"):
+                cfg["screen_effects"]["attente"] = st.selectbox("Accueil", EFFS, index=EFFS.index(cfg["screen_effects"].get("attente","Aucun")))
+                cfg["screen_effects"]["votes_open"] = st.selectbox("Vote On", EFFS, index=EFFS.index(cfg["screen_effects"].get("votes_open","Aucun")))
+                cfg["screen_effects"]["podium"] = st.selectbox("Podium", EFFS, index=EFFS.index(cfg["screen_effects"].get("podium","Aucun")))
+                cfg["screen_effects"]["photos_live"] = st.selectbox("Photos", EFFS, index=EFFS.index(cfg["screen_effects"].get("photos_live","Aucun")))
+            if st.button("💾 SAUVER EFFETS"): save_config(); st.toast("OK")
+
+            st.divider()
+            st.subheader("2️⃣ Monitoring")
+            voters_list = load_json(VOTERS_FILE, [])
+            st.metric("👥 Participants Validés", len(voters_list))
+            
+            with st.expander("🗑️ ZONE DE DANGER (Reset)"):
+                c_r1, c_r2 = st.columns(2)
+                if c_r1.button("♻️ RESET VOTES", type="primary", use_container_width=True):
                     for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE, DETAILED_VOTES_FILE]: 
                         if os.path.exists(f): os.remove(f)
                     st.session_state.config["session_id"] = str(int(time.time()))
                     save_config()
                     st.toast("✅ Votes effacés !"); time.sleep(1); st.rerun()
+                
+                if c_r2.button("🗑️ VIDER PHOTOS", type="primary", use_container_width=True):
+                    files = glob.glob(f"{LIVE_DIR}/*"); 
+                    for f in files: os.remove(f)
+                    st.toast("✅ Galerie vidée !"); time.sleep(1); st.rerun()
 
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
@@ -280,7 +308,7 @@ if est_admin:
 
             st.divider()
             
-            # --- REFONTE GESTION CANDIDATS ---
+            # --- GESTION CANDIDATS ---
             st.subheader("2️⃣ Gestion des Candidats")
             st.info("Ajoutez ou supprimez des candidats ici.")
             
@@ -348,62 +376,104 @@ if est_admin:
                         save_config(); st.rerun()
 
         elif menu == "📸 Médiathèque":
-            st.title("📸 Médiathèque")
+            st.title("📸 Médiathèque & Export")
             files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
             
             if not files:
-                st.warning("Vide.")
+                st.warning("Aucune photo dans la galerie.")
             else:
-                c1, c2 = st.columns(2)
-                with c1:
+                c_act1, c_act2, c_act3 = st.columns([1, 1, 2])
+                with c_act1:
                     zip_buffer = BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w") as zf:
                         for f in files: zf.write(f, os.path.basename(f))
-                    st.download_button("📥 TOUT TÉLÉCHARGER", data=zip_buffer.getvalue(), file_name="photos.zip", mime="application/zip")
-                with c2:
-                    if st.button("🗑️ TOUT SUPPRIMER"):
+                    st.download_button("📥 TOUT TÉLÉCHARGER", data=zip_buffer.getvalue(), file_name="photos_all.zip", mime="application/zip", use_container_width=True)
+                with c_act2:
+                    if st.button("🗑️ TOUT SUPPRIMER", type="primary", use_container_width=True):
                         st.session_state.confirm_delete = True
                 
                 if st.session_state.confirm_delete:
-                    if st.button("CONFIRMER SUPPRESSION TOTALE"):
+                    st.error("Êtes-vous sûr ?")
+                    c_yes, c_no = st.columns(2)
+                    if c_yes.button("OUI, TOUT EFFACER"):
                         for f in files: os.remove(f)
-                        st.session_state.confirm_delete = False; st.rerun()
+                        st.session_state.confirm_delete = False; st.success("Terminé !"); time.sleep(1); st.rerun()
+                    if c_no.button("NON"): st.session_state.confirm_delete = False; st.rerun()
 
-                st.write(f"{len(files)} photos.")
+                st.divider()
+                st.write(f"**{len(files)} Photos**")
                 
-                # Vue Liste avec sélection
-                view = st.radio("Vue", ["Grille", "Liste"], horizontal=True)
-                if view == "Grille":
+                view_mode = st.radio("Affichage :", ["🖼️ Pellicule (Grille)", "📝 Liste (Sélection)"], horizontal=True)
+                
+                if "Grille" in view_mode:
                     cols = st.columns(6)
                     for i, f in enumerate(files):
                         with cols[i%6]:
                             st.image(f, use_container_width=True)
-                            if st.button("X", key=f"d{i}"): os.remove(f); st.rerun()
+                            if st.button("❌", key=f"del_g_{i}"): os.remove(f); st.rerun()
                 else:
-                    sel = []
+                    st.write("Sélectionnez les photos à exporter ou supprimer :")
+                    c1, c2, c3 = st.columns([0.5, 3, 1])
+                    c1.write("**Img**"); c2.write("**Fichier**"); c3.write("**Action**")
+                    
+                    selected_files = []
                     for i, f in enumerate(files):
-                        c1, c2 = st.columns([1, 5])
+                        c1, c2, c3 = st.columns([0.5, 3, 1], vertical_alignment="center")
                         with c1: st.image(f, width=50)
                         with c2: 
-                            if st.checkbox(os.path.basename(f), key=f"c{i}"): sel.append(f)
+                            if st.checkbox(os.path.basename(f), key=f"chk_{i}"):
+                                selected_files.append(f)
+                        with c3:
+                            if st.button("🗑️", key=f"del_l_{i}"): os.remove(f); st.rerun()
                     
-                    if sel:
-                        if st.button(f"Supprimer {len(sel)} photos"):
-                            for f in sel: os.remove(f)
-                            st.rerun()
+                    if selected_files:
+                        st.divider()
+                        st.write(f"{len(selected_files)} photos sélectionnées")
+                        sc1, sc2 = st.columns(2)
+                        with sc1:
+                            zip_sel = BytesIO()
+                            with zipfile.ZipFile(zip_sel, "w") as zf:
+                                for f in selected_files: zf.write(f, os.path.basename(f))
+                            st.download_button("📥 TÉLÉCHARGER SÉLECTION", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True)
+                        with sc2:
+                            if st.button("🗑️ SUPPRIMER SÉLECTION", type="primary", use_container_width=True):
+                                for f in selected_files: os.remove(f)
+                                st.rerun()
 
         elif menu == "📊 Data":
-            st.title("📊 Données")
+            st.title("📊 Données & Exports")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 valid = {k:v for k,v in v_data.items() if k in st.session_state.config["candidats"]}
                 if valid:
+                    # 1. GRAPHIQUE
+                    if HAS_ALTAIR:
+                        df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
+                        st.subheader("Graphique des Scores")
+                        chart = alt.Chart(df).mark_bar().encode(
+                            x='Points',
+                            y=alt.Y('Candidat', sort='-x'),
+                            color=alt.Color('Points', scale=alt.Scale(scheme='goldorange'))
+                        )
+                        st.altair_chart(chart, use_container_width=True)
+
+                    # 2. TABLEAU
+                    st.subheader("Tableau des Scores")
                     df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
                     st.dataframe(df, use_container_width=True)
                     if HAS_FPDF:
-                        pdf = generate_pdf_report(df, "RESULTATS")
-                        st.download_button("PDF", data=pdf, file_name="res.pdf", mime="application/pdf")
-            else: st.info("Aucun vote.")
+                        pdf_bytes = generate_pdf_report(df, "RESULTATS")
+                        st.download_button("📄 PDF RESULTATS", data=pdf_bytes, file_name="resultats.pdf", mime="application/pdf")
+            else: st.info("Aucun vote enregistré.")
+            
+            st.divider()
+            st.subheader("Détail des Votants")
+            det_votes = load_json(DETAILED_VOTES_FILE, [])
+            if det_votes:
+                df_det = pd.DataFrame(det_votes)
+                st.dataframe(df_det, use_container_width=True)
+                st.download_button("📥 CSV DETAILLÉ", data=df_det.to_csv().encode('utf-8'), file_name="votes_details.csv", mime="text/csv")
+            else: st.info("Aucun détail.")
 
 # =========================================================
 # 2. APPLICATION MOBILE (UTILISATEUR)
@@ -444,6 +514,7 @@ elif est_utilisateur:
     # 2.2 ECRAN REGLES (NOUVEAU)
     elif not st.session_state.rules_accepted and cfg.get("mode_affichage") != "photos_live":
         st.title("📜 Règles du vote")
+        
         st.markdown("""
         <div style="background:#222; padding:15px; border-radius:10px; border:1px solid #E2001A;">
             <ul style="font-size:18px;">
@@ -542,6 +613,10 @@ else:
         .winner-card { border: 6px solid #FFD700 !important; background: rgba(255, 215, 0, 0.1) !important; transform: scale(1.1); z-index: 10; }
         .cand-row { display: flex; align-items: center; margin-bottom: 10px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; }
         .cand-name { color: white; font-size: 20px; margin-left: 10px; font-weight: bold; }
+        .social-header { text-align: center; margin-bottom: 20px; color: white; }
+        .social-header img { max-height: 120px; margin-bottom: 10px; }
+        .social-header h1 { font-size: 50px; text-transform: uppercase; margin: 0; }
+        .footer-stats { text-align: center; margin-top: 20px; color: white; font-size: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -559,23 +634,32 @@ else:
     if cfg.get("logo_b64"): 
         logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:150px; display:block; margin: 0 auto 20px auto;">'
 
+    # HEADER COMMUN
+    header_html = f"""
+    <div class="social-header">
+        {logo_part}
+        <h1>{cfg.get('titre_mur')}</h1>
+    </div>
+    """
+
+    # FOOTER COMMUN (Participants)
+    parts = load_json(PARTICIPANTS_FILE, [])
+    tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-15:]]) # Max 15 derniers
+    footer_html = f"""
+    <div class="footer-stats">
+        <div>👥 {len(parts)} CONNECTÉS</div>
+        <div style="margin-top:10px;">{tags_html}</div>
+    </div>
+    """
+
     # --- A. ACCUEIL ---
     if mode == "attente":
-        parts = load_json(PARTICIPANTS_FILE, [])
-        tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-60:]])
-        
         render_html(f"""
-        <div style="text-align:center; padding-top:5vh;">
-            {logo_part}
-            <h1 style="color:white; font-size:80px; margin:0;">BIENVENUE</h1>
-            <h2 style="color:#E2001A; font-size:40px; margin-top:10px;">{cfg.get('titre_mur')}</h2>
-            <h3 style="color:#CCC; margin-top:30px;">Veuillez patienter, l'événement va commencer...</h3>
-            <div style="margin-top:50px;">
-                <div style="font-size:30px; color:white; font-weight:bold; margin-bottom:20px;">
-                    👥 {len(parts)} PARTICIPANTS CONNECTÉS
-                </div>
-                <div style="width:90%; margin:0 auto; line-height:1.5;">{tags_html}</div>
-            </div>
+        <div style="height: 100vh; display: flex; flex-direction: column; justify-content: center;">
+            {header_html}
+            <h2 style="text-align:center; color:#E2001A; font-size:40px;">BIENVENUE</h2>
+            <h3 style="text-align:center; color:#CCC;">Veuillez patienter...</h3>
+            {footer_html}
         </div>
         """)
 
@@ -589,13 +673,12 @@ else:
             cands = cfg.get("candidats", [])
             mid = (len(cands) + 1) // 2
             
-            # Construction Colonnes HTML
             def build_list(items):
                 h = ""
                 for c in items:
                     img = ""
                     if c in cfg.get("candidats_images", {}):
-                        img = f'<img src="data:image/png;base64,{cfg["candidats_images"][c]}" style="width:50px; height:50px; border-radius:5px; object-fit:cover;">'
+                        img = f'<img src="data:image/png;base64,{cfg["candidats_images"][c]}" style="width:60px; height:60px; border-radius:50%; object-fit:cover; border:2px solid #E2001A;">'
                     h += f'<div class="cand-row">{img}<span class="cand-name">{c}</span></div>'
                 return h
 
@@ -603,61 +686,76 @@ else:
             col_d = build_list(cands[mid:])
             
             render_html(f"""
-            <div style="display:flex; height:90vh; padding:20px;">
-                <div style="width:30%; overflow-y:auto;">{col_g}</div>
-                <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                    {logo_part}
-                    <h1 style="color:#E2001A; font-size:60px;">A VOS VOTES !</h1>
-                    <div style="background:white; padding:20px; border-radius:20px; margin:30px;">
-                        <img src="data:image/png;base64,{qr_b64}" width="250">
+            <div style="display:flex; flex-direction: column; height:98vh;">
+                {header_html}
+                <div style="display:flex; flex: 1; overflow: hidden;">
+                    <div style="width:30%; overflow-y:auto; padding:10px;">{col_g}</div>
+                    <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center;">
+                        <h1 style="color:#E2001A; font-size:50px;">A VOS VOTES !</h1>
+                        <div style="background:white; padding:15px; border-radius:20px; display:inline-block; margin:20px auto;">
+                            <img src="data:image/png;base64,{qr_b64}" width="220">
+                        </div>
+                        <h2 style="color:white;">Scannez pour voter</h2>
                     </div>
-                    <h2 style="color:white;">Scannez pour voter</h2>
+                    <div style="width:30%; overflow-y:auto; padding:10px;">{col_d}</div>
                 </div>
-                <div style="width:30%; overflow-y:auto;">{col_d}</div>
+                {footer_html}
             </div>
             """)
         
         elif cfg.get("reveal_resultats"):
             # PODIUM
-            v_data = load_json(VOTES_FILE, {})
-            sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
+            diff = 10 - int(time.time() - cfg.get("timestamp_podium", 0))
             
-            render_html(f"<div style='text-align:center;'>{logo_part}<h1 style='color:#FFD700; font-size:80px; margin-top:20px;'>🏆 RÉSULTATS 🏆</h1></div>")
-            
-            c1, c2, c3 = st.columns([1,1.2,1])
-            
-            def get_card(rank_idx, data):
-                if not data: return ""
-                name, score = data
-                colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
-                ranks = ["🥇", "🥈", "🥉"]
-                cls = "winner-card" if rank_idx == 0 else ""
-                img_html = ""
-                if name in cfg.get("candidats_images", {}):
-                    img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; margin-bottom:10px; border:3px solid {colors[rank_idx]};">'
-                
-                return f"""
-                <div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:20px; padding:30px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
-                    <div style="font-size:60px;">{ranks[rank_idx]}</div>
-                    {img_html}
-                    <h2 style="font-size:35px; margin:10px 0;">{name}</h2>
-                    <h3 style="font-size:25px; color:#ddd;">{score} pts</h3>
+            if diff > 0:
+                render_html(f"""
+                <div style="height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    {header_html}
+                    <div style="font-size:200px; color:#E2001A; font-weight:bold;">{diff}</div>
+                    <h2 style="color:white;">RÉSULTATS DANS...</h2>
                 </div>
-                """
-
-            with c1: render_html(get_card(1, sorted_v[1] if len(sorted_v)>1 else None))
-            with c2: render_html(get_card(0, sorted_v[0] if len(sorted_v)>0 else None))
-            with c3: render_html(get_card(2, sorted_v[2] if len(sorted_v)>2 else None))
+                """)
+                time.sleep(1); st.rerun()
+            else:
+                v_data = load_json(VOTES_FILE, {})
+                sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
+                
+                c1, c2, c3 = st.columns([1,1.2,1])
+                
+                def get_card(rank_idx, data):
+                    if not data: return ""
+                    name, score = data
+                    colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
+                    ranks = ["🥇", "🥈", "🥉"]
+                    cls = "winner-card" if rank_idx == 0 else ""
+                    img_html = ""
+                    if name in cfg.get("candidats_images", {}):
+                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; margin-bottom:10px; border:3px solid {colors[rank_idx]};">'
+                    
+                    return f"""
+                    <div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:20px; padding:30px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
+                        <div style="font-size:60px;">{ranks[rank_idx]}</div>
+                        {img_html}
+                        <h2 style="font-size:35px; margin:10px 0;">{name}</h2>
+                        <h3 style="font-size:25px; color:#ddd;">{score} pts</h3>
+                    </div>
+                    """
+                
+                st.markdown(header_html, unsafe_allow_html=True)
+                with c1: render_html(get_card(1, sorted_v[1] if len(sorted_v)>1 else None))
+                with c2: render_html(get_card(0, sorted_v[0] if len(sorted_v)>0 else None))
+                with c3: render_html(get_card(2, sorted_v[2] if len(sorted_v)>2 else None))
 
         else:
             # Votes CLOS
             render_html(f"""
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
-                {logo_part}
-                <div style="border: 10px solid #E2001A; padding: 60px 100px; border-radius: 40px; background:rgba(0,0,0,0.8);">
-                    <h1 style="color:#E2001A; font-size:100px; margin:0;">🛑 VOTES CLOS</h1>
-                    <h2 style="color:white; font-size:50px; margin-top:20px;">Calcul des résultats...</h2>
+            <div style="height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                {header_html}
+                <div style="border: 6px solid #E2001A; padding: 40px 80px; border-radius: 30px; background:rgba(0,0,0,0.8); text-align:center;">
+                    <h1 style="color:#E2001A; font-size:80px; margin:0;">MERCI DE VOTRE PARTICIPATION</h1>
+                    <h2 style="color:white; font-size:40px; margin-top:20px;">LES VOTES SONT CLOS</h2>
                 </div>
+                {footer_html}
             </div>
             """)
 
