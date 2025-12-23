@@ -67,7 +67,9 @@ def inject_visual_effect(effect_name, intensity, speed):
         components.html("""<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>""", height=0)
         return
 
-    # Nettoyage et création du conteneur
+    duration = max(2, 20 - (speed * 0.35))
+    interval = int(4000 / (intensity + 5))
+    
     js_base = """
     <script>
         var doc = window.parent.document;
@@ -80,8 +82,6 @@ def inject_visual_effect(effect_name, intensity, speed):
     """
 
     if effect_name == "🎈 Ballons":
-        duration = max(3, 20 - (speed * 0.34))
-        interval = int(4000 / (intensity + 5))
         js_code = js_base + f"""
         function create() {{
             var e = doc.createElement('div');
@@ -93,10 +93,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}
         setInterval(create, {interval});
         </script>"""
-
     elif effect_name == "❄️ Neige":
-        duration = max(2, 12 - (speed * 0.2))
-        interval = int(1200 / (intensity + 2))
         js_code = js_base + f"""
         function create() {{
             var e = doc.createElement('div');
@@ -108,7 +105,6 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}
         setInterval(create, {interval});
         </script>"""
-
     elif effect_name == "🎉 Confettis":
         count = max(1, int(intensity * 1.5))
         fire_rate = max(150, 2000 - (speed * 35))
@@ -124,12 +120,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         }};
         layer.appendChild(s);
         </script>"""
-
     elif effect_name == "🌌 Espace":
-        # Densité = nombre d'étoiles créées par cycle
-        interval = int(1000 / (intensity + 2))
-        # Vitesse = durée de vie / rapidité du scintillement
-        duration = max(0.5, 5 - (speed * 0.08))
         js_code = js_base + f"""
         function create() {{
             var e = doc.createElement('div');
@@ -142,10 +133,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}
         setInterval(create, {interval});
         </script>"""
-
     elif effect_name == "💸 Billets":
-        duration = max(1, 10 - (speed * 0.18))
-        interval = int(3000 / (intensity + 3))
         js_code = js_base + f"""
         function create() {{
             var e = doc.createElement('div');
@@ -157,11 +145,8 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}
         setInterval(create, {interval});
         </script>"""
-
     elif effect_name == "🟢 Matrix":
-        # Densité = Taille de police (plus petit = plus dense)
         font_size = max(10, 40 - intensity)
-        # Vitesse = délai entre frames
         refresh = max(20, 150 - (speed * 2.5))
         js_code = js_base + f"""
         var canvas = doc.createElement('canvas');
@@ -183,9 +168,10 @@ def inject_visual_effect(effect_name, intensity, speed):
         setInterval(draw, {refresh});
         </script>"""
     
+    js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- 2. GENERATEUR HTML DE TV RETRO (PREVIEW ADMIN) ---
+# --- 2. GENERATEUR HTML DE TV RETRO ---
 def get_tv_html(effect_js):
     return f"""
     <html>
@@ -241,14 +227,12 @@ def get_tv_html(effect_js):
     </html>
     """
 
-# --- 4. GENERATEUR JS POUR PREVIEW (DANS TV ADMIN) ---
+# --- 3. GENERATEUR JS POUR PREVIEW ---
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
-    
     interval = int(3500 / (intensity + 5))
     duration = max(2, 15 - (speed * 0.25))
-
     if effect_name == "🎈 Ballons":
         return f"""<script>const sc=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom {duration}s linear;';sc.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
     elif effect_name == "❄️ Neige":
@@ -275,16 +259,50 @@ est_utilisateur = st.query_params.get("mode") == "vote"
 
 # --- ADMINISTRATION ---
 if est_admin:
+    # --- CSS STICKY HEADER (CORRIGÉ POUR BLOCAGE TOTAL) ---
+    st.markdown("""
+        <style>
+            /* 1. Neutraliser les marges de base de Streamlit */
+            [data-testid="stHeader"] {
+                display: none !important;
+            }
+            .main .block-container {
+                padding-top: 0rem !important;
+                padding-left: 1rem !important;
+                padding-right: 1rem !important;
+            }
+
+            /* 2. Forcer le titre à être STICKY dès le pixel 0 */
+            div[data-testid="stVerticalBlock"] > div:first-child:has(h1) {
+                position: -webkit-sticky !important;
+                position: sticky !important;
+                top: 0 !important;
+                background-color: white !important;
+                z-index: 9999 !important;
+                padding: 1.5rem 0 1rem 0 !important;
+                margin-top: 0 !important;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
+                border-bottom: 4px solid #E2001A !important;
+            }
+
+            /* Ajustement Mode Sombre */
+            @media (prefers-color-scheme: dark) {
+                div[data-testid="stVerticalBlock"] > div:first-child:has(h1) {
+                    background-color: #0e1117 !important;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+                }
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
     if "auth" not in st.session_state: st.session_state["auth"] = False
-    
     if not st.session_state["auth"]:
         st.markdown("<br><br><h1 style='text-align:center;'>🔐 ACCÈS RÉGIE</h1>", unsafe_allow_html=True)
         col_c, col_p, col_d = st.columns([1,2,1])
         with col_p:
             pwd = st.text_input("Mot de passe", type="password")
             if pwd == "ADMIN_LIVE_MASTER":
-                st.session_state["auth"] = True
-                st.rerun()
+                st.session_state["auth"] = True; st.rerun()
     else:
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
@@ -356,7 +374,7 @@ if est_admin:
                 st.session_state.config["logo_b64"] = b64; save_config(); st.success("OK"); st.rerun()
 
         elif menu == "📸 Médiathèque":
-            st.title("📸 Photos")
+            st.title("📸 Médiathèque")
             files = glob.glob(f"{LIVE_DIR}/*")
             if files:
                 cols = st.columns(6)
@@ -366,15 +384,11 @@ if est_admin:
                         if st.button("🗑️", key=f"d_{i}"): os.remove(f); st.rerun()
 
         elif menu == "📊 Data":
-            st.title("📊 Export")
+            st.title("📊 Data")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
                 df = pd.DataFrame(list(v_data.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
                 st.dataframe(df, use_container_width=True)
-                if st.button("♻️ RESET VOTES"):
-                    for f in [VOTES_FILE, VOTERS_FILE]: 
-                        if os.path.exists(f): os.remove(f)
-                    st.rerun()
 
 # --- UTILISATEUR (MOBILE) ---
 elif est_utilisateur:
@@ -385,18 +399,16 @@ elif est_utilisateur:
         photo = st.camera_input("Prendre une photo")
         if photo:
             img = Image.open(photo)
-            img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG")
-            st.success("Envoyé !"); st.balloons()
+            img.save(f"{LIVE_DIR}/img_{int(time.time())}.jpg", "JPEG"); st.success("Envoyé !"); st.balloons()
     else:
         if not cfg["session_ouverte"]: st.warning("⌛ Attente des votes...")
         else:
-            if st.session_state.get("a_vote", False): st.success("Merci ! Votre vote est bien pris en compte.")
+            if st.session_state.get("a_vote", False): st.success("Merci !")
             else:
                 st.title("🗳️ Vote Transdev")
                 choix = st.multiselect("Choisissez vos 3 favoris :", cfg["candidats"])
                 if len(choix) == 3 and st.button("VALIDER"):
-                    vts = load_json(VOTES_FILE, {})
-                    pts = [5, 3, 1]
+                    vts = load_json(VOTES_FILE, {}); pts = [5, 3, 1]
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     with open(VOTES_FILE, "w") as f: json.dump(vts, f)
                     st.session_state.a_vote = True; st.rerun()
@@ -406,16 +418,13 @@ else:
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2500, key="wall_ref")
     st.markdown("""<style>body, .stApp { background-color: black !important; overflow: hidden; } [data-testid='stHeader'] { display: none !important; } .block-container { padding: 0 !important; max-width: 100% !important; }</style>""", unsafe_allow_html=True)
-    
     cfg = load_json(CONFIG_FILE, default_config)
-    
     screen_key = "attente"
     if cfg["mode_affichage"] == "attente": screen_key = "attente"
     elif cfg["mode_affichage"] == "photos_live": screen_key = "photos_live"
     elif cfg["reveal_resultats"]: screen_key = "podium"
     elif cfg["mode_affichage"] == "votes":
         screen_key = "votes_open" if cfg["session_ouverte"] else "votes_closed"
-    
     eff = cfg["screen_effects"].get(screen_key, "Aucun")
     inject_visual_effect(eff, cfg.get("effect_intensity", 25), cfg.get("effect_speed", 25))
 
@@ -425,7 +434,6 @@ else:
 
     if cfg["mode_affichage"] == "attente":
         st.markdown('<div style="text-align:center; color:white; margin-top:20vh;"><h2>Événement en cours...</h2></div>', unsafe_allow_html=True)
-    
     elif cfg["mode_affichage"] == "photos_live":
         st.markdown('<h1 style="text-align:center; color:white;">📸 LIVE</h1>', unsafe_allow_html=True)
         files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
@@ -435,10 +443,7 @@ else:
                 with open(f, "rb") as b: img_list.append(f"data:image/jpeg;base64,{base64.b64encode(b.read()).decode()}")
             js_imgs = json.dumps(img_list)
             components.html(f"""<div id="grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;padding:20px;"></div><script>var imgs={js_imgs}; var g=document.getElementById('grid'); imgs.forEach(s=>{{var i=document.createElement('img');i.src=s;i.style.height='250px';i.style.borderRadius='15px';i.style.border='4px solid #E2001A';g.appendChild(i);}});</script>""", height=800)
-
     elif cfg["mode_affichage"] == "votes" and not cfg["reveal_resultats"]:
-        vts_count = len(load_json(VOTERS_FILE, []))
-        st.markdown(f'<div style="text-align:center; color:white;"><h3>👥 {vts_count} PARTICIPANTS</h3></div>', unsafe_allow_html=True)
         if cfg["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
             qr = qrcode.make(f"https://{host}/?mode=vote")
@@ -446,12 +451,10 @@ else:
             st.markdown(f'<div style="text-align:center; background:white; width:220px; margin:40px auto; padding:15px; border-radius:20px;"><img src="data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}" width="190"><br><b style="color:black; font-size:20px;">VOTEZ ICI</b></div>', unsafe_allow_html=True)
         else:
             st.markdown('<div style="text-align:center; color:#E2001A; margin-top:100px;"><h1>🏁 VOTES CLOS</h1></div>', unsafe_allow_html=True)
-
     elif cfg["reveal_resultats"]:
         v_data = load_json(VOTES_FILE, {})
         sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
         st.markdown('<h1 style="text-align:center; color:gold;">🏆 PODIUM</h1>', unsafe_allow_html=True)
-        cols = st.columns(3)
-        ranks = ["🥇", "🥈", "🥉"]
+        cols = st.columns(3); ranks = ["🥇", "🥈", "🥉"]
         for i, (name, score) in enumerate(sorted_v):
             cols[i].markdown(f"""<div style="text-align:center; color:white; background:#111; padding:30px; border-radius:20px; border:4px solid gold;"><h1>{ranks[i]}</h1><h2>{name}</h2><h3>{score} pts</h3></div>""", unsafe_allow_html=True)
