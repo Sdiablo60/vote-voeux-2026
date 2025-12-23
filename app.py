@@ -51,20 +51,14 @@ def load_json(file, default):
         except: return default
     return default
 
-# --- FONCTION CRITIQUE D'AFFICHAGE ---
 def render_html(html_code):
-    """
-    Nettoie le HTML pour empêcher Streamlit de l'afficher comme du code brut.
-    Supprime les sauts de ligne et l'indentation.
-    """
-    clean_code = textwrap.dedent(html_code).strip().replace("\n", " ")
+    """Nettoie le HTML pour affichage propre"""
+    clean_code = textwrap.dedent(html_code).strip()
     st.markdown(clean_code, unsafe_allow_html=True)
 
 # --- INIT SESSION ---
-if "config" not in st.session_state:
-    st.session_state.config = load_json(CONFIG_FILE, default_config)
-if "session_id" not in st.session_state.config:
-    st.session_state.config["session_id"] = str(int(time.time()))
+if "config" not in st.session_state: st.session_state.config = load_json(CONFIG_FILE, default_config)
+if "session_id" not in st.session_state.config: st.session_state.config["session_id"] = str(int(time.time()))
 if "my_uuid" not in st.session_state: st.session_state.my_uuid = str(uuid.uuid4())
 if "refresh_id" not in st.session_state: st.session_state.refresh_id = 0
 if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
@@ -73,7 +67,7 @@ if "user_id" not in st.session_state: st.session_state.user_id = None
 if "a_vote" not in st.session_state: st.session_state.a_vote = False
 if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
 
-# --- LOGIQUE METIER ---
+# --- LOGIQUE ---
 def save_config():
     with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
 
@@ -96,7 +90,8 @@ def save_live_photo(uploaded_file):
         filename = f"live_{timestamp}_{random.randint(100,999)}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
         img = Image.open(uploaded_file)
-        try: # Rotation EXIF
+        # Rotation EXIF
+        try:
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -331,7 +326,7 @@ elif est_utilisateur:
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=2000, key="wall_autorefresh")
+    st_autorefresh(interval=3000, key="wall_autorefresh")
     cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown("""
@@ -488,4 +483,74 @@ else:
         for photo_path in recent_photos:
             with open(photo_path, "rb") as f: b64 = base64.b64encode(f.read()).decode(); img_array_js.append(f"data:image/jpeg;base64,{b64}")
         js_img_list = json.dumps(img_array_js)
-        components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>const images = {js_img_list}; const container = document.getElementById('container'); const bubbles = []; const speed = 2.5; const centerX_min = window.innerWidth * 0.35; const centerX_max = window.innerWidth * 0.65; const centerY_min = window.innerHeight * 0.30; const centerY_max = window.innerHeight * 0.70; images.forEach((src, index) => {{ const img = document.createElement('img'); img.src = src; img.className = 'bubble'; const size = 80 + Math.random() * 150; let startX, startY; do {{ startX = Math.random() * (window.innerWidth - 150); startY = Math.random() * (window.innerHeight - 150); }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max); const bubble = {{ element: img, x: startX, y: startY, vx: (Math.random() - 0.5) * speed * 2, vy: (Math.random() - 0.5) * speed * 2, size: size }}; img.style.width = bubble.size + 'px'; img.style.height = bubble.size + 'px'; container.appendChild(img); bubbles.push(bubble); }}); function animate() {{ const w = window.innerWidth; const h = window.innerHeight; bubbles.forEach(b => {{ b.x += b.vx; b.y += b.vy; if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; if (b.x + b.size > centerX_min && b.x < centerX_max && b.y + b.size > centerY_min && b.y < centerY_max) {{ const centerX = (centerX_min + centerX_max) / 2; if (b.x < centerX) b.vx = -Math.abs(b.vx); else b.vx = Math.abs(b.vx); }} b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`; }}); requestAnimationFrame(animate); }} animate();</script></body></html>""", height=900)
+        
+        # JS OPTIMISÉ POUR EVITER LES DOUBLONS
+        components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>
+            var doc = window.parent.document;
+            var containerId = 'live-bubble-container';
+            var existingContainer = doc.getElementById(containerId);
+            
+            // Nettoyage radical du conteneur existant
+            if (existingContainer) {{
+                existingContainer.innerHTML = '';
+            }} else {{
+                existingContainer = doc.createElement('div');
+                existingContainer.id = containerId;
+                existingContainer.style.position = 'fixed';
+                existingContainer.style.top = '0';
+                existingContainer.style.left = '0';
+                existingContainer.style.width = '100vw';
+                existingContainer.style.height = '100vh';
+                existingContainer.style.pointerEvents = 'none';
+                existingContainer.style.zIndex = '1';
+                doc.body.appendChild(existingContainer);
+            }}
+
+            const images = {js_img_list};
+            const speed = 2.5; 
+            const centerX_min = window.innerWidth * 0.35; 
+            const centerX_max = window.innerWidth * 0.65; 
+            const centerY_min = window.innerHeight * 0.30; 
+            const centerY_max = window.innerHeight * 0.70; 
+            const bubbles = [];
+
+            images.forEach((src) => {{ 
+                const img = doc.createElement('img'); 
+                img.src = src; 
+                img.className = 'bubble'; 
+                img.style.position = 'absolute';
+                img.style.borderRadius = '50%';
+                img.style.border = '4px solid #E2001A';
+                img.style.objectFit = 'cover';
+                
+                const size = 80 + Math.random() * 150; 
+                let startX, startY; 
+                do {{ 
+                    startX = Math.random() * (window.innerWidth - 150); 
+                    startY = Math.random() * (window.innerHeight - 150); 
+                }} while (startX > centerX_min && startX < centerX_max && startY > centerY_min && startY < centerY_max); 
+                
+                const bubble = {{ element: img, x: startX, y: startY, vx: (Math.random() - 0.5) * speed * 2, vy: (Math.random() - 0.5) * speed * 2, size: size }}; 
+                img.style.width = bubble.size + 'px'; 
+                img.style.height = bubble.size + 'px'; 
+                existingContainer.appendChild(img); 
+                bubbles.push(bubble); 
+            }}); 
+            
+            function animate() {{ 
+                const w = window.innerWidth; 
+                const h = window.innerHeight; 
+                bubbles.forEach(b => {{ 
+                    b.x += b.vx; b.y += b.vy; 
+                    if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; 
+                    if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; 
+                    if (b.x + b.size > centerX_min && b.x < centerX_max && b.y + b.size > centerY_min && b.y < centerY_max) {{ 
+                        const centerX = (centerX_min + centerX_max) / 2; 
+                        if (b.x < centerX) b.vx = -Math.abs(b.vx); else b.vx = Math.abs(b.vx); 
+                    }} 
+                    b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`; 
+                }}); 
+                requestAnimationFrame(animate); 
+            }} 
+            animate();
+        </script></body></html>""", height=0)
