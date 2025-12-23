@@ -10,7 +10,7 @@ import uuid
 import textwrap
 import shutil
 
-# --- GESTION IMPORTS OPTIONNELS ---
+# --- GESTION PDF & ALTAIR ---
 try:
     from fpdf import FPDF
     HAS_FPDF = True
@@ -23,7 +23,7 @@ try:
 except ImportError:
     HAS_ALTAIR = False
 
-# --- CONFIGURATION ---
+# --- 1. CONFIGURATION & FICHIERS ---
 st.set_page_config(page_title="Régie Master", layout="wide")
 
 GALLERY_DIR, ADMIN_DIR, LIVE_DIR = "galerie_images", "galerie_admin", "galerie_live_users"
@@ -50,7 +50,7 @@ default_config = {
     "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "🎉 Confettis", "photos_live": "Aucun"}
 }
 
-# --- FONCTIONS UTILITAIRES ---
+# --- UTILITAIRES ---
 def load_json(file, default):
     if os.path.exists(file):
         try:
@@ -59,6 +59,7 @@ def load_json(file, default):
     return default
 
 def render_html(html_code):
+    """Nettoie le HTML pour affichage propre"""
     clean_code = textwrap.dedent(html_code).strip().replace("\n", " ")
     st.markdown(clean_code, unsafe_allow_html=True)
 
@@ -74,7 +75,7 @@ if "a_vote" not in st.session_state: st.session_state.a_vote = False
 if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
 if "selected_photos" not in st.session_state: st.session_state.selected_photos = []
 
-# --- LOGIQUE METIER ---
+# --- LOGIQUE ---
 def save_config():
     with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
 
@@ -117,34 +118,25 @@ def save_live_photo(uploaded_file):
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun": return
-    
-    # Optimisation anti-clignotement : injection minimale
     duration = max(2, 20 - (speed * 0.35))
     interval = int(4000 / (intensity + 5))
-    
-    js_code = f"""
-    <script>
-        // Check if layer exists to avoid recreation (flicker fix)
+    js_code = f"""<script>
         var doc = window.parent.document;
         var layer = doc.getElementById('effect-layer');
         if(!layer) {{
-            layer = doc.createElement('div');
-            layer.id = 'effect-layer';
+            layer = doc.createElement('div'); layer.id = 'effect-layer';
             layer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:0;overflow:hidden;';
             doc.body.appendChild(layer);
         }}
-        
         function createBalloon() {{
             var e = doc.createElement('div'); e.innerHTML = '🎈';
             e.style.cssText = 'position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*40+20)+'px;transition:bottom {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.bottom = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
+            layer.appendChild(e); setTimeout(() => {{ e.style.bottom = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
         function createSnow() {{
             var e = doc.createElement('div'); e.innerHTML = '❄';
             e.style.cssText = 'position:absolute;top:-50px;left:'+Math.random()*100+'vw;color:white;font-size:'+(Math.random()*20+10)+'px;transition:top {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.top = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
+            layer.appendChild(e); setTimeout(() => {{ e.style.top = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
         }}
     """
     if effect_name == "🎈 Ballons": js_code += f"if(!window.balloonInterval) window.balloonInterval = setInterval(createBalloon, {interval});"
@@ -237,14 +229,14 @@ if est_admin:
             m, vo, re = cfg["mode_affichage"], cfg["session_ouverte"], cfg["reveal_resultats"]
 
             if c1.button("1. ACCUEIL", type="primary" if m=="attente" else "secondary", use_container_width=True):
-                cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); save_config(); st.rerun()
+                cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); force_refresh(); st.rerun()
             if c2.button("2. VOTES ON", type="primary" if (m=="votes" and vo) else "secondary", use_container_width=True):
-                cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); save_config(); st.rerun()
+                cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); force_refresh(); st.rerun()
             if c3.button("3. VOTES OFF", type="primary" if (m=="votes" and not vo and not re) else "secondary", use_container_width=True):
                 st.session_state.config["session_ouverte"] = False
                 save_config(); st.rerun()
             if c4.button("4. PODIUM", type="primary" if re else "secondary", use_container_width=True):
-                cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); save_config(); st.rerun()
+                cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); force_refresh(); st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("5. 📸 MUR PHOTOS LIVE", type="primary" if m=="photos_live" else "secondary", use_container_width=True):
@@ -280,6 +272,7 @@ if est_admin:
                     st.session_state.config["session_id"] = str(int(time.time()))
                     save_config()
                     st.toast("✅ Votes effacés !"); time.sleep(1); st.rerun()
+                
                 if c_r2.button("🗑️ VIDER PHOTOS", type="primary", use_container_width=True):
                     files = glob.glob(f"{LIVE_DIR}/*"); 
                     for f in files: os.remove(f)
@@ -497,7 +490,7 @@ elif est_utilisateur:
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=3000, key="wall_autorefresh")
+    st_autorefresh(interval=2000, key="wall_autorefresh")
     cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown("""
@@ -506,16 +499,27 @@ else:
         body, .stApp { background-color: black !important; overflow: hidden; height: 100vh; font-family: 'Montserrat', sans-serif; } 
         [data-testid='stHeader'] { display: none !important; } 
         .block-container { padding: 0 !important; max-width: 100% !important; }
-        .user-tag { display: inline-block; background: rgba(255, 255, 255, 0.2); color: white; border-radius: 20px; padding: 5px 15px; margin: 5px; font-size: 18px; }
-        .winner-card { border: 6px solid #FFD700 !important; background: rgba(255, 215, 0, 0.1) !important; transform: scale(1.1); z-index: 10; }
-        .cand-row { display: flex; align-items: center; margin-bottom: 10px; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; }
-        .cand-name { color: white; font-size: 20px; margin-left: 10px; font-weight: bold; }
-        .social-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; height: 12vh; border-bottom: 2px solid #333; }
-        .social-title { font-size: 50px; font-weight: 700; color: #FFF; text-transform: uppercase; margin: 0; }
-        .social-logo img { height: 100px; }
-        .tags-container { height: 12vh; overflow: hidden; margin-top: 10px; text-align: center; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; align-content: center; }
-        .placeholder-circle { width: 80px; height: 80px; border-radius: 50%; border: 3px dashed #555; background: #222; display: inline-block; }
-        .vote-off-box { border: 4px solid #E2001A; padding: 40px 80px; border-radius: 30px; background:rgba(0,0,0,0.8); text-align:center; max-width: 800px; }
+        
+        /* TAGS PARTICIPANTS */
+        .tags-container { height: 8vh; overflow: hidden; margin: 10px 0; padding: 0 20px; text-align: center; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+        .user-tag { display: inline-block; background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 20px; padding: 5px 15px; margin: 5px; font-size: 16px; }
+
+        /* VOTE ON - COMPACT */
+        .cand-row { display: flex; align-items: center; margin-bottom: 2px; padding: 2px 5px; border-radius: 50px; background: rgba(0,0,0,0.3); } 
+        .cand-name { color: white; font-size: 16px; margin: 0 10px; font-weight: 600; white-space: nowrap; }
+        .placeholder-circle { width: 45px; height: 45px; border-radius: 50%; border: 1px dashed #666; background: #222; display: inline-block; }
+        .cand-img { width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 1px solid #E2001A; }
+        .qr-box { background: white; padding: 5px; border-radius: 10px; display:inline-block; margin: 10px auto; }
+
+        /* ANIMATION PULSE SUSPENSE */
+        @keyframes pulse-zoom { 0% { transform: scale(1); } 50% { transform: scale(1.05); box-shadow: 0 0 15px rgba(255,255,255,0.2); } 100% { transform: scale(1); } }
+        .podium-suspense { animation: pulse-zoom 1s infinite; background: rgba(255,255,255,0.05); border: 1px solid #555; padding: 10px; border-radius: 15px; text-align: center; margin: 0 10px; color: white; }
+        
+        /* FINAL WINNER */
+        .winner-final { border: 4px solid #FFD700; background: rgba(255, 215, 0, 0.1); transform: scale(1.5); padding: 30px; border-radius: 30px; text-align: center; color: white; box-shadow: 0 0 50px #FFD700; }
+        
+        /* VOTE OFF FUN */
+        .vote-off-box { border: 2px solid rgba(255,255,255,0.3); padding: 30px 60px; border-radius: 20px; background: linear-gradient(145deg, rgba(20,20,20,0.9), rgba(40,40,40,0.9)); text-align:center; max-width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
     </style>
     """, unsafe_allow_html=True)
 
@@ -528,12 +532,12 @@ else:
 
     logo_part = ""
     if cfg.get("logo_b64"): 
-        logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:150px; display:block; margin: 0 auto 20px auto;">'
+        logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:100px;">'
 
-    header_html = f"""<div class="social-header"><h1 class="social-title">{cfg.get('titre_mur')}</h1><div class="social-logo">{logo_part}</div></div>"""
+    header_html = f"""<div style="display:flex; justify-content:space-between; align-items:center; padding:15px 40px; height:12vh; border-bottom:1px solid rgba(255,255,255,0.1);"><h1 style="font-size:55px; font-weight:700; color:#FFF; margin:0;">{cfg.get('titre_mur')}</h1>{logo_part}</div>"""
     
     parts = load_json(PARTICIPANTS_FILE, [])
-    tags_list = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-15:]]) # Max 15 derniers
+    tags_list = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-15:]])
     tags_section = f"""<div class="tags-container">{tags_list}</div>"""
 
     # --- A. ACCUEIL ---
@@ -543,7 +547,7 @@ else:
             {header_html}
             <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                 <h1 style="color:white; font-size:50px; margin-bottom: 20px;">Bonjour à toutes et tous, nous allons bientôt commencer...</h1>
-                <h2 style="color:#CCC; font-size:40px;">Veuillez patienter...</h2>
+                <h2 style="color:#CCC; font-size:30px;">Veuillez patienter...</h2>
             </div>
             {tags_section}
         </div>
@@ -559,92 +563,109 @@ else:
             cands = cfg.get("candidats", [])
             mid = (len(cands) + 1) // 2
             
-            def build_list(items):
+            def build_list(items, align="left"):
                 h = ""
                 for c in items:
                     img_html = '<div class="placeholder-circle"></div>'
                     if c in cfg.get("candidats_images", {}):
-                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][c]}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; border:3px solid #E2001A;">'
-                    h += f'<div class="cand-row">{img_html}<span class="cand-name">{c}</span></div>'
+                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][c]}" class="cand-img">'
+                    
+                    if align == "right": content = f'<span class="cand-name">{c}</span>{img_html}'
+                    else: content = f'{img_html}<span class="cand-name">{c}</span>'
+                    
+                    h += f'<div class="cand-row" style="justify-content: { "flex-end" if align == "right" else "flex-start" }">{content}</div>'
                 return h
 
-            col_g = build_list(cands[:mid])
-            col_d = build_list(cands[mid:])
+            col_g = build_list(cands[:mid], align="right")
+            col_d = build_list(cands[mid:], align="left")
             
-            # --- AJOUT DU BLOC REGLES ---
             render_html(f"""
             <div style="display:flex; flex-direction: column; height:98vh;">
                 {header_html}
                 {tags_section}
-                
-                <div style="text-align:center; background:rgba(255,255,255,0.1); margin: 0 50px; padding: 10px; border-radius: 10px; border: 1px solid #E2001A;">
-                    <h2 style="color:#E2001A; margin:0; font-size:24px;">VOTEZ POUR LES PARTICIPANTS CI-DESSOUS</h2>
-                    <p style="color:white; margin:0; font-size:18px;">🥇 1er = 5 pts | 🥈 2ème = 3 pts | 🥉 3ème = 1 pt</p>
-                </div>
-
-                <div style="display:flex; flex: 1; overflow: hidden;">
-                    <div style="width:30%; padding:20px;">{col_g}</div>
-                    <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center;">
-                        <div style="background:white; padding:20px; border-radius:30px; display:inline-block; margin-bottom: 20px; box-shadow: 0 0 50px rgba(255,255,255,0.2);">
-                            <img src="data:image/png;base64,{qr_b64}" width="280">
-                        </div>
-                        <h2 style="color:white; font-size: 35px;">SCANNEZ POUR VOTER</h2>
+                <div style="display:flex; flex: 1; overflow: hidden; align-items: center;">
+                    <div style="width:35%; padding:10px;">{col_g}</div>
+                    <div style="width:30%; text-align:center;">
+                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="180"></div>
+                        <h2 style="color:white; font-size: 20px; margin-top:5px;">SCANNEZ POUR VOTER</h2>
                     </div>
-                    <div style="width:30%; padding:20px;">{col_d}</div>
+                    <div style="width:35%; padding:10px;">{col_d}</div>
                 </div>
             </div>
             """)
         
         elif cfg.get("reveal_resultats"):
-            # PODIUM
-            diff = 10 - int(time.time() - cfg.get("timestamp_podium", 0))
-            if diff > 0:
+            # PODIUM SEQUENCEUR
+            elapsed = time.time() - cfg.get("timestamp_podium", 0)
+            
+            # Phase 1: Compte à rebours (0-5s)
+            if elapsed < 5:
                 render_html(f"""
-                <div style="height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                <div style="height:100vh; display:flex; flex-direction:column;">
                     {header_html}
-                    <div style="font-size:250px; color:#E2001A; font-weight:bold;">{diff}</div>
-                    <h2 style="color:white;">RÉSULTATS DANS...</h2>
+                    <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                        <div style="font-size:250px; color:#E2001A; font-weight:bold;">{10 - int(elapsed)}</div>
+                        <h2 style="color:white;">RÉSULTATS DANS...</h2>
+                    </div>
                 </div>
                 """)
                 time.sleep(1); st.rerun()
+            
             else:
                 v_data = load_json(VOTES_FILE, {})
                 sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
                 
-                render_html(f"<div style='text-align:center;'>{header_html}<h1 style='color:#FFD700; font-size:80px; margin-top:20px;'>🏆 RÉSULTATS 🏆</h1></div>")
-                c1, c2, c3 = st.columns([1,1.2,1])
-                def get_card(rank_idx, data):
-                    if not data: return ""
-                    name, score = data
-                    colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
-                    ranks = ["🥇", "🥈", "🥉"]
-                    cls = "winner-card" if rank_idx == 0 else ""
+                # Phase 2: Suspense / Affichage top 3 (5s - 10s)
+                if elapsed < 10:
+                    c1, c2, c3 = st.columns([1,1,1])
+                    def get_suspense_card(data):
+                        if not data: return ""
+                        name, _ = data
+                        img = ""
+                        if name in cfg.get("candidats_images", {}):
+                            img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:80px; height:80px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
+                        return f"""<div class="podium-suspense">{img}<h2>{name}</h2></div>"""
+                    
+                    render_html(f"<div style='text-align:center; padding-top:20px;'>{header_html}<h2 style='color:white;'>LES FINALISTES SONT...</h2></div>")
+                    with c1: render_html(get_suspense_card(sorted_v[1] if len(sorted_v)>1 else None))
+                    with c2: render_html(get_suspense_card(sorted_v[0] if len(sorted_v)>0 else None))
+                    with c3: render_html(get_suspense_card(sorted_v[2] if len(sorted_v)>2 else None))
+                    time.sleep(1); st.rerun()
+
+                # Phase 3: VAINQUEUR ( > 10s)
+                else:
+                    winner = sorted_v[0] if len(sorted_v)>0 else ("Inconnu", 0)
+                    name, score = winner
                     img_html = ""
                     if name in cfg.get("candidats_images", {}):
-                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; margin-bottom:10px; border:3px solid {colors[rank_idx]};">'
+                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:200px; height:200px; border-radius:50%; margin-bottom:20px; border:5px solid #FFD700; object-fit:cover;">'
                     
-                    return f"""
-                    <div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:20px; padding:30px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
-                        <div style="font-size:60px;">{ranks[rank_idx]}</div>
-                        {img_html}
-                        <h2 style="font-size:35px; margin:10px 0;">{name}</h2>
-                        <h3 style="font-size:25px; color:#ddd;">{score} pts</h3>
+                    render_html(f"""
+                    <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background: radial-gradient(circle, rgba(226,0,26,0.2) 0%, rgba(0,0,0,1) 70%);">
+                        {header_html}
+                        <div class="winner-final">
+                            <div style="font-size:80px;">🏆</div>
+                            {img_html}
+                            <h1 style="font-size:60px; margin:10px 0;">{name}</h1>
+                            <h2 style="font-size:40px; color:#FFD700;">FÉLICITATIONS !</h2>
+                            <h3 style="font-size:30px; color:#ccc;">{score} Points</h3>
+                        </div>
                     </div>
-                    """
-                with c1: render_html(get_card(1, sorted_v[1] if len(sorted_v)>1 else None))
-                with c2: render_html(get_card(0, sorted_v[0] if len(sorted_v)>0 else None))
-                with c3: render_html(get_card(2, sorted_v[2] if len(sorted_v)>2 else None))
+                    """)
+                    inject_visual_effect("🎉 Confettis", 50, 50) # Force confettis
 
         else:
-            # Votes CLOS (Vote OFF)
+            # Votes CLOS (Vote OFF) - Fun & Remerciements
             render_html(f"""
             <div style="height:100vh; display:flex; flex-direction:column;">
                 {header_html}
                 {tags_section}
                 <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center;">
                     <div class="vote-off-box">
-                        <h1 style="color:#E2001A; font-size:40px; margin:0; font-family: 'Montserrat', sans-serif;">MERCI DE VOTRE PARTICIPATION</h1>
-                        <h2 style="color:white; font-size:25px; margin-top:15px; font-weight:300;">LES VOTES SONT CLOS</h2>
+                        <div style="font-size:60px;">🙏</div>
+                        <h1 style="background: -webkit-linear-gradient(#eee, #333); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-size:50px; margin:10px 0;">MERCI !</h1>
+                        <h2 style="color:white; font-size:25px; margin-top:10px; font-weight:300;">VOTRE AVIS COMPTE POUR NOUS</h2>
+                        <div style="margin-top:30px; color:#E2001A; font-weight:bold; letter-spacing:2px;">LES VOTES SONT CLOS</div>
                     </div>
                 </div>
             </div>
@@ -658,7 +679,7 @@ else:
         
         logo_live = ""
         if cfg.get("logo_b64"):
-            logo_live = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
+            logo_live = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:150px; width:auto; display:block; margin: 0 auto 20px auto;">'
         
         render_html(f"""
         <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999; display:flex; flex-direction:column; align-items:center; gap:20px;">
@@ -673,11 +694,9 @@ else:
         </div>
         """)
         
-        # --- CORRECTION NAME ERROR: Definition de la liste AVANT le composant ---
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in recent_photos])
         
-        # JS REBOND
         components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>
             var doc = window.parent.document;
             var containerId = 'live-bubble-container';
