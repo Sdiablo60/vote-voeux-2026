@@ -98,6 +98,7 @@ def save_live_photo(uploaded_file):
         unique_id = uuid.uuid4().hex[:6]
         filename = f"live_{timestamp}_{unique_id}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
+        
         img = Image.open(uploaded_file)
         try: # Rotation EXIF
             from PIL import ExifTags
@@ -110,6 +111,7 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
+        
         img = img.convert("RGB")
         img.thumbnail((800, 800)) 
         img.save(filepath, "JPEG", quality=80, optimize=True)
@@ -546,11 +548,12 @@ else:
         .winner-card { border: 6px solid #FFD700 !important; background: rgba(255, 215, 0, 0.1) !important; transform: scale(1.1); z-index: 10; }
         .cand-row { display: flex; align-items: center; margin-bottom: 15px; padding: 10px; }
         .cand-name { color: white; font-size: 24px; margin-left: 15px; font-weight: bold; }
-        .social-header { display: flex; justify-content: space-between; align-items: center; padding: 30px 60px; height: 15vh; }
-        .social-title { font-size: 60px; font-weight: 700; color: #E2001A; text-transform: uppercase; text-shadow: 2px 2px 4px #000; margin: 0; }
-        .social-logo img { height: 120px; }
-        .tags-container { height: 15vh; overflow: hidden; margin-bottom: 20px; text-align: center; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; align-content: center; }
+        .social-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; height: 12vh; border-bottom: 2px solid #333; }
+        .social-title { font-size: 50px; font-weight: 700; color: #FFF; text-transform: uppercase; margin: 0; }
+        .social-logo img { height: 100px; }
+        .tags-container { height: 12vh; overflow: hidden; margin-top: 10px; text-align: center; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; align-content: center; }
         .placeholder-circle { width: 80px; height: 80px; border-radius: 50%; border: 3px dashed #555; background: #222; display: inline-block; }
+        .vote-off-box { border: 4px solid #E2001A; padding: 40px 80px; border-radius: 30px; background:rgba(0,0,0,0.8); text-align:center; max-width: 800px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -563,16 +566,10 @@ else:
 
     # --- HEADER & TAGS (COMMUNS) ---
     logo_img = f'<img src="data:image/png;base64,{cfg["logo_b64"]}">' if cfg.get("logo_b64") else ""
-    
-    header_html = f"""
-    <div class="social-header">
-        <h1 class="social-title">{cfg.get('titre_mur')}</h1>
-        <div class="social-logo">{logo_img}</div>
-    </div>
-    """
+    header_html = f"""<div class="social-header"><h1 class="social-title">{cfg.get('titre_mur')}</h1><div class="social-logo">{logo_img}</div></div>"""
     
     parts = load_json(PARTICIPANTS_FILE, [])
-    tags_list = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-20:]])
+    tags_list = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-15:]]) # Max 15 derniers
     tags_section = f"""<div class="tags-container">{tags_list}</div>"""
 
     # --- A. ACCUEIL ---
@@ -580,11 +577,11 @@ else:
         render_html(f"""
         <div style="height: 100vh; display: flex; flex-direction: column;">
             {header_html}
+            {tags_section}
             <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                 <h1 style="color:white; font-size:50px; margin-bottom: 20px;">Bonjour à toutes et tous, nous allons bientôt commencer...</h1>
                 <h2 style="color:#CCC; font-size:40px;">Veuillez patienter...</h2>
             </div>
-            {tags_section}
         </div>
         """)
 
@@ -617,10 +614,10 @@ else:
                 <div style="display:flex; flex: 1; overflow: hidden;">
                     <div style="width:30%; padding:20px;">{col_g}</div>
                     <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center;">
-                        <div style="background:white; padding:20px; border-radius:30px; display:inline-block; margin-bottom: 20px; box-shadow: 0 0 50px rgba(255,255,255,0.2);">
-                            <img src="data:image/png;base64,{qr_b64}" width="280">
+                        <div style="background:white; padding:15px; border-radius:30px; display:inline-block; margin-bottom: 20px; box-shadow: 0 0 30px rgba(255,255,255,0.2);">
+                            <img src="data:image/png;base64,{qr_b64}" width="180">
                         </div>
-                        <h2 style="color:white; font-size: 35px;">SCANNEZ POUR VOTER</h2>
+                        <h2 style="color:white; font-size: 30px;">SCANNEZ POUR VOTER</h2>
                     </div>
                     <div style="width:30%; padding:20px;">{col_d}</div>
                 </div>
@@ -629,57 +626,46 @@ else:
         
         elif cfg.get("reveal_resultats"):
             # PODIUM
-            diff = 10 - int(time.time() - cfg.get("timestamp_podium", 0))
-            if diff > 0:
-                render_html(f"""
-                <div style="height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                    {header_html}
-                    <div style="font-size:250px; color:#E2001A; font-weight:bold;">{diff}</div>
-                    <h2 style="color:white;">RÉSULTATS DANS...</h2>
+            v_data = load_json(VOTES_FILE, {})
+            sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
+            
+            render_html(f"<div style='text-align:center;'>{header_html}<h1 style='color:#FFD700; font-size:60px; margin-top:0px;'>FÉLICITATIONS AU VAINQUEUR !</h1></div>")
+            
+            c1, c2, c3 = st.columns([1,1.2,1])
+            def get_card(rank_idx, data):
+                if not data: return ""
+                name, score = data
+                colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
+                ranks = ["🥇", "🥈", "🥉"]
+                cls = "winner-card" if rank_idx == 0 else ""
+                img_html = ""
+                if name in cfg.get("candidats_images", {}):
+                    img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; margin-bottom:15px; border:5px solid {colors[rank_idx]};">'
+                
+                return f"""
+                <div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:30px; padding:30px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
+                    <div style="font-size:70px; margin-bottom: 10px;">{ranks[rank_idx]}</div>
+                    {img_html}
+                    <h2 style="font-size:35px; margin:10px 0;">{name}</h2>
+                    <h3 style="font-size:25px; color:#ddd;">{score} pts</h3>
                 </div>
-                """)
-                time.sleep(1); st.rerun()
-            else:
-                v_data = load_json(VOTES_FILE, {})
-                sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
-                
-                render_html(f"<div style='text-align:center;'>{header_html}<h1 style='color:#FFD700; font-size:70px; margin-top:0px;'>🏆 RÉSULTATS 🏆</h1></div>")
-                
-                c1, c2, c3 = st.columns([1,1.2,1])
-                def get_card(rank_idx, data):
-                    if not data: return ""
-                    name, score = data
-                    colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
-                    ranks = ["🥇", "🥈", "🥉"]
-                    cls = "winner-card" if rank_idx == 0 else ""
-                    img_html = ""
-                    if name in cfg.get("candidats_images", {}):
-                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:140px; height:140px; border-radius:50%; margin-bottom:15px; border:5px solid {colors[rank_idx]};">'
-                    
-                    return f"""
-                    <div class="{cls}" style="background:rgba(255,255,255,0.1); border:4px solid {colors[rank_idx]}; border-radius:30px; padding:40px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '80'}px;">
-                        <div style="font-size:80px; margin-bottom: 10px;">{ranks[rank_idx]}</div>
-                        {img_html}
-                        <h2 style="font-size:40px; margin:10px 0;">{name}</h2>
-                        <h3 style="font-size:30px; color:#ddd;">{score} pts</h3>
-                    </div>
-                    """
-                with c1: render_html(get_card(1, sorted_v[1] if len(sorted_v)>1 else None))
-                with c2: render_html(get_card(0, sorted_v[0] if len(sorted_v)>0 else None))
-                with c3: render_html(get_card(2, sorted_v[2] if len(sorted_v)>2 else None))
+                """
+            with c1: render_html(get_card(1, sorted_v[1] if len(sorted_v)>1 else None))
+            with c2: render_html(get_card(0, sorted_v[0] if len(sorted_v)>0 else None))
+            with c3: render_html(get_card(2, sorted_v[2] if len(sorted_v)>2 else None))
 
         else:
             # Votes CLOS
             render_html(f"""
             <div style="height:100vh; display:flex; flex-direction:column;">
                 {header_html}
+                {tags_section}
                 <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                    <div style="border: 8px solid #E2001A; padding: 60px 120px; border-radius: 50px; background:rgba(0,0,0,0.8); text-align:center;">
-                        <h1 style="color:#E2001A; font-size:90px; margin:0;">MERCI DE VOTRE PARTICIPATION</h1>
-                        <h2 style="color:white; font-size:50px; margin-top:30px;">LES VOTES SONT CLOS</h2>
+                    <div class="vote-off-box">
+                        <h1 style="color:#E2001A; font-size:50px; margin:0;">MERCI DE VOTRE PARTICIPATION</h1>
+                        <h2 style="color:white; font-size:30px; margin-top:20px; font-weight:normal;">LES VOTES SONT CLOS</h2>
                     </div>
                 </div>
-                {tags_section}
             </div>
             """)
 
@@ -689,9 +675,13 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         
+        logo_live = ""
+        if cfg.get("logo_b64"):
+            logo_live = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:250px; width:auto; display:block; margin: 0 auto 20px auto;">'
+        
         render_html(f"""
         <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999; display:flex; flex-direction:column; align-items:center; gap:20px;">
-            {logo_img if cfg.get("logo_b64") else ""}
+            {logo_live}
             <h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>
             <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
                 <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
