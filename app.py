@@ -59,7 +59,7 @@ def load_json(file, default):
     return default
 
 def render_html(html_code):
-    """Nettoie le HTML pour affichage propre"""
+    """Nettoie le HTML pour affichage propre sans bug d'indentation"""
     clean_code = textwrap.dedent(html_code).strip().replace("\n", " ")
     st.markdown(clean_code, unsafe_allow_html=True)
 
@@ -79,15 +79,8 @@ if "selected_photos" not in st.session_state: st.session_state.selected_photos =
 def save_config():
     with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
 
-def update_mode(mode, open_session=False, reveal=False):
-    """Fonction atomique pour mise à jour rapide"""
-    st.session_state.config["mode_affichage"] = mode
-    st.session_state.config["session_ouverte"] = open_session
-    st.session_state.config["reveal_resultats"] = reveal
-    if reveal:
-        st.session_state.config["timestamp_podium"] = time.time()
-    save_config()
-    st.rerun()
+def force_refresh():
+    st.session_state.refresh_id += 1; save_config()
 
 def process_image_upload(uploaded_file):
     try:
@@ -106,7 +99,7 @@ def save_live_photo(uploaded_file):
         filename = f"live_{timestamp}_{unique_id}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
         img = Image.open(uploaded_file)
-        try: # Rotation EXIF
+        try: 
             from PIL import ExifTags
             if hasattr(img, '_getexif'):
                 exif = img._getexif()
@@ -122,6 +115,15 @@ def save_live_photo(uploaded_file):
         img.save(filepath, "JPEG", quality=80, optimize=True)
         return True
     except: return False
+
+def update_presence(is_active_user=False):
+    presence_data = load_json(PARTICIPANTS_FILE, {})
+    if isinstance(presence_data, list): presence_data = {}
+    now = time.time()
+    clean_data = {uid: ts for uid, ts in presence_data.items() if now - ts < 10} 
+    if is_active_user: clean_data[st.session_state.my_uuid] = now
+    with open(PARTICIPANTS_FILE, "w") as f: json.dump(clean_data, f)
+    return len(clean_data)
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
@@ -239,21 +241,19 @@ if est_admin:
             cfg = st.session_state.config
             m, vo, re = cfg["mode_affichage"], cfg["session_ouverte"], cfg["reveal_resultats"]
 
-            # Boutons optimisés (un seul appel atomique)
             if c1.button("1. ACCUEIL", type="primary" if m=="attente" else "secondary", use_container_width=True):
-                update_mode("attente", False, False)
+                cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); save_config(); st.rerun()
             if c2.button("2. VOTES ON", type="primary" if (m=="votes" and vo) else "secondary", use_container_width=True):
-                update_mode("votes", True, False)
+                cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); save_config(); st.rerun()
             if c3.button("3. VOTES OFF", type="primary" if (m=="votes" and not vo and not re) else "secondary", use_container_width=True):
-                # Juste fermer la session, garder mode vote
                 st.session_state.config["session_ouverte"] = False
                 save_config(); st.rerun()
             if c4.button("4. PODIUM", type="primary" if re else "secondary", use_container_width=True):
-                update_mode("votes", False, True)
+                cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False, "timestamp_podium": time.time()}); save_config(); st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
             if st.button("5. 📸 MUR PHOTOS LIVE", type="primary" if m=="photos_live" else "secondary", use_container_width=True):
-                update_mode("photos_live", False, False)
+                cfg.update({"mode_affichage": "photos_live", "session_ouverte": False, "reveal_resultats": False}); save_config(); st.rerun()
 
             st.divider()
             st.subheader("📡 Effets")
@@ -512,23 +512,42 @@ else:
         body, .stApp { background-color: black !important; overflow: hidden; height: 100vh; font-family: 'Montserrat', sans-serif; } 
         [data-testid='stHeader'] { display: none !important; } 
         .block-container { padding: 0 !important; max-width: 100% !important; }
-        .user-tag { display: inline-block; background: rgba(255, 255, 255, 0.2); color: white; border-radius: 20px; padding: 5px 15px; margin: 5px; font-size: 18px; }
-        .winner-card { border: 6px solid #FFD700 !important; background: rgba(255, 215, 0, 0.1) !important; transform: scale(1.1); z-index: 10; }
         
-        /* Modifs demandées pour Vote ON */
-        .cand-row { display: flex; align-items: center; margin-bottom: 8px; padding: 5px; } 
-        .cand-name { color: white; font-size: 18px; margin-left: 10px; font-weight: bold; }
-        .placeholder-circle { width: 50px; height: 50px; border-radius: 50%; border: 2px dashed #555; background: #222; display: inline-block; }
-        .cand-img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #E2001A; }
+        /* STYLE GENERAL / GLASSMORPHISM */
+        .glass-box {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
 
-        .social-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 50px; height: 12vh; border-bottom: 2px solid #333; }
-        .social-title { font-size: 50px; font-weight: 700; color: #FFF; text-transform: uppercase; margin: 0; text-shadow: 0 0 10px #E2001A; }
+        /* HEADER */
+        .social-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 40px; height: 12vh; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .social-title { font-size: 55px; font-weight: 700; color: #FFF; text-transform: uppercase; margin: 0; text-shadow: 2px 2px 4px #000; }
         .social-logo img { height: 100px; }
+
+        /* TAGS PARTICIPANTS */
+        .tags-container { height: 8vh; overflow: hidden; margin: 10px 0; padding: 0 20px; text-align: center; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+        .user-tag { display: inline-block; background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05)); border: 1px solid rgba(255,255,255,0.2); color: white; border-radius: 20px; padding: 5px 15px; margin: 5px; font-size: 16px; }
+
+        /* VOTE ON - LISTE */
+        .cand-row { display: flex; align-items: center; margin-bottom: 5px; padding: 5px 10px; border-radius: 50px; background: rgba(0,0,0,0.3); } 
+        .cand-name { color: white; font-size: 18px; margin: 0 15px; font-weight: 600; white-space: nowrap; }
+        .placeholder-circle { width: 50px; height: 50px; border-radius: 50%; border: 2px dashed #666; background: #222; display: inline-block; }
+        .cand-img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.3); }
         
-        /* Nouveau container Tags FIXE */
-        .tags-container { height: 15vh; overflow: hidden; margin-bottom: 10px; padding: 10px; text-align: center; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; align-content: center; }
+        /* QR CODE */
+        .qr-box { background: white; padding: 5px; border-radius: 15px; display:inline-block; margin: 10px auto; }
+
+        /* PODIUM */
+        .podium-card { background: rgba(255, 255, 255, 0.05); border-radius: 15px; padding: 20px; text-align: center; color: white; border: 1px solid rgba(255,255,255,0.1); }
+        .rank-1 { border: 2px solid #FFD700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.3); transform: scale(1.05); z-index: 2; }
+        .rank-2 { border: 2px solid #C0C0C0; margin-top: 40px; }
+        .rank-3 { border: 2px solid #CD7F32; margin-top: 60px; }
         
-        .vote-off-box { border: 3px solid #E2001A; padding: 30px 60px; border-radius: 20px; background:rgba(0,0,0,0.8); text-align:center; max-width: 700px; font-family: 'Montserrat', sans-serif; }
+        /* VOTE OFF */
+        .vote-off-box { border: 2px solid rgba(255,255,255,0.2); padding: 30px 60px; border-radius: 20px; background: rgba(0,0,0,0.6); text-align:center; max-width: 600px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -541,12 +560,12 @@ else:
 
     logo_part = ""
     if cfg.get("logo_b64"): 
-        logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:100px;">'
+        logo_part = f'<img src="data:image/png;base64,{cfg["logo_b64"]}">'
 
     header_html = f"""<div class="social-header"><h1 class="social-title">{cfg.get('titre_mur')}</h1><div class="social-logo">{logo_part}</div></div>"""
     
     parts = load_json(PARTICIPANTS_FILE, [])
-    tags_list = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-20:]])
+    tags_list = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-15:]])
     tags_section = f"""<div class="tags-container">{tags_list}</div>"""
 
     # --- A. ACCUEIL ---
@@ -556,7 +575,7 @@ else:
             {header_html}
             <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center;">
                 <h1 style="color:white; font-size:50px; margin-bottom: 20px;">Bonjour à toutes et tous, nous allons bientôt commencer...</h1>
-                <h2 style="color:#CCC; font-size:40px;">Veuillez patienter...</h2>
+                <h2 style="color:#CCC; font-size:30px;">Veuillez patienter...</h2>
             </div>
             {tags_section}
         </div>
@@ -572,60 +591,91 @@ else:
             cands = cfg.get("candidats", [])
             mid = (len(cands) + 1) // 2
             
-            def build_list(items):
+            def build_list(items, align="left"):
                 h = ""
                 for c in items:
                     img_html = '<div class="placeholder-circle"></div>'
                     if c in cfg.get("candidats_images", {}):
                         img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][c]}" class="cand-img">'
-                    h += f'<div class="cand-row">{img_html}<span class="cand-name">{c}</span></div>'
+                    
+                    # Alignement intelligent
+                    if align == "right": content = f'<span class="cand-name">{c}</span>{img_html}'
+                    else: content = f'{img_html}<span class="cand-name">{c}</span>'
+                    
+                    h += f'<div class="cand-row" style="justify-content: { "flex-end" if align == "right" else "flex-start" }">{content}</div>'
                 return h
 
-            col_g = build_list(cands[:mid])
-            col_d = build_list(cands[mid:])
+            col_g = build_list(cands[:mid], align="right")
+            col_d = build_list(cands[mid:], align="left")
             
             render_html(f"""
             <div style="display:flex; flex-direction: column; height:98vh;">
                 {header_html}
                 {tags_section}
-                <div style="display:flex; flex: 1; overflow: hidden;">
-                    <div style="width:30%; padding:10px;">{col_g}</div>
-                    <div style="width:40%; text-align:center; display:flex; flex-direction:column; justify-content:center;">
-                        <div style="background:white; padding:10px; border-radius:20px; display:inline-block; margin-bottom: 10px; box-shadow: 0 0 30px rgba(255,255,255,0.2);">
-                            <img src="data:image/png;base64,{qr_b64}" width="180">
+                <div style="display:flex; flex: 1; overflow: hidden; align-items: center;">
+                    <div style="width:35%; padding:20px;">{col_g}</div>
+                    <div style="width:30%; text-align:center;">
+                        <div class="glass-box" style="display:inline-block; padding:20px;">
+                            <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="180"></div>
+                            <h2 style="color:white; font-size: 24px; margin-top:10px;">SCANNEZ POUR VOTER</h2>
                         </div>
-                        <h2 style="color:white; font-size: 25px;">SCANNEZ POUR VOTER</h2>
                     </div>
-                    <div style="width:30%; padding:10px;">{col_d}</div>
+                    <div style="width:35%; padding:20px;">{col_d}</div>
                 </div>
             </div>
             """)
         
         elif cfg.get("reveal_resultats"):
             # PODIUM
+            # Le titre reste FIXE (header_html)
+            # Seul le contenu central change
+            
+            content = ""
             diff = 10 - int(time.time() - cfg.get("timestamp_podium", 0))
+            
             if diff > 0:
-                render_html(f"""<div style="height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center;">{header_html}<div style="font-size:250px; color:#E2001A; font-weight:bold;">{diff}</div><h2 style="color:white;">RÉSULTATS DANS...</h2></div>""")
+                content = f"""<div style="font-size:200px; color:#E2001A; font-weight:bold; text-align:center;">{diff}</div>"""
                 time.sleep(1); st.rerun()
             else:
                 v_data = load_json(VOTES_FILE, {})
                 sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
                 
-                render_html(f"<div style='text-align:center;'>{header_html}<h1 style='color:#FFD700; font-size:60px; margin-top:0px;'>FÉLICITATIONS AU VAINQUEUR !</h1></div>")
-                c1, c2, c3 = st.columns([1,1.2,1])
-                def get_card(rank_idx, data):
+                # Construction HTML des 3 gagnants
+                def get_card(rank, data, css_class):
                     if not data: return ""
                     name, score = data
-                    colors = ["#FFD700", "#C0C0C0", "#CD7F32"]
-                    ranks = ["🥇", "🥈", "🥉"]
-                    cls = "winner-card" if rank_idx == 0 else ""
-                    img_html = ""
+                    img = ""
                     if name in cfg.get("candidats_images", {}):
-                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; margin-bottom:10px; border:4px solid {colors[rank_idx]};">'
-                    return f"""<div class="{cls}" style="background:rgba(255,255,255,0.1); border:3px solid {colors[rank_idx]}; border-radius:20px; padding:20px; text-align:center; color:white; margin-top:{'0' if rank_idx==0 else '50'}px;"><div style="font-size:50px; margin-bottom: 5px;">{ranks[rank_idx]}</div>{img_html}<h2 style="font-size:30px; margin:5px 0;">{name}</h2><h3 style="font-size:20px; color:#ddd;">{score} pts</h3></div>"""
-                with c1: render_html(get_card(1, sorted_v[1] if len(sorted_v)>1 else None))
-                with c2: render_html(get_card(0, sorted_v[0] if len(sorted_v)>0 else None))
-                with c3: render_html(get_card(2, sorted_v[2] if len(sorted_v)>2 else None))
+                        img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; margin-bottom:10px; object-fit:cover;">'
+                    
+                    return f"""
+                    <div class="podium-card {css_class}" style="flex:1; margin: 0 10px;">
+                        <div style="font-size:40px;">{rank}</div>
+                        {img}
+                        <h2 style="font-size:24px; margin:10px 0;">{name}</h2>
+                        <h3 style="font-size:18px; color:#ccc;">{score} pts</h3>
+                    </div>
+                    """
+                
+                # Flex container pour le podium
+                cards_html = f"""
+                <div style="display:flex; align-items:flex-start; justify-content:center; width:80%; margin:0 auto;">
+                    {get_card("🥈", sorted_v[1] if len(sorted_v)>1 else None, "rank-2")}
+                    {get_card("🥇", sorted_v[0] if len(sorted_v)>0 else None, "rank-1")}
+                    {get_card("🥉", sorted_v[2] if len(sorted_v)>2 else None, "rank-3")}
+                </div>
+                <h1 style="text-align:center; color:#E2001A; margin-top:30px;">FÉLICITATIONS AU VAINQUEUR !</h1>
+                """
+                content = cards_html
+
+            render_html(f"""
+            <div style="height:100vh; display:flex; flex-direction:column; overflow:hidden;">
+                {header_html}
+                <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
+                    {content}
+                </div>
+            </div>
+            """)
 
         else:
             # Votes CLOS
@@ -634,9 +684,9 @@ else:
                 {header_html}
                 {tags_section}
                 <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                    <div class="vote-off-box">
-                        <h1 style="color:#E2001A; font-size:40px; margin:0; font-family: 'Montserrat', sans-serif;">MERCI DE VOTRE PARTICIPATION</h1>
-                        <h2 style="color:white; font-size:25px; margin-top:15px; font-weight:300;">LES VOTES SONT CLOS</h2>
+                    <div class="vote-off-box glass-box">
+                        <h1 style="color:white; font-size:40px; margin:0;">MERCI DE VOTRE PARTICIPATION</h1>
+                        <h3 style="color:#CCC; font-size:20px; margin-top:15px; font-weight:300;">LES VOTES SONT CLOS</h3>
                     </div>
                 </div>
             </div>
@@ -648,19 +698,15 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         
-        logo_live = ""
-        if cfg.get("logo_b64"):
-            logo_live = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="max-height:150px; width:auto; display:block; margin: 0 auto 20px auto;">'
-        
         render_html(f"""
         <div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999; display:flex; flex-direction:column; align-items:center; gap:20px;">
-            {logo_live}
-            <h1 style="color:white; font-size:60px; font-weight:bold; text-transform:uppercase; margin-bottom:20px; text-shadow: 0 0 10px rgba(0,0,0,0.5);">MUR PHOTOS LIVE</h1>
-            <div style="background:white; padding:20px; border-radius:25px; box-shadow: 0 0 60px rgba(0,0,0,0.8);">
-                <img src="data:image/png;base64,{qr_b64}" width="160" style="display:block;">
-            </div>
-            <div style="background: #E2001A; color: white; padding: 15px 40px; border-radius: 50px; font-weight: bold; font-size: 26px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-transform: uppercase; white-space: nowrap; border: 2px solid white;">
-                📸 SCANNEZ POUR PARTICIPER
+            {logo_part}
+            <h1 style="color:white; font-size:50px; font-weight:bold; text-transform:uppercase; text-shadow: 0 0 10px black;">MUR PHOTOS LIVE</h1>
+            <div class="glass-box" style="padding:30px; text-align:center;">
+                <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="180"></div>
+                <div style="margin-top:15px; background: rgba(226, 0, 26, 0.8); color: white; padding: 10px 30px; border-radius: 50px; font-weight: bold; font-size: 20px;">
+                    📸 SCANNEZ POUR PARTICIPER
+                </div>
             </div>
         </div>
         """)
@@ -668,36 +714,72 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*"); photos.sort(key=os.path.getmtime, reverse=True); recent_photos = photos[:40] 
         img_array_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in recent_photos])
         
-        components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>
+        # JS CORRIGÉ : REBOND SUR LE CENTRE + Z-INDEX
+        components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 3px solid rgba(255,255,255,0.5); box-shadow: 0 0 15px rgba(0,0,0,0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>
             var doc = window.parent.document;
             var containerId = 'live-bubble-container';
             var existingContainer = doc.getElementById(containerId);
-            if (existingContainer) {{ existingContainer.innerHTML = ''; }} else {{
-                existingContainer = doc.createElement('div'); existingContainer.id = containerId;
-                existingContainer.style.position = 'fixed'; existingContainer.style.top = '0'; existingContainer.style.left = '0';
-                existingContainer.style.width = '100vw'; existingContainer.style.height = '100vh';
-                existingContainer.style.pointerEvents = 'none'; existingContainer.style.zIndex = '1';
+            
+            if (existingContainer) {{
+                existingContainer.innerHTML = '';
+            }} else {{
+                existingContainer = doc.createElement('div');
+                existingContainer.id = containerId;
+                existingContainer.style.position = 'fixed';
+                existingContainer.style.top = '0';
+                existingContainer.style.left = '0';
+                existingContainer.style.width = '100vw';
+                existingContainer.style.height = '100vh';
+                existingContainer.style.pointerEvents = 'none';
+                existingContainer.style.zIndex = '1';
                 doc.body.appendChild(existingContainer);
             }}
-            const images = {img_array_js}; const speed = 1.0; const bubbles = [];
+
+            const images = {js_img_list};
+            const speed = 1.0; 
+            const bubbles = [];
+
             images.forEach((src) => {{ 
-                const img = doc.createElement('img'); img.src = src; img.className = 'bubble'; 
-                img.style.position = 'absolute'; img.style.borderRadius = '50%'; img.style.border = '4px solid #E2001A'; img.style.objectFit = 'cover';
-                const size = 60 + Math.random() * 60; img.style.width = size + 'px'; img.style.height = size + 'px'; 
-                let startX = Math.random() * (window.innerWidth - size); let startY = Math.random() * (window.innerHeight - size);
-                let vx = (Math.random() - 0.5) * speed * 3; let vy = (Math.random() - 0.5) * speed * 3;
+                const img = doc.createElement('img'); 
+                img.src = src; 
+                img.className = 'bubble'; 
+                
+                const size = 80 + Math.random() * 100; 
+                img.style.width = size + 'px'; 
+                img.style.height = size + 'px'; 
+                
+                let startX = Math.random() * (window.innerWidth - size);
+                let startY = Math.random() * (window.innerHeight - size);
+                
+                let vx = (Math.random() - 0.5) * speed * 3;
+                let vy = (Math.random() - 0.5) * speed * 3;
+                
                 const bubble = {{ element: img, x: startX, y: startY, vx: vx, vy: vy, size: size }}; 
-                existingContainer.appendChild(img); bubbles.push(bubble); 
+                existingContainer.appendChild(img); 
+                bubbles.push(bubble); 
             }}); 
+            
             function animate() {{ 
-                const w = window.innerWidth; const h = window.innerHeight; 
-                const centerX = w / 2; const centerY = h / 2; const safeZoneW = 400; const safeZoneH = 500; 
+                const w = window.innerWidth; 
+                const h = window.innerHeight; 
+                const centerX = w / 2;
+                const centerY = h / 2;
+                const safeZoneW = 500; 
+                const safeZoneH = 600; 
+
                 bubbles.forEach(b => {{ 
-                    b.x += b.vx; b.y += b.vy; 
-                    if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; 
-                    if (b.x + b.size > centerX - safeZoneW/2 && b.x < centerX + safeZoneW/2 && b.y + b.size > centerY - safeZoneH/2 && b.y < centerY + safeZoneH/2) {{
-                        if(Math.abs(b.x - centerX) > Math.abs(b.y - centerY)) b.vx *= -1; else b.vy *= -1;
+                    b.x += b.vx; 
+                    b.y += b.vy; 
+                    
+                    if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; 
+                    if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; 
+                    
+                    if (b.x + b.size > centerX - safeZoneW/2 && b.x < centerX + safeZoneW/2 && 
+                        b.y + b.size > centerY - safeZoneH/2 && b.y < centerY + safeZoneH/2) {{
+                        if(Math.abs(b.x - centerX) > Math.abs(b.y - centerY)) b.vx *= -1;
+                        else b.vy *= -1;
                     }}
+
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`; 
                 }}); 
                 requestAnimationFrame(animate); 
