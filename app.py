@@ -93,6 +93,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}
         setInterval(create, {interval});
         </script>"""
+
     elif effect_name == "❄️ Neige":
         js_code = js_base + f"""
         function create() {{
@@ -105,6 +106,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}
         setInterval(create, {interval});
         </script>"""
+
     elif effect_name == "🎉 Confettis":
         count = max(1, int(intensity * 1.5))
         fire_rate = max(150, 2000 - (speed * 35))
@@ -120,6 +122,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         }};
         layer.appendChild(s);
         </script>"""
+
     elif effect_name == "🌌 Espace":
         js_code = js_base + f"""
         function create() {{
@@ -133,6 +136,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}
         setInterval(create, {interval});
         </script>"""
+
     elif effect_name == "💸 Billets":
         js_code = js_base + f"""
         function create() {{
@@ -145,6 +149,7 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}
         setInterval(create, {interval});
         </script>"""
+
     elif effect_name == "🟢 Matrix":
         font_size = max(10, 40 - intensity)
         refresh = max(20, 150 - (speed * 2.5))
@@ -168,10 +173,9 @@ def inject_visual_effect(effect_name, intensity, speed):
         setInterval(draw, {refresh});
         </script>"""
     
-    js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- 2. GENERATEUR HTML DE TV RETRO ---
+# --- 2. GENERATEUR HTML DE TV RETRO (PREVIEW ADMIN) ---
 def get_tv_html(effect_js):
     return f"""
     <html>
@@ -227,12 +231,14 @@ def get_tv_html(effect_js):
     </html>
     """
 
-# --- 3. GENERATEUR JS POUR PREVIEW ---
+# --- 3. GENERATEUR JS POUR PREVIEW (DANS TV ADMIN) ---
 def get_preview_js(effect_name, intensity, speed):
     if effect_name == "Aucun":
         return "<div style='width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:#444;font-size:12px;'>OFF</div>"
+    
     interval = int(3500 / (intensity + 5))
     duration = max(2, 15 - (speed * 0.25))
+
     if effect_name == "🎈 Ballons":
         return f"""<script>const sc=document.getElementById('preview-screen'); setInterval(()=>{{const e=document.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-30px;left:'+Math.random()*90+'%;font-size:18px;transition:bottom {duration}s linear;';sc.appendChild(e);setTimeout(()=>{{e.style.bottom='150px'}},50);setTimeout(()=>{{e.remove()}},{duration*1000})}},{interval});</script>"""
     elif effect_name == "❄️ Neige":
@@ -259,43 +265,29 @@ est_utilisateur = st.query_params.get("mode") == "vote"
 
 # --- ADMINISTRATION ---
 if est_admin:
-    # --- CSS STICKY HEADER (CORRIGÉ POUR BLOCAGE TOTAL) ---
+    # CSS POUR FIGER LES TITRES (STICKY)
     st.markdown("""
         <style>
-            /* 1. Neutraliser les marges de base de Streamlit */
-            [data-testid="stHeader"] {
-                display: none !important;
+            /* Cible tous les titres h1 (st.title) pour les figer */
+            div[data-testid="stVerticalBlock"] > div:has(h1) {
+                position: sticky;
+                top: 0;
+                background-color: white;
+                z-index: 1000;
+                padding: 1rem 0;
+                border-bottom: 2px solid #f0f2f6;
             }
-            .main .block-container {
-                padding-top: 0rem !important;
-                padding-left: 1rem !important;
-                padding-right: 1rem !important;
-            }
-
-            /* 2. Forcer le titre à être STICKY dès le pixel 0 */
-            div[data-testid="stVerticalBlock"] > div:first-child:has(h1) {
-                position: -webkit-sticky !important;
-                position: sticky !important;
-                top: 0 !important;
-                background-color: white !important;
-                z-index: 9999 !important;
-                padding: 1.5rem 0 1rem 0 !important;
-                margin-top: 0 !important;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.1) !important;
-                border-bottom: 4px solid #E2001A !important;
-            }
-
-            /* Ajustement Mode Sombre */
             @media (prefers-color-scheme: dark) {
-                div[data-testid="stVerticalBlock"] > div:first-child:has(h1) {
-                    background-color: #0e1117 !important;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.5) !important;
+                div[data-testid="stVerticalBlock"] > div:has(h1) {
+                    background-color: #0e1117;
+                    border-bottom: 2px solid #262730;
                 }
             }
         </style>
     """, unsafe_allow_html=True)
 
     if "auth" not in st.session_state: st.session_state["auth"] = False
+    
     if not st.session_state["auth"]:
         st.markdown("<br><br><h1 style='text-align:center;'>🔐 ACCÈS RÉGIE</h1>", unsafe_allow_html=True)
         col_c, col_p, col_d = st.columns([1,2,1])
@@ -418,13 +410,16 @@ else:
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2500, key="wall_ref")
     st.markdown("""<style>body, .stApp { background-color: black !important; overflow: hidden; } [data-testid='stHeader'] { display: none !important; } .block-container { padding: 0 !important; max-width: 100% !important; }</style>""", unsafe_allow_html=True)
+    
     cfg = load_json(CONFIG_FILE, default_config)
+    
     screen_key = "attente"
     if cfg["mode_affichage"] == "attente": screen_key = "attente"
     elif cfg["mode_affichage"] == "photos_live": screen_key = "photos_live"
     elif cfg["reveal_resultats"]: screen_key = "podium"
     elif cfg["mode_affichage"] == "votes":
         screen_key = "votes_open" if cfg["session_ouverte"] else "votes_closed"
+    
     eff = cfg["screen_effects"].get(screen_key, "Aucun")
     inject_visual_effect(eff, cfg.get("effect_intensity", 25), cfg.get("effect_speed", 25))
 
@@ -434,6 +429,7 @@ else:
 
     if cfg["mode_affichage"] == "attente":
         st.markdown('<div style="text-align:center; color:white; margin-top:20vh;"><h2>Événement en cours...</h2></div>', unsafe_allow_html=True)
+    
     elif cfg["mode_affichage"] == "photos_live":
         st.markdown('<h1 style="text-align:center; color:white;">📸 LIVE</h1>', unsafe_allow_html=True)
         files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
@@ -443,6 +439,7 @@ else:
                 with open(f, "rb") as b: img_list.append(f"data:image/jpeg;base64,{base64.b64encode(b.read()).decode()}")
             js_imgs = json.dumps(img_list)
             components.html(f"""<div id="grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:15px;padding:20px;"></div><script>var imgs={js_imgs}; var g=document.getElementById('grid'); imgs.forEach(s=>{{var i=document.createElement('img');i.src=s;i.style.height='250px';i.style.borderRadius='15px';i.style.border='4px solid #E2001A';g.appendChild(i);}});</script>""", height=800)
+
     elif cfg["mode_affichage"] == "votes" and not cfg["reveal_resultats"]:
         if cfg["session_ouverte"]:
             host = st.context.headers.get('host', 'localhost')
@@ -451,6 +448,7 @@ else:
             st.markdown(f'<div style="text-align:center; background:white; width:220px; margin:40px auto; padding:15px; border-radius:20px;"><img src="data:image/png;base64,{base64.b64encode(buf.getvalue()).decode()}" width="190"><br><b style="color:black; font-size:20px;">VOTEZ ICI</b></div>', unsafe_allow_html=True)
         else:
             st.markdown('<div style="text-align:center; color:#E2001A; margin-top:100px;"><h1>🏁 VOTES CLOS</h1></div>', unsafe_allow_html=True)
+
     elif cfg["reveal_resultats"]:
         v_data = load_json(VOTES_FILE, {})
         sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
