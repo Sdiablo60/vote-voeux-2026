@@ -112,11 +112,35 @@ if est_admin:
         pwd = st.text_input("Mot de passe", type="password")
         if pwd == "ADMIN_LIVE_MASTER": st.session_state.auth = True; st.rerun()
     else:
-        # On définit cfg ici pour qu'il soit disponible partout dans l'admin
+        # Configuration globale disponible pour tous les onglets
         cfg = st.session_state.config
+        
         with st.sidebar:
             st.title("🎛️ RÉGIE MASTER")
             menu = st.radio("Navigation", ["🔴 PILOTAGE LIVE", "⚙️ Paramètres", "📸 Médiathèque"])
+            
+            # --- AJOUT: LIENS EXTERNES VERS LE MUR SOCIAL ---
+            st.markdown("---")
+            st.markdown("### 🔗 Accès Rapides")
+            
+            # Bouton pour ouvrir le Mur Social (supprime les query params)
+            st.markdown(
+                '<a href="./" target="_blank" style="text-decoration:none;">'
+                '<button style="width:100%; background-color:#E2001A; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer; font-weight:bold; margin-bottom:10px;">'
+                '📺 OUVRIR MUR SOCIAL'
+                '</button></a>', 
+                unsafe_allow_html=True
+            )
+            
+            # Bouton pour ouvrir le Vote Mobile (ajoute ?mode=vote)
+            st.markdown(
+                '<a href="./?mode=vote" target="_blank" style="text-decoration:none;">'
+                '<button style="width:100%; background-color:#333; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">'
+                '📱 APERÇU MOBILE'
+                '</button></a>', 
+                unsafe_allow_html=True
+            )
+            
         st.markdown(f"<div class='fixed-header'>{menu}</div>", unsafe_allow_html=True)
 
         if menu == "🔴 PILOTAGE LIVE":
@@ -151,7 +175,6 @@ if est_admin:
 
         elif menu == "⚙️ Paramètres":
             st.title("Configuration")
-            # Correction ici : cfg est bien défini plus haut
             new_title = st.text_input("Titre du Mur", value=cfg["titre_mur"])
             if st.button("Sauver Titre"): 
                 cfg["titre_mur"] = new_title
@@ -166,6 +189,12 @@ if est_admin:
                 cfg["logo_b64"] = b64
                 save_config()
                 st.success("Logo mis à jour")
+            
+            st.divider()
+            st.subheader("Services / Candidats")
+            df_cands = pd.DataFrame(cfg["candidats"], columns=["Services"])
+            edited = st.data_editor(df_cands, num_rows="dynamic", use_container_width=True)
+            if st.button("Sauver Services"): cfg["candidats"] = edited["Services"].tolist(); save_config(); st.rerun()
 
         elif menu == "📸 Médiathèque":
             st.title("Photos Live")
@@ -188,7 +217,14 @@ elif est_utilisateur:
             if save_optimized_photo(photo): st.success("Envoyé !")
     else:
         st.title("🗳️ Vote")
-        st.info("Interface active")
+        if cfg_user.get("session_ouverte"):
+            choix = st.multiselect("Choisissez 3 services :", cfg_user.get("candidats", []))
+            if len(choix) == 3 and st.button("Valider"):
+                vts = load_json(VOTES_FILE, {})
+                for c in choix: vts[c] = vts.get(c, 0) + 1
+                with open(VOTES_FILE, "w") as f: json.dump(vts, f)
+                st.success("Merci pour votre vote !")
+        else: st.info("⌛ Votes non lancés.")
 
 # --- MUR SOCIAL ---
 else:
