@@ -8,6 +8,7 @@ from datetime import datetime
 import zipfile
 import uuid
 import textwrap
+import shutil
 
 # --- GESTION PDF ---
 try:
@@ -51,8 +52,8 @@ def load_json(file, default):
         except: return default
     return default
 
-# --- FONCTION CRITIQUE D'AFFICHAGE ---
 def render_html(html_code):
+    """Nettoie le HTML pour affichage propre sans bug d'indentation"""
     clean_code = textwrap.dedent(html_code).strip().replace("\n", " ")
     st.markdown(clean_code, unsafe_allow_html=True)
 
@@ -66,8 +67,9 @@ if "confirm_delete" not in st.session_state: st.session_state.confirm_delete = F
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "a_vote" not in st.session_state: st.session_state.a_vote = False
 if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
+if "selected_photos" not in st.session_state: st.session_state.selected_photos = []
 
-# --- LOGIQUE METIER ---
+# --- LOGIQUE ---
 def save_config():
     with open(CONFIG_FILE, "w") as f: json.dump(st.session_state.config, f)
 
@@ -87,8 +89,10 @@ def process_image_upload(uploaded_file):
 def save_live_photo(uploaded_file):
     try:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"live_{timestamp}_{random.randint(100,999)}.jpg"
+        unique_id = uuid.uuid4().hex[:6]
+        filename = f"live_{timestamp}_{unique_id}.jpg"
         filepath = os.path.join(LIVE_DIR, filename)
+        
         img = Image.open(uploaded_file)
         try: # Rotation EXIF
             from PIL import ExifTags
@@ -101,6 +105,7 @@ def save_live_photo(uploaded_file):
                     elif exif.get(orientation) == 6: img = img.rotate(270, expand=True)
                     elif exif.get(orientation) == 8: img = img.rotate(90, expand=True)
         except: pass
+        
         img = img.convert("RGB")
         img.thumbnail((800, 800)) 
         img.save(filepath, "JPEG", quality=80, optimize=True)
@@ -155,6 +160,23 @@ def inject_visual_effect(effect_name, intensity, speed):
         }}; layer.appendChild(s);"""
     js_code += "</script>"
     components.html(js_code, height=0)
+
+def generate_pdf_report(dataframe, title):
+    if not HAS_FPDF: return None
+    class PDF(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 15); self.cell(0, 10, title, 0, 1, 'C'); self.ln(10)
+        def footer(self):
+            self.set_y(-15); self.set_font('Arial', 'I', 8); self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+    pdf = PDF(); pdf.add_page(); pdf.set_font("Arial", size=10)
+    cols = dataframe.columns.tolist(); col_width = 190 / len(cols)
+    pdf.set_fill_color(200, 220, 255)
+    for col in cols: pdf.cell(col_width, 10, str(col).encode('latin-1', 'replace').decode('latin-1'), 1, 0, 'C', 1)
+    pdf.ln(); pdf.set_fill_color(255, 255, 255)
+    for index, row in dataframe.iterrows():
+        for col in cols: pdf.cell(col_width, 10, str(row[col]).encode('latin-1', 'replace').decode('latin-1'), 1, 0, 'C')
+        pdf.ln()
+    return pdf.output(dest='S').encode('latin-1')
 
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -222,14 +244,19 @@ if est_admin:
             voters_list = load_json(VOTERS_FILE, [])
             st.metric("👥 Participants Validés", len(voters_list))
             
-            if st.button("🗑️ RESET TOTAL (Danger)", type="primary"):
-                for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE, DETAILED_VOTES_FILE]: 
-                    if os.path.exists(f): os.remove(f)
-                files = glob.glob(f"{LIVE_DIR}/*"); 
-                for f in files: os.remove(f)
-                st.session_state.config["session_id"] = str(int(time.time()))
-                save_config()
-                st.success("Reset OK"); time.sleep(1); st.rerun()
+            with st.expander("🗑️ ZONE DE DANGER (Reset)"):
+                c_r1, c_r2 = st.columns(2)
+                if c_r1.button("♻️ RESET VOTES", type="primary", use_container_width=True):
+                    for f in [VOTES_FILE, PARTICIPANTS_FILE, VOTERS_FILE, DETAILED_VOTES_FILE]: 
+                        if os.path.exists(f): os.remove(f)
+                    st.session_state.config["session_id"] = str(int(time.time()))
+                    save_config()
+                    st.toast("✅ Votes effacés !"); time.sleep(1); st.rerun()
+                
+                if c_r2.button("🗑️ VIDER PHOTOS", type="primary", use_container_width=True):
+                    files = glob.glob(f"{LIVE_DIR}/*"); 
+                    for f in files: os.remove(f)
+                    st.toast("✅ Galerie vidée !"); time.sleep(1); st.rerun()
 
         elif menu == "⚙️ Paramétrage":
             st.title("⚙️ Paramétrage")
@@ -247,36 +274,81 @@ if est_admin:
                 new_list = [x for x in edited_df["Candidat"].astype(str).tolist() if x.strip() != ""]
                 st.session_state.config["candidats"] = new_list; save_config(); st.rerun()
 
+        # --- RESTAURATION FONCTIONNALITES MEDIATHEQUE ---
         elif menu == "📸 Médiathèque":
-            st.title("📸 Gestion Photos")
+            st.title("📸 Médiathèque & Export")
             files = glob.glob(f"{LIVE_DIR}/*"); files.sort(key=os.path.getmtime, reverse=True)
             
-            if not files: st.warning("Aucune photo.")
+            if not files:
+                st.warning("Aucune photo dans la galerie.")
             else:
-                c1, c2 = st.columns([1,1])
-                with c1:
+                # Barre d'outils
+                c_act1, c_act2, c_act3 = st.columns([1, 1, 2])
+                with c_act1:
                     zip_buffer = BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w") as zf:
                         for f in files: zf.write(f, os.path.basename(f))
-                    st.download_button("📥 Télécharger TOUT", data=zip_buffer.getvalue(), file_name="photos.zip", use_container_width=True)
-                with c2:
-                    if st.button("🗑️ SUPPRIMER TOUT", type="primary", use_container_width=True):
+                    st.download_button("📥 TOUT TÉLÉCHARGER", data=zip_buffer.getvalue(), file_name="photos_all.zip", mime="application/zip", use_container_width=True)
+                with c_act2:
+                    if st.button("🗑️ TOUT SUPPRIMER", type="primary", use_container_width=True):
                         for f in files: os.remove(f)
-                        st.rerun()
+                        st.toast("Galerie vidée"); time.sleep(1); st.rerun()
                 
                 st.divider()
-                cols = st.columns(6)
-                for i, f in enumerate(files):
-                    with cols[i%6]:
-                        st.image(f, use_container_width=True)
-                        if st.button("X", key=f"d{i}"): os.remove(f); st.rerun()
+                
+                # Choix de la vue
+                view_mode = st.radio("Affichage :", ["🖼️ Pellicule (Grille)", "📝 Liste (Sélection)"], horizontal=True)
+                
+                if "Grille" in view_mode:
+                    cols = st.columns(6)
+                    for i, f in enumerate(files):
+                        with cols[i%6]:
+                            st.image(f, use_container_width=True)
+                            if st.button("❌", key=f"del_g_{i}"): os.remove(f); st.rerun()
+                else:
+                    # Mode Liste avec Sélection
+                    st.write("Sélectionnez les photos à exporter ou supprimer :")
+                    
+                    # Header
+                    c1, c2, c3 = st.columns([0.5, 3, 1])
+                    c1.write("**Img**"); c2.write("**Fichier**"); c3.write("**Action**")
+                    
+                    selected_files = []
+                    for i, f in enumerate(files):
+                        c1, c2, c3 = st.columns([0.5, 3, 1], vertical_alignment="center")
+                        with c1: st.image(f, width=50)
+                        with c2: 
+                            if st.checkbox(os.path.basename(f), key=f"chk_{i}"):
+                                selected_files.append(f)
+                        with c3:
+                            if st.button("🗑️", key=f"del_l_{i}"): os.remove(f); st.rerun()
+                    
+                    if selected_files:
+                        st.divider()
+                        st.write(f"{len(selected_files)} photos sélectionnées")
+                        sc1, sc2 = st.columns(2)
+                        with sc1:
+                            zip_sel = BytesIO()
+                            with zipfile.ZipFile(zip_sel, "w") as zf:
+                                for f in selected_files: zf.write(f, os.path.basename(f))
+                            st.download_button("📥 TÉLÉCHARGER SÉLECTION", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True)
+                        with sc2:
+                            if st.button("🗑️ SUPPRIMER SÉLECTION", type="primary", use_container_width=True):
+                                for f in selected_files: os.remove(f)
+                                st.rerun()
 
         elif menu == "📊 Data":
-            st.title("📊 Données")
+            st.title("📊 Données & Exports")
             v_data = load_json(VOTES_FILE, {})
             if v_data:
-                st.write(v_data)
-            else: st.info("Aucun vote")
+                valid = {k:v for k,v in v_data.items() if k in st.session_state.config["candidats"]}
+                if valid:
+                    df = pd.DataFrame(list(valid.items()), columns=['Candidat', 'Points']).sort_values('Points', ascending=False)
+                    st.dataframe(df, use_container_width=True)
+                    if HAS_FPDF:
+                        pdf_bytes = generate_pdf_report(df, "RESULTATS")
+                        st.download_button("📄 TÉLÉCHARGER PDF", data=pdf_bytes, file_name="resultats.pdf", mime="application/pdf")
+            else: st.info("Aucun vote enregistré.")
 
 # =========================================================
 # 2. APPLICATION MOBILE (UTILISATEUR)
@@ -326,17 +398,18 @@ elif est_utilisateur:
             photo_to_save = None
             
             with tab1:
-                cam = st.camera_input("Camera", label_visibility="collapsed")
+                cam = st.camera_input("Camera", key=f"cam_{st.session_state.cam_reset_id}", label_visibility="collapsed")
                 if cam: photo_to_save = cam
             
             with tab2:
-                upl = st.file_uploader("Importer", type=["png", "jpg", "jpeg"], label_visibility="collapsed")
+                upl = st.file_uploader("Importer", type=["png", "jpg", "jpeg"], key=f"up_{st.session_state.cam_reset_id}", label_visibility="collapsed")
                 if upl: photo_to_save = upl
             
             if photo_to_save:
                 if save_live_photo(photo_to_save): 
                     st.success("Envoyée !")
-                    time.sleep(2)
+                    st.session_state.cam_reset_id += 1 # Force le refresh des widgets
+                    time.sleep(1)
                     st.rerun()
         
         # MODE VOTE
@@ -531,7 +604,7 @@ else:
             with open(photo_path, "rb") as f: b64 = base64.b64encode(f.read()).decode(); img_array_js.append(f"data:image/jpeg;base64,{b64}")
         js_img_list = json.dumps(img_array_js)
         
-        # JS CORRIGÉ POUR HAUTEUR 100VH
+        # JS CORRIGÉ : ANIMATION PLEIN ECRAN
         components.html(f"""<html><head><style>body {{ margin: 0; overflow: hidden; background: transparent; }} .bubble {{ position: absolute; border-radius: 50%; border: 4px solid #E2001A; box-shadow: 0 0 20px rgba(226, 0, 26, 0.5); object-fit: cover; will-change: transform; }}</style></head><body><div id="container"></div><script>
             var doc = window.parent.document;
             var containerId = 'live-bubble-container';
@@ -553,7 +626,7 @@ else:
             }}
 
             const images = {js_img_list};
-            const speed = 2.5; 
+            const speed = 1.0; // Vitesse de base
             const bubbles = [];
 
             images.forEach((src) => {{ 
@@ -565,14 +638,21 @@ else:
                 img.style.border = '4px solid #E2001A';
                 img.style.objectFit = 'cover';
                 
-                const size = 150 + Math.random() * 200; 
+                // Taille variable
+                const size = 100 + Math.random() * 200; 
+                img.style.width = size + 'px'; 
+                img.style.height = size + 'px'; 
+                
+                // Position de départ aléatoire sur TOUT l'écran
                 let startX = Math.random() * (window.innerWidth - size);
                 let startY = Math.random() * (window.innerHeight - size);
                 
-                // Vitesse un peu plus rapide
-                const bubble = {{ element: img, x: startX, y: startY, vx: (Math.random() - 0.5) * speed * 3, vy: (Math.random() - 0.5) * speed * 3, size: size }}; 
-                img.style.width = bubble.size + 'px'; 
-                img.style.height = bubble.size + 'px'; 
+                // Vitesse aléatoire X et Y
+                let vx = (Math.random() - 0.5) * speed * 2;
+                let vy = (Math.random() - 0.5) * speed * 2;
+                
+                const bubble = {{ element: img, x: startX, y: startY, vx: vx, vy: vy, size: size }}; 
+                
                 existingContainer.appendChild(img); 
                 bubbles.push(bubble); 
             }}); 
@@ -580,10 +660,15 @@ else:
             function animate() {{ 
                 const w = window.innerWidth; 
                 const h = window.innerHeight; 
+                
                 bubbles.forEach(b => {{ 
-                    b.x += b.vx; b.y += b.vy; 
+                    b.x += b.vx; 
+                    b.y += b.vy; 
+                    
+                    // Rebond sur les bords
                     if (b.x <= 0 || b.x + b.size >= w) b.vx *= -1; 
                     if (b.y <= 0 || b.y + b.size >= h) b.vy *= -1; 
+                    
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`; 
                 }}); 
                 requestAnimationFrame(animate); 
