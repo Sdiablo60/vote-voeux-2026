@@ -153,7 +153,6 @@ if est_admin:
             st.session_state["auth"] = True; st.rerun()
     else:
         cfg = st.session_state.config
-        
         with st.sidebar:
             if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
             st.header("MENU")
@@ -161,12 +160,10 @@ if est_admin:
             st.divider()
             st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none;">📺 OUVRIR MUR SOCIAL</a>""", unsafe_allow_html=True)
             st.markdown("""<a href="/?mode=vote" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none;">📱 TESTER MOBILE</a>""", unsafe_allow_html=True)
-            st.divider()
             if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
         if menu == "🔴 PILOTAGE LIVE":
             st.subheader("Séquenceur")
-            
             etat = "Inconnu"
             if cfg["mode_affichage"] == "attente": etat = "ACCUEIL"
             elif cfg["mode_affichage"] == "votes":
@@ -193,11 +190,9 @@ if est_admin:
             t1, t2 = st.tabs(["Général", "Candidats"])
             with t1:
                 new_t = st.text_input("Titre", value=cfg["titre_mur"])
-                if st.button("Sauver Titre"):
-                    st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
+                if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
                 upl = st.file_uploader("Logo", type=["png", "jpg"])
-                if upl:
-                    st.session_state.config["logo_b64"] = process_image(upl); save_config(); st.rerun()
+                if upl: st.session_state.config["logo_b64"] = process_image(upl); save_config(); st.rerun()
             with t2:
                 for i, c in enumerate(cfg["candidats"]):
                     c1, c2 = st.columns([1, 4])
@@ -269,7 +264,6 @@ elif est_utilisateur:
             if cam:
                 with open(os.path.join(LIVE_DIR, f"live_{uuid.uuid4().hex}.jpg"), "wb") as f: f.write(cam.getbuffer())
                 st.success("Envoyé !"); time.sleep(1); st.rerun()
-        
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
@@ -284,11 +278,10 @@ elif est_utilisateur:
                     st.session_state.vote_just_done = True
                     components.html("""<script>localStorage.setItem('VOTE_DONE_SECURE', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
                     st.rerun()
-        else:
-            st.info("⏳ En attente de l'ouverture des votes...")
+        else: st.info("⏳ En attente de l'ouverture des votes...")
 
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (CORRECTION AFFICHAGE)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -365,7 +358,7 @@ else:
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            # CONSTRUCTION HTML PROPRE (SANS INDENTATION INTERNE)
+            # CONSTRUCTION HTML PROPRE (CORRECTION DU BUG)
             html_left = ""
             for c in left_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
@@ -380,23 +373,19 @@ else:
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             
-            logo_div = ""
-            if cfg.get("logo_b64"): logo_div = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="qr-logo">'
-            
-            # LE HTML EST MAINTENANT COMPACT POUR ÉVITER LE BUG
+            # IMAGE SÉPARÉE
             st.markdown(f"""
-<div class="list-container">
-    <div class="col-list">{html_left}</div>
-    <div class="qr-center">
-        {logo_div}
-        <div style="background:white; padding:10px; border-radius:15px; border:5px solid #E2001A;">
-            <img src="data:image/png;base64,{qr_b64}" width="220">
-        </div>
-        <div class="vote-cta">À VOS VOTES !</div>
-    </div>
-    <div class="col-list">{html_right}</div>
-</div>""", unsafe_allow_html=True)
-
+            <div class="list-container">
+                <div class="col-list">{html_left}</div>
+                <div class="qr-center">
+                    {'<img src="data:image/png;base64,' + cfg["logo_b64"] + '" class="qr-logo">' if cfg.get("logo_b64") else ''}
+                    <div style="background:white; padding:10px; border-radius:15px; border:5px solid #E2001A;">
+                        <img src="data:image/png;base64,{qr_b64}" width="220">
+                    </div>
+                    <div class="vote-cta">À VOS VOTES !</div>
+                </div>
+                <div class="col-list">{html_right}</div>
+            </div>""", unsafe_allow_html=True)
         else:
             st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; border: 5px solid #E2001A; padding: 60px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div>", unsafe_allow_html=True)
 
