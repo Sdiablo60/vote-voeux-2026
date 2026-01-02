@@ -192,20 +192,79 @@ if est_admin:
                     st.rerun()
 
         elif menu == "⚙️ CONFIG":
-            t1, t2 = st.tabs(["Général", "Candidats"])
+            t1, t2 = st.tabs(["Général", "Candidats & Images"])
             with t1:
                 new_t = st.text_input("Titre", value=cfg["titre_mur"])
                 if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
                 upl = st.file_uploader("Logo", type=["png", "jpg"])
                 if upl: st.session_state.config["logo_b64"] = process_image(upl); save_config(); st.rerun()
+            
+            # --- GESTION DYNAMIQUE DES PARTICIPANTS ---
             with t2:
-                for i, c in enumerate(cfg["candidats"]):
-                    c1, c2 = st.columns([1, 4])
+                st.subheader(f"Liste des participants ({len(cfg['candidats'])}/15)")
+                
+                # 1. AJOUT
+                if len(cfg['candidats']) < 15:
+                    with st.form("add_cand"):
+                        col_add1, col_add2 = st.columns([4, 1])
+                        new_cand = col_add1.text_input("Nouveau participant")
+                        if col_add2.form_submit_button("➕ Ajouter") and new_cand:
+                            if new_cand not in cfg['candidats']:
+                                cfg['candidats'].append(new_cand)
+                                save_config()
+                                st.rerun()
+                            else:
+                                st.error("Existe déjà !")
+                else:
+                    st.warning("Maximum de 15 participants atteint.")
+
+                st.divider()
+
+                # 2. LISTE MODIFIABLE
+                # On utilise un mécanisme pour modifier directement la liste
+                candidates_to_remove = []
+                
+                for i, cand in enumerate(cfg['candidats']):
+                    c1, c2, c3 = st.columns([0.5, 3, 2])
+                    
+                    # Image
                     with c1:
-                        if c in cfg.get("candidats_images", {}): st.image(BytesIO(base64.b64decode(cfg["candidats_images"][c])), width=50)
+                        if cand in cfg.get("candidats_images", {}):
+                            st.image(BytesIO(base64.b64decode(cfg["candidats_images"][cand])), width=40)
+                        else:
+                            st.write("🚫")
+                    
+                    # Nom (Editable)
                     with c2:
-                        up = st.file_uploader(f"Image pour {c}", key=f"u_{i}")
-                        if up: st.session_state.config.setdefault("candidats_images", {})[c] = process_image(up); save_config(); st.rerun()
+                        new_name = st.text_input(f"Participant {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
+                        if new_name != cand and new_name:
+                            # Renommage : On met à jour la liste ET on migre l'image
+                            cfg['candidats'][i] = new_name
+                            if cand in cfg.get("candidats_images", {}):
+                                cfg["candidats_images"][new_name] = cfg["candidats_images"].pop(cand)
+                            save_config()
+                            st.rerun()
+                    
+                    # Image Upload + Delete
+                    with c3:
+                        col_up, col_del = st.columns([3, 1])
+                        up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
+                        if up_img:
+                            cfg.setdefault("candidats_images", {})[cand] = process_image(up_img)
+                            save_config()
+                            st.rerun()
+                        
+                        if col_del.button("🗑️", key=f"del_{i}"):
+                            candidates_to_remove.append(cand)
+
+                # Suppression effective
+                if candidates_to_remove:
+                    for c in candidates_to_remove:
+                        cfg['candidats'].remove(c)
+                        if c in cfg.get("candidats_images", {}):
+                            del cfg["candidats_images"][c]
+                    save_config()
+                    st.rerun()
 
         elif menu == "📸 MÉDIATHÈQUE":
             st.subheader("Gestion des Photos Live")
@@ -243,7 +302,7 @@ if est_admin:
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats & Export")
             
-            # --- PREPARATION DONNEES ---
+            # --- CALCUL DES SCORES ---
             votes = load_json(VOTES_FILE, {})
             all_cands = {c: 0 for c in cfg["candidats"]}
             all_cands.update(votes)
@@ -255,7 +314,7 @@ if est_admin:
                 x=alt.X('Points', title='Points'),
                 y=alt.Y('Candidat', sort='-x', title='Candidat'),
                 tooltip=['Candidat', 'Points']
-            ).properties(height=400).interactive(bind_y=False, bind_x=False) # Zoom bloqué
+            ).properties(height=400).interactive(bind_y=False, bind_x=False)
             st.altair_chart(chart, use_container_width=True)
             
             st.divider()
@@ -344,13 +403,13 @@ elif est_utilisateur:
                 if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }}
             }}
             if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
-                if(!window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href + '&blocked=true'; }}
+                if(!window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true'; }}
             }}
         </script>""", height=0)
 
         if is_blocked or st.session_state.vote_success:
             st.balloons()
-            st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div><p style='color:#777; margin-top:20px;'>Vote unique autorisé.</p></div>""", unsafe_allow_html=True)
+            st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div><p style='color:#777; margin-top:20px;'>Un seul vote autorisé par appareil.</p></div>""", unsafe_allow_html=True)
             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
             st.stop()
 
@@ -359,7 +418,6 @@ elif est_utilisateur:
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
         pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            # BLOCAGE SERVEUR SI NOM DEJA UTILISÉ
             voters = load_json(VOTERS_FILE, [])
             if pseudo.strip().upper() in [v.upper() for v in voters]: 
                 st.error("Ce pseudo a déjà voté.")
@@ -394,20 +452,16 @@ elif est_utilisateur:
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                        # VERIFICATION ULTIME SERVEUR AVANT ECRITURE
                         voters = load_json(VOTERS_FILE, [])
                         if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]:
                             st.error("Vote déjà enregistré pour ce nom !"); st.stop()
-                        
                         vts = load_json(VOTES_FILE, {})
                         pts = cfg.get("points_ponderation", [5, 3, 1])
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                         save_json(VOTES_FILE, vts)
-                        
                         details = load_json(DETAILED_VOTES_FILE, [])
                         details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                         save_json(DETAILED_VOTES_FILE, details)
-                        
                         voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
                         st.session_state.vote_success = True
                         components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
@@ -453,7 +507,6 @@ else:
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-10:]])
         st.markdown(f'<div style="position:fixed; top:13vh; width:100%; text-align:center; z-index:100;">{tags_html}</div>', unsafe_allow_html=True)
 
-    # NETTOYAGE ECRAN POUR EVITER SUPERPOSITION
     ph = st.empty()
     
     if mode == "attente":
@@ -531,7 +584,6 @@ else:
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
-        # SCRIPT CORRIGÉ POUR DÉPLACEMENT FLUIDE
         components.html(f"""<script>
             var doc = window.parent.document;
             var container = doc.getElementById('bubble-wall');
@@ -547,11 +599,9 @@ else:
                 const el = doc.createElement('img'); el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
                 
-                // Position aléatoire mais pas hors champ
                 let x = Math.random() * (window.innerWidth - bSize); 
                 let y = Math.random() * (window.innerHeight - bSize);
                 
-                // Vitesse forcée (jamais 0)
                 let vx = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3);
                 let vy = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3);
                 
@@ -565,11 +615,9 @@ else:
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
                     
-                    // Rebond Bords
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
                     
-                    // Rebond Bloc Central
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
