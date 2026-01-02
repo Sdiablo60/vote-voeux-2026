@@ -1,17 +1,15 @@
 import streamlit as st
-import os, glob, base64, qrcode, json, random, pandas as pd
+import os, glob, base64, qrcode, json, time, uuid
 from io import BytesIO
 import streamlit.components.v1 as components
-import time
 from PIL import Image
-from datetime import datetime
-import uuid
 
-# --- 1. CONFIGURATION ---
-st.set_page_config(page_title="Régie Master - IT SQUAD", layout="wide", initial_sidebar_state="collapsed")
+# --- CONFIGURATION ---
+st.set_page_config(page_title="Régie IT SQUAD", layout="wide", initial_sidebar_state="collapsed")
 
 LIVE_DIR = "galerie_live_users"
-VOTES_FILE, CONFIG_FILE, VOTERS_FILE = "votes.json", "config_mur.json", "voters.json"
+VOTES_FILE = "votes.json"
+CONFIG_FILE = "config_mur.json"
 
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
@@ -62,11 +60,11 @@ if est_admin:
     if not st.session_state["auth"]:
         if st.text_input("Code Admin", type="password") == "ADMIN_LIVE_MASTER": st.session_state["auth"] = True; st.rerun()
     else:
-        cfg = st.session_state.config
-        
         with st.sidebar:
             menu = st.radio("Menu", ["🔴 PILOTAGE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE"])
-
+        
+        cfg = st.session_state.config
+        
         if menu == "🔴 PILOTAGE":
             c1, c2, c3, c4 = st.columns(4)
             if c1.button("🏠 ACCUEIL"): cfg.update({"mode_affichage": "attente", "reveal_resultats": False}); save_json(CONFIG_FILE, cfg); st.rerun()
@@ -77,11 +75,9 @@ if est_admin:
             st.divider()
             if st.button("📸 MUR PHOTOS"): cfg.update({"mode_affichage": "photos_live"}); save_json(CONFIG_FILE, cfg); st.rerun()
             
-            st.warning("Zone de Danger")
-            if st.button("🗑️ RESET TOTAL (VOTES & NOMS)"):
+            if st.button("🗑️ RESET VOTES"):
                 if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
-                if os.path.exists(VOTERS_FILE): os.remove(VOTERS_FILE)
-                st.success("Système remis à neuf.")
+                st.success("Votes remis à zéro !")
 
         elif menu == "⚙️ CONFIG":
             t1, t2 = st.tabs(["Général", "Images Candidats"])
@@ -109,48 +105,35 @@ if est_admin:
                     if st.button("X", key=f"del_{i}"): os.remove(f); st.rerun()
 
 # =========================================================
-# 2. APPLICATION MOBILE (SÉCURITÉ HARD & ANIMATION)
+# 2. APPLICATION MOBILE (STANDARD)
 # =========================================================
 elif est_utilisateur:
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # 1. Vérification Naviguateur (Clé V8)
+    # Vérification simple par cookie
     components.html("""<script>
-        if(localStorage.getItem('VOTE_FINAL_V8_SECURE')) {
+        if(localStorage.getItem('VOTE_SIMPLE_LOCK')) {
             if(!window.parent.location.href.includes('blocked=true')) {
                 window.parent.location.href = window.parent.location.href + '&blocked=true';
             }
         }
     </script>""", height=0)
 
-    # 2. Écran de Fin (Animation)
     if is_blocked:
-        st.balloons()
-        st.markdown("""
-            <div style='text-align:center; margin-top:100px;'>
-                <h1 style='color:#E2001A;'>VOTE ENREGISTRÉ !</h1>
-                <p>Merci pour votre participation.</p>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center; margin-top:100px;'><h1>✅ VOTE VALIDÉ</h1></div>", unsafe_allow_html=True)
         st.stop()
 
-    # 3. Vote
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         pseudo = st.text_input("Ton Prénom :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            # Vérification Serveur (Liste Noire)
-            voters = load_json(VOTERS_FILE, [])
-            if pseudo.strip().upper() in [v.upper() for v in voters]:
-                st.error("⛔ Ce prénom a déjà voté.")
-            else:
-                st.session_state.user_pseudo = pseudo.strip()
-                st.rerun()
+            st.session_state.user_pseudo = pseudo.strip()
+            st.rerun()
     else:
         cfg = load_json(CONFIG_FILE, st.session_state.config)
         
         if cfg["mode_affichage"] == "photos_live":
-            st.subheader("📸 Ta photo")
+            st.subheader("📸 Photo")
             cam = st.camera_input("Photo")
             if cam:
                 with open(os.path.join(LIVE_DIR, f"live_{uuid.uuid4().hex}.jpg"), "wb") as f: f.write(cam.getbuffer())
@@ -162,32 +145,20 @@ elif est_utilisateur:
             
             if len(choix) == 3:
                 st.markdown("---")
-                if st.button("🚀 VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    # Double Check Serveur
-                    voters = load_json(VOTERS_FILE, [])
-                    if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]:
-                        st.error("Erreur : Vote déjà existant.")
-                        time.sleep(2); st.rerun()
-                    
-                    # Sauvegarde
+                if st.button("🚀 VALIDER", type="primary", use_container_width=True):
                     vts = load_json(VOTES_FILE, {})
                     for v in choix: vts[v] = vts.get(v, 0) + 1
                     save_json(VOTES_FILE, vts)
                     
-                    # Liste Noire
-                    voters.append(st.session_state.user_pseudo)
-                    save_json(VOTERS_FILE, voters)
-                    
-                    # Marquage et Redirection
                     components.html("""<script>
-                        localStorage.setItem('VOTE_FINAL_V8_SECURE', 'true');
+                        localStorage.setItem('VOTE_SIMPLE_LOCK', 'true');
                         window.parent.location.href = window.parent.location.href + '&blocked=true';
                     </script>""", height=0)
         else:
-            st.info("⏳ En attente de la régie...")
+            st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (DESIGN [PHOTO][TEXTE])
+# 3. MUR SOCIAL (DESIGN CORRIGÉ)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -202,26 +173,25 @@ else:
         .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }}
         .social-title {{ color: white; font-size: 45px; font-weight: bold; margin: 0; text-transform: uppercase; }}
         
-        /* DESIGN [PHOTO] [TEXTE] */
+        /* STYLE LIGNE CANDIDAT */
         .cand-row {{ display: flex; align-items: center; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 50px; width: 100%; }}
         .cand-img {{ width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; }}
         .cand-name {{ color: white; font-size: 20px; font-weight: 600; margin: 0 15px; white-space: nowrap; }}
         
-        /* GAUCHE : ALIGNÉ VERS LA DROITE (CENTRE) */
+        /* CORRECTION DEMANDÉE : */
+        /* GAUCHE : [Photo] [Texte] | Aligné à droite (vers le centre) */
         .row-left {{ justify-content: flex-end; text-align: right; }}
-        .row-left .cand-img {{ margin-right: 15px; }} /* Photo à gauche du texte ? Non, Photo puis Texte demandé. */
+        .row-left .cand-name {{ order: 2; }} /* Texte après */
+        .row-left .cand-img {{ order: 1; }}  /* Photo avant */
         
-        /* MODIFICATION DEMANDÉE : */
-        /* Gauche : [Photo] [Texte] */
-        .row-left {{ flex-direction: row; justify-content: flex-end; }}
-        
-        /* Droite : [Photo] [Texte] */
-        .row-right {{ flex-direction: row; justify-content: flex-start; }}
+        /* DROITE : [Photo] [Texte] | Aligné à gauche (vers le centre) */
+        .row-right {{ justify-content: flex-start; text-align: left; }}
+        /* Par défaut l'ordre HTML est Photo puis Texte, donc pas besoin de 'order' */
         
         .list-container {{ position: absolute; top: 18vh; width: 100%; display: flex; justify-content: center; gap: 50px; }}
         .col-list {{ width: 35%; display: flex; flex-direction: column; }}
         
-        /* PODIUM PETIT ET BAS */
+        /* PODIUM (Bas et Petit) */
         .winner-card {{ 
             position: fixed; top: 400px; left: 50%; transform: translateX(-50%); 
             width: 300px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; 
@@ -234,12 +204,10 @@ else:
 
     mode = cfg.get("mode_affichage")
     
-    # NETTOYAGE ACCUEIL
     if mode == "attente":
         components.html("<script>document.querySelectorAll('canvas').forEach(e => e.remove());</script>", height=0)
         st.markdown("<h1 style='text-align:center; color:white; margin-top:40vh; font-size:90px;'>BIENVENUE</h1>", unsafe_allow_html=True)
 
-    # MODE VOTES
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
@@ -254,26 +222,26 @@ else:
                     <h2 style="color:#FFD700; font-size:25px; margin:0;">VAINQUEUR</h2>
                 </div>""", unsafe_allow_html=True)
         else:
-            # CONSTRUCTION DES LISTES [PHOTO] [TEXTE]
+            # LISTES CANDIDATS
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
             left_list = cands[:mid]
             right_list = cands[mid:]
             
+            # Construction Gauche : [Photo] [Texte] (Aligné droite via CSS)
             html_left = ""
             for c in left_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                # Photo puis Texte
                 html_left += f"""<div class="cand-row row-left"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
 
+            # Construction Droite : [Photo] [Texte] (Aligné gauche via CSS)
             html_right = ""
             for c in right_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                # Photo puis Texte
                 html_right += f"""<div class="cand-row row-right"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
             
-            # QR CODE CENTRAL
+            # QR CODE
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"http://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
