@@ -6,7 +6,14 @@ from PIL import Image
 from datetime import datetime
 import pandas as pd
 
-# --- CONFIGURATION ---
+# --- GESTION DES LIBRAIRIES OPTIONNELLES ---
+try:
+    import altair as alt
+    HAS_ALTAIR = True
+except ImportError:
+    HAS_ALTAIR = False
+
+# --- CONFIGURATION (SIDEBAR ÉTENDUE PAR DÉFAUT) ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
 # Dossiers & Fichiers
@@ -37,33 +44,40 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILITAIRES (AUTO-RÉPARATION) ---
+# --- FONCTIONS UTILITAIRES (NETTOYAGE PROFOND) ---
 def load_json(file, default):
     if os.path.exists(file):
         try:
             with open(file, "r", encoding='utf-8') as f:
                 content = f.read()
-                if not content: return default # Fichier vide
+                if not content: return default
                 return json.loads(content)
-        except Exception as e:
-            # Si le fichier est corrompu, on le supprime pour éviter de bloquer
-            print(f"⚠️ Fichier {file} corrompu, réinitialisation. Erreur: {e}")
-            try: os.remove(file)
-            except: pass
-            return default
+        except: return default
     return default
+
+def clean_data_for_json(data):
+    """Convertit récursivement tout ce qui n'est pas standard en string pour éviter le TypeError"""
+    if isinstance(data, dict):
+        return {k: clean_data_for_json(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [clean_data_for_json(v) for v in data]
+    elif isinstance(data, (str, int, float, bool, type(None))):
+        return data
+    else:
+        return str(data)
 
 def save_json(file, data):
     try:
+        # ÉTAPE CLÉ : On nettoie les données avant de les écrire
+        safe_data = clean_data_for_json(data)
         with open(str(file), "w", encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4, default=str)
+            json.dump(safe_data, f, ensure_ascii=False, indent=4)
     except Exception as e:
-        print(f"Erreur sauvegarde {file}: {e}")
+        print(f"ERREUR CRITIQUE SAUVEGARDE {file}: {e}")
 
 def save_config():
-    # Conversion en dict pour nettoyer les objets Streamlit
-    clean_config = dict(st.session_state.config)
-    save_json(CONFIG_FILE, clean_config)
+    # On force la conversion de la config session_state en dictionnaire propre
+    save_json(CONFIG_FILE, st.session_state.config)
 
 def process_image(uploaded_file):
     try:
@@ -208,7 +222,6 @@ if est_admin:
                 if st.button("🗑️ RESET TOTAL & DÉBLOQUER TÉLÉPHONES", type="primary"):
                     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
                         if os.path.exists(f): os.remove(f)
-                    
                     cfg["session_id"] = str(uuid.uuid4())
                     save_config()
                     st.success("Système réinitialisé !"); time.sleep(1); st.rerun()
@@ -337,7 +350,7 @@ elif est_utilisateur:
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=3000, key="wall_refresh") # Refresh un peu plus lent pour laisser le temps au fichier d'être écrit
+    st_autorefresh(interval=2000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown(f"""
@@ -348,6 +361,7 @@ else:
         .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }}
         .social-title {{ color: white; font-size: 45px; font-weight: bold; margin: 0; text-transform: uppercase; }}
         
+        /* BARRE VOTANTS (TAGS) */
         .tags-marquee {{
             position: absolute; top: 13vh; width: 100%; height: 8vh;
             display: flex; justify-content: center; align-items: center; flex-wrap: wrap; overflow: hidden;
@@ -357,6 +371,7 @@ else:
             border-radius: 15px; padding: 2px 10px; margin: 2px; font-size: 14px; border: 1px solid #555;
         }}
         
+        /* LISTE CANDIDATS OPTIMISÉE */
         .list-container {{ position: absolute; top: 22vh; width: 100%; display: flex; justify-content: center; gap: 20px; }}
         .col-list {{ width: 38%; display: flex; flex-direction: column; }}
         .cand-row {{ 
@@ -369,9 +384,11 @@ else:
         .row-left {{ flex-direction: row; justify-content: flex-end; text-align: right; }}
         .row-right {{ flex-direction: row; justify-content: flex-start; text-align: left; }}
         
+        /* QR BOX */
         .qr-center {{ display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top: 0px; }}
         .qr-logo {{ width: 80px; margin-bottom: 10px; object-fit: contain; }}
         
+        /* PODIUM CENTRÉ */
         .winner-card {{ 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; 
@@ -379,6 +396,7 @@ else:
             box-shadow: 0 0 80px #FFD700;
         }}
         
+        /* SUSPENSE CARDS */
         .suspense-container {{ 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             display: flex; gap: 30px; z-index: 1000;
@@ -395,11 +413,13 @@ else:
 
     mode = cfg.get("mode_affichage")
     
+    # Barre des votants
     if mode == "votes":
         parts = load_json(PARTICIPANTS_FILE, [])
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-80:]])
         st.markdown(f'<div class="tags-marquee">{tags_html}</div>', unsafe_allow_html=True)
 
+    # Effets
     key_eff = "attente"
     if mode == "photos_live": key_eff = "photos_live"
     elif cfg.get("reveal_resultats"): key_eff = "podium"
