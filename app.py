@@ -6,14 +6,7 @@ from PIL import Image
 from datetime import datetime
 import pandas as pd
 
-# --- GESTION DES LIBRAIRIES OPTIONNELLES ---
-try:
-    import altair as alt
-    HAS_ALTAIR = True
-except ImportError:
-    HAS_ALTAIR = False
-
-# --- CONFIGURATION (SIDEBAR ÉTENDUE PAR DÉFAUT) ---
+# --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
 # Dossiers & Fichiers
@@ -44,12 +37,20 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILITAIRES ---
+# --- FONCTIONS UTILITAIRES (AUTO-RÉPARATION) ---
 def load_json(file, default):
     if os.path.exists(file):
         try:
-            with open(file, "r", encoding='utf-8') as f: return json.load(f)
-        except: return default
+            with open(file, "r", encoding='utf-8') as f:
+                content = f.read()
+                if not content: return default # Fichier vide
+                return json.loads(content)
+        except Exception as e:
+            # Si le fichier est corrompu, on le supprime pour éviter de bloquer
+            print(f"⚠️ Fichier {file} corrompu, réinitialisation. Erreur: {e}")
+            try: os.remove(file)
+            except: pass
+            return default
     return default
 
 def save_json(file, data):
@@ -60,6 +61,7 @@ def save_json(file, data):
         print(f"Erreur sauvegarde {file}: {e}")
 
 def save_config():
+    # Conversion en dict pour nettoyer les objets Streamlit
     clean_config = dict(st.session_state.config)
     save_json(CONFIG_FILE, clean_config)
 
@@ -135,37 +137,24 @@ if est_admin:
 
     st.markdown(f"""
     <style>
-        /* On remonte un peu le contenu */
         .main .block-container {{ margin-top: 50px !important; padding-top: 20px !important; }}
-        
-        /* HEADER FIXE MAIS QUI NE CACHE PAS LE MENU */
         .fixed-header {{
             position: fixed; top: 0; left: 0; width: 100%; height: 60px;
-            background-color: #1E1E1E; z-index: 99999; /* Z-Index réduit pour laisser passer le menu Streamlit */
+            background-color: #1E1E1E; z-index: 99999;
             display: flex; align-items: center; justify-content: center;
             border-bottom: 3px solid #E2001A; transition: none !important;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            pointer-events: none; /* Laisse passer les clics vers le header Streamlit si besoin */
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: none;
         }}
-        /* Le texte et le logo doivent capter les événements si on veut */
         .header-content {{ pointer-events: auto; display: flex; align-items: center; width: 100%; justify-content: center; }}
-        
         .header-title {{ color: white; font-size: 22px; font-weight: 800; text-transform: uppercase; font-family: sans-serif; }}
         .header-logo {{
             position: absolute; right: 20px; top: 5px; height: 50px; width: 80px;
             background-size: contain; background-repeat: no-repeat; background-position: center; {logo_css}
         }}
-        
-        /* ON NE CACHE PLUS LE HEADER STREAMLIT POUR GARDER LE MENU */
         header[data-testid="stHeader"] {{ background: transparent; }}
-        [data-testid="stSidebar"] {{ z-index: 100000; }} /* Sidebar au dessus de tout */
+        [data-testid="stSidebar"] {{ z-index: 100000; }}
     </style>
-    <div class="fixed-header">
-        <div class="header-content">
-            <div class="header-title">CONSOLE RÉGIE</div>
-            <div class="header-logo"></div>
-        </div>
-    </div>
+    <div class="fixed-header"><div class="header-content"><div class="header-title">CONSOLE RÉGIE</div><div class="header-logo"></div></div></div>
     """, unsafe_allow_html=True)
     
     if "auth" not in st.session_state: st.session_state["auth"] = False
@@ -188,37 +177,28 @@ if est_admin:
 
         if menu == "🔴 PILOTAGE LIVE":
             st.subheader("Séquenceur")
+            mode, open, reveal = cfg["mode_affichage"], cfg["session_ouverte"], cfg["reveal_resultats"]
             
-            mode = cfg["mode_affichage"]
-            open = cfg["session_ouverte"]
-            reveal = cfg["reveal_resultats"]
-            
-            type_accueil = "primary" if mode == "attente" else "secondary"
-            type_on = "primary" if (mode == "votes" and open) else "secondary"
-            type_off = "primary" if (mode == "votes" and not open and not reveal) else "secondary"
-            type_podium = "primary" if reveal else "secondary"
-            type_photo = "primary" if mode == "photos_live" else "secondary"
-
             c1, c2, c3, c4 = st.columns(4)
-            if c1.button("1. ACCUEIL", type=type_accueil, use_container_width=True):
+            if c1.button("1. ACCUEIL", type="primary" if mode=="attente" else "secondary", use_container_width=True):
                 cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False})
                 save_config(); st.rerun()
                 
-            if c2.button("2. VOTES ON", type=type_on, use_container_width=True):
+            if c2.button("2. VOTES ON", type="primary" if (mode=="votes" and open) else "secondary", use_container_width=True):
                 cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False})
                 save_config(); st.rerun()
                 
-            if c3.button("3. VOTES OFF", type=type_off, use_container_width=True):
+            if c3.button("3. VOTES OFF", type="primary" if (mode=="votes" and not open and not reveal) else "secondary", use_container_width=True):
                 cfg.update({"mode_affichage": "votes", "session_ouverte": False, "reveal_resultats": False})
                 save_config(); st.rerun()
                 
-            if c4.button("4. PODIUM", type=type_podium, use_container_width=True):
+            if c4.button("4. PODIUM", type="primary" if reveal else "secondary", use_container_width=True):
                 cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False})
                 cfg["timestamp_podium"] = time.time()
                 save_config(); st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("5. 📸 MUR PHOTOS LIVE", type=type_photo, use_container_width=True):
+            if st.button("5. 📸 MUR PHOTOS LIVE", type="primary" if mode=="photos_live" else "secondary", use_container_width=True):
                 cfg.update({"mode_affichage": "photos_live", "session_ouverte": False, "reveal_resultats": False})
                 save_config(); st.rerun()
 
@@ -228,6 +208,7 @@ if est_admin:
                 if st.button("🗑️ RESET TOTAL & DÉBLOQUER TÉLÉPHONES", type="primary"):
                     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
                         if os.path.exists(f): os.remove(f)
+                    
                     cfg["session_id"] = str(uuid.uuid4())
                     save_config()
                     st.success("Système réinitialisé !"); time.sleep(1); st.rerun()
@@ -275,7 +256,6 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # SYSTEME DE SESSION
     current_session = cfg.get("session_id", "init")
     components.html(f"""<script>
         const serverSession = "{current_session}";
@@ -357,7 +337,7 @@ elif est_utilisateur:
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=2000, key="wall_refresh")
+    st_autorefresh(interval=3000, key="wall_refresh") # Refresh un peu plus lent pour laisser le temps au fichier d'être écrit
     cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown(f"""
@@ -368,7 +348,6 @@ else:
         .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }}
         .social-title {{ color: white; font-size: 45px; font-weight: bold; margin: 0; text-transform: uppercase; }}
         
-        /* BARRE VOTANTS (TAGS) */
         .tags-marquee {{
             position: absolute; top: 13vh; width: 100%; height: 8vh;
             display: flex; justify-content: center; align-items: center; flex-wrap: wrap; overflow: hidden;
@@ -378,7 +357,6 @@ else:
             border-radius: 15px; padding: 2px 10px; margin: 2px; font-size: 14px; border: 1px solid #555;
         }}
         
-        /* LISTE CANDIDATS */
         .list-container {{ position: absolute; top: 22vh; width: 100%; display: flex; justify-content: center; gap: 20px; }}
         .col-list {{ width: 38%; display: flex; flex-direction: column; }}
         .cand-row {{ 
@@ -391,11 +369,9 @@ else:
         .row-left {{ flex-direction: row; justify-content: flex-end; text-align: right; }}
         .row-right {{ flex-direction: row; justify-content: flex-start; text-align: left; }}
         
-        /* QR BOX */
         .qr-center {{ display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top: 0px; }}
         .qr-logo {{ width: 80px; margin-bottom: 10px; object-fit: contain; }}
         
-        /* PODIUM CENTRÉ */
         .winner-card {{ 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; 
@@ -403,7 +379,6 @@ else:
             box-shadow: 0 0 80px #FFD700;
         }}
         
-        /* SUSPENSE CARDS */
         .suspense-container {{ 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             display: flex; gap: 30px; z-index: 1000;
@@ -420,13 +395,11 @@ else:
 
     mode = cfg.get("mode_affichage")
     
-    # Barre des votants
     if mode == "votes":
         parts = load_json(PARTICIPANTS_FILE, [])
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-80:]])
         st.markdown(f'<div class="tags-marquee">{tags_html}</div>', unsafe_allow_html=True)
 
-    # Effets
     key_eff = "attente"
     if mode == "photos_live": key_eff = "photos_live"
     elif cfg.get("reveal_resultats"): key_eff = "podium"
@@ -455,7 +428,6 @@ else:
                     if name in cfg.get("candidats_images", {}):
                          img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:20px;">'
                     suspense_html += f'<div class="suspense-card">{img}<h2 style="color:white">{name}</h2></div>'
-                
                 st.markdown(f'<div class="suspense-container">{suspense_html}</div>', unsafe_allow_html=True)
                 st.markdown("<h1 style='position:fixed; bottom:10%; width:100%; text-align:center; color:#E2001A; font-size:50px;'>LE VAINQUEUR EST...</h1>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
@@ -465,7 +437,6 @@ else:
                     img_html = ""
                     if winner in cfg.get("candidats_images", {}):
                         img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:150px; height:150px; border-radius:50%; border:5px solid white; object-fit:cover; margin-bottom:20px;">'
-                    
                     st.markdown(f"""
                     <div class="winner-card">
                         <div style="font-size:80px;">🏆</div>
@@ -481,12 +452,10 @@ else:
             mid = (len(cands) + 1) // 2
             left_list = cands[:mid]
             right_list = cands[mid:]
-            
             html_left = ""
             for c in left_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
                 html_left += f"""<div class="cand-row row-left"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
-
             html_right = ""
             for c in right_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
