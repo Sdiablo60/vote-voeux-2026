@@ -5,6 +5,7 @@ import streamlit.components.v1 as components
 from PIL import Image
 from datetime import datetime
 import pandas as pd
+import random
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
@@ -91,6 +92,7 @@ def process_image(uploaded_file):
     except: return None
 
 def inject_visual_effect(effect_name, intensity, speed):
+    # Gestion des effets simples (Ballons/Neige)
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
         return
@@ -212,22 +214,19 @@ if est_admin:
             st.json(load_json(VOTES_FILE, {}))
 
 # =========================================================
-# 2. APPLICATION MOBILE (SÉCURISÉE & RAPIDE)
+# 2. APPLICATION MOBILE
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # Gestionnaire de Session
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
 
-    # --- SCRIPT VIGILE (Vérifie le Cookie) ---
+    # --- GARDIEN ---
     components.html(f"""<script>
         var sS = "{curr_sess}";
         var lS = localStorage.getItem('VOTE_SID_2026');
-        
-        // Si Reset Admin (Nouvelle Session ID) -> On nettoie tout
         if(lS !== sS) {{ 
             localStorage.removeItem('HAS_VOTED_2026'); 
             localStorage.setItem('VOTE_SID_2026', sS); 
@@ -235,7 +234,6 @@ elif est_utilisateur:
                 window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
             }}
         }}
-        // Si Cookie Présent -> On force le blocage
         if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
             if(!window.parent.location.href.includes('blocked=true')) {{
                 window.parent.location.href = window.parent.location.href + '&blocked=true';
@@ -243,38 +241,34 @@ elif est_utilisateur:
         }}
     </script>""", height=0)
 
-    # --- AFFICHAGE ÉCRAN DE FIN (Si URL bloquée ou Variable Session Active) ---
+    # --- BLOQUÉ ---
     if is_blocked or st.session_state.vote_success:
         st.balloons()
         st.markdown("""
             <div style='text-align:center; margin-top:50px; padding:20px;'>
                 <h1 style='color:#E2001A; font-size:40px;'>MERCI !</h1>
-                <h2 style='color:white;'>Vote enregistré avec succès.</h2>
+                <h2 style='color:white;'>Vote enregistré.</h2>
                 <br><div style='font-size:80px;'>✅</div>
-                <p style='color:#777; margin-top:20px;'>Un seul vote est autorisé.</p>
+                <p style='color:#777; margin-top:20px;'>Un seul vote autorisé.</p>
             </div>
         """, unsafe_allow_html=True)
-        # Injection du Cookie pour le futur (Persistance)
         components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-        st.stop() # ARRET DU SCRIPT
+        st.stop()
 
-    # --- FORMULAIRE D'ENTRÉE ---
+    # --- FORMULAIRE ---
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
-        
         pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
             voters = load_json(VOTERS_FILE, [])
-            if pseudo.strip().upper() in [v.upper() for v in voters]:
-                st.error("Ce pseudo a déjà voté.")
+            if pseudo.strip().upper() in [v.upper() for v in voters]: st.error("Ce pseudo a déjà voté.")
             else:
                 st.session_state.user_pseudo = pseudo.strip()
                 parts = load_json(PARTICIPANTS_FILE, [])
                 if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
                 st.rerun()
     else:
-        # --- ECRAN DE VOTE ---
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 Envoie ta photo !")
             cam = st.camera_input("Photo")
@@ -285,29 +279,20 @@ elif est_utilisateur:
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
-            
             if len(choix) == 3:
-                # BOUTON VALIDATION AVEC RERUN
                 if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    # 1. Sauvegarde Vote
                     vts = load_json(VOTES_FILE, {})
                     pts = cfg.get("points_ponderation", [5, 3, 1])
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     save_json(VOTES_FILE, vts)
-                    
-                    # 2. Sauvegarde Votant
                     voters = load_json(VOTERS_FILE, [])
-                    voters.append(st.session_state.user_pseudo)
-                    save_json(VOTERS_FILE, voters)
-                    
-                    # 3. Marquer le succès et RECHARGER TOUT DE SUITE
+                    voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
                     st.session_state.vote_success = True
-                    st.rerun() # <--- C'EST CA QUI EVITE LE DOUBLE CLIC
-        else:
-            st.info("⏳ En attente de l'ouverture des votes...")
+                    st.rerun()
+        else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (LAYOUT FIXE ET CENTRÉ)
+# 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -321,27 +306,29 @@ else:
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         
-        /* ZONE DE TAGS FIXE (SOUS LE HEADER) */
+        .vote-cta { text-align: center; color: #E2001A; font-size: 30px; font-weight: 900; margin-bottom: 20px; animation: blink 2s infinite; text-transform: uppercase; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        /* ZONE DE TAGS FIXE */
         .voters-zone {
             position: fixed; top: 13vh; left: 0; width: 100vw; height: 8vh;
             display: flex; justify-content: center; align-items: center; gap: 15px;
-            background: rgba(0,0,0,0.5); z-index: 100; padding: 0 50px; overflow: hidden;
+            background: rgba(0,0,0,0.5); z-index: 100;
         }
-        .user-tag { 
-            background: rgba(255,255,255,0.15); color: #FFF; padding: 5px 15px; 
-            border-radius: 20px; font-size: 18px; font-weight: bold; border: 1px solid #E2001A; white-space: nowrap;
-        }
+        .user-tag { background: rgba(255,255,255,0.15); color: #FFF; padding: 5px 15px; border-radius: 20px; font-size: 18px; font-weight: bold; border: 1px solid #E2001A; white-space: nowrap; }
 
-        .vote-cta { text-align: center; color: #E2001A; font-size: 30px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        /* CARTES CANDIDATS REDUITES */
+        .cand-row { 
+            display: flex; align-items: center; justify-content: flex-start;
+            background: rgba(255,255,255,0.08); 
+            padding: 8px 15px; 
+            border-radius: 50px; 
+            width: 100%; max-width: 320px; /* TAILLE REDUITE */
+            height: 70px; margin: 0 auto 10px auto;
+        }
+        .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
+        .cand-name { color: white; font-size: 20px; font-weight: 600; white-space: nowrap; }
         
-        .list-container { position: absolute; top: 22vh; width: 100%; display: flex; justify-content: center; gap: 40px; }
-        .col-list { width: 30%; display: flex; flex-direction: column; }
-        .cand-row { display: flex; align-items: center; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 20px; border-radius: 50px; width: 100%; height: 70px; }
-        .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; }
-        .cand-name { color: white; font-size: 22px; font-weight: 600; margin: 0 15px; white-space: nowrap; }
-        .row-left { flex-direction: row; justify-content: flex-end; text-align: right; }
-        .row-right { flex-direction: row; justify-content: flex-start; text-align: left; }
         .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 80px #FFD700; }
     </style>
     """, unsafe_allow_html=True)
@@ -351,18 +338,26 @@ else:
     mode = cfg.get("mode_affichage")
     inject_visual_effect(cfg["screen_effects"].get("attente" if mode=="attente" else "podium", "Aucun"), 25, 15)
 
-    if mode == "votes":
-        parts = load_json(PARTICIPANTS_FILE, [])
-        # Affichage des 10 derniers votants dans la zone fixe
-        if parts:
-            tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-10:]])
-            st.markdown(f'<div class="voters-zone">{tags_html}</div>', unsafe_allow_html=True)
+    # --- BANDEAU VOTANTS (TOUS LES ECRANS) ---
+    parts = load_json(PARTICIPANTS_FILE, [])
+    if parts and mode == "votes":
+        tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-10:]])
+        st.markdown(f'<div class="voters-zone">{tags_html}</div>', unsafe_allow_html=True)
 
     if mode == "attente":
+        if cfg.get("logo_b64"): 
+            st.markdown("<div style='position:fixed; top:20vh; left:50%; transform:translate(-50%,0);'>", unsafe_allow_html=True)
+            st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=300)
+            st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;'><h1 style='color:white; font-size:100px;'>BIENVENUE</h1><h2 style='color:#AAA; font-size:40px;'>L'événement va commencer...</h2></div>", unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
+            if cfg.get("logo_b64"): 
+                st.markdown("<div style='position:fixed; top:15vh; right:20px;'>", unsafe_allow_html=True)
+                st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=150)
+                st.markdown("</div>", unsafe_allow_html=True)
+                
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)
             if sorted_v:
@@ -377,57 +372,114 @@ else:
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
+            # --- STRUCTURE 3 COLONNES ---
             c_left, c_center, c_right = st.columns([1, 1, 1])
             
             with c_left:
                 st.markdown("<br><br><br>", unsafe_allow_html=True)
                 for c in left_list:
                     img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                    st.markdown(f"<div class='cand-row row-left'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             
             with c_center:
-                # CENTRE AJUSTÉ : On baisse le QR code car les tags sont au dessus
-                st.markdown("<div style='display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top:80px;'>", unsafe_allow_html=True)
+                # MARGE TOP POUR DESCENDRE SOUS LE BANDEAU
+                st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
                 
-                if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
+                # 1. TEXTE (AU DESSUS)
+                st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
                 
+                # 2. QR CODE (AU MILIEU)
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-                st.image(qr_buf, width=280) # QR un peu plus grand
-                st.markdown("<div class='vote-cta'>À VOS VOTES !</div></div>", unsafe_allow_html=True)
+                
+                # Cadre blanc autour du QR
+                st.markdown("<div style='background:white; padding:15px; border-radius:20px; border:5px solid #E2001A; width:280px; margin:0 auto;'>", unsafe_allow_html=True)
+                st.image(qr_buf, width=250)
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                # 3. LOGO (EN DESSOUS)
+                if cfg.get("logo_b64"): 
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=150)
 
             with c_right:
                 st.markdown("<br><br><br>", unsafe_allow_html=True)
                 for c in right_list:
                     img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                    st.markdown(f"<div class='cand-row row-right'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
+                    st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
 
         else:
+            if cfg.get("logo_b64"): 
+                st.markdown("<div style='position:fixed; top:20vh; left:50%; transform:translate(-50%,0);'>", unsafe_allow_html=True)
+                st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
+                st.markdown("</div>", unsafe_allow_html=True)
             st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; border: 5px solid #E2001A; padding: 60px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
+        # --- MUR PHOTO (Réintégration Logo + QR + Bulles) ---
+        host = st.context.headers.get('host', 'localhost')
+        qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+        qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+        
+        # LOGO & QR pour le script JS
+        logo_data = cfg.get("logo_b64", "")
+        
         photos = glob.glob(f"{LIVE_DIR}/*")
         if photos:
             img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-30:]])
+            
+            # HTML CENTRAL (QR + LOGO)
+            center_html = f"""
+            <div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.7); padding:30px; border-radius:30px; border:3px solid #E2001A;'>
+                <img src="data:image/png;base64,{logo_data}" style="width:150px; margin-bottom:20px; display:block; margin-left:auto; margin-right:auto;">
+                <div style="background:white; padding:10px; border-radius:10px;">
+                    <img src="data:image/png;base64,{qr_b64}" style="width:200px;">
+                </div>
+            </div>
+            """
+            st.markdown(center_html, unsafe_allow_html=True)
+
             components.html(f"""<script>
                 var doc = window.parent.document;
                 var container = doc.getElementById('bubble-wall') || doc.createElement('div');
-                container.id = 'bubble-wall'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
+                container.id = 'bubble-wall'; 
+                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
                 if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
+                
                 const imgs = {img_js}; const bubbles = []; const bSize = 250;
+                
                 imgs.forEach((src, i) => {{
                     if(doc.getElementById('bub-'+i)) return;
                     const el = doc.createElement('img'); el.id = 'bub-'+i; el.src = src;
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
-                    let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize);
-                    let vx = (Math.random()-0.5)*4; let vy = (Math.random()-0.5)*4;
+                    
+                    let x = Math.random() * (window.innerWidth - bSize); 
+                    let y = Math.random() * (window.innerHeight - bSize);
+                    let vx = (Math.random()-0.5)*6; 
+                    let vy = (Math.random()-0.5)*6;
+                    
                     container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
                 }});
+                
                 function animate() {{
+                    // On récupère la boite centrale pour le rebond
+                    var centerBox = doc.getElementById('center-box');
+                    var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
+                    
                     bubbles.forEach(b => {{
                         b.x += b.vx; b.y += b.vy;
+                        
+                        // Rebond Bords Ecran
                         if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
-                        if(b.y <= 12 * window.innerHeight / 100 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                        if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                        
+                        // Rebond Boite Centrale (Approximatif)
+                        if(centerBox && 
+                           b.x + b.size > rect.left && b.x < rect.right && 
+                           b.y + b.size > rect.top && b.y < rect.bottom) {{
+                               b.vx *= -1; b.vy *= -1;
+                        }}
+                        
                         b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                     }});
                     requestAnimationFrame(animate);
