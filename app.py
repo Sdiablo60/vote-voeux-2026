@@ -64,7 +64,7 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- ACTIONS CALLBACKS (ADMIN) ---
+# --- CALLBACKS ADMIN ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
@@ -121,7 +121,6 @@ def inject_visual_effect(effect_name, intensity, speed):
     """
     if effect_name == "🎈 Ballons": js_code += f"if(!window.balloonInterval) window.balloonInterval = setInterval(createBalloon, {interval});"
     elif effect_name == "❄️ Neige": js_code += f"if(!window.snowInterval) window.snowInterval = setInterval(createSnow, {interval});"
-    
     js_code += "</script>"
     components.html(js_code, height=0)
 
@@ -178,7 +177,6 @@ if est_admin:
 
             st.divider()
             with st.expander("🚨 ZONE DE DANGER"):
-                # CALLBACK MODIFIÉ POUR VISIBILITÉ
                 if st.button("🗑️ RESET TOTAL", type="primary"):
                     reset_app_data()
                     st.rerun()
@@ -214,45 +212,51 @@ if est_admin:
             st.json(load_json(VOTES_FILE, {}))
 
 # =========================================================
-# 2. APPLICATION MOBILE (SÉCURITÉ ET VALIDATION CORRIGÉES)
+# 2. APPLICATION MOBILE (SÉCURISÉE & RAPIDE)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    if "vote_just_done" not in st.session_state: st.session_state.vote_just_done = False
-
+    # Gestionnaire de Session
     curr_sess = cfg.get("session_id", "init")
-    
-    # --- VIGILE : S'assure que le localStorage est propre si nouvelle session ---
+    if "vote_success" not in st.session_state: st.session_state.vote_success = False
+
+    # --- SCRIPT VIGILE (Vérifie le Cookie) ---
     components.html(f"""<script>
         var sS = "{curr_sess}";
-        var lS = localStorage.getItem('VOTE_SID_FIX');
+        var lS = localStorage.getItem('VOTE_SID_2026');
         
-        // Reset si nouvelle session admin
+        // Si Reset Admin (Nouvelle Session ID) -> On nettoie tout
         if(lS !== sS) {{ 
-            localStorage.removeItem('VOTE_COMPLETED_FIX'); 
-            localStorage.setItem('VOTE_SID_FIX', sS); 
-            // Si on est bloqué, on débloque
+            localStorage.removeItem('HAS_VOTED_2026'); 
+            localStorage.setItem('VOTE_SID_2026', sS); 
             if(window.parent.location.href.includes('blocked=true')) {{
                 window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
             }}
         }}
+        // Si Cookie Présent -> On force le blocage
+        if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
+            if(!window.parent.location.href.includes('blocked=true')) {{
+                window.parent.location.href = window.parent.location.href + '&blocked=true';
+            }}
+        }}
     </script>""", height=0)
 
-    # --- SI DÉJÀ VOTÉ (Check Python + URL) ---
-    if is_blocked or st.session_state.vote_just_done:
+    # --- AFFICHAGE ÉCRAN DE FIN (Si URL bloquée ou Variable Session Active) ---
+    if is_blocked or st.session_state.vote_success:
         st.balloons()
         st.markdown("""
             <div style='text-align:center; margin-top:50px; padding:20px;'>
                 <h1 style='color:#E2001A; font-size:40px;'>MERCI !</h1>
-                <h2 style='color:white;'>Votre vote a été enregistré.</h2>
+                <h2 style='color:white;'>Vote enregistré avec succès.</h2>
                 <br><div style='font-size:80px;'>✅</div>
-                <p style='color:#777; margin-top:20px;'>Un seul vote par personne.</p>
+                <p style='color:#777; margin-top:20px;'>Un seul vote est autorisé.</p>
             </div>
         """, unsafe_allow_html=True)
-        # On empêche l'exécution du reste, MAIS seulement si on est sûr d'avoir voté
-        st.stop()
+        # Injection du Cookie pour le futur (Persistance)
+        components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+        st.stop() # ARRET DU SCRIPT
 
     # --- FORMULAIRE D'ENTRÉE ---
     if "user_pseudo" not in st.session_state:
@@ -263,7 +267,7 @@ elif est_utilisateur:
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
             voters = load_json(VOTERS_FILE, [])
             if pseudo.strip().upper() in [v.upper() for v in voters]:
-                st.error("Ce pseudo est déjà utilisé.")
+                st.error("Ce pseudo a déjà voté.")
             else:
                 st.session_state.user_pseudo = pseudo.strip()
                 parts = load_json(PARTICIPANTS_FILE, [])
@@ -283,37 +287,27 @@ elif est_utilisateur:
             choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
             
             if len(choix) == 3:
-                # C'EST ICI LA CORRECTION : Le bouton Valider doit fonctionner
+                # BOUTON VALIDATION AVEC RERUN
                 if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    # 1. Sauvegarde des votes
+                    # 1. Sauvegarde Vote
                     vts = load_json(VOTES_FILE, {})
                     pts = cfg.get("points_ponderation", [5, 3, 1])
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     save_json(VOTES_FILE, vts)
                     
-                    # 2. Sauvegarde du votant (pour empêcher réutilisation pseudo)
+                    # 2. Sauvegarde Votant
                     voters = load_json(VOTERS_FILE, [])
                     voters.append(st.session_state.user_pseudo)
                     save_json(VOTERS_FILE, voters)
                     
-                    # 3. Activation du blocage LOCAL et DISTANT
-                    st.session_state.vote_just_done = True
-                    
-                    # On injecte le script qui va rediriger vers la page bloquée
-                    components.html(f"""
-                    <script>
-                        localStorage.setItem('VOTE_COMPLETED_FIX', 'true');
-                        window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true';
-                    </script>
-                    """, height=0)
-                    
-                    # Petite pause pour laisser le temps au JS de s'exécuter
-                    time.sleep(1)
+                    # 3. Marquer le succès et RECHARGER TOUT DE SUITE
+                    st.session_state.vote_success = True
+                    st.rerun() # <--- C'EST CA QUI EVITE LE DOUBLE CLIC
         else:
             st.info("⏳ En attente de l'ouverture des votes...")
 
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (LAYOUT FIXE ET CENTRÉ)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -327,36 +321,27 @@ else:
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         
+        /* ZONE DE TAGS FIXE (SOUS LE HEADER) */
+        .voters-zone {
+            position: fixed; top: 13vh; left: 0; width: 100vw; height: 8vh;
+            display: flex; justify-content: center; align-items: center; gap: 15px;
+            background: rgba(0,0,0,0.5); z-index: 100; padding: 0 50px; overflow: hidden;
+        }
+        .user-tag { 
+            background: rgba(255,255,255,0.15); color: #FFF; padding: 5px 15px; 
+            border-radius: 20px; font-size: 18px; font-weight: bold; border: 1px solid #E2001A; white-space: nowrap;
+        }
+
         .vote-cta { text-align: center; color: #E2001A; font-size: 30px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
-        .voters-fixed-container {
-            display: flex; 
-            flex-wrap: wrap; 
-            justify-content: center; 
-            align-items: center; 
-            gap: 10px; 
-            margin-bottom: 20px;
-            width: 100%;
-            min-height: 50px;
-        }
-        .user-tag { 
-            background: rgba(255,255,255,0.15); 
-            color: #FFF; 
-            padding: 5px 15px; 
-            border-radius: 20px; 
-            font-size: 18px; 
-            font-weight: bold; 
-            border: 1px solid #E2001A; 
-            white-space: nowrap;
-        }
-
+        .list-container { position: absolute; top: 22vh; width: 100%; display: flex; justify-content: center; gap: 40px; }
+        .col-list { width: 30%; display: flex; flex-direction: column; }
         .cand-row { display: flex; align-items: center; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 20px; border-radius: 50px; width: 100%; height: 70px; }
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; }
         .cand-name { color: white; font-size: 22px; font-weight: 600; margin: 0 15px; white-space: nowrap; }
         .row-left { flex-direction: row; justify-content: flex-end; text-align: right; }
         .row-right { flex-direction: row; justify-content: flex-start; text-align: left; }
-        
         .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 80px #FFD700; }
     </style>
     """, unsafe_allow_html=True)
@@ -366,6 +351,13 @@ else:
     mode = cfg.get("mode_affichage")
     inject_visual_effect(cfg["screen_effects"].get("attente" if mode=="attente" else "podium", "Aucun"), 25, 15)
 
+    if mode == "votes":
+        parts = load_json(PARTICIPANTS_FILE, [])
+        # Affichage des 10 derniers votants dans la zone fixe
+        if parts:
+            tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-10:]])
+            st.markdown(f'<div class="voters-zone">{tags_html}</div>', unsafe_allow_html=True)
+
     if mode == "attente":
         st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;'><h1 style='color:white; font-size:100px;'>BIENVENUE</h1><h2 style='color:#AAA; font-size:40px;'>L'événement va commencer...</h2></div>", unsafe_allow_html=True)
 
@@ -373,7 +365,6 @@ else:
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)
-            
             if sorted_v:
                 winner, pts = sorted_v[0]
                 img = ""
@@ -386,7 +377,6 @@ else:
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            # --- COLONNES ---
             c_left, c_center, c_right = st.columns([1, 1, 1])
             
             with c_left:
@@ -396,26 +386,15 @@ else:
                     st.markdown(f"<div class='cand-row row-left'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             
             with c_center:
-                st.markdown("<br><br><br>", unsafe_allow_html=True)
-                # 1. LISTE DES VOTANTS (FIXE AU DESSUS)
-                parts = load_json(PARTICIPANTS_FILE, [])
-                if parts:
-                    tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-15:]])
-                    st.markdown(f"<div class='voters-fixed-container'>{tags_html}</div>", unsafe_allow_html=True)
-                else:
-                    st.markdown("<div style='height:30px'></div>", unsafe_allow_html=True)
-
-                # 2. LOGO
-                if cfg.get("logo_b64"): 
-                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
+                # CENTRE AJUSTÉ : On baisse le QR code car les tags sont au dessus
+                st.markdown("<div style='display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top:80px;'>", unsafe_allow_html=True)
                 
-                # 3. QR CODE
+                if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
+                
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-                st.image(qr_buf, width=250)
-                
-                # 4. TEXTE
-                st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
+                st.image(qr_buf, width=280) # QR un peu plus grand
+                st.markdown("<div class='vote-cta'>À VOS VOTES !</div></div>", unsafe_allow_html=True)
 
             with c_right:
                 st.markdown("<br><br><br>", unsafe_allow_html=True)
