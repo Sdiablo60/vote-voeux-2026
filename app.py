@@ -150,7 +150,7 @@ def reset_app_data():
     for f in files: os.remove(f)
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
-    st.toast("✅ RESET TOTAL EFFECTUÉ !", icon="🗑️")
+    st.toast("✅ RESET OK")
     time.sleep(1)
 
 def process_image(uploaded_file):
@@ -581,17 +581,23 @@ else:
                     const el = doc.createElement('img'); el.src = src;
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover; will-change:transform;';
                     
-                    // RANDOM START
-                    let x = Math.random() * (window.innerWidth - bSize);
-                    let y = Math.random() * (window.innerHeight - bSize);
-                    
-                    // RANDOM DIRECTION (No Bias)
-                    let vx = (Math.random() - 0.5) * 4; 
-                    let vy = (Math.random() - 0.5) * 4;
-                    if(Math.abs(vx)<1) vx=2; if(Math.abs(vy)<1) vy=2;
+                    // RANDOM SPAWN
+                    let startX = Math.random() * (window.innerWidth - bSize);
+                    let startY = 180 + Math.random() * (window.innerHeight - 180 - bSize);
+
+                    let b = {{
+                        el: el,
+                        x: startX,
+                        y: startY,
+                        vx: (Math.random() - 0.5) * 4, 
+                        vy: (Math.random() - 0.5) * 4,
+                        size: bSize
+                    }};
+                    if(Math.abs(b.vx) < 1) b.vx = 2;
+                    if(Math.abs(b.vy) < 1) b.vy = 2;
 
                     container.appendChild(el); 
-                    bubbles.push({{el, x, y, vx, vy, size: bSize}});
+                    bubbles.push(b);
                 }});
                 
                 function animate() {{
@@ -599,16 +605,19 @@ else:
                         b.x += b.vx; 
                         b.y += b.vy;
                         
-                        // WRAP AROUND (Teleportation)
-                        if (b.x > window.innerWidth) b.x = -b.size;
-                        else if (b.x < -b.size) b.x = window.innerWidth;
+                        // WRAP HORIZONTAL
+                        if(b.x > window.innerWidth) b.x = -b.size;
+                        else if(b.x < -b.size) b.x = window.innerWidth;
                         
-                        if (b.y > window.innerHeight) b.y = -b.size;
-                        else if (b.y < -b.size) b.y = window.innerHeight;
-
-                        // Title Avoidance (Soft Push Down)
-                        if(b.y < 150 && b.y > -50) {{
-                             b.y += 2; 
+                        // CEILING BOUNCE (TITLE PROTECTION)
+                        if(b.y < 180) {{
+                            b.y = 180;
+                            b.vy = Math.abs(b.vy); // Force Down
+                        }}
+                        
+                        // FLOOR WRAP
+                        if(b.y > window.innerHeight) {{
+                            b.y = 180; // Go back to top (below title)
                         }}
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
