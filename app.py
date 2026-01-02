@@ -8,7 +8,7 @@ import pandas as pd
 import random
 import altair as alt
 
-# TENTATIVE D'IMPORT DE FPDF POUR LE PDF
+# TENTATIVE D'IMPORT DE FPDF
 try:
     from fpdf import FPDF
     PDF_AVAILABLE = True
@@ -29,6 +29,9 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
+# --- AVATAR ---
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
+
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
     "mode_affichage": "attente", 
@@ -46,7 +49,7 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILITAIRES ---
+# --- FONCTIONS ---
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list): return [clean_for_json(v) for v in data]
@@ -71,6 +74,7 @@ def save_json(file, data):
     except Exception as e: print(f"Erreur Save: {e}")
 
 def save_config():
+    # Force la sauvegarde immédiate
     save_json(CONFIG_FILE, st.session_state.config)
 
 # --- GÉNÉRATEUR PDF ---
@@ -132,13 +136,12 @@ if PDF_AVAILABLE:
             pdf.ln()
         return pdf.output(dest='S').encode('latin-1')
 
-# --- CALLBACKS ADMIN ---
+# --- ACTIONS ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
     st.session_state.config["reveal_resultats"] = reveal
-    if reveal:
-        st.session_state.config["timestamp_podium"] = time.time()
+    if reveal: st.session_state.config["timestamp_podium"] = time.time()
     save_config()
 
 def reset_app_data():
@@ -148,13 +151,13 @@ def reset_app_data():
     for f in files: os.remove(f)
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
-    st.toast("✅ RESET TOTAL EFFECTUÉ !", icon="🗑️")
+    st.toast("✅ RESET TOTAL OK")
     time.sleep(1)
 
 def process_image(uploaded_file):
     try:
         img = Image.open(uploaded_file)
-        img.thumbnail((800, 800)) 
+        img.thumbnail((800, 800))
         buf = BytesIO()
         img.save(buf, format="PNG")
         return base64.b64encode(buf.getvalue()).decode()
@@ -164,7 +167,7 @@ def get_file_info(filepath):
     try:
         ts = os.path.getmtime(filepath)
         return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-    except: return "Inconnu"
+    except: return "?"
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
@@ -253,9 +256,7 @@ if est_admin:
 
             st.divider()
             with st.expander("🚨 ZONE DE DANGER"):
-                if st.button("🗑️ RESET TOTAL", type="primary"):
-                    reset_app_data()
-                    st.rerun()
+                if st.button("🗑️ RESET TOTAL", type="primary"): reset_app_data(); st.rerun()
 
         elif menu == "⚙️ CONFIG":
             t1, t2 = st.tabs(["Général", "Candidats & Images"])
@@ -281,7 +282,9 @@ if est_admin:
                 for i, cand in enumerate(cfg['candidats']):
                     c1, c2, c3 = st.columns([0.5, 3, 2])
                     with c1:
-                        if cand in cfg.get("candidats_images", {}): st.image(BytesIO(base64.b64decode(cfg["candidats_images"][cand])), width=40)
+                        # AFFICHAGE IMAGE ACTUELLE
+                        if cand in cfg.get("candidats_images", {}): 
+                            st.image(BytesIO(base64.b64decode(cfg["candidats_images"][cand])), width=40)
                         else: st.write("🚫")
                     with c2:
                         new_name = st.text_input(f"Participant {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
@@ -292,8 +295,16 @@ if est_admin:
                     with c3:
                         col_up, col_del = st.columns([3, 1])
                         up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
-                        if up_img: cfg.setdefault("candidats_images", {})[cand] = process_image(up_img); save_config(); st.rerun()
+                        if up_img: 
+                            # SAUVEGARDE IMAGE CORRIGEE
+                            if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
+                            st.session_state.config["candidats_images"][cand] = process_image(up_img)
+                            save_config() # Sauvegarde explicite
+                            st.success("Image OK")
+                            time.sleep(0.5)
+                            st.rerun()
                         if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
+                
                 if candidates_to_remove:
                     for c in candidates_to_remove:
                         cfg['candidats'].remove(c)
@@ -305,13 +316,12 @@ if est_admin:
             if st.button("🗑️ TOUT SUPPRIMER D'UN COUP", type="primary"):
                 files = glob.glob(f"{LIVE_DIR}/*")
                 for f in files: os.remove(f)
-                st.success("Nettoyage effectué."); time.sleep(1); st.rerun()
+                st.success("Suppression OK"); time.sleep(1); st.rerun()
             st.divider()
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
             if not files: st.info("Aucune photo.")
             else:
-                st.write("**Sélectionnez les photos à traiter :**")
-                if "selected_photos" not in st.session_state: st.session_state.selected_photos = []
+                st.write("**Sélectionnez les photos :**")
                 cols = st.columns(5)
                 new_selection = []
                 for i, f in enumerate(files):
@@ -328,59 +338,39 @@ if est_admin:
                     zip_buffer = BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w") as zf:
                         for idx, file_path in enumerate(new_selection): 
-                            ts = os.path.getmtime(file_path)
-                            date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                            ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
                             new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
                             zf.write(file_path, arcname=new_name)
                     c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_buffer.getvalue(), file_name="selection.zip", mime="application/zip")
                 zip_all = BytesIO()
                 with zipfile.ZipFile(zip_all, "w") as zf:
                     for idx, file_path in enumerate(files): 
-                        ts = os.path.getmtime(file_path)
-                        date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                        ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
                         new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
                         zf.write(file_path, arcname=new_name)
-                c3.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live_{int(time.time())}.zip", mime="application/zip", type="primary")
+                c3.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos.zip", mime="application/zip", type="primary")
 
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats & Export")
             votes = load_json(VOTES_FILE, {})
             all_cands = {c: 0 for c in cfg["candidats"]}
             all_cands.update(votes)
-            df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points'])
-            df_totals = df_totals.sort_values(by='Points', ascending=False)
-            
-            chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
-                x=alt.X('Points', title='Points'),
-                y=alt.Y('Candidat', sort='-x', title='Candidat'),
-                tooltip=['Candidat', 'Points']
-            ).properties(height=400).interactive(bind_y=False, bind_x=False)
+            df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
+            chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'), tooltip=['Candidat', 'Points']).properties(height=400).interactive(bind_y=False, bind_x=False)
             st.altair_chart(chart, use_container_width=True)
-            
-            st.divider()
             col_exp1, col_exp2, col_exp3 = st.columns(3)
-            csv = df_totals.to_csv(index=False).encode('utf-8')
-            col_exp1.download_button("📥 Résultats (CSV)", data=csv, file_name="resultats_votes.csv", mime="text/csv")
-            
+            col_exp1.download_button("📥 Résultats (CSV)", data=df_totals.to_csv(index=False).encode('utf-8'), file_name="resultats.csv", mime="text/csv")
             parts = load_json(PARTICIPANTS_FILE, [])
-            df_parts = pd.DataFrame(parts, columns=["Nom Participant"])
-            csv_parts = df_parts.to_csv(index=False).encode('utf-8')
-            col_exp2.download_button("👥 Votants (CSV)", data=csv_parts, file_name="votants.csv", mime="text/csv")
-
+            col_exp2.download_button("👥 Votants (CSV)", data=pd.DataFrame(parts, columns=["Nom"]).to_csv(index=False).encode('utf-8'), file_name="votants.csv", mime="text/csv")
             if PDF_AVAILABLE:
-                pdf_bytes = create_pdf_results(cfg['titre_mur'], df_totals)
-                col_exp3.download_button("📄 Résultats (PDF)", data=pdf_bytes, file_name="resultats.pdf", mime="application/pdf")
-            else: col_exp3.error("FPDF manquant")
-
+                col_exp3.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
             st.divider()
             st.subheader("Audit Détaillé")
             detailed_data = load_json(DETAILED_VOTES_FILE, [])
             if detailed_data:
                 df_detail = pd.DataFrame(detailed_data)
                 st.dataframe(df_detail, use_container_width=True)
-                if PDF_AVAILABLE:
-                    pdf_audit = create_pdf_audit(cfg['titre_mur'], df_detail)
-                    st.download_button("📄 Audit Détaillé (PDF)", data=pdf_audit, file_name="audit.pdf", mime="application/pdf")
+                if PDF_AVAILABLE: st.download_button("📄 Audit (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_detail), file_name="audit.pdf", mime="application/pdf")
             else: st.info("Vide")
 
 # =========================================================
@@ -389,7 +379,6 @@ if est_admin:
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
-    
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
@@ -407,7 +396,6 @@ elif est_utilisateur:
             if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
             if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ if(!window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true'; }} }}
         </script>""", height=0)
-
         if is_blocked or st.session_state.vote_success:
             st.balloons()
             st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
@@ -438,8 +426,7 @@ elif est_utilisateur:
                 fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
                 with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
                 st.success("Photo envoyée !")
-                st.session_state.cam_reset_id += 1
-                time.sleep(1); st.rerun()
+                st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
         
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
@@ -524,22 +511,15 @@ else:
                 top3 = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
                 suspense_html = ""
                 for name, score in top3:
-                    # GESTION TROPHÉE SI PAS D'IMAGE
-                    if name in cfg.get("candidats_images", {}):
-                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
-                    else:
-                        img_html = '<div style="width:100px; height:100px; border-radius:50%; background:black; border:4px solid #FFD700; display:flex; align-items:center; justify-content:center; margin:0 auto 10px auto;"><span style="font-size:50px;">🏆</span></div>'
-                    suspense_html += f'<div class="suspense-item">{img_html}<h3 style="color:white; margin:0;">{name}</h3></div>'
+                    img_src = f"data:image/png;base64,{cfg['candidats_images'][name]}" if name in cfg.get("candidats_images", {}) else f"data:image/png;base64,{DEFAULT_AVATAR}"
+                    suspense_html += f'<div class="suspense-item"><img src="{img_src}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;"><h3 style="color:white; margin:0;">{name}</h3></div>'
                 ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
             else:
                 cards_html = ""
                 for winner in winners:
-                    if winner in cfg.get("candidats_images", {}):
-                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
-                    else:
-                        img_html = '<div style="width:150px; height:150px; border-radius:50%; background:black; border:6px solid #FFD700; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto;"><span style="font-size:80px;">🏆</span></div>'
-                    cards_html += f"<div class='winner-card'><div style='font-size:60px;'>🏆</div>{img_html}<h1 style='color:white; font-size:40px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:30px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:20px;'>{max_score} points</h3></div>"
+                    img_src = f"data:image/png;base64,{cfg['candidats_images'][winner]}" if winner in cfg.get("candidats_images", {}) else f"data:image/png;base64,{DEFAULT_AVATAR}"
+                    cards_html += f"<div class='winner-card'><div style='font-size:60px;'>🏆</div><img src='{img_src}' style='width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;'><h1 style='color:white; font-size:40px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:30px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:20px;'>{max_score} points</h3></div>"
                 ph.markdown(f"<div class='full-screen-center'>{logo_html}<div class='podium-container'>{cards_html}</div></div>", unsafe_allow_html=True)
 
         elif cfg.get("session_ouverte"):
@@ -552,13 +532,8 @@ else:
                 with c_left:
                     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                     for c in left_list:
-                        # GESTION TROPHÉE
-                        if c in imgs:
-                            img_src = f"data:image/png;base64,{imgs[c]}"
-                            html = f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>"
-                        else:
-                            html = f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
-                        st.markdown(html, unsafe_allow_html=True)
+                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else f"data:image/png;base64,{DEFAULT_AVATAR}"
+                        st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
                 with c_center:
                     st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
                     if cfg.get("logo_b64"): st.markdown(f"<div style='text-align:center; width:100%; margin-bottom:20px;'><img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px;'></div>", unsafe_allow_html=True)
@@ -570,13 +545,8 @@ else:
                 with c_right:
                     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                     for c in right_list:
-                        # GESTION TROPHÉE
-                        if c in imgs:
-                            img_src = f"data:image/png;base64,{imgs[c]}"
-                            html = f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>"
-                        else:
-                            html = f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
-                        st.markdown(html, unsafe_allow_html=True)
+                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else f"data:image/png;base64,{DEFAULT_AVATAR}"
+                        st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
 
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
@@ -595,61 +565,71 @@ else:
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
+        # --- SOLUTION ANIMATION ---
+        # 1. setTimeout pour laisser le DOM charger
+        # 2. Coordonnées explicites
+        # 3. RequestAnimationFrame en boucle
         components.html(f"""<script>
-            var doc = window.parent.document;
-            var container = doc.getElementById('bubble-wall');
-            if(container) container.remove();
-            
-            container = doc.createElement('div');
-            container.id = 'bubble-wall'; 
-            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
-            doc.body.appendChild(container);
-            
-            const imgs = {img_js}; const bubbles = []; const bSize = 250;
-            imgs.forEach((src, i) => {{
-                const el = doc.createElement('img'); el.src = src;
-                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
+            setTimeout(function() {{
+                var doc = window.parent.document;
+                var container = doc.getElementById('bubble-wall');
+                if(container) container.remove();
                 
-                // --- CORRECTION COORDONNÉES DE DÉPART ---
-                // Force l'apparition en bas de l'écran pour éviter le blocage en haut
-                let x = Math.random() * (window.innerWidth - bSize); 
-                let y = window.innerHeight - 300 - (Math.random() * 200); 
+                container = doc.createElement('div');
+                container.id = 'bubble-wall'; 
+                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;overflow:hidden;';
+                doc.body.appendChild(container);
                 
-                // Force la vitesse vers le HAUT
-                let vx = (Math.random() - 0.5) * 6;
-                let vy = - (3 + Math.random() * 3); // Toujours négatif = vers le haut
+                const imgs = {img_js}; const bubbles = []; const bSize = 250;
                 
-                container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
-            }});
-            
-            function animate() {{
-                var centerBox = doc.getElementById('center-box');
-                var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
-                
-                bubbles.forEach(b => {{
-                    b.x += b.vx; b.y += b.vy;
+                imgs.forEach((src, i) => {{
+                    const el = doc.createElement('img'); el.src = src;
+                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
                     
-                    // REBONDS BORDS
-                    if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
-                    if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                    // SPAWN ZONE: BAS DE L'ECRAN (Y > 500)
+                    let startX = Math.random() * (window.innerWidth - bSize);
+                    let startY = window.innerHeight - 300 - (Math.random() * 300);
                     
-                    // REBOND ET RÉPULSION CENTRALE
-                    if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
-                           // Inverse la direction
-                           b.vx *= -1; b.vy *= -1;
-                           // Ajoute une petite poussée pour dégager la bulle si elle est coincée
-                           b.x += b.vx * 5;
-                           b.y += b.vy * 5;
-                    }}
-                    
-                    // REPULSION TITRE (ZONE HAUTE)
-                    // Si la bulle est trop haut (< 15% de l'écran), on la pousse vers le bas
-                    if(b.y < window.innerHeight * 0.15) {{
-                        b.vy = Math.abs(b.vy) + 1; // Force vers le bas
-                    }}
-                    
-                    b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
+                    // IFRAME FIX: Si hauteur 0 détectée, on force
+                    if(startY < 100) startY = 600;
+
+                    let b = {{
+                        el: el,
+                        x: startX,
+                        y: startY,
+                        vx: (Math.random() - 0.5) * 6,
+                        vy: - (3 + Math.random() * 4), // UPWARD SPEED
+                        size: bSize
+                    }};
+                    container.appendChild(el); 
+                    bubbles.push(b);
                 }});
-                requestAnimationFrame(animate);
-            }} animate();
+                
+                function animate() {{
+                    var centerBox = doc.getElementById('center-box');
+                    // Fallback rectangle si pas de box
+                    var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
+                    
+                    bubbles.forEach(b => {{
+                        b.x += b.vx; 
+                        b.y += b.vy;
+                        
+                        // REBONDS SIMPLE
+                        if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
+                        if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                        
+                        // REPULSION CENTRALE
+                        if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
+                            b.vx *= -1; b.vy *= -1;
+                        }}
+                        
+                        // ANTI-COLLAGE HAUT DE PAGE
+                        if(b.y < 50) b.vy = Math.abs(b.vy) + 2; 
+
+                        b.el.style.transform = 'translate(' + b.x + 'px, ' + b.y + 'px)';
+                    }});
+                    requestAnimationFrame(animate);
+                }}
+                animate();
+            }}, 500);
         </script>""", height=0)
