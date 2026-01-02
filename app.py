@@ -279,12 +279,22 @@ elif est_utilisateur:
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     
+    # Init variables session
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
-    
-    # ID Dynamique pour forcer le reset des composants caméra
     if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 
-    # --- SÉCURITÉ ---
+    # 1. GESTION AUTOMATIQUE DU MODE PHOTO LIVE (BYPASS LOGIN)
+    if cfg["mode_affichage"] == "photos_live":
+        if "user_pseudo" not in st.session_state or st.session_state.user_pseudo != "Anonyme":
+            st.session_state.user_pseudo = "Anonyme"
+    
+    # 2. GESTION RETOUR AU VOTE (FORCE LOGIN SI ÉTAIT ANONYME)
+    elif cfg["mode_affichage"] == "votes":
+        if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme":
+            del st.session_state["user_pseudo"]
+            st.rerun()
+
+    # --- SÉCURITÉ DOUBLE VOTE (Sauf mode photo) ---
     if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
@@ -309,6 +319,7 @@ elif est_utilisateur:
             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
             st.stop()
 
+    # --- ECRAN D'IDENTIFICATION (Seulement si pas déjà loggé) ---
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
@@ -322,15 +333,15 @@ elif est_utilisateur:
                 if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
                 st.rerun()
     else:
+        # --- MODE PHOTO LIVE (ANONYME ET LIBRE) ---
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 ENVOYER UNE PHOTO")
             
-            # FILE UPLOADER (Clé dynamique pour reset)
+            # Utilisation des clés dynamiques pour reset
             up_key = f"uploader_{st.session_state.cam_reset_id}"
-            uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
-            
-            # CAMERA (Clé dynamique pour reset)
             cam_key = f"camera_{st.session_state.cam_reset_id}"
+            
+            uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
             cam_file = st.camera_input("Prendre une photo", key=cam_key)
             
             final_file = uploaded_file if uploaded_file else cam_file
@@ -341,11 +352,11 @@ elif est_utilisateur:
                     f.write(final_file.getbuffer())
                 
                 st.success("Photo envoyée !")
-                # ON INCREMENTE POUR RESET LE WIDGET AU RECHARGEMENT
-                st.session_state.cam_reset_id += 1
+                st.session_state.cam_reset_id += 1 # Reset immédiat
                 time.sleep(1)
                 st.rerun()
         
+        # --- MODE VOTE (SECURISE) ---
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             
@@ -372,7 +383,6 @@ elif est_utilisateur:
                         save_json(VOTES_FILE, vts)
                         voters = load_json(VOTERS_FILE, [])
                         voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
-                        
                         st.session_state.vote_success = True
                         components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
                         time.sleep(1)
@@ -490,27 +500,24 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        # CORRECTION ANIMATION BULLES (Vitesse et Position)
         components.html(f"""<script>
             var doc = window.parent.document;
-            var old = doc.getElementById('bubble-wall');
-            if(old) old.remove();
-            
-            var container = doc.createElement('div');
+            var container = doc.getElementById('bubble-wall') || doc.createElement('div');
             container.id = 'bubble-wall'; 
             container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
-            doc.body.appendChild(container);
+            if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
             
+            // CLEAN PREVIOUS BUBBLES TO AVOID GHOSTS
+            container.innerHTML = '';
+
             const imgs = {img_js}; const bubbles = []; const bSize = 250;
             imgs.forEach((src, i) => {{
                 const el = doc.createElement('img'); el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
-                
                 let x = Math.random() * (window.innerWidth - bSize); 
                 let y = Math.random() * (window.innerHeight - bSize);
-                let vx = (Math.random()-0.5)*8; // VITESSE AUGMENTÉE
-                let vy = (Math.random()-0.5)*8;
-                
+                let vx = (Math.random()-0.5)*8; if(vx==0) vx=2;
+                let vy = (Math.random()-0.5)*8; if(vy==0) vy=2;
                 container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
             }});
             
@@ -521,8 +528,6 @@ else:
                     b.x += b.vx; b.y += b.vy;
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
-                    
-                    // REBOND SUR BLOC CENTRAL
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
