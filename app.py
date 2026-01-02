@@ -94,21 +94,6 @@ def process_image(uploaded_file):
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
-def get_file_info(filepath):
-    # Extrait la date du nom de fichier ou des métadonnées
-    try:
-        # Format attendu : live_UUID_TIMESTAMP.jpg
-        filename = os.path.basename(filepath)
-        parts = filename.split('_')
-        if len(parts) >= 3:
-            ts_str = parts[-1].split('.')[0]
-            ts = int(ts_str)
-            return datetime.fromtimestamp(ts).strftime("%d/%m %H:%M:%S")
-    except:
-        pass
-    # Fallback
-    return datetime.fromtimestamp(os.path.getmtime(filepath)).strftime("%d/%m %H:%M")
-
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
@@ -218,56 +203,15 @@ if est_admin:
                         if up: st.session_state.config.setdefault("candidats_images", {})[c] = process_image(up); save_config(); st.rerun()
 
         elif menu == "📸 MÉDIATHÈQUE":
-            st.subheader("Gestion des Photos Live")
-            
-            # Récupérer les fichiers et trier par date inversée
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
-            
-            if not files:
-                st.info("Aucune photo pour le moment.")
-            else:
-                # Formulaire pour actions de masse
-                with st.form("media_form"):
-                    col_actions = st.columns(2)
-                    delete_btn = col_actions[0].form_submit_button("🗑️ Supprimer la sélection", type="primary")
-                    download_btn = col_actions[1].form_submit_button("⬇️ Télécharger la sélection (ZIP)")
-                    
-                    st.divider()
-                    
-                    # Grille d'affichage
-                    cols = st.columns(5)
-                    selected_files = []
-                    
-                    for i, f in enumerate(files):
-                        date_str = get_file_info(f)
-                        with cols[i % 5]:
-                            st.image(f, use_container_width=True)
-                            # Checkbox avec clé unique
-                            is_selected = st.checkbox(f"Photo {len(files)-i} - {date_str}", key=f"chk_{os.path.basename(f)}")
-                            if is_selected:
-                                selected_files.append(f)
-                    
-                    # Logique des boutons après soumission du formulaire
-                    if delete_btn and selected_files:
-                        for f in selected_files:
-                            os.remove(f)
-                        st.success(f"{len(selected_files)} photos supprimées.")
-                        time.sleep(1)
-                        st.rerun()
-                    
-                    if download_btn and selected_files:
-                        # Création du ZIP en mémoire
-                        zip_buffer = BytesIO()
-                        with zipfile.ZipFile(zip_buffer, "w") as zf:
-                            for file_path in selected_files:
-                                zf.write(file_path, os.path.basename(file_path))
-                        
-                        st.download_button(
-                            label="💾 Cliquer ici pour récupérer le ZIP",
-                            data=zip_buffer.getvalue(),
-                            file_name=f"photos_live_{int(time.time())}.zip",
-                            mime="application/zip"
-                        )
+            if st.button("Tout supprimer"): 
+                for f in files: os.remove(f)
+                st.rerun()
+            cols = st.columns(4)
+            for i, f in enumerate(files):
+                with cols[i%4]:
+                    st.image(f)
+                    if st.button("X", key=f"d_{i}"): os.remove(f); st.rerun()
 
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats des Votes")
@@ -291,34 +235,17 @@ elif est_utilisateur:
     
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
+    
+    # Pour les règles de vote
+    if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
+    
+    # Pour le compteur de photos (force le reset de la caméra)
+    if "cam_counter" not in st.session_state: st.session_state.cam_counter = 0
 
-    # -------------------------------------------------------------
-    # LOGIQUE SPÉCIALE : PHOTO LIVE (Accès libre, sans login)
-    # -------------------------------------------------------------
-    if cfg["mode_affichage"] == "photos_live":
-        st.info("📸 ENVOYER UNE PHOTO")
-        st.write("Si la caméra ne s'ouvre pas, utilisez le bouton 'Importer' ci-dessous.")
-        
-        # Upload
-        uploaded_file = st.file_uploader("Importer depuis la galerie", type=['png', 'jpg', 'jpeg'])
-        cam_file = st.camera_input("Prendre une photo")
-        
-        final_file = uploaded_file if uploaded_file else cam_file
-        
-        if final_file:
-            fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
-            with open(os.path.join(LIVE_DIR, fname), "wb") as f: 
-                f.write(final_file.getbuffer())
-            
-            st.success("Envoyé ! Prêt pour la suivante..."); 
-            time.sleep(1.5)
-            st.rerun() # Rechargement immédiat pour photo suivante
-
-    # -------------------------------------------------------------
-    # LOGIQUE NORMALE : VOTES (Avec Login + Sécurité)
-    # -------------------------------------------------------------
-    else:
-        # SÉCURITÉ ACTIVE
+    # --- SÉCURITÉ RENFORCÉE ---
+    # Le script JS s'exécute immédiatement. Si le cookie existe, il redirige.
+    # Ceci bloque l'accès à l'interface d'identification si déjà voté.
+    if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
             var lS = localStorage.getItem('VOTE_SID_2026');
@@ -329,6 +256,7 @@ elif est_utilisateur:
                     window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
                 }}
             }}
+            // BLOCAGE IMMEDIAT
             if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
                 if(!window.parent.location.href.includes('blocked=true')) {{
                     window.parent.location.href = window.parent.location.href + '&blocked=true';
@@ -336,53 +264,91 @@ elif est_utilisateur:
             }}
         </script>""", height=0)
 
-        # BLOCAGE SI DÉJÀ VOTÉ
+        # Si l'URL contient "blocked=true", on affiche la fin et on STOPPE l'exécution Python
         if is_blocked or st.session_state.vote_success:
             st.balloons()
             st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div><p style='color:#777; margin-top:20px;'>Un seul vote autorisé.</p></div>""", unsafe_allow_html=True)
             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-            st.stop()
+            st.stop() # Empêche l'affichage du formulaire ci-dessous
 
-        # LOGIN
-        if "user_pseudo" not in st.session_state:
+    # --- MODE 1 : IDENTIFICATION ---
+    if "user_pseudo" not in st.session_state:
+        # Si on est en mode PHOTO LIVE, on saute l'identification (anonyme)
+        if cfg["mode_affichage"] == "photos_live":
+            st.session_state.user_pseudo = "Anonyme"
+            st.rerun()
+        else:
             st.subheader("Identification")
             if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
             pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
             if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
                 voters = load_json(VOTERS_FILE, [])
-                if pseudo.strip().upper() in [v.upper() for v in voters]: st.error("Déjà utilisé.")
+                if pseudo.strip().upper() in [v.upper() for v in voters]: st.error("Ce pseudo a déjà voté.")
                 else:
                     st.session_state.user_pseudo = pseudo.strip()
                     parts = load_json(PARTICIPANTS_FILE, [])
                     if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
                     st.rerun()
+    
+    else:
+        # --- MODE 2 : PHOTO LIVE (LIBRE) ---
+        if cfg["mode_affichage"] == "photos_live":
+            st.info("📸 ENVOYER UNE PHOTO")
+            
+            # FILE UPLOADER (Pour Android/iOS, permet de choisir Caméra ou Galerie)
+            uploaded_file = st.file_uploader("Importer ou Prendre une photo", type=['png', 'jpg', 'jpeg'], key=f"up_{st.session_state.cam_counter}")
+            
+            # CAMERA INPUT (Avec clé dynamique pour reset)
+            cam_file = st.camera_input("Caméra directe (Webcam)", key=f"cam_{st.session_state.cam_counter}")
+            
+            final_file = uploaded_file if uploaded_file else cam_file
+            
+            if final_file:
+                fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
+                with open(os.path.join(LIVE_DIR, fname), "wb") as f: 
+                    f.write(final_file.getbuffer())
+                
+                st.success("Envoyé !")
+                time.sleep(1) # Petite pause pour voir le succès
+                
+                # INCREMENTATION DU COMPTEUR POUR FORCER LE RESET DU COMPOSANT CAMERA
+                st.session_state.cam_counter += 1
+                st.rerun()
         
-        # INTERFACE DE VOTE
+        # --- MODE 3 : VOTES (AVEC RÈGLES) ---
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             
-            # RAPPEL DES RÈGLES (DEMANDÉ)
-            st.info("""
-            **Règles du vote :**
-            1. Sélectionnez **3 vidéos** dans l'ordre de préférence.
-            2. 🥇 1er choix = **5 points**
-            3. 🥈 2ème choix = **3 points**
-            4. 🥉 3ème choix = **1 point**
-            ⚠️ **Vote unique et définitif.**
-            """)
-            
-            choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
-            
-            if len(choix) == 3:
-                if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    vts = load_json(VOTES_FILE, {})
-                    pts = cfg.get("points_ponderation", [5, 3, 1])
-                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-                    save_json(VOTES_FILE, vts)
-                    voters = load_json(VOTERS_FILE, [])
-                    voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
-                    st.session_state.vote_success = True
+            # ECRAN RÈGLES
+            if not st.session_state.rules_accepted:
+                st.info("⚠️ **RÈGLES DU VOTE**")
+                st.markdown("""
+                1. Sélectionnez **3 vidéos** par ordre de préférence.
+                2. 🥇 1er choix = **5 points**
+                3. 🥈 2ème choix = **3 points**
+                4. 🥉 3ème choix = **1 point**
+                
+                **Attention :** Le vote est définitif et unique.
+                """)
+                if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True):
+                    st.session_state.rules_accepted = True
                     st.rerun()
+            
+            # ECRAN SELECTION
+            else:
+                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+                
+                if len(choix) == 3:
+                    if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
+                        vts = load_json(VOTES_FILE, {})
+                        pts = cfg.get("points_ponderation", [5, 3, 1])
+                        for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
+                        save_json(VOTES_FILE, vts)
+                        voters = load_json(VOTERS_FILE, [])
+                        voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
+                        
+                        st.session_state.vote_success = True
+                        st.rerun()
         else: st.info("⏳ En attente...")
 
 # =========================================================
@@ -491,7 +457,6 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        # AJOUT DU MESSAGE SYMPA
         center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Partagez vos sourires et vos moments forts !</h2></div>"
         st.markdown(center_html, unsafe_allow_html=True)
         photos = glob.glob(f"{LIVE_DIR}/*")
@@ -510,8 +475,9 @@ else:
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
                 let x = Math.random() * (window.innerWidth - bSize); 
                 let y = Math.random() * (window.innerHeight - bSize);
-                let vx = (Math.random()-0.5)*6; 
-                let vy = (Math.random()-0.5)*6;
+                let vx = (Math.random()-0.5)*3; 
+                let vy = (Math.random()-0.5)*3;
+                if(Math.abs(vx) < 0.5) vx = 1; if(Math.abs(vy) < 0.5) vy = 1;
                 container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
             }});
             function animate() {{
