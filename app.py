@@ -8,6 +8,13 @@ import pandas as pd
 import random
 import altair as alt
 
+# TENTATIVE D'IMPORT DE FPDF POUR LE PDF
+try:
+    from fpdf import FPDF
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
+
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
@@ -21,6 +28,10 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
+
+# --- AVATAR PAR DEFAUT (Base64) ---
+# Image "Fantôme" propre pour remplacer les photos manquantes
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qkz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
@@ -65,6 +76,76 @@ def save_json(file, data):
 
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
+
+# --- GÉNÉRATEUR PDF (CLASSE) ---
+if PDF_AVAILABLE:
+    class PDFReport(FPDF):
+        def header(self):
+            self.set_font('Arial', 'B', 15)
+            self.set_text_color(226, 0, 26) # Rouge #E2001A
+            self.cell(0, 10, 'REGIE MASTER - RAPPORT OFFICIEL', 0, 1, 'C')
+            self.ln(5)
+
+        def footer(self):
+            self.set_y(-15)
+            self.set_font('Arial', 'I', 8)
+            self.set_text_color(128)
+            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+
+    def create_pdf_results(title, df):
+        pdf = PDFReport()
+        pdf.add_page()
+        pdf.set_font("Arial", size=12)
+        
+        # Titre
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 10, txt=f"Resultats: {title}", ln=True, align='L')
+        pdf.set_font("Arial", size=10)
+        pdf.cell(200, 10, txt=f"Genere le : {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='L')
+        pdf.ln(10)
+        
+        # Tableau
+        pdf.set_fill_color(226, 0, 26)
+        pdf.set_text_color(255, 255, 255)
+        pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1)
+        pdf.cell(40, 10, "Points", 1, 1, 'C', 1)
+        
+        pdf.set_text_color(0, 0, 0)
+        for i, row in df.iterrows():
+            cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
+            pdf.cell(100, 10, cand, 1)
+            pdf.cell(40, 10, str(row['Points']), 1, 1, 'C')
+            
+        return pdf.output(dest='S').encode('latin-1')
+
+    def create_pdf_audit(title, df):
+        pdf = PDFReport()
+        pdf.add_page()
+        pdf.set_font("Arial", size=10)
+        
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(200, 10, txt=f"Audit Detail: {title}", ln=True, align='L')
+        pdf.ln(5)
+        
+        # En-têtes
+        cols = df.columns.tolist()
+        w = 190 / len(cols)
+        
+        pdf.set_fill_color(50, 50, 50)
+        pdf.set_text_color(255)
+        for col in cols:
+            c_txt = str(col).encode('latin-1', 'replace').decode('latin-1')
+            pdf.cell(w, 8, c_txt, 1, 0, 'C', 1)
+        pdf.ln()
+        
+        pdf.set_text_color(0)
+        for i, row in df.iterrows():
+            for col in cols:
+                txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
+                pdf.cell(w, 8, txt, 1)
+            pdf.ln()
+            
+        return pdf.output(dest='S').encode('latin-1')
 
 # --- CALLBACKS ADMIN ---
 def set_state(mode, open_s, reveal):
@@ -198,12 +279,10 @@ if est_admin:
                 if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
                 upl = st.file_uploader("Logo", type=["png", "jpg"])
                 if upl: st.session_state.config["logo_b64"] = process_image(upl); save_config(); st.rerun()
-            
-            # --- GESTION DYNAMIQUE DES PARTICIPANTS ---
             with t2:
+                # GESTION DYNAMIQUE
                 st.subheader(f"Liste des participants ({len(cfg['candidats'])}/15)")
                 
-                # 1. AJOUT
                 if len(cfg['candidats']) < 15:
                     with st.form("add_cand"):
                         col_add1, col_add2 = st.columns([4, 1])
@@ -213,58 +292,33 @@ if est_admin:
                                 cfg['candidats'].append(new_cand)
                                 save_config()
                                 st.rerun()
-                            else:
-                                st.error("Existe déjà !")
-                else:
-                    st.warning("Maximum de 15 participants atteint.")
+                            else: st.error("Existe déjà !")
+                else: st.warning("Maximum de 15 participants atteint.")
 
                 st.divider()
-
-                # 2. LISTE MODIFIABLE
-                # On utilise un mécanisme pour modifier directement la liste
                 candidates_to_remove = []
-                
                 for i, cand in enumerate(cfg['candidats']):
                     c1, c2, c3 = st.columns([0.5, 3, 2])
-                    
-                    # Image
                     with c1:
-                        if cand in cfg.get("candidats_images", {}):
-                            st.image(BytesIO(base64.b64decode(cfg["candidats_images"][cand])), width=40)
-                        else:
-                            st.write("🚫")
-                    
-                    # Nom (Editable)
+                        if cand in cfg.get("candidats_images", {}): st.image(BytesIO(base64.b64decode(cfg["candidats_images"][cand])), width=40)
+                        else: st.write("🚫")
                     with c2:
                         new_name = st.text_input(f"Participant {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
                         if new_name != cand and new_name:
-                            # Renommage : On met à jour la liste ET on migre l'image
                             cfg['candidats'][i] = new_name
-                            if cand in cfg.get("candidats_images", {}):
-                                cfg["candidats_images"][new_name] = cfg["candidats_images"].pop(cand)
-                            save_config()
-                            st.rerun()
-                    
-                    # Image Upload + Delete
+                            if cand in cfg.get("candidats_images", {}): cfg["candidats_images"][new_name] = cfg["candidats_images"].pop(cand)
+                            save_config(); st.rerun()
                     with c3:
                         col_up, col_del = st.columns([3, 1])
                         up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
-                        if up_img:
-                            cfg.setdefault("candidats_images", {})[cand] = process_image(up_img)
-                            save_config()
-                            st.rerun()
-                        
-                        if col_del.button("🗑️", key=f"del_{i}"):
-                            candidates_to_remove.append(cand)
+                        if up_img: cfg.setdefault("candidats_images", {})[cand] = process_image(up_img); save_config(); st.rerun()
+                        if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
 
-                # Suppression effective
                 if candidates_to_remove:
                     for c in candidates_to_remove:
                         cfg['candidats'].remove(c)
-                        if c in cfg.get("candidats_images", {}):
-                            del cfg["candidats_images"][c]
-                    save_config()
-                    st.rerun()
+                        if c in cfg.get("candidats_images", {}): del cfg["candidats_images"][c]
+                    save_config(); st.rerun()
 
         elif menu == "📸 MÉDIATHÈQUE":
             st.subheader("Gestion des Photos Live")
@@ -288,8 +342,7 @@ if est_admin:
                         date_str = get_file_info(f)
                         with cols[i % 5]:
                             st.image(f, use_container_width=True)
-                            if st.checkbox(f"#{len(files)-i} ({date_str})", key=f"chk_{os.path.basename(f)}"):
-                                selected_files.append(f)
+                            if st.checkbox(f"#{len(files)-i} ({date_str})", key=f"chk_{os.path.basename(f)}"): selected_files.append(f)
                     if delete_btn and selected_files:
                         for f in selected_files: os.remove(f)
                         st.success(f"{len(selected_files)} photos supprimées."); time.sleep(1); st.rerun()
@@ -302,14 +355,13 @@ if est_admin:
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats & Export")
             
-            # --- CALCUL DES SCORES ---
             votes = load_json(VOTES_FILE, {})
             all_cands = {c: 0 for c in cfg["candidats"]}
             all_cands.update(votes)
             df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points'])
             df_totals = df_totals.sort_values(by='Points', ascending=False)
             
-            # --- GRAPHIQUE FIXE ---
+            # Graphique Altair
             chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
                 x=alt.X('Points', title='Points'),
                 y=alt.Y('Candidat', sort='-x', title='Candidat'),
@@ -320,53 +372,35 @@ if est_admin:
             st.divider()
             col_exp1, col_exp2, col_exp3 = st.columns(3)
             
-            # 1. EXPORT RESULTATS (CSV)
+            # EXPORT CSV RESULTATS
             csv = df_totals.to_csv(index=False).encode('utf-8')
             col_exp1.download_button("📥 Résultats (CSV)", data=csv, file_name="resultats_votes.csv", mime="text/csv")
             
-            # 2. EXPORT PARTICIPANTS (CSV)
+            # EXPORT CSV PARTICIPANTS
             parts = load_json(PARTICIPANTS_FILE, [])
             df_parts = pd.DataFrame(parts, columns=["Nom Participant"])
             csv_parts = df_parts.to_csv(index=False).encode('utf-8')
-            col_exp2.download_button("👥 Liste Participants (CSV)", data=csv_parts, file_name="liste_participants.csv", mime="text/csv")
+            col_exp2.download_button("👥 Liste Votants (CSV)", data=csv_parts, file_name="liste_votants.csv", mime="text/csv")
 
-            # 3. RAPPORT PROFESSIONNEL (PDF via HTML)
-            logo_img = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:150px; display:block; margin:0 auto;">' if cfg.get("logo_b64") else ""
-            html_content = f"""
-            <html>
-            <head>
-                <style>
-                    body{{font-family:'Arial', sans-serif; color:#333; padding:40px;}}
-                    .header{{text-align:center; border-bottom:2px solid #E2001A; padding-bottom:20px; margin-bottom:30px;}}
-                    h1{{color:#E2001A; text-transform:uppercase;}}
-                    table{{width:100%; border-collapse:collapse; margin-top:20px;}}
-                    th{{background-color:#E2001A; color:white; padding:12px; text-align:left;}}
-                    td{{border-bottom:1px solid #ddd; padding:12px;}}
-                    tr:nth-child(even){{background-color:#f2f2f2;}}
-                    .footer{{margin-top:50px; text-align:center; font-size:12px; color:#777;}}
-                </style>
-            </head>
-            <body>
-                <div class="header">
-                    {logo_img}
-                    <h1>RAPPORT DE RÉSULTATS</h1>
-                    <h2>{cfg['titre_mur']}</h2>
-                    <p>Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}</p>
-                </div>
-                <h3>Classement Final</h3>
-                {df_totals.to_html(index=False)}
-                <div class="footer">Régie Master System - Document Officiel</div>
-            </body>
-            </html>
-            """
-            col_exp3.download_button("📄 Rapport Pro (PDF/Imprimer)", data=html_content, file_name="rapport_officiel.html", mime="text/html")
+            # EXPORT PDF
+            if PDF_AVAILABLE:
+                pdf_bytes = create_pdf_results(cfg['titre_mur'], df_totals)
+                col_exp3.download_button("📄 Rapport Résultats (PDF)", data=pdf_bytes, file_name="resultats_officiels.pdf", mime="application/pdf")
+            else:
+                col_exp3.error("Installez 'fpdf' pour le PDF")
 
             st.divider()
             st.subheader("Audit Détaillé")
             detailed_data = load_json(DETAILED_VOTES_FILE, [])
+            
             if detailed_data:
                 df_detail = pd.DataFrame(detailed_data)
                 st.dataframe(df_detail, use_container_width=True)
+                
+                # Export PDF Audit
+                if PDF_AVAILABLE:
+                    pdf_audit_bytes = create_pdf_audit(cfg['titre_mur'], df_detail)
+                    st.download_button("📄 Télécharger Audit Détaillé (PDF)", data=pdf_audit_bytes, file_name="audit_detaille.pdf", mime="application/pdf")
             else:
                 st.info("Pas de données détaillées.")
 
@@ -382,29 +416,18 @@ elif est_utilisateur:
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
     if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 
-    # 1. GESTION AUTO MODE PHOTO
     if cfg["mode_affichage"] == "photos_live":
-        if "user_pseudo" not in st.session_state or st.session_state.user_pseudo != "Anonyme":
-            st.session_state.user_pseudo = "Anonyme"
-    # 2. GESTION RETOUR VOTE
+        if "user_pseudo" not in st.session_state or st.session_state.user_pseudo != "Anonyme": st.session_state.user_pseudo = "Anonyme"
     elif cfg["mode_affichage"] == "votes":
-        if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme":
-            del st.session_state["user_pseudo"]
-            st.rerun()
+        if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": del st.session_state["user_pseudo"]; st.rerun()
 
     # --- SÉCURITÉ RENFORCÉE ---
     if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
             var lS = localStorage.getItem('VOTE_SID_2026');
-            if(lS !== sS) {{ 
-                localStorage.removeItem('HAS_VOTED_2026'); 
-                localStorage.setItem('VOTE_SID_2026', sS); 
-                if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }}
-            }}
-            if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
-                if(!window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true'; }}
-            }}
+            if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
+            if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ if(!window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true'; }} }}
         </script>""", height=0)
 
         if is_blocked or st.session_state.vote_success:
@@ -419,8 +442,7 @@ elif est_utilisateur:
         pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
             voters = load_json(VOTERS_FILE, [])
-            if pseudo.strip().upper() in [v.upper() for v in voters]: 
-                st.error("Ce pseudo a déjà voté.")
+            if pseudo.strip().upper() in [v.upper() for v in voters]: st.error("Ce pseudo a déjà voté.")
             else:
                 st.session_state.user_pseudo = pseudo.strip()
                 parts = load_json(PARTICIPANTS_FILE, [])
@@ -452,9 +474,9 @@ elif est_utilisateur:
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
+                        # DOUBLE SECURITY CHECK
                         voters = load_json(VOTERS_FILE, [])
-                        if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]:
-                            st.error("Vote déjà enregistré pour ce nom !"); st.stop()
+                        if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]: st.error("Vote déjà enregistré !"); st.stop()
                         vts = load_json(VOTES_FILE, {})
                         pts = cfg.get("points_ponderation", [5, 3, 1])
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
@@ -526,19 +548,16 @@ else:
                 top3 = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
                 suspense_html = ""
                 for name, score in top3:
-                    img = ""
-                    if name in cfg.get("candidats_images", {}): 
-                        img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
-                    suspense_html += f'<div class="suspense-item">{img}<h3 style="color:white; margin:0;">{name}</h3></div>'
+                    # GESTION IMAGE PAR DEFAUT
+                    img_src = f"data:image/png;base64,{cfg['candidats_images'][name]}" if name in cfg.get("candidats_images", {}) else f"data:image/png;base64,{DEFAULT_AVATAR}"
+                    suspense_html += f'<div class="suspense-item"><img src="{img_src}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;"><h3 style="color:white; margin:0;">{name}</h3></div>'
                 ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
             else:
                 cards_html = ""
                 for winner in winners:
-                    img = ""
-                    if winner in cfg.get("candidats_images", {}): 
-                        img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
-                    cards_html += f"<div class='winner-card'><div style='font-size:60px;'>🏆</div>{img}<h1 style='color:white; font-size:40px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:30px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:20px;'>{max_score} points</h3></div>"
+                    img_src = f"data:image/png;base64,{cfg['candidats_images'][winner]}" if winner in cfg.get("candidats_images", {}) else f"data:image/png;base64,{DEFAULT_AVATAR}"
+                    cards_html += f"<div class='winner-card'><div style='font-size:60px;'>🏆</div><img src='{img_src}' style='width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;'><h1 style='color:white; font-size:40px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:30px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:20px;'>{max_score} points</h3></div>"
                 ph.markdown(f"<div class='full-screen-center'>{logo_html}<div class='podium-container'>{cards_html}</div></div>", unsafe_allow_html=True)
 
         elif cfg.get("session_ouverte"):
@@ -551,7 +570,7 @@ else:
                 with c_left:
                     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                     for c in left_list:
-                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
+                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else f"data:image/png;base64,{DEFAULT_AVATAR}"
                         st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
                 with c_center:
                     st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
@@ -564,7 +583,7 @@ else:
                 with c_right:
                     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                     for c in right_list:
-                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
+                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else f"data:image/png;base64,{DEFAULT_AVATAR}"
                         st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
 
         else:
@@ -614,7 +633,6 @@ else:
                 
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
-                    
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
                     
