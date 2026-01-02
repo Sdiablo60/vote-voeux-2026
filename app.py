@@ -125,7 +125,6 @@ def inject_visual_effect(effect_name, intensity, speed):
     """
     if effect_name == "🎈 Ballons": js_code += f"if(!window.balloonInterval) window.balloonInterval = setInterval(createBalloon, {interval});"
     elif effect_name == "❄️ Neige": js_code += f"if(!window.snowInterval) window.snowInterval = setInterval(createSnow, {interval});"
-    
     js_code += "</script>"
     components.html(js_code, height=0)
 
@@ -226,7 +225,7 @@ elif est_utilisateur:
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
 
-    # --- SÉCURITÉ (Uniquement si ce n'est PAS le mode photo) ---
+    # --- SÉCURITÉ ---
     if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
@@ -264,27 +263,25 @@ elif est_utilisateur:
                 if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
                 st.rerun()
     else:
-        # --- MODE PHOTO (LIBRE) ---
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 ENVOYER UNE PHOTO")
-            st.write("Participez au mur photo en direct !")
+            st.write("Si la caméra ne s'ouvre pas, utilisez le bouton 'Parcourir' ci-dessous pour choisir une photo de votre galerie.")
             
-            uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'])
-            cam_file = st.camera_input("Ou prendre une photo")
+            uploaded_file = st.file_uploader("Importer depuis la galerie", type=['png', 'jpg', 'jpeg'])
+            cam_file = st.camera_input("Prendre une photo")
             
             final_file = uploaded_file if uploaded_file else cam_file
             
             if final_file:
-                # Nom unique pour éviter les doublons
                 fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
                 with open(os.path.join(LIVE_DIR, fname), "wb") as f: 
                     f.write(final_file.getbuffer())
                 
-                st.success("Photo envoyée !")
-                time.sleep(1) # Pause courte
-                st.rerun() # On recharge pour permettre une nouvelle photo
+                st.success("Envoyé !"); 
+                time.sleep(2)
+                st.session_state.vote_success = True
+                st.rerun()
         
-        # --- MODE VOTE (VERROUILLÉ) ---
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
@@ -315,7 +312,7 @@ else:
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         
-        .vote-cta { text-align: center; color: #E2001A; font-size: 30px; font-weight: 900; margin-bottom: 10px; animation: blink 2s infinite; text-transform: uppercase; }
+        .vote-cta { text-align: center; color: #E2001A; font-size: 30px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
         .voters-fixed-container { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; width: 100%; min-height: 40px; }
@@ -341,17 +338,18 @@ else:
         st.markdown(f'<div style="position:fixed; top:13vh; width:100%; text-align:center; z-index:100;">{tags_html}</div>', unsafe_allow_html=True)
 
     if mode == "attente":
+        # ACCUEIL : LOGO XXL + TEXTE
+        st.markdown("<div style='display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; padding-top:100px;'>", unsafe_allow_html=True)
         if cfg.get("logo_b64"): 
-            st.markdown("<div style='position:fixed; top:20vh; left:50%; transform:translate(-50%,0); text-align:center;'>", unsafe_allow_html=True)
-            st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=400)
-            st.markdown("</div>", unsafe_allow_html=True)
-        st.markdown("<div style='position:fixed; top:55%; left:50%; transform:translate(-50%,-50%); text-align:center;'><h1 style='color:white; font-size:100px;'>BIENVENUE</h1><h2 style='color:#AAA; font-size:40px;'>L'événement va commencer...</h2></div>", unsafe_allow_html=True)
+            st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=450)
+        st.markdown("<h1 style='color:white; font-size:100px; margin-top:20px;'>BIENVENUE</h1>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
             if cfg.get("logo_b64"): 
                 st.markdown("<div style='position:fixed; top:15vh; left:50%; transform:translate(-50%,0); text-align:center;'>", unsafe_allow_html=True)
-                st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
+                st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=150)
                 st.markdown("</div>", unsafe_allow_html=True)
             
             v_data = load_json(VOTES_FILE, {})
@@ -377,21 +375,25 @@ else:
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             
             with c_center:
+                # LOGO XXL -> QR (NU) -> TEXTE
                 st.markdown("<div style='height:15vh'></div>", unsafe_allow_html=True)
-                st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
                 
+                # 1. LOGO XXL
+                if cfg.get("logo_b64"): 
+                    st.markdown("<div style='text-align:center; margin-bottom:20px;'>", unsafe_allow_html=True)
+                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=400)
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                # 2. QR CODE (SANS CADRE BLANC, JUSTE L'IMAGE)
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
                 
-                st.markdown("<div style='background:white; padding:15px; border-radius:20px; border:5px solid #E2001A; width:280px; margin:0 auto;'>", unsafe_allow_html=True)
-                st.image(qr_buf, width=250)
+                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+                st.image(qr_buf, width=300)
                 st.markdown("</div>", unsafe_allow_html=True)
                 
-                if cfg.get("logo_b64"): 
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
-                    st.markdown("</div>", unsafe_allow_html=True)
+                # 3. TEXTE (EN DESSOUS)
+                st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
 
             with c_right:
                 st.markdown("<br><br><br><br>", unsafe_allow_html=True)
@@ -425,12 +427,7 @@ else:
         st.markdown(center_html, unsafe_allow_html=True)
 
         photos = glob.glob(f"{LIVE_DIR}/*")
-        # On affiche l'animation même s'il n'y a pas encore de photos (ça fera juste rien de spécial)
-        # Mais pour éviter le bug JSON si vide:
-        if not photos:
-            photos = [] # Liste vide
-            
-        # On peut avoir des photos fictives ou attendre
+        if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
         components.html(f"""<script>
@@ -461,14 +458,12 @@ else:
                 
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
-                    
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
                     
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
-                    
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
                 requestAnimationFrame(animate);
