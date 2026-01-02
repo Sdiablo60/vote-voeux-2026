@@ -6,7 +6,7 @@ from PIL import Image
 from datetime import datetime
 import pandas as pd
 import random
-import altair as alt # Nécessaire pour le graphique fixe
+import altair as alt
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
@@ -80,7 +80,6 @@ def reset_app_data():
         if os.path.exists(f): os.remove(f)
     files = glob.glob(f"{LIVE_DIR}/*")
     for f in files: os.remove(f)
-    
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
     st.toast("✅ RESET TOTAL EFFECTUÉ !", icon="🗑️")
@@ -99,8 +98,7 @@ def get_file_info(filepath):
     try:
         ts = os.path.getmtime(filepath)
         return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-    except:
-        return "Inconnu"
+    except: return "Inconnu"
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
@@ -133,7 +131,6 @@ def inject_visual_effect(effect_name, intensity, speed):
     """
     if effect_name == "🎈 Ballons": js_code += f"if(!window.balloonInterval) window.balloonInterval = setInterval(createBalloon, {interval});"
     elif effect_name == "❄️ Neige": js_code += f"if(!window.snowInterval) window.snowInterval = setInterval(createSnow, {interval});"
-    
     js_code += "</script>"
     components.html(js_code, height=0)
 
@@ -216,12 +213,10 @@ if est_admin:
                 files = glob.glob(f"{LIVE_DIR}/*")
                 for f in files: os.remove(f)
                 st.success("Toutes les photos ont été supprimées.")
-                time.sleep(1)
-                st.rerun()
+                time.sleep(1); st.rerun()
             st.divider()
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
-            if not files:
-                st.info("Aucune photo pour le moment.")
+            if not files: st.info("Aucune photo pour le moment.")
             else:
                 with st.form("media_form"):
                     col_actions = st.columns(2)
@@ -238,72 +233,83 @@ if est_admin:
                                 selected_files.append(f)
                     if delete_btn and selected_files:
                         for f in selected_files: os.remove(f)
-                        st.success(f"{len(selected_files)} photos supprimées.")
-                        time.sleep(1); st.rerun()
+                        st.success(f"{len(selected_files)} photos supprimées."); time.sleep(1); st.rerun()
                     if download_btn and selected_files:
                         zip_buffer = BytesIO()
                         with zipfile.ZipFile(zip_buffer, "w") as zf:
-                            for file_path in selected_files:
-                                zf.write(file_path, os.path.basename(file_path))
+                            for file_path in selected_files: zf.write(file_path, os.path.basename(file_path))
                         st.download_button(label="💾 TÉLÉCHARGER LE ZIP", data=zip_buffer.getvalue(), file_name=f"photos_live_{int(time.time())}.zip", mime="application/zip")
 
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats & Export")
             
-            # --- CALCUL DES SCORES ---
+            # --- PREPARATION DONNEES ---
             votes = load_json(VOTES_FILE, {})
-            # Assurer que tous les candidats sont là
             all_cands = {c: 0 for c in cfg["candidats"]}
             all_cands.update(votes)
             df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points'])
             df_totals = df_totals.sort_values(by='Points', ascending=False)
             
-            # --- GRAPHIQUE FIXE (Altair) ---
-            # Le zoom est désactivé par défaut si on n'ajoute pas .interactive()
+            # --- GRAPHIQUE FIXE ---
             chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
                 x=alt.X('Points', title='Points'),
                 y=alt.Y('Candidat', sort='-x', title='Candidat'),
                 tooltip=['Candidat', 'Points']
-            ).properties(height=400)
-            
+            ).properties(height=400).interactive(bind_y=False, bind_x=False) # Zoom bloqué
             st.altair_chart(chart, use_container_width=True)
             
-            # --- EXPORTS ---
+            st.divider()
             col_exp1, col_exp2, col_exp3 = st.columns(3)
             
-            # 1. CSV
+            # 1. EXPORT RESULTATS (CSV)
             csv = df_totals.to_csv(index=False).encode('utf-8')
-            col_exp1.download_button("📥 Export CSV", data=csv, file_name="resultats.csv", mime="text/csv")
+            col_exp1.download_button("📥 Résultats (CSV)", data=csv, file_name="resultats_votes.csv", mime="text/csv")
             
-            # 2. EXCEL (Tentative)
-            try:
-                buffer = BytesIO()
-                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-                    df_totals.to_excel(writer, sheet_name='Resultats', index=False)
-                col_exp2.download_button("📊 Export Excel", data=buffer.getvalue(), file_name="resultats.xlsx", mime="application/vnd.ms-excel")
-            except:
-                col_exp2.warning("Excel non dispo")
+            # 2. EXPORT PARTICIPANTS (CSV)
+            parts = load_json(PARTICIPANTS_FILE, [])
+            df_parts = pd.DataFrame(parts, columns=["Nom Participant"])
+            csv_parts = df_parts.to_csv(index=False).encode('utf-8')
+            col_exp2.download_button("👥 Liste Participants (CSV)", data=csv_parts, file_name="liste_participants.csv", mime="text/csv")
 
-            # 3. HTML (Pour PDF)
+            # 3. RAPPORT PROFESSIONNEL (PDF via HTML)
+            logo_img = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:150px; display:block; margin:0 auto;">' if cfg.get("logo_b64") else ""
             html_content = f"""
-            <html><head><style>body{{font-family:Arial;}} table{{width:100%;border-collapse:collapse;}} th,td{{border:1px solid #ddd;padding:8px;text-align:left;}} th{{background-color:#E2001A;color:white;}}</style></head>
+            <html>
+            <head>
+                <style>
+                    body{{font-family:'Arial', sans-serif; color:#333; padding:40px;}}
+                    .header{{text-align:center; border-bottom:2px solid #E2001A; padding-bottom:20px; margin-bottom:30px;}}
+                    h1{{color:#E2001A; text-transform:uppercase;}}
+                    table{{width:100%; border-collapse:collapse; margin-top:20px;}}
+                    th{{background-color:#E2001A; color:white; padding:12px; text-align:left;}}
+                    td{{border-bottom:1px solid #ddd; padding:12px;}}
+                    tr:nth-child(even){{background-color:#f2f2f2;}}
+                    .footer{{margin-top:50px; text-align:center; font-size:12px; color:#777;}}
+                </style>
+            </head>
             <body>
-            <h1>Rapport de Votes - {cfg['titre_mur']}</h1>
-            <p>Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
-            {df_totals.to_html(index=False)}
-            </body></html>
+                <div class="header">
+                    {logo_img}
+                    <h1>RAPPORT DE RÉSULTATS</h1>
+                    <h2>{cfg['titre_mur']}</h2>
+                    <p>Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}</p>
+                </div>
+                <h3>Classement Final</h3>
+                {df_totals.to_html(index=False)}
+                <div class="footer">Régie Master System - Document Officiel</div>
+            </body>
+            </html>
             """
-            col_exp3.download_button("📄 Rapport Imprimable (Pour PDF)", data=html_content, file_name="rapport_print.html", mime="text/html")
+            col_exp3.download_button("📄 Rapport Pro (PDF/Imprimer)", data=html_content, file_name="rapport_officiel.html", mime="text/html")
 
-            # DETAIL DES VOTES
             st.divider()
-            st.subheader("Détail des votes (Audit)")
+            st.subheader("Audit Détaillé")
             detailed_data = load_json(DETAILED_VOTES_FILE, [])
             if detailed_data:
                 df_detail = pd.DataFrame(detailed_data)
                 st.dataframe(df_detail, use_container_width=True)
             else:
-                st.info("Aucun détail disponible.")
+                st.info("Pas de données détaillées.")
 
 # =========================================================
 # 2. APPLICATION MOBILE
@@ -314,21 +320,20 @@ elif est_utilisateur:
     
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
-    
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
     if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 
-    # 1. GESTION AUTOMATIQUE MODE PHOTO (Bypass Login)
+    # 1. GESTION AUTO MODE PHOTO
     if cfg["mode_affichage"] == "photos_live":
         if "user_pseudo" not in st.session_state or st.session_state.user_pseudo != "Anonyme":
             st.session_state.user_pseudo = "Anonyme"
-    # 2. GESTION RETOUR VOTE (Force Login)
+    # 2. GESTION RETOUR VOTE
     elif cfg["mode_affichage"] == "votes":
         if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme":
             del st.session_state["user_pseudo"]
             st.rerun()
 
-    # --- SÉCURITÉ RENFORCÉE (UNIQUEMENT POUR LE VOTE) ---
+    # --- SÉCURITÉ RENFORCÉE ---
     if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
@@ -336,103 +341,74 @@ elif est_utilisateur:
             if(lS !== sS) {{ 
                 localStorage.removeItem('HAS_VOTED_2026'); 
                 localStorage.setItem('VOTE_SID_2026', sS); 
-                if(window.parent.location.href.includes('blocked=true')) {{
-                    window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
-                }}
+                if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }}
             }}
             if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
-                if(!window.parent.location.href.includes('blocked=true')) {{
-                    window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true';
-                }}
+                if(!window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href + '&blocked=true'; }}
             }}
         </script>""", height=0)
 
-        # Si bloqué : ON ARRÊTE TOUT ICI
         if is_blocked or st.session_state.vote_success:
             st.balloons()
-            st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div><p style='color:#777; margin-top:20px;'>Un seul vote autorisé par appareil.</p></div>""", unsafe_allow_html=True)
+            st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div><p style='color:#777; margin-top:20px;'>Vote unique autorisé.</p></div>""", unsafe_allow_html=True)
             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-            st.stop() # FIN DU SCRIPT POUR L'UTILISATEUR BLOQUÉ
+            st.stop()
 
-    # --- ECRAN D'IDENTIFICATION ---
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
         pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
+            # BLOCAGE SERVEUR SI NOM DEJA UTILISÉ
             voters = load_json(VOTERS_FILE, [])
-            if pseudo.strip().upper() in [v.upper() for v in voters]: st.error("Ce pseudo est déjà utilisé.")
+            if pseudo.strip().upper() in [v.upper() for v in voters]: 
+                st.error("Ce pseudo a déjà voté.")
             else:
                 st.session_state.user_pseudo = pseudo.strip()
                 parts = load_json(PARTICIPANTS_FILE, [])
                 if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
                 st.rerun()
     else:
-        # --- MODE PHOTO ---
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 ENVOYER UNE PHOTO")
-            
             up_key = f"uploader_{st.session_state.cam_reset_id}"
             cam_key = f"camera_{st.session_state.cam_reset_id}"
-            
             uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
             cam_file = st.camera_input("Prendre une photo", key=cam_key)
-            
             final_file = uploaded_file if uploaded_file else cam_file
-            
             if final_file:
                 fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
-                with open(os.path.join(LIVE_DIR, fname), "wb") as f: 
-                    f.write(final_file.getbuffer())
-                
+                with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
                 st.success("Photo envoyée !")
-                st.session_state.cam_reset_id += 1 # Reset immédiat
-                time.sleep(1)
-                st.rerun()
+                st.session_state.cam_reset_id += 1
+                time.sleep(1); st.rerun()
         
-        # --- MODE VOTE ---
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
-            
             if not st.session_state.rules_accepted:
                 st.info("⚠️ **RÈGLES DU VOTE**")
-                st.markdown("""
-                1. Sélectionnez **3 vidéos** par ordre de préférence.
-                2. 🥇 1er choix = **5 points**
-                3. 🥈 2ème choix = **3 points**
-                4. 🥉 3ème choix = **1 point**
-                
-                **Attention :** Le vote est définitif et unique.
-                """)
+                st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True):
-                    st.session_state.rules_accepted = True
-                    st.rerun()
+                    st.session_state.rules_accepted = True; st.rerun()
             else:
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                        # 1. Sauvegarde Totaux
+                        # VERIFICATION ULTIME SERVEUR AVANT ECRITURE
+                        voters = load_json(VOTERS_FILE, [])
+                        if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]:
+                            st.error("Vote déjà enregistré pour ce nom !"); st.stop()
+                        
                         vts = load_json(VOTES_FILE, {})
                         pts = cfg.get("points_ponderation", [5, 3, 1])
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                         save_json(VOTES_FILE, vts)
                         
-                        # 2. Sauvegarde Détail
                         details = load_json(DETAILED_VOTES_FILE, [])
-                        details.append({
-                            "Utilisateur": st.session_state.user_pseudo,
-                            "Choix 1 (5pts)": choix[0],
-                            "Choix 2 (3pts)": choix[1],
-                            "Choix 3 (1pt)": choix[2],
-                            "Date": datetime.now().strftime("%H:%M:%S")
-                        })
+                        details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                         save_json(DETAILED_VOTES_FILE, details)
                         
-                        # 3. Marquer Votant
-                        voters = load_json(VOTERS_FILE, [])
                         voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
-                        
-                        # 4. Blocage
                         st.session_state.vote_success = True
                         components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
                         time.sleep(1); st.rerun()
@@ -459,7 +435,6 @@ else:
         .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
-        /* CSS POUR PODIUM AVEC EGALITE */
         .podium-container { display: flex; justify-content: center; gap: 40px; align-items: center; margin-top: 50px; width: 100%; flex-wrap: wrap;}
         .winner-card { width: 400px; background: rgba(15,15,15,0.98); border: 8px solid #FFD700; border-radius: 40px; padding: 30px; text-align: center; z-index: 1000; box-shadow: 0 0 50px #FFD700; margin-bottom: 20px; }
         .suspense-grid { display: flex; justify-content: center; gap: 30px; margin-top: 30px; }
@@ -478,9 +453,12 @@ else:
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-10:]])
         st.markdown(f'<div style="position:fixed; top:13vh; width:100%; text-align:center; z-index:100;">{tags_html}</div>', unsafe_allow_html=True)
 
+    # NETTOYAGE ECRAN POUR EVITER SUPERPOSITION
+    ph = st.empty()
+    
     if mode == "attente":
         logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-        st.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
+        ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
@@ -499,7 +477,7 @@ else:
                     if name in cfg.get("candidats_images", {}): 
                         img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
                     suspense_html += f'<div class="suspense-item">{img}<h3 style="color:white; margin:0;">{name}</h3></div>'
-                st.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
+                ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
             else:
                 cards_html = ""
@@ -508,37 +486,37 @@ else:
                     if winner in cfg.get("candidats_images", {}): 
                         img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
                     cards_html += f"<div class='winner-card'><div style='font-size:60px;'>🏆</div>{img}<h1 style='color:white; font-size:40px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:30px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:20px;'>{max_score} points</h3></div>"
-                st.markdown(f"<div class='full-screen-center'>{logo_html}<div class='podium-container'>{cards_html}</div></div>", unsafe_allow_html=True)
+                ph.markdown(f"<div class='full-screen-center'>{logo_html}<div class='podium-container'>{cards_html}</div></div>", unsafe_allow_html=True)
 
         elif cfg.get("session_ouverte"):
-            cands = cfg.get("candidats", [])
-            imgs = cfg.get("candidats_images", {})
-            mid = (len(cands) + 1) // 2
-            left_list, right_list = cands[:mid], cands[mid:]
-            c_left, c_center, c_right = st.columns([1, 1, 1])
-            with c_left:
-                st.markdown("<br><br><br><br>", unsafe_allow_html=True)
-                for c in left_list:
-                    img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                    st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
-            with c_center:
-                st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
-                if cfg.get("logo_b64"): 
-                    st.markdown(f"<div style='text-align:center; width:100%; margin-bottom:20px;'><img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px;'></div>", unsafe_allow_html=True)
-                host = st.context.headers.get('host', 'localhost')
-                qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-                qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-                st.markdown(f"<div style='text-align:center; width:100%;'><img src='data:image/png;base64,{qr_b64}' style='width:240px; border-radius:10px;'></div>", unsafe_allow_html=True)
-                st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
-            with c_right:
-                st.markdown("<br><br><br><br>", unsafe_allow_html=True)
-                for c in right_list:
-                    img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                    st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
+            with ph.container():
+                cands = cfg.get("candidats", [])
+                imgs = cfg.get("candidats_images", {})
+                mid = (len(cands) + 1) // 2
+                left_list, right_list = cands[:mid], cands[mid:]
+                c_left, c_center, c_right = st.columns([1, 1, 1])
+                with c_left:
+                    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+                    for c in left_list:
+                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
+                        st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
+                with c_center:
+                    st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
+                    if cfg.get("logo_b64"): st.markdown(f"<div style='text-align:center; width:100%; margin-bottom:20px;'><img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px;'></div>", unsafe_allow_html=True)
+                    host = st.context.headers.get('host', 'localhost')
+                    qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+                    qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+                    st.markdown(f"<div style='text-align:center; width:100%;'><img src='data:image/png;base64,{qr_b64}' style='width:240px; border-radius:10px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
+                with c_right:
+                    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+                    for c in right_list:
+                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
+                        st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
 
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-            st.markdown(f"<div class='full-screen-center'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div>", unsafe_allow_html=True)
+            ph.markdown(f"<div class='full-screen-center'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
@@ -546,37 +524,56 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Partagez vos sourires et vos moments forts !</h2></div>"
-        st.markdown(center_html, unsafe_allow_html=True)
+        
+        ph.markdown(center_html, unsafe_allow_html=True)
+        
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        
+        # SCRIPT CORRIGÉ POUR DÉPLACEMENT FLUIDE
         components.html(f"""<script>
             var doc = window.parent.document;
-            var container = doc.getElementById('bubble-wall') || doc.createElement('div');
+            var container = doc.getElementById('bubble-wall');
+            if(container) container.remove();
+            
+            container = doc.createElement('div');
             container.id = 'bubble-wall'; 
             container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
-            if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
-            container.innerHTML = ''; // RESET COMPLET
+            doc.body.appendChild(container);
+            
             const imgs = {img_js}; const bubbles = []; const bSize = 250;
             imgs.forEach((src, i) => {{
                 const el = doc.createElement('img'); el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
+                
+                // Position aléatoire mais pas hors champ
                 let x = Math.random() * (window.innerWidth - bSize); 
                 let y = Math.random() * (window.innerHeight - bSize);
-                let vx = (Math.random()-0.5)*8; if(Math.abs(vx)<1) vx=2;
-                let vy = (Math.random()-0.5)*8; if(Math.abs(vy)<1) vy=2;
+                
+                // Vitesse forcée (jamais 0)
+                let vx = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3);
+                let vy = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3);
+                
                 container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
             }});
+            
             function animate() {{
                 var centerBox = doc.getElementById('center-box');
                 var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
+                
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
+                    
+                    // Rebond Bords
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                    
+                    // Rebond Bloc Central
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
+                    
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
                 requestAnimationFrame(animate);
