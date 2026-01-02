@@ -64,7 +64,7 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- CALLBACKS ADMIN ---
+# --- ACTIONS CALLBACKS (ADMIN) ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
@@ -73,11 +73,13 @@ def set_state(mode, open_s, reveal):
         st.session_state.config["timestamp_podium"] = time.time()
     save_config()
 
-def reset_app():
+def reset_app_data():
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
+    st.toast("✅ RESET TOTAL EFFECTUÉ !", icon="🗑️")
+    time.sleep(1)
 
 def process_image(uploaded_file):
     try:
@@ -89,7 +91,7 @@ def process_image(uploaded_file):
     except: return None
 
 def inject_visual_effect(effect_name, intensity, speed):
-    if effect_name == "Aucun":
+    if effect_name == "Aucun" or effect_name == "🎉 Confettis":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
         return
     duration = max(3, 25 - (speed * 0.4)) 
@@ -126,7 +128,6 @@ def inject_visual_effect(effect_name, intensity, speed):
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
-# On vérifie si l'URL contient le marqueur de blocage
 is_blocked = st.query_params.get("blocked") == "true"
 
 # --- INIT SESSION ---
@@ -177,7 +178,10 @@ if est_admin:
 
             st.divider()
             with st.expander("🚨 ZONE DE DANGER"):
-                st.button("🗑️ RESET TOTAL", type="primary", on_click=reset_app)
+                # CALLBACK MODIFIÉ POUR VISIBILITÉ
+                if st.button("🗑️ RESET TOTAL", type="primary"):
+                    reset_app_data()
+                    st.rerun()
 
         elif menu == "⚙️ CONFIG":
             t1, t2 = st.tabs(["Général", "Candidats"])
@@ -210,58 +214,47 @@ if est_admin:
             st.json(load_json(VOTES_FILE, {}))
 
 # =========================================================
-# 2. APPLICATION MOBILE (VERROUILLAGE TOTAL)
+# 2. APPLICATION MOBILE (SÉCURITÉ ET VALIDATION CORRIGÉES)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # Récupération ID session (change au Reset Admin)
-    curr_sess = cfg.get("session_id", "init")
+    if "vote_just_done" not in st.session_state: st.session_state.vote_just_done = False
 
-    # --- LE GARDIEN JAVASCRIPT ---
-    # Ce script s'exécute AVANT le reste. S'il voit que l'utilisateur a déjà voté (localStorage),
-    # il redirige vers l'URL avec &blocked=true.
-    components.html(f"""
-    <script>
-        // Clé unique pour cette session de vote
-        const sessionKey = "{curr_sess}";
-        const storageKey = 'VOTE_STATUS_' + sessionKey;
+    curr_sess = cfg.get("session_id", "init")
+    
+    # --- VIGILE : S'assure que le localStorage est propre si nouvelle session ---
+    components.html(f"""<script>
+        var sS = "{curr_sess}";
+        var lS = localStorage.getItem('VOTE_SID_FIX');
         
-        // 1. Vérifier si on doit nettoyer (cas d'un reset admin où l'ID change)
-        // On parcourt le localStorage pour virer les vieilles clés si besoin (optionnel mais propre)
-        
-        // 2. Vérifier si l'utilisateur a déjà voté pour CETTE session
-        const hasVoted = localStorage.getItem(storageKey);
-        
-        if (hasVoted === 'true') {{
-            // Si l'URL ne contient pas déjà "blocked=true", on redirige
-            if (!window.parent.location.href.includes('blocked=true')) {{
-                window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true';
-            }}
-        }} else {{
-            // Si on est sur une URL "blocked" par erreur (ex: refresh après reset admin), on nettoie l'URL
-            if (window.parent.location.href.includes('blocked=true')) {{
-                window.parent.location.href = window.parent.location.href.replace('&blocked=true', '');
+        // Reset si nouvelle session admin
+        if(lS !== sS) {{ 
+            localStorage.removeItem('VOTE_COMPLETED_FIX'); 
+            localStorage.setItem('VOTE_SID_FIX', sS); 
+            // Si on est bloqué, on débloque
+            if(window.parent.location.href.includes('blocked=true')) {{
+                window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
             }}
         }}
-    </script>
-    """, height=0)
+    </script>""", height=0)
 
-    # --- SI BLOQUÉ PAR L'URL (Redirection JS effectuée) ---
-    if is_blocked:
+    # --- SI DÉJÀ VOTÉ (Check Python + URL) ---
+    if is_blocked or st.session_state.vote_just_done:
         st.balloons()
         st.markdown("""
-            <div style='display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80vh; text-align: center;'>
-                <h1 style='color: #E2001A; font-size: 40px; margin-bottom: 10px;'>MERCI !</h1>
-                <h2 style='color: white; font-size: 20px;'>Votre vote a déjà été enregistré.</h2>
-                <div style='font-size: 80px; margin: 20px 0;'>✅</div>
-                <p style='color: #777;'>Un seul vote est autorisé par appareil.</p>
+            <div style='text-align:center; margin-top:50px; padding:20px;'>
+                <h1 style='color:#E2001A; font-size:40px;'>MERCI !</h1>
+                <h2 style='color:white;'>Votre vote a été enregistré.</h2>
+                <br><div style='font-size:80px;'>✅</div>
+                <p style='color:#777; margin-top:20px;'>Un seul vote par personne.</p>
             </div>
         """, unsafe_allow_html=True)
-        st.stop() # On arrête tout ici. Le formulaire n'est PAS généré.
+        # On empêche l'exécution du reste, MAIS seulement si on est sûr d'avoir voté
+        st.stop()
 
-    # --- FORMULAIRE (Affiché seulement si pas bloqué) ---
+    # --- FORMULAIRE D'ENTRÉE ---
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
@@ -277,6 +270,7 @@ elif est_utilisateur:
                 if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
                 st.rerun()
     else:
+        # --- ECRAN DE VOTE ---
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 Envoie ta photo !")
             cam = st.camera_input("Photo")
@@ -289,26 +283,32 @@ elif est_utilisateur:
             choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
             
             if len(choix) == 3:
+                # C'EST ICI LA CORRECTION : Le bouton Valider doit fonctionner
                 if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    # 1. Sauvegarde Serveur
+                    # 1. Sauvegarde des votes
                     vts = load_json(VOTES_FILE, {})
                     pts = cfg.get("points_ponderation", [5, 3, 1])
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     save_json(VOTES_FILE, vts)
-                    voters = load_json(VOTERS_FILE, [])
-                    voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
                     
-                    # 2. Injection JS pour marquer le vote comme fait
+                    # 2. Sauvegarde du votant (pour empêcher réutilisation pseudo)
+                    voters = load_json(VOTERS_FILE, [])
+                    voters.append(st.session_state.user_pseudo)
+                    save_json(VOTERS_FILE, voters)
+                    
+                    # 3. Activation du blocage LOCAL et DISTANT
+                    st.session_state.vote_just_done = True
+                    
+                    # On injecte le script qui va rediriger vers la page bloquée
                     components.html(f"""
                     <script>
-                        const sessionKey = "{curr_sess}";
-                        const storageKey = 'VOTE_STATUS_' + sessionKey;
-                        localStorage.setItem(storageKey, 'true');
-                        // Redirection immédiate
+                        localStorage.setItem('VOTE_COMPLETED_FIX', 'true');
                         window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true';
                     </script>
                     """, height=0)
-                    time.sleep(1) # Attente technique
+                    
+                    # Petite pause pour laisser le temps au JS de s'exécuter
+                    time.sleep(1)
         else:
             st.info("⏳ En attente de l'ouverture des votes...")
 
@@ -400,7 +400,6 @@ else:
                 # 1. LISTE DES VOTANTS (FIXE AU DESSUS)
                 parts = load_json(PARTICIPANTS_FILE, [])
                 if parts:
-                    # On affiche les 15 derniers pour garder de la place
                     tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-15:]])
                     st.markdown(f"<div class='voters-fixed-container'>{tags_html}</div>", unsafe_allow_html=True)
                 else:
