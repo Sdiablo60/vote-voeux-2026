@@ -226,7 +226,7 @@ elif est_utilisateur:
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
 
-    # --- SÉCURITÉ (Sauf mode photo) ---
+    # --- SÉCURITÉ ---
     if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
@@ -351,17 +351,18 @@ else:
         st.markdown(f'<div style="position:fixed; top:13vh; width:100%; text-align:center; z-index:100;">{tags_html}</div>', unsafe_allow_html=True)
 
     if mode == "attente":
-        # CORRECTION BUG AFFICHAGE CODE
+        # CORRECTION BUG AFFICHAGE HTML ACCUEIL
         logo_html = ""
         if cfg.get("logo_b64"): 
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">'
         
-        st.markdown(f"""
-        <div class="full-screen-center">
-            {logo_html}
-            <h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1>
-        </div>
-        """, unsafe_allow_html=True)
+        # NOTE : Pas d'indentation dans la chaine HTML ci-dessous !
+        html_code = f"""
+<div class="full-screen-center">
+    {logo_html}
+    <h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1>
+</div>"""
+        st.markdown(html_code, unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
@@ -457,16 +458,16 @@ else:
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
 
         else:
-            # VOTE OFF
+            # VOTE OFF (CORRECTION BUG AFFICHAGE)
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-            st.markdown(f"""
-            <div class="full-screen-center">
-                {logo_html}
-                <div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'>
-                    <h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            html_off = f"""
+<div class="full-screen-center">
+    {logo_html}
+    <div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'>
+        <h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1>
+    </div>
+</div>"""
+            st.markdown(html_off, unsafe_allow_html=True)
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
@@ -518,14 +519,12 @@ else:
                 
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
-                    
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
                     
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
-                    
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
                 requestAnimationFrame(animate);
