@@ -340,8 +340,6 @@ else:
         logo_html = ""
         if cfg.get("logo_b64"): 
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">'
-        
-        # ICI C'EST CORRIGÉ : TOUT SUR UNE LIGNE POUR ÉVITER LES BUGS D'INDENTATION
         st.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
 
     elif mode == "votes":
@@ -361,10 +359,8 @@ else:
                         img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
                     suspense_html += f'<div class="suspense-item">{img}<h3 style="color:white; margin:0;">{name}</h3></div>'
                 
-                # CORRECTION : UNE LIGNE
                 st.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
-                
             else:
                 if sorted_v:
                     winner, pts = sorted_v[0]
@@ -372,18 +368,9 @@ else:
                     if winner in cfg.get("candidats_images", {}): 
                         img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:200px; height:200px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
                     
-                    st.markdown(f"""
-                    <div class="full-screen-center">
-                        {logo_html}
-                        <div class="winner-card" style="position:relative; transform:none; top:auto; left:auto;">
-                            <div style="font-size:80px;">🏆</div>
-                            {img}
-                            <h1 style="color:white; font-size:60px; margin:10px 0;">{winner}</h1>
-                            <h2 style="color:#FFD700; font-size:40px;">VAINQUEUR</h2>
-                            <h3 style="color:#CCC; font-size:25px;">Avec {pts} points</h3>
-                        </div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    # CORRECTION RADICALE DU BUG D'AFFICHAGE VAINQUEUR : TOUT EN UNE LIGNE
+                    winner_html = f"<div class='full-screen-center'>{logo_html}<div class='winner-card' style='position:relative; transform:none; top:auto; left:auto;'><div style='font-size:80px;'>🏆</div>{img}<h1 style='color:white; font-size:60px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:40px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:25px;'>Avec {pts} points</h3></div></div>"
+                    st.markdown(winner_html, unsafe_allow_html=True)
 
         elif cfg.get("session_ouverte"):
             cands = cfg.get("candidats", [])
@@ -416,7 +403,6 @@ else:
 
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-            # ICI AUSSI C'EST CORRIGÉ : UNE SEULE LIGNE SANS ESPACES
             st.markdown(f"<div class='full-screen-center'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
@@ -424,15 +410,8 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        center_html = f"""
-        <div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">' if logo_data else ''}
-            <div style="background:white; padding:10px; border-radius:10px; display:inline-block;">
-                <img src="data:image/png;base64,{qr_b64}" style="width:150px;">
-            </div>
-            <h2 style="color:white; margin-top:10px; font-size:24px;">Envoyez vos photos !</h2>
-        </div>
-        """
+        # CORRECTION RADICALE MUR PHOTO : UNE SEULE LIGNE HTML
+        center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Envoyez vos photos !</h2></div>"
         st.markdown(center_html, unsafe_allow_html=True)
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
