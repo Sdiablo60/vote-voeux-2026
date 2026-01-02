@@ -126,12 +126,10 @@ if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
 # =========================================================
-# 1. CONSOLE ADMIN (SANS HEADER FIXE QUI BLOQUE)
+# 1. CONSOLE ADMIN (VERSION PURE - SANS CSS BLOQUANT)
 # =========================================================
 if est_admin:
-    # On retire le CSS header fixe problématique. On fait simple et robuste.
-    st.markdown("""<style>.block-container {padding-top: 2rem;}</style>""", unsafe_allow_html=True)
-    
+    # Suppression totale du CSS Header fixe pour libérer les clics
     st.title("🎛️ CONSOLE RÉGIE")
     st.write("---")
     
@@ -143,21 +141,18 @@ if est_admin:
         cfg = st.session_state.config
         
         with st.sidebar:
-            # LOGO DANS LA SIDEBAR (VISIBLE)
             if cfg.get("logo_b64"):
                 st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
-            else:
-                st.info("Aucun logo chargé")
             
             st.header("MENU")
             menu = st.radio("Navigation", ["🔴 PILOTAGE LIVE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE", "📊 DATA"])
             st.divider()
-            st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none;">📺 MUR SOCIAL</a>""", unsafe_allow_html=True)
+            st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none;">📺 OUVRIR MUR SOCIAL</a>""", unsafe_allow_html=True)
             st.markdown("""<a href="/?mode=vote" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none; margin-top:10px;">📱 TESTER MOBILE</a>""", unsafe_allow_html=True)
             st.divider()
             if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
-        # RECHARGER CONFIG
+        # Rechargement config
         st.session_state.config = load_json(CONFIG_FILE, default_config)
         cfg = st.session_state.config
 
@@ -168,7 +163,7 @@ if est_admin:
             open = cfg["session_ouverte"]
             reveal = cfg["reveal_resultats"]
             
-            # CES BOUTONS FONCTIONNERONT CAR RIEN NE LES RECOUVRE
+            # CES BOUTONS SONT MAINTENANT LIBRES DE TOUT CSS
             col1, col2, col3, col4 = st.columns(4)
             
             if col1.button("🏠 ACCUEIL", type="primary" if mode=="attente" else "secondary", use_container_width=True):
@@ -209,11 +204,9 @@ if est_admin:
                 new_t = st.text_input("Titre", value=cfg["titre_mur"])
                 if st.button("Sauver Titre"):
                     cfg["titre_mur"] = new_t; save_config(); st.rerun()
-                
-                upl = st.file_uploader("Charger Logo (Sidebar + Mur)", type=["png", "jpg"])
+                upl = st.file_uploader("Charger Logo", type=["png", "jpg"])
                 if upl:
                     cfg["logo_b64"] = process_image(upl); save_config(); st.rerun()
-            
             with t2:
                 for i, c in enumerate(cfg["candidats"]):
                     c1, c2 = st.columns([1, 4])
@@ -243,17 +236,14 @@ if est_admin:
             st.json(v)
 
 # =========================================================
-# 2. APPLICATION MOBILE (CORRECTION BOUTON)
+# 2. APPLICATION MOBILE
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # Init state pour gérer l'affichage immédiat du succès
-    if "vote_just_done" not in st.session_state:
-        st.session_state.vote_just_done = False
+    if "vote_just_done" not in st.session_state: st.session_state.vote_just_done = False
 
-    # Check Reset
     curr_sess = cfg.get("session_id", "init")
     components.html(f"""<script>
         var sS = "{curr_sess}";
@@ -263,26 +253,15 @@ elif est_utilisateur:
         }}
     </script>""", height=0)
 
-    # Si déjà voté (localStorage) ou vient de voter (SessionState)
     if is_blocked or st.session_state.vote_just_done:
         st.balloons()
-        st.markdown("""
-            <div style='text-align:center; margin-top:50px;'>
-                <h1 style='color:#E2001A; font-size:40px;'>MERCI !</h1>
-                <h2 style='color:white;'>Votre vote a été enregistré.</h2>
-                <br>
-                <div style='font-size:60px;'>🎈</div>
-            </div>
-        """, unsafe_allow_html=True)
-        st.stop() # Empêche le reste de la page de s'afficher
+        st.markdown("""<div style='text-align:center; margin-top:50px;'><h1 style='color:#E2001A; font-size:40px;'>MERCI !</h1><h2 style='color:white;'>Votre vote a été enregistré.</h2><br><div style='font-size:60px;'>🎈</div></div>""", unsafe_allow_html=True)
+        st.stop()
 
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
-        
-        # TEXTE CORRIGÉ
         pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
-        
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
             voters = load_json(VOTERS_FILE, [])
             if pseudo.strip().upper() in [v.upper() for v in voters]:
@@ -295,7 +274,6 @@ elif est_utilisateur:
                     save_json(PARTICIPANTS_FILE, parts)
                 st.rerun()
     else:
-        # PAGE VOTE
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 Envoie ta photo !")
             cam = st.camera_input("Photo")
@@ -308,14 +286,11 @@ elif est_utilisateur:
             choix = st.multiselect("Tes 3 choix :", cfg["candidats"], max_selections=3)
             
             if len(choix) == 3:
-                # BOUTON VALIDATION
                 if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    # 1. Check Serveur
                     voters = load_json(VOTERS_FILE, [])
                     if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]:
                         st.error("Déjà voté !")
                     else:
-                        # 2. Sauvegarde
                         vts = load_json(VOTES_FILE, {})
                         pts = cfg.get("points_ponderation", [5, 3, 1])
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
@@ -324,17 +299,14 @@ elif est_utilisateur:
                         voters.append(st.session_state.user_pseudo)
                         save_json(VOTERS_FILE, voters)
                         
-                        # 3. State update
                         st.session_state.vote_just_done = True
-                        
-                        # 4. JS Lock
                         components.html(f"""<script>localStorage.setItem('VOTE_DONE', 'true'); window.parent.location.href = window.parent.location.href + '&blocked=true';</script>""", height=0)
                         st.rerun()
         else:
             st.info("⏳ En attente de l'ouverture des votes...")
 
 # =========================================================
-# 3. MUR SOCIAL (DESIGN FINAL)
+# 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -350,40 +322,24 @@ else:
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         
-        /* COLONNE GAUCHE (VOTANTS) */
-        .voters-column {
-            position: fixed; top: 15vh; left: 20px; width: 200px; bottom: 20px;
-            display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
-            overflow: hidden;
-        }
-        .user-tag { 
-            background: rgba(255,255,255,0.1); color: #EEE; border-radius: 10px; 
-            padding: 8px 15px; margin-bottom: 8px; font-size: 18px; border-left: 4px solid #E2001A;
-            width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
+        .voters-column { position: fixed; top: 15vh; left: 20px; width: 200px; bottom: 20px; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; overflow: hidden; }
+        .user-tag { background: rgba(255,255,255,0.1); color: #EEE; border-radius: 10px; padding: 8px 15px; margin-bottom: 8px; font-size: 18px; border-left: 4px solid #E2001A; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* ZONE CENTRALE (LISTES + QR) */
-        .list-container { 
-            position: absolute; top: 15vh; left: 240px; right: 20px; 
-            display: flex; justify-content: center; align-items: flex-start; gap: 40px; 
-        }
+        .list-container { position: absolute; top: 15vh; left: 240px; right: 20px; display: flex; justify-content: center; align-items: flex-start; gap: 40px; }
         .col-list { width: 35%; display: flex; flex-direction: column; }
         
-        /* CARTES CANDIDATS */
         .cand-row { display: flex; align-items: center; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 20px; border-radius: 50px; width: 100%; height: 70px; }
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; }
         .cand-name { color: white; font-size: 22px; font-weight: 600; margin: 0 15px; white-space: nowrap; }
         .row-left { flex-direction: row; justify-content: flex-end; text-align: right; }
         .row-right { flex-direction: row; justify-content: flex-start; text-align: left; }
         
-        /* QR ZONE */
         .qr-center { display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top: 20px; }
-        .qr-logo { width: 250px; margin-bottom: 20px; object-fit: contain; } /* LOGO AGRANDI */
+        .qr-logo { width: 250px; margin-bottom: 20px; object-fit: contain; }
         
-        /* PODIUM */
         .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 80px #FFD700; }
-        .suspense-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 30px; z-index: 1000; }
         .suspense-card { width: 250px; height: 300px; background: rgba(255,255,255,0.05); border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 20px; animation: pulse 1s infinite; }
+        .suspense-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 30px; z-index: 1000; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
     </style>
     """, unsafe_allow_html=True)
@@ -393,10 +349,8 @@ else:
     mode = cfg.get("mode_affichage")
     inject_visual_effect(cfg["screen_effects"].get("attente" if mode=="attente" else "podium", "Aucun"), 25, 15)
 
-    # AFFICHAGE VOTANTS (COLONNE GAUCHE) - Visible si Vote On/Off/Podium
     if mode == "votes":
         parts = load_json(PARTICIPANTS_FILE, [])
-        # Affiche les 12 derniers
         tags = "".join([f"<div class='user-tag'>{p}</div>" for p in reversed(parts[-12:])])
         st.markdown(f'<div class="voters-column">{tags}</div>', unsafe_allow_html=True)
 
