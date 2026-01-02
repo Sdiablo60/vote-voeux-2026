@@ -9,7 +9,7 @@ import zipfile
 import uuid
 import textwrap
 
-# --- GESTION PDF & ALTAIR & EXCEL ---
+# --- GESTION PDF & ALTAIR & EXCEL (Conservation de vos imports) ---
 try:
     from fpdf import FPDF
     HAS_FPDF = True
@@ -60,6 +60,15 @@ if "config" not in st.session_state:
         "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "podium": "🎉 Confettis"}
     })
 
+def process_image_upload(uploaded_file):
+    try:
+        img = Image.open(uploaded_file)
+        img.thumbnail((300, 300))
+        buffered = BytesIO()
+        img.save(buffered, format="PNG") 
+        return base64.b64encode(buffered.getvalue()).decode()
+    except: return None
+
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
@@ -76,7 +85,7 @@ if est_admin:
         .fixed-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: #1E1E1E; z-index: 10000; display: flex; align-items: center; justify-content: center; border-bottom: 2px solid #E2001A; }}
         .header-title {{ color: white; font-size: 22px; font-weight: bold; text-transform: uppercase; }}
         .header-logo {{ position: absolute; right: 20px; top: 5px; height: 60px; width: 120px; background-size: contain; background-repeat: no-repeat; {logo_style} }}
-        .main .block-container {{ padding-top: 80px; }}
+        .main .block-container {{ padding-top: 90px; }}
     </style>
     <div class="fixed-header"><div class="header-title">Console Admin Gestion des Votes</div><div class="header-logo"></div></div>
     """, unsafe_allow_html=True)
@@ -94,21 +103,22 @@ if est_admin:
         if menu == "🔴 PILOTAGE LIVE":
             cfg = st.session_state.config
             c1, c2, c3, c4 = st.columns(4)
-            if c1.button("🏠 ACCUEIL"):
+            if c1.button("🏠 ACCUEIL", use_container_width=True):
                 cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False}); save_json(CONFIG_FILE, cfg); st.rerun()
-            if c2.button("🗳️ VOTES ON"):
+            if c2.button("🗳️ VOTES ON", use_container_width=True):
                 cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False}); save_json(CONFIG_FILE, cfg); st.rerun()
-            if c3.button("🔒 VOTES OFF"):
+            if c3.button("🔒 VOTES OFF", use_container_width=True):
                 cfg["session_ouverte"] = False; save_json(CONFIG_FILE, cfg); st.rerun()
-            if c4.button("🏆 PODIUM"):
+            if c4.button("🏆 PODIUM", use_container_width=True):
                 cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "timestamp_podium": time.time()}); save_json(CONFIG_FILE, cfg); st.rerun()
             st.divider()
             if st.button("📸 MUR PHOTOS LIVE", type="primary", use_container_width=True):
                 cfg.update({"mode_affichage": "photos_live", "session_ouverte": False}); save_json(CONFIG_FILE, cfg); st.rerun()
 
         elif menu == "📸 MÉDIATHÈQUE":
-            st.title("📸 Médiathèque (Plus récentes en premier)")
+            st.title("📸 Médiathèque (Tri Chronologique)")
             files = glob.glob(f"{LIVE_DIR}/*")
+            # --- TRI PAR DATE ET HEURE (Plus récent en premier) ---
             files.sort(key=os.path.getmtime, reverse=True)
             cols = st.columns(4)
             for i, f in enumerate(files):
@@ -124,74 +134,74 @@ if est_admin:
                 st.dataframe(df, use_container_width=True)
                 output = BytesIO()
                 with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Votes')
-                st.download_button("📥 EXPORTER EXCEL", data=output.getvalue(), file_name="resultats.xlsx")
+                    df.to_excel(writer, index=False, sheet_name='Resultats_Votes')
+                st.download_button("📥 EXPORTER EXCEL", data=output.getvalue(), file_name="resultats_votes.xlsx", mime="application/vnd.ms-excel")
 
 # =========================================================
-# 2. APPLICATION MOBILE
+# 2. APPLICATION MOBILE (FIX : ANTI-FRAUDE & ANIMATION)
 # =========================================================
 elif est_utilisateur:
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # Anti-fraude : blocage par navigateur
+    # 1. ANTI-FRAUDE STRICT (Script JS s'exécutant au tout début)
     components.html("""<script>
-        if(localStorage.getItem('user_voted_2026')) {
-            if(!window.location.href.includes('blocked=true')) {
+        if(localStorage.getItem('voted_session_2026')) {
+            if(!window.parent.location.href.includes('blocked=true')) {
                 window.parent.location.href = window.parent.location.href + '&blocked=true';
             }
         }
     </script>""", height=0)
 
     if is_blocked:
-        st.markdown("<div style='text-align:center; margin-top:50px;'><h2>⛔ VOTE ENREGISTRÉ</h2><p>Merci pour votre participation !</p></div>", unsafe_allow_html=True)
+        st.markdown("<div style='text-align:center; margin-top:50px;'><h2>⛔ ACCÈS RESTREINT</h2><p>Votre vote a déjà été enregistré pour cet appareil.</p></div>", unsafe_allow_html=True)
         st.stop()
 
     if "user_pseudo" not in st.session_state:
-        pseudo = st.text_input("Ton prénom :")
-        if st.button("ACCÉDER", type="primary", use_container_width=True) and pseudo:
+        pseudo = st.text_input("Entrez votre prénom pour voter :")
+        if st.button("VALIDER L'IDENTITÉ", type="primary", use_container_width=True) and pseudo:
             st.session_state.user_pseudo = pseudo; st.rerun()
     else:
         cfg = load_json(CONFIG_FILE, st.session_state.config)
         if cfg["mode_affichage"] == "photos_live":
-            st.subheader("📸 Partage ta photo !")
-            cam = st.camera_input("Sourire !")
-            if cam:
-                with open(os.path.join(LIVE_DIR, f"live_{uuid.uuid4().hex[:4]}.jpg"), "wb") as f: f.write(cam.getbuffer())
-                st.success("C'est sur le mur !")
+            st.camera_input("📸 Prenez votre photo !")
         else:
-            if not cfg["session_ouverte"]: st.info("⏳ En attente du lancement...")
+            if not cfg["session_ouverte"]: st.info("⏳ Les votes ne sont pas encore ouverts.")
             else:
-                choix = st.multiselect("Sélectionne tes 3 favoris :", cfg["candidats"], max_selections=3)
+                # Correction du bouton : le multiselect Streamlit force le rerun dès la sélection
+                choix = st.multiselect("Sélectionnez 3 candidats :", cfg["candidats"], max_selections=3)
+                
                 if len(choix) == 3:
                     st.markdown("---")
-                    if st.button("🚀 VALIDER MON VOTE", type="primary", use_container_width=True):
-                        # --- ANIMATION BALLONS (JS) ---
+                    if st.button("🚀 TRANSMETTRE MON VOTE", type="primary", use_container_width=True):
+                        # 2. ANIMATION ET SAUVEGARDE JS AVANT REDIRECTION
                         components.html("""<script>
-                            const launchBalloons = () => {
+                            function animateAndBlock() {
+                                // Lancement des ballons
                                 for(let i=0; i<40; i++) {
                                     let b = window.parent.document.createElement('div');
                                     b.innerHTML = '🎈'; b.style.position='fixed'; b.style.bottom='-50px';
                                     b.style.left = Math.random()*100+'vw'; b.style.fontSize = (25+Math.random()*25)+'px';
-                                    b.style.zIndex='100000'; b.style.transition = 'transform '+(2+Math.random()*2)+'s ease-in';
+                                    b.style.zIndex='999999'; b.style.transition = 'transform '+(2+Math.random()*2)+'s ease-in';
                                     window.parent.document.body.appendChild(b);
                                     setTimeout(() => b.style.transform = 'translateY(-130vh)', 50);
                                 }
-                            };
-                            launchBalloons();
-                            setTimeout(() => { 
-                                localStorage.setItem('user_voted_2026', 'true'); 
-                                window.parent.location.href = window.parent.location.href + '&blocked=true';
-                            }, 2800);
+                                // Sauvegarde dans le navigateur
+                                localStorage.setItem('voted_session_2026', 'true');
+                                // Redirection après animation
+                                setTimeout(() => { window.parent.location.href += '&blocked=true'; }, 3000);
+                            }
+                            animateAndBlock();
                         </script>""", height=0)
                         
+                        # Sauvegarde serveur
                         vts = load_json(VOTES_FILE, {})
                         for v in choix: vts[v] = vts.get(v, 0) + 1
                         save_json(VOTES_FILE, vts)
-                        st.info("Transmission... Admire les ballons ! 🎈")
-                        time.sleep(2.5) # Délai Python pour laisser l'animation s'afficher
+                        st.success("Vote en cours de transmission... Admirez les ballons !")
+                        time.sleep(3.5) # On maintient le script Python vivant pendant l'animation JS
 
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (FIX : TAILLE GAGNANT & POSITION)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -200,31 +210,41 @@ else:
     
     st.markdown(f"""
     <style>
-        body, .stApp {{ background-color: black !important; overflow: hidden; font-family: 'Montserrat', sans-serif; }} 
+        body, .stApp {{ background-color: black !important; overflow: hidden; height: 100vh; font-family: 'Montserrat', sans-serif; }} 
         [data-testid='stHeader'] {{ display: none !important; }} 
-        .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; border-bottom: 5px solid white; z-index: 1000; }}
+        
+        /* HEADER ROUGE */
+        .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; border-bottom: 5px solid white; z-index: 2000; }}
         .social-title {{ color: white; font-size: 50px; text-transform: uppercase; margin: 0; }}
         
-        /* GAGNANT : POSITIONNEMENT ET TAILLE OPTIMISÉS */
+        /* GAGNANT : CADRE RÉDUIT ET BIEN DESCENDU */
         .winner-box {{ 
-            margin-top: 35vh; /* Descendu pour éviter le titre */
-            text-align: center; 
-            z-index: 500; 
-            position: relative; 
-            transform: scale(0.65); /* Carte plus petite */
+            position: absolute; 
+            top: 55%; left: 50%; transform: translate(-50%, -50%); 
+            text-align: center; z-index: 1000; 
+            width: 600px; /* Largeur fixe pour maîtriser la taille */
         }}
         .winner-card {{ 
-            background: rgba(10, 10, 10, 0.95); border: 12px solid #FFD700; border-radius: 60px; padding: 50px;
+            background: rgba(15, 15, 15, 0.98); 
+            border: 10px solid #FFD700; 
+            border-radius: 50px; 
+            padding: 40px;
+            box-shadow: 0 0 60px #FFD700;
             animation: glow-gold 1.5s infinite alternate;
         }}
         @keyframes glow-gold {{ from {{ box-shadow: 0 0 20px #FFD700; }} to {{ box-shadow: 0 0 80px #FFD700, 0 0 30px #FFF; }} }}
+        
+        .winner-title {{ color: #FFD700; font-size: 100px; margin: 0; }}
+        .winner-name {{ color: white; font-size: 60px; margin: 20px 0; text-transform: uppercase; }}
+        .winner-points {{ color: #FFD700; font-size: 30px; margin: 0; }}
     </style>
     <div class="social-header"><h1 class="social-title">{cfg['titre_mur']}</h1></div>
     """, unsafe_allow_html=True)
 
     mode = cfg.get("mode_affichage")
+    
     if mode == "attente":
-        st.markdown("<h1 style='text-align:center; color:white; margin-top:40vh; font-size:100px;'>BIENVENUE</h1>", unsafe_allow_html=True)
+        st.markdown("<h1 style='text-align:center; color:white; margin-top:45vh; font-size:80px;'>BIENVENUE</h1>", unsafe_allow_html=True)
     
     elif mode == "votes" or mode == "photos_live":
         if cfg.get("reveal_resultats"):
@@ -233,15 +253,27 @@ else:
             if sorted_v:
                 winner, pts = sorted_v[0]
                 st.balloons()
-                st.markdown(f"""<div class="winner-box"><div class="winner-card"><h1 style="color:#FFD700; font-size:120px; margin:0;">🏆</h1><h1 style="color:white; font-size:90px; margin:20px 0;">{winner}</h1><h2 style="color:#FFD700; font-size:45px; margin:0;">VAINQUEUR - {pts} POINTS</h2></div></div>""", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div class="winner-box">
+                    <div class="winner-card">
+                        <div class="winner-title">🏆</div>
+                        <div class="winner-name">{winner}</div>
+                        <div class="winner-points">VAINQUEUR AVEC {pts} POINTS</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
         else:
+            # QR CODE CENTRAL
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"http://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            st.markdown(f"""<div style="position:fixed; top:55%; left:50%; transform:translate(-50%, -50%); z-index:100; background:white; padding:30px; border-radius:30px; text-align:center; border: 10px solid #E2001A;">
-                <img src="data:image/png;base64,{qr_b64}" width="280"><h2 style="color:black; margin-top:20px; font-size:28px;">SCANNEZ POUR VOTER</h2></div>""", unsafe_allow_html=True)
+            st.markdown(f"""
+            <div style="position:fixed; top:55%; left:50%; transform:translate(-50%, -50%); z-index:1500; background:white; padding:30px; border-radius:30px; text-align:center; border: 10px solid #E2001A;">
+                <img src="data:image/png;base64,{qr_b64}" width="250">
+                <h2 style="color:black; margin-top:20px; font-size:25px;">SCANNEZ POUR VOTER</h2>
+            </div>""", unsafe_allow_html=True)
 
-        # BULLES 220PX AVEC REBOND
+        # ANIMATION BULLES 220PX AVEC REBOND SUR QR
         photos = glob.glob(f"{LIVE_DIR}/*")
         if photos:
             img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-20:]])
@@ -250,21 +282,26 @@ else:
                 var container = doc.getElementById('bubble-wall') || doc.createElement('div');
                 container.id = 'bubble-wall'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
                 if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
+                
                 const imgs = {img_js}; const bubbles = []; const bSize = 220;
-                const qrRect = {{ x: window.innerWidth/2 - 220, y: window.innerHeight/2 - 220, w: 440, h: 440 }};
+                const qrRect = {{ x: window.innerWidth/2 - 250, y: window.innerHeight/2 - 250, w: 500, h: 500 }};
+
                 imgs.forEach((src, i) => {{
                     if(doc.getElementById('bub-'+i)) return;
                     const el = doc.createElement('img'); el.id = 'bub-'+i; el.src = src;
-                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:6px solid #E2001A; object-fit:cover; box-shadow: 0 10px 30px rgba(0,0,0,0.5);';
+                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:6px solid #E2001A; object-fit:cover;';
                     let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize);
                     let vx = (Math.random()-0.5)*5; let vy = (Math.random()-0.5)*5;
                     container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
                 }});
+
                 function animate() {{
                     bubbles.forEach(b => {{
                         b.x += b.vx; b.y += b.vy;
                         if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
-                        if(b.y <= 12 * window.innerHeight / 100 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                        if(b.y <= 13 * window.innerHeight / 100 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                        
+                        // REBOND SUR LE QR CODE / GAGNANT
                         if(b.x + b.size > qrRect.x && b.x < qrRect.x + qrRect.w && b.y + b.size > qrRect.y && b.y < qrRect.y + qrRect.h) {{
                             b.vx *= -1; b.vy *= -1; b.x += b.vx*5; b.y += b.vy*5;
                         }}
