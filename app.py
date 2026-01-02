@@ -62,7 +62,24 @@ def save_json(file, data):
     except Exception as e: print(f"Erreur Save: {e}")
 
 def save_config():
+    # Sauvegarde immédiate
     save_json(CONFIG_FILE, st.session_state.config)
+
+# --- CALLBACKS (C'EST ICI QUE LA MAGIE OPÈRE POUR LES BOUTONS) ---
+def set_mode(mode, open_sess, reveal):
+    st.session_state.config["mode_affichage"] = mode
+    st.session_state.config["session_ouverte"] = open_sess
+    st.session_state.config["reveal_resultats"] = reveal
+    if reveal:
+        st.session_state.config["timestamp_podium"] = time.time()
+    save_config()
+    # On ne fait pas st.rerun() ici, le callback le fait automatiquement à la fin
+
+def reset_data():
+    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
+        if os.path.exists(f): os.remove(f)
+    st.session_state.config["session_id"] = str(uuid.uuid4())
+    save_config()
 
 def process_image(uploaded_file):
     try:
@@ -126,7 +143,7 @@ if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
 # =========================================================
-# 1. CONSOLE ADMIN
+# 1. CONSOLE ADMIN (CALLBACKS ROBUSTES)
 # =========================================================
 if est_admin:
     st.title("🎛️ CONSOLE RÉGIE")
@@ -137,6 +154,7 @@ if est_admin:
         if st.text_input("Code Admin", type="password") == "ADMIN_LIVE_MASTER":
             st.session_state["auth"] = True; st.rerun()
     else:
+        # On charge la config en session pour affichage
         cfg = st.session_state.config
         
         with st.sidebar:
@@ -144,48 +162,60 @@ if est_admin:
             st.header("MENU")
             menu = st.radio("Navigation", ["🔴 PILOTAGE LIVE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE", "📊 DATA"])
             st.divider()
-            st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none; margin-bottom:5px;">📺 OUVRIR MUR SOCIAL</a>""", unsafe_allow_html=True)
-            st.markdown("""<a href="/?mode=vote" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none;">📱 TESTER MOBILE</a>""", unsafe_allow_html=True)
+            st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none;">📺 OUVRIR MUR SOCIAL</a>""", unsafe_allow_html=True)
+            st.markdown("""<a href="/?mode=vote" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none; margin-top:10px;">📱 TESTER MOBILE</a>""", unsafe_allow_html=True)
             st.divider()
             if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
-        st.session_state.config = load_json(CONFIG_FILE, default_config)
-        cfg = st.session_state.config
-
         if menu == "🔴 PILOTAGE LIVE":
             st.subheader("Séquenceur")
-            mode = cfg["mode_affichage"]
-            open = cfg["session_ouverte"]
-            reveal = cfg["reveal_resultats"]
+            
+            # Indicateur visuel d'état
+            etat = "INCONNU"
+            if cfg["mode_affichage"] == "attente": etat = "🏠 ACCUEIL"
+            elif cfg["mode_affichage"] == "photos_live": etat = "📸 PHOTOS LIVE"
+            elif cfg["mode_affichage"] == "votes":
+                if cfg["reveal_resultats"]: etat = "🏆 PODIUM"
+                elif cfg["session_ouverte"]: etat = "🗳️ VOTES OUVERTS"
+                else: etat = "🔒 VOTES FERMÉS"
+            
+            st.info(f"État actuel : **{etat}**")
             
             c1, c2, c3, c4 = st.columns(4)
-            if c1.button("1. ACCUEIL", type="primary" if mode=="attente" else "secondary", use_container_width=True):
-                cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False})
-                save_config(); st.rerun()
-            if c2.button("2. VOTES ON", type="primary" if (mode=="votes" and open) else "secondary", use_container_width=True):
-                cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False})
-                save_config(); st.rerun()
-            if c3.button("3. VOTES OFF", type="primary" if (mode=="votes" and not open and not reveal) else "secondary", use_container_width=True):
-                cfg.update({"mode_affichage": "votes", "session_ouverte": False, "reveal_resultats": False})
-                save_config(); st.rerun()
-            if c4.button("4. PODIUM", type="primary" if reveal else "secondary", use_container_width=True):
-                cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False})
-                cfg["timestamp_podium"] = time.time()
-                save_config(); st.rerun()
+            
+            # --- BOUTONS AVEC CALLBACKS (FIX DÉFINITIF) ---
+            # Le on_click force l'exécution de la fonction set_mode AVANT le rechargement de la page
+            
+            c1.button("🏠 ACCUEIL", 
+                      type="primary" if cfg["mode_affichage"]=="attente" else "secondary", 
+                      use_container_width=True,
+                      on_click=set_mode, args=("attente", False, False))
+            
+            c2.button("🗳️ VOTES ON", 
+                      type="primary" if (cfg["mode_affichage"]=="votes" and cfg["session_ouverte"]) else "secondary", 
+                      use_container_width=True,
+                      on_click=set_mode, args=("votes", True, False))
+            
+            c3.button("🔒 VOTES OFF", 
+                      type="primary" if (cfg["mode_affichage"]=="votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]) else "secondary", 
+                      use_container_width=True,
+                      on_click=set_mode, args=("votes", False, False))
+            
+            c4.button("🏆 PODIUM", 
+                      type="primary" if cfg["reveal_resultats"] else "secondary", 
+                      use_container_width=True,
+                      on_click=set_mode, args=("votes", False, True))
 
             st.markdown("---")
-            if st.button("5. 📸 MUR PHOTOS LIVE", type="primary" if mode=="photos_live" else "secondary", use_container_width=True):
-                cfg.update({"mode_affichage": "photos_live", "session_ouverte": False, "reveal_resultats": False})
-                save_config(); st.rerun()
+            st.button("📸 MUR PHOTOS LIVE", 
+                      type="primary" if cfg["mode_affichage"]=="photos_live" else "secondary", 
+                      use_container_width=True,
+                      on_click=set_mode, args=("photos_live", False, False))
 
             st.divider()
             with st.expander("🚨 ZONE DE DANGER"):
-                if st.button("🗑️ RESET TOTAL", type="primary"):
-                    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
-                        if os.path.exists(f): os.remove(f)
-                    cfg["session_id"] = str(uuid.uuid4())
-                    save_config()
-                    st.success("RESET EFFECTUÉ"); time.sleep(1); st.rerun()
+                st.warning("Attention : Efface tous les votes !")
+                st.button("🗑️ RESET TOTAL", type="primary", on_click=reset_data)
 
         elif menu == "⚙️ CONFIG":
             t1, t2 = st.tabs(["Général", "Candidats"])
@@ -206,7 +236,8 @@ if est_admin:
         elif menu == "📸 MÉDIATHÈQUE":
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
             if st.button("Tout supprimer"):
-                for f in files: os.remove(f); st.rerun()
+                for f in files: os.remove(f)
+                st.rerun()
             cols = st.columns(4)
             for i, f in enumerate(files):
                 with cols[i%4]:
@@ -217,7 +248,7 @@ if est_admin:
             st.json(load_json(VOTES_FILE, {}))
 
 # =========================================================
-# 2. APPLICATION MOBILE (VIGILE DE SÉCURITÉ)
+# 2. APPLICATION MOBILE
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
@@ -225,47 +256,27 @@ elif est_utilisateur:
     
     if "vote_just_done" not in st.session_state: st.session_state.vote_just_done = False
 
-    # --- LE VIGILE : SCRIPT QUI BLOQUE LE TÉLÉPHONE SI DÉJÀ VOTÉ ---
     curr_sess = cfg.get("session_id", "init")
     components.html(f"""<script>
         var sS = "{curr_sess}";
         var lS = localStorage.getItem('VOTE_SID');
-        // Si nouvelle session (Reset Admin), on efface le vote local
-        if(lS !== sS) {{ 
-            localStorage.removeItem('VOTE_DONE'); 
-            localStorage.setItem('VOTE_SID', sS); 
-            if(window.parent.location.href.includes('blocked=true')) {{
-                window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
-            }}
-        }}
-        // Si déjà voté, on redirige DE FORCE vers la page bloquée
-        if(localStorage.getItem('VOTE_DONE') && !window.parent.location.href.includes('blocked=true')) {{
-            window.parent.location.href = window.parent.location.href + '&blocked=true';
+        if(lS !== sS) {{ localStorage.removeItem('VOTE_DONE'); localStorage.setItem('VOTE_SID', sS); 
+           if(window.parent.location.href.includes('blocked=true')) window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
         }}
     </script>""", height=0)
 
-    # --- PAGE DE FIN (SI BLOQUÉ) ---
     if is_blocked or st.session_state.vote_just_done:
         st.balloons()
-        st.markdown("""
-            <div style='text-align:center; margin-top:50px;'>
-                <h1 style='color:#E2001A; font-size:40px;'>MERCI !</h1>
-                <h2 style='color:white;'>Votre vote a bien été pris en compte.</h2>
-                <br><div style='font-size:60px;'>🎈</div>
-            </div>
-        """, unsafe_allow_html=True)
-        st.stop() # C'EST ICI QUE ÇA S'ARRÊTE : Impossible de voir le formulaire en dessous
+        st.markdown("""<div style='text-align:center; margin-top:50px;'><h1 style='color:#E2001A;'>MERCI !</h1><p>Vote enregistré.</p></div>""", unsafe_allow_html=True)
+        st.stop()
 
-    # --- FORMULAIRE (VISIBLE SEULEMENT SI PAS DE COOKIE VOTE) ---
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
-        
         pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
             voters = load_json(VOTERS_FILE, [])
-            if pseudo.strip().upper() in [v.upper() for v in voters]:
-                st.error("Ce prénom a déjà voté.")
+            if pseudo.strip().upper() in [v.upper() for v in voters]: st.error("Ce prénom a déjà voté.")
             else:
                 st.session_state.user_pseudo = pseudo.strip()
                 parts = load_json(PARTICIPANTS_FILE, [])
@@ -278,33 +289,23 @@ elif est_utilisateur:
             if cam:
                 with open(os.path.join(LIVE_DIR, f"live_{uuid.uuid4().hex}.jpg"), "wb") as f: f.write(cam.getbuffer())
                 st.success("Envoyé !"); time.sleep(1); st.rerun()
-        
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
-            choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
-            
+            choix = st.multiselect("3 Choix :", cfg["candidats"], max_selections=3)
             if len(choix) == 3:
                 if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    # Check Serveur (Prénom)
                     voters = load_json(VOTERS_FILE, [])
-                    if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]:
-                        st.error("Déjà voté !")
+                    if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]: st.error("Déjà voté !")
                     else:
-                        # Enregistrement
                         vts = load_json(VOTES_FILE, {})
                         pts = cfg.get("points_ponderation", [5, 3, 1])
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                         save_json(VOTES_FILE, vts)
-                        
-                        voters.append(st.session_state.user_pseudo)
-                        save_json(VOTERS_FILE, voters)
-                        
-                        # MARQUAGE DU TÉLÉPHONE (C'est ça qui bloque le prochain essai)
+                        voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
                         st.session_state.vote_just_done = True
                         components.html("""<script>localStorage.setItem('VOTE_DONE', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
                         st.rerun()
-        else:
-            st.info("⏳ En attente de l'ouverture des votes...")
+        else: st.info("⏳ Attente...")
 
 # =========================================================
 # 3. MUR SOCIAL
@@ -334,7 +335,6 @@ else:
         .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 80px #FFD700; }
         .suspense-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 30px; z-index: 1000; }
         .suspense-card { width: 250px; height: 300px; background: rgba(255,255,255,0.05); border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 20px; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.02); } 100% { transform: scale(1); } }
     </style>
     """, unsafe_allow_html=True)
     
@@ -396,7 +396,7 @@ else:
 
             st.markdown(f"""<div class="list-container"><div class="col-list">{html_left}</div><div class="qr-center">{logo_qr}<div style="background:white; padding:10px; border-radius:15px; border:5px solid #E2001A;"><img src="data:image/png;base64,{qr_b64}" width="200"></div><h2 style="color:white; margin-top:10px; font-size:24px;">SCANNEZ !</h2></div><div class="col-list">{html_right}</div></div>""", unsafe_allow_html=True)
         else:
-            st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; border: 5px solid #E2001A; padding: 50px; border-radius: 30px; background: rgba(0,0,0,0.8);'><h1 style='color:#E2001A; font-size:60px;'>VOTES CLÔTURÉS</h1><h2 style='color:white; font-size:30px;'>Merci de votre participation</h2></div>", unsafe_allow_html=True)
+            st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; border: 5px solid #E2001A; padding: 50px; border-radius: 30px; background: rgba(0,0,0,0.8);'><h1 style='color:#E2001A; font-size:60px;'>VOTES CLÔTURÉS</h1></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
         photos = glob.glob(f"{LIVE_DIR}/*")
