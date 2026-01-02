@@ -30,7 +30,7 @@ for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
 # --- AVATAR ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
@@ -576,23 +576,25 @@ else:
                 doc.body.appendChild(container);
                 
                 const imgs = {img_js}; const bubbles = [];
-                // 1. TAILLES VARIABLES (Min 150px, Max 350px)
-                const minSize = 150; const maxSize = 350;
+                // REDUCTION TAILLE : 80px à 200px (Demandé)
+                const minSize = 80; const maxSize = 200;
                 
                 imgs.forEach((src, i) => {{
                     const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
                     const el = doc.createElement('img'); el.src = src;
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover; will-change:transform;';
                     
-                    // 2. APPARITION ALEATOIRE (Zone sûre sous le titre)
-                    let availableH = window.innerHeight - 180 - bSize;
-                    let startX = Math.random() * (window.innerWidth - bSize);
-                    let startY = 180 + Math.random() * (availableH > 0 ? availableH : 100);
+                    // SPAWN SECURISE (Loin des murs)
+                    let startX = Math.random() * (window.innerWidth - 300) + 100;
+                    let startY = Math.random() * (window.innerHeight - 300) + 200;
 
-                    // 3. DIRECTION ALEATOIRE ET VITESSE VARIABLE
-                    // Vitesse entre 1.5 et 4.5, positif ou négatif aléatoirement
-                    let vx = (Math.random() * 3 + 1.5) * (Math.random() > 0.5 ? 1 : -1);
-                    let vy = (Math.random() * 3 + 1.5) * (Math.random() > 0.5 ? 1 : -1);
+                    // VITESSE ET DIRECTION ALEATOIRES (XY équilibrés)
+                    let vx = (Math.random() - 0.5) * 6; // Vitesse -3 à 3
+                    let vy = (Math.random() - 0.5) * 6;
+                    
+                    // Anti-Stagnation : Si trop lent, on force une vitesse min
+                    if(Math.abs(vx) < 1.5) vx = (vx < 0 ? -2 : 2);
+                    if(Math.abs(vy) < 1.5) vy = (vy < 0 ? -2 : 2);
 
                     container.appendChild(el); 
                     bubbles.push({{el, x: startX, y: startY, vx, vy, size: bSize}});
@@ -600,21 +602,31 @@ else:
                 
                 function animate() {{
                     bubbles.forEach(b => {{
-                        b.x += b.vx; b.y += b.vy;
+                        b.x += b.vx; 
+                        b.y += b.vy;
                         
-                        // 4. REBONDS NATURELS SUR LES BORDS (Style Screensaver)
-                        // Murs Gauche / Droite
-                        if(b.x <= 0 || b.x + b.size >= window.innerWidth) {{
-                             b.vx *= -1;
+                        // --- PHYSIQUE DE REBOND ("BILLARD") ---
+                        // MUR GAUCHE
+                        if(b.x <= 0) {{
+                            b.x = 0; // Sort du mur
+                            if(b.vx < 0) b.vx *= -1; // Inverse seulement si va vers le mur
                         }}
-                        // Mur Bas
+                        // MUR DROITE
+                        else if(b.x + b.size >= window.innerWidth) {{
+                            b.x = window.innerWidth - b.size;
+                            if(b.vx > 0) b.vx *= -1;
+                        }}
+                        
+                        // MUR BAS
                         if(b.y + b.size >= window.innerHeight) {{
-                             b.vy *= -1;
+                            b.y = window.innerHeight - b.size;
+                            if(b.vy > 0) b.vy *= -1;
                         }}
-                        // Plafond (Titre protégé à 180px)
+                        
+                        // PLAFOND (TITRE - Zone 180px)
                         if(b.y <= 180) {{
-                             b.y = 180; // Force la position sous le titre
-                             b.vy = Math.abs(b.vy); // Force la direction vers le bas
+                            b.y = 180;
+                            if(b.vy < 0) b.vy *= -1; // Rebond vers le bas
                         }}
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
