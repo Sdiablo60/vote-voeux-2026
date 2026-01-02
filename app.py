@@ -11,9 +11,7 @@ import uuid
 st.set_page_config(page_title="Régie Master - IT SQUAD", layout="wide", initial_sidebar_state="collapsed")
 
 LIVE_DIR = "galerie_live_users"
-VOTES_FILE = "votes.json"
-CONFIG_FILE = "config_mur.json"
-VOTERS_FILE = "voters.json" # Liste des prénoms ayant déjà voté
+VOTES_FILE, CONFIG_FILE, VOTERS_FILE = "votes.json", "config_mur.json", "voters.json"
 
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
@@ -46,7 +44,7 @@ if "config" not in st.session_state:
         "session_ouverte": False, 
         "reveal_resultats": False,
         "candidats": ["BU PAX", "BU FRET", "BU B2B", "RH", "IT", "DPMI", "FINANCES", "AO", "QSSE", "DIRECTION"],
-        "candidats_images": {} 
+        "candidats_images": {}
     })
 
 # --- NAVIGATION ---
@@ -64,11 +62,11 @@ if est_admin:
     if not st.session_state["auth"]:
         if st.text_input("Code Admin", type="password") == "ADMIN_LIVE_MASTER": st.session_state["auth"] = True; st.rerun()
     else:
-        with st.sidebar:
-            menu = st.radio("Menu", ["🔴 PILOTAGE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE"])
-        
         cfg = st.session_state.config
         
+        with st.sidebar:
+            menu = st.radio("Menu", ["🔴 PILOTAGE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE"])
+
         if menu == "🔴 PILOTAGE":
             c1, c2, c3, c4 = st.columns(4)
             if c1.button("🏠 ACCUEIL"): cfg.update({"mode_affichage": "attente", "reveal_resultats": False}); save_json(CONFIG_FILE, cfg); st.rerun()
@@ -80,10 +78,10 @@ if est_admin:
             if st.button("📸 MUR PHOTOS"): cfg.update({"mode_affichage": "photos_live"}); save_json(CONFIG_FILE, cfg); st.rerun()
             
             st.warning("Zone de Danger")
-            if st.button("🗑️ RESET TOTAL VOTES"):
+            if st.button("🗑️ RESET TOTAL (VOTES & NOMS)"):
                 if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
                 if os.path.exists(VOTERS_FILE): os.remove(VOTERS_FILE)
-                st.success("Votes remis à zéro !")
+                st.success("Système remis à neuf.")
 
         elif menu == "⚙️ CONFIG":
             t1, t2 = st.tabs(["Général", "Images Candidats"])
@@ -111,12 +109,12 @@ if est_admin:
                     if st.button("X", key=f"del_{i}"): os.remove(f); st.rerun()
 
 # =========================================================
-# 2. APPLICATION MOBILE (SÉCURITÉ RENFORCÉE)
+# 2. APPLICATION MOBILE (SÉCURITÉ HARD & ANIMATION)
 # =========================================================
 elif est_utilisateur:
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # 1. Vérification Locale (Cookie)
+    # 1. Vérification Naviguateur (Clé V8)
     components.html("""<script>
         if(localStorage.getItem('VOTE_FINAL_V8_SECURE')) {
             if(!window.parent.location.href.includes('blocked=true')) {
@@ -125,28 +123,26 @@ elif est_utilisateur:
         }
     </script>""", height=0)
 
-    # 2. Écran de Confirmation (Avec Animation)
+    # 2. Écran de Fin (Animation)
     if is_blocked:
         st.balloons()
         st.markdown("""
             <div style='text-align:center; margin-top:100px;'>
-                <h1 style='color:#E2001A; font-size:40px;'>C'EST VALIDÉ !</h1>
-                <p style='font-size:18px;'>Merci pour votre vote.</p>
-                <br>
-                <small style='color:#666;'>Vote unique par personne.</small>
+                <h1 style='color:#E2001A;'>VOTE ENREGISTRÉ !</h1>
+                <p>Merci pour votre participation.</p>
             </div>
         """, unsafe_allow_html=True)
         st.stop()
 
-    # 3. Identification & Vérification Serveur
+    # 3. Vote
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         pseudo = st.text_input("Ton Prénom :")
-        if st.button("COMMENCER", type="primary", use_container_width=True) and pseudo:
-            # VÉRIFICATION STRICTE SERVEUR
+        if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
+            # Vérification Serveur (Liste Noire)
             voters = load_json(VOTERS_FILE, [])
             if pseudo.strip().upper() in [v.upper() for v in voters]:
-                st.error("⛔ Ce prénom a déjà voté ! Impossible de recommencer.")
+                st.error("⛔ Ce prénom a déjà voté.")
             else:
                 st.session_state.user_pseudo = pseudo.strip()
                 st.rerun()
@@ -162,36 +158,36 @@ elif est_utilisateur:
         
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
-            choix = st.multiselect("Sélectionne 3 vidéos :", cfg["candidats"], max_selections=3)
+            choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
             
             if len(choix) == 3:
                 st.markdown("---")
                 if st.button("🚀 VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    # DOUBLE VÉRIFICATION AU CLICK
+                    # Double Check Serveur
                     voters = load_json(VOTERS_FILE, [])
                     if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]:
                         st.error("Erreur : Vote déjà existant.")
                         time.sleep(2); st.rerun()
                     
-                    # ENREGISTREMENT
+                    # Sauvegarde
                     vts = load_json(VOTES_FILE, {})
                     for v in choix: vts[v] = vts.get(v, 0) + 1
                     save_json(VOTES_FILE, vts)
                     
-                    # AJOUT LISTE NOIRE
+                    # Liste Noire
                     voters.append(st.session_state.user_pseudo)
                     save_json(VOTERS_FILE, voters)
                     
-                    # MARQUAGE LOCAL ET REDIRECTION
+                    # Marquage et Redirection
                     components.html("""<script>
                         localStorage.setItem('VOTE_FINAL_V8_SECURE', 'true');
                         window.parent.location.href = window.parent.location.href + '&blocked=true';
                     </script>""", height=0)
         else:
-            st.info("⏳ En attente de l'ouverture...")
+            st.info("⏳ En attente de la régie...")
 
 # =========================================================
-# 3. MUR SOCIAL (DESIGN MIROIR & PODIUM BAS)
+# 3. MUR SOCIAL (DESIGN [PHOTO][TEXTE])
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -203,28 +199,32 @@ else:
         body, .stApp {{ background-color: black !important; overflow: hidden; font-family: 'Montserrat', sans-serif; }} 
         [data-testid='stHeader'] {{ display: none; }}
         
-        /* HEADER */
         .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }}
-        .social-title {{ color: white; font-size: 45px; text-transform: uppercase; font-weight: bold; margin: 0; }}
+        .social-title {{ color: white; font-size: 45px; font-weight: bold; margin: 0; text-transform: uppercase; }}
         
-        /* LISTE CANDIDATS */
+        /* DESIGN [PHOTO] [TEXTE] */
         .cand-row {{ display: flex; align-items: center; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 50px; width: 100%; }}
         .cand-img {{ width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; }}
         .cand-name {{ color: white; font-size: 20px; font-weight: 600; margin: 0 15px; white-space: nowrap; }}
         
-        /* GAUCHE : TEXTE -> IMAGE */
-        .row-left {{ justify-content: flex-end; text-align: right; flex-direction: row; }}
+        /* GAUCHE : ALIGNÉ VERS LA DROITE (CENTRE) */
+        .row-left {{ justify-content: flex-end; text-align: right; }}
+        .row-left .cand-img {{ margin-right: 15px; }} /* Photo à gauche du texte ? Non, Photo puis Texte demandé. */
         
-        /* DROITE : IMAGE -> TEXTE */
-        .row-right {{ justify-content: flex-start; text-align: left; flex-direction: row; }}
+        /* MODIFICATION DEMANDÉE : */
+        /* Gauche : [Photo] [Texte] */
+        .row-left {{ flex-direction: row; justify-content: flex-end; }}
+        
+        /* Droite : [Photo] [Texte] */
+        .row-right {{ flex-direction: row; justify-content: flex-start; }}
         
         .list-container {{ position: absolute; top: 18vh; width: 100%; display: flex; justify-content: center; gap: 50px; }}
         .col-list {{ width: 35%; display: flex; flex-direction: column; }}
         
         /* PODIUM PETIT ET BAS */
         .winner-card {{ 
-            position: fixed; top: 60%; left: 50%; transform: translate(-50%, -50%); 
-            width: 400px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; 
+            position: fixed; top: 400px; left: 50%; transform: translateX(-50%); 
+            width: 300px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; 
             border-radius: 50px; padding: 30px; text-align: center; z-index: 1000;
             box-shadow: 0 0 60px #FFD700;
         }}
@@ -239,7 +239,7 @@ else:
         components.html("<script>document.querySelectorAll('canvas').forEach(e => e.remove());</script>", height=0)
         st.markdown("<h1 style='text-align:center; color:white; margin-top:40vh; font-size:90px;'>BIENVENUE</h1>", unsafe_allow_html=True)
 
-    # MODE VOTES (DESIGN MIROIR)
+    # MODE VOTES
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
@@ -254,7 +254,7 @@ else:
                     <h2 style="color:#FFD700; font-size:25px; margin:0;">VAINQUEUR</h2>
                 </div>""", unsafe_allow_html=True)
         else:
-            # --- GÉNÉRATION LISTES MIROIR ---
+            # CONSTRUCTION DES LISTES [PHOTO] [TEXTE]
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
@@ -264,11 +264,13 @@ else:
             html_left = ""
             for c in left_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                html_left += f"""<div class="cand-row row-left"><span class="cand-name">{c}</span><img src="{img_src}" class="cand-img"></div>"""
+                # Photo puis Texte
+                html_left += f"""<div class="cand-row row-left"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
 
             html_right = ""
             for c in right_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
+                # Photo puis Texte
                 html_right += f"""<div class="cand-row row-right"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
             
             # QR CODE CENTRAL
@@ -298,8 +300,7 @@ else:
                 var container = doc.getElementById('bubble-wall') || doc.createElement('div');
                 container.id = 'bubble-wall'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
                 if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
-                const imgs = {img_js}; 
-                const bSize = 220;
+                const imgs = {img_js}; const bubbles = []; const bSize = 220;
                 const qrRect = {{ x: window.innerWidth/2 - 250, y: window.innerHeight/2 - 250, w: 500, h: 500 }};
                 imgs.forEach((src, i) => {{
                     if(doc.getElementById('bub-'+i)) return;
@@ -307,14 +308,18 @@ else:
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:6px solid #E2001A; object-fit:cover;';
                     let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize);
                     let vx = (Math.random()-0.5)*5; let vy = (Math.random()-0.5)*5;
-                    container.appendChild(el);
+                    container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
                 }});
                 function animate() {{
-                    const bubbles = Array.from(container.children);
-                    bubbles.forEach(el => {{
-                        // Logique simplifiée sans stockage d'état JS complexe pour éviter bugs de cache
+                    bubbles.forEach(b => {{
+                        b.x += b.vx; b.y += b.vy;
+                        if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
+                        if(b.y <= 12 * window.innerHeight / 100 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                        if(b.x + b.size > qrRect.x && b.x < qrRect.x + qrRect.w && b.y + b.size > qrRect.y && b.y < qrRect.y + qrRect.h) {{
+                            b.vx *= -1; b.vy *= -1; b.x += b.vx*5; b.y += b.vy*5;
+                        }}
+                        b.el.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                     }});
-                }} 
+                    requestAnimationFrame(animate);
+                }} animate();
             </script>""", height=0)
-            # Note: Pour l'animation JS complexe, le cache pose problème. 
-            # Je laisse l'injection simple ici. Le rebond fonctionnait dans les versions précédentes.
