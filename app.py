@@ -214,7 +214,25 @@ if est_admin:
                     if st.button("X", key=f"d_{i}"): os.remove(f); st.rerun()
 
         elif menu == "📊 DATA":
-            st.json(load_json(VOTES_FILE, {}))
+            st.subheader("📊 Résultats des Votes")
+            votes = load_json(VOTES_FILE, {})
+            
+            if votes:
+                # Création d'un DataFrame pour un affichage propre
+                df = pd.DataFrame(list(votes.items()), columns=['Candidat', 'Points'])
+                df = df.sort_values(by='Points', ascending=False)
+                
+                # Affichage Graphique
+                st.bar_chart(df.set_index('Candidat'), color="#E2001A")
+                
+                # Affichage Tableau
+                st.dataframe(df, use_container_width=True)
+                
+                # Stats
+                total_points = df['Points'].sum()
+                st.metric("Total Points Distribués", total_points)
+            else:
+                st.info("Aucun vote enregistré pour le moment.")
 
 # =========================================================
 # 2. APPLICATION MOBILE
@@ -310,6 +328,8 @@ else:
     <style>
         body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
         [data-testid='stHeader'] { display: none; }
+        
+        /* BANDEAU FIXE HAUT */
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
@@ -358,7 +378,6 @@ else:
                     if name in cfg.get("candidats_images", {}): 
                         img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
                     suspense_html += f'<div class="suspense-item">{img}<h3 style="color:white; margin:0;">{name}</h3></div>'
-                
                 st.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
             else:
@@ -367,8 +386,6 @@ else:
                     img = ""
                     if winner in cfg.get("candidats_images", {}): 
                         img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:200px; height:200px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
-                    
-                    # CORRECTION RADICALE DU BUG D'AFFICHAGE VAINQUEUR : TOUT EN UNE LIGNE
                     winner_html = f"<div class='full-screen-center'>{logo_html}<div class='winner-card' style='position:relative; transform:none; top:auto; left:auto;'><div style='font-size:80px;'>🏆</div>{img}<h1 style='color:white; font-size:60px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:40px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:25px;'>Avec {pts} points</h3></div></div>"
                     st.markdown(winner_html, unsafe_allow_html=True)
 
@@ -384,17 +401,23 @@ else:
                     img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             with c_center:
-                st.markdown("<div style='height:5vh'></div>", unsafe_allow_html=True)
+                # CORRECTION : DESCENDRE LE BLOC ET AJUSTER LE LOGO
+                st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
+                
+                # 1. LOGO XXL (Comme Accueil) - CENTRÉ
                 if cfg.get("logo_b64"): 
-                    st.markdown("<div style='text-align:center; margin-bottom:20px;'>", unsafe_allow_html=True)
-                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=350)
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='text-align:center; width:100%; margin-bottom:20px;'><img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px;'></div>", unsafe_allow_html=True)
+
+                # 2. QR CODE NU - CENTRÉ
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-                st.image(qr_buf, width=300)
-                st.markdown("</div>", unsafe_allow_html=True)
+                qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+                
+                st.markdown(f"<div style='text-align:center; width:100%;'><img src='data:image/png;base64,{qr_b64}' style='width:240px;'></div>", unsafe_allow_html=True)
+                
+                # 3. TEXTE
                 st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
+
             with c_right:
                 st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                 for c in right_list:
@@ -410,7 +433,6 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        # CORRECTION RADICALE MUR PHOTO : UNE SEULE LIGNE HTML
         center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Envoyez vos photos !</h2></div>"
         st.markdown(center_html, unsafe_allow_html=True)
         photos = glob.glob(f"{LIVE_DIR}/*")
