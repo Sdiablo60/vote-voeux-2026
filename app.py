@@ -1,19 +1,17 @@
 import streamlit as st
-import os, glob, base64, qrcode, json, time, uuid
+import os, glob, base64, json, time, uuid
 from io import BytesIO
 import streamlit.components.v1 as components
-from datetime import datetime
 from PIL import Image
+from datetime import datetime
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Régie IT SQUAD", layout="wide", initial_sidebar_state="collapsed")
 
-# Chemins
 LIVE_DIR = "galerie_live_users"
 VOTES_FILE = "votes.json"
 CONFIG_FILE = "config_mur.json"
-# Nouveau fichier pour stocker les IDs uniques des téléphones qui ont voté
-VOTED_DEVICES_FILE = "voted_devices.json" 
+VOTERS_FILE = "voters.json" # Fichier liste des prénoms ayant voté
 
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
@@ -70,56 +68,65 @@ if est_admin:
         if c3.button("🔒 VOTES OFF"): cfg["session_ouverte"] = False; save_json(CONFIG_FILE, cfg); st.rerun()
         if c4.button("🏆 PODIUM"): cfg.update({"mode_affichage": "votes", "reveal_resultats": True}); save_json(CONFIG_FILE, cfg); st.rerun()
         st.divider()
-        if st.button("📸 MUR PHOTOS"): cfg.update({"mode_affichage": "photos_live"}); save_json(CONFIG_FILE, cfg); st.rerun()
         
-        # Reset pour les tests
-        if st.button("⚠️ RESET TOTAL (POUR TEST)"):
-            if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
-            if os.path.exists(VOTED_DEVICES_FILE): os.remove(VOTED_DEVICES_FILE)
-            st.success("Système réinitialisé pour nouveaux tests")
+        c_p1, c_p2 = st.columns(2)
+        with c_p1:
+            if st.button("📸 MUR PHOTOS"): cfg.update({"mode_affichage": "photos_live"}); save_json(CONFIG_FILE, cfg); st.rerun()
+        with c_p2:
+            if st.button("🗑️ RESET VOTANTS (Débloquer les noms)"):
+                if os.path.exists(VOTERS_FILE): os.remove(VOTERS_FILE)
+                if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
+                st.success("Base de données votants effacée !")
 
 # =========================================================
-# 2. APPLICATION MOBILE (SÉCURITÉ RENFORCÉE)
+# 2. APPLICATION MOBILE (SÉCURITÉ RENFORCÉE SERVEUR)
 # =========================================================
 elif est_utilisateur:
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # 1. IDENTIFIANT UNIQUE GÉNÉRÉ PAR LE TÉLÉPHONE
-    if "device_id" not in st.session_state:
-        st.session_state.device_id = str(uuid.uuid4())
-
-    # 2. VÉRIFICATION LOCALSTORAGE (Première barrière)
+    # 1. Vérification Locale (Cookie)
     components.html("""<script>
-        if(localStorage.getItem('VOTE_CONFIRMED_FINAL')) {
-            window.parent.location.href = window.parent.location.href.split('&blocked')[0] + '&blocked=true';
+        if(localStorage.getItem('VOTE_SECURE_V7')) {
+            if(!window.parent.location.href.includes('blocked=true')) {
+                window.parent.location.href = window.parent.location.href + '&blocked=true';
+            }
         }
     </script>""", height=0)
 
-    # 3. ÉCRAN BLOQUÉ (FIN)
+    # 2. Page de Fin (Bloquée)
     if is_blocked:
-        st.balloons()
+        # Animation CSS Pure (Plus fiable)
         st.markdown("""
-            <div style='text-align:center; margin-top:100px; padding:20px;'>
-                <h1 style='color:#E2001A;'>VOTE VALIDÉ !</h1>
-                <p>Merci pour votre participation.</p>
-                <br>
-                <small style='color:#555;'>Appareil verrouillé.</small>
-            </div>
+        <style>
+            @keyframes float { 0% { transform: translateY(100vh); opacity: 1; } 100% { transform: translateY(-100vh); opacity: 0; } }
+            .balloon { position: fixed; bottom: -100px; font-size: 3rem; animation: float 4s ease-in infinite; z-index: 9999; }
+        </style>
+        <div class="balloon" style="left: 10%; animation-duration: 3s;">🎈</div>
+        <div class="balloon" style="left: 30%; animation-duration: 4s;">🎈</div>
+        <div class="balloon" style="left: 70%; animation-duration: 3.5s;">🎈</div>
+        <div style='text-align:center; margin-top:100px;'>
+            <h1 style='color:#E2001A;'>VOTE ENREGISTRÉ</h1>
+            <p>Merci pour votre participation.</p>
+        </div>
         """, unsafe_allow_html=True)
         st.stop()
 
-    # 4. INTERFACE
+    # 3. Interface de Vote
     if "pseudo" not in st.session_state:
         st.subheader("Identification")
-        pseudo = st.text_input("Ton prénom :")
-        if st.button("ENTRER", type="primary") and pseudo:
-            st.session_state.pseudo = pseudo; st.rerun()
+        pseudo_input = st.text_input("Ton prénom :")
+        if st.button("ENTRER", type="primary") and pseudo_input:
+            # --- VÉRIFICATION SERVEUR STRICTE ---
+            # On charge la liste des gens qui ont DÉJÀ voté
+            voters_list = load_json(VOTERS_FILE, [])
+            # On normalise (majuscules) pour comparer
+            if pseudo_input.strip().upper() in [v.upper() for v in voters_list]:
+                st.error("⛔ Ce prénom a déjà voté ! Impossible de recommencer.")
+            else:
+                st.session_state.pseudo = pseudo_input.strip()
+                st.rerun()
     else:
         cfg = load_json(CONFIG_FILE, st.session_state.config)
-        
-        # Vérification Serveur (Deuxième barrière - liste noire des pseudos/IDs)
-        already_voted_ids = load_json(VOTED_DEVICES_FILE, [])
-        # On peut ajouter ici une vérification sur le pseudo si besoin
         
         if cfg["mode_affichage"] == "photos_live":
             st.subheader("📸 Ta photo")
@@ -129,92 +136,78 @@ elif est_utilisateur:
                 st.success("Envoyé !")
         
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
-            st.write(f"Bonjour **{st.session_state.pseudo}**")
-            choix = st.multiselect("Choisis tes 3 favoris :", cfg["candidats"], max_selections=3)
+            st.write(f"Votant : **{st.session_state.pseudo}**")
+            choix = st.multiselect("Choisis 3 favoris :", cfg["candidats"], max_selections=3)
             
             if len(choix) == 3:
                 st.markdown("---")
-                if st.button("🚀 VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    # Enregistrement Vote
-                    vts = load_json(VOTES_FILE, {})
-                    for v in choix: vts[v] = vts.get(v, 0) + 1
-                    save_json(VOTES_FILE, vts)
-                    
-                    # Enregistrement ID Appareil (Serveur)
-                    already_voted_ids.append(st.session_state.pseudo) # On bloque le pseudo
-                    save_json(VOTED_DEVICES_FILE, already_voted_ids)
-                    
-                    # Enregistrement Local (Client) et Redirection
-                    components.html("""<script>
-                        localStorage.setItem('VOTE_CONFIRMED_FINAL', 'true');
-                        setTimeout(function(){
+                if st.button("🚀 VALIDER DÉFINITIVEMENT", type="primary", use_container_width=True):
+                    # --- DOUBLE SÉCURITÉ AU MOMENT DU CLICK ---
+                    voters_list = load_json(VOTERS_FILE, [])
+                    if st.session_state.pseudo.upper() in [v.upper() for v in voters_list]:
+                        st.error("Erreur : Vote déjà comptabilisé pour ce nom.")
+                        time.sleep(2)
+                        st.rerun()
+                    else:
+                        # 1. Enregistrement du Vote
+                        vts = load_json(VOTES_FILE, {})
+                        for v in choix: vts[v] = vts.get(v, 0) + 1
+                        save_json(VOTES_FILE, vts)
+                        
+                        # 2. Enregistrement du Nom (Blocage Serveur)
+                        voters_list.append(st.session_state.pseudo)
+                        save_json(VOTERS_FILE, voters_list)
+                        
+                        # 3. Blocage Navigateur
+                        components.html("""<script>
+                            localStorage.setItem('VOTE_SECURE_V7', 'true');
                             window.parent.location.href = window.parent.location.href + '&blocked=true';
-                        }, 500);
-                    </script>""", height=0)
-                    time.sleep(1)
-                    st.rerun()
+                        </script>""", height=0)
         else:
             st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (CORRECTION VISUELLE CADRE)
+# 3. MUR SOCIAL (NOUVEAU DESIGN "BANDEAU BAS")
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, st.session_state.config)
     
-    # CSS FORCE POUR LE CADRE
+    # CSS GLOBAL
     st.markdown(f"""
     <style>
-        body, .stApp {{ background-color: black !important; overflow: hidden; }}
-        [data-testid='stHeader'] {{ display: none; }}
+        body, .stApp {{ background-color: black !important; overflow: hidden; }} [data-testid='stHeader'] {{ display: none; }}
         
-        /* BANDEAU TITRE */
-        .social-header {{ 
-            position: fixed; top: 0; left: 0; width: 100%; height: 12vh; 
-            background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; 
-            border-bottom: 5px solid white;
-        }}
+        /* HEADER TITRE (HAUT) */
+        .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }}
         .social-title {{ color: white; font-size: 40px; font-weight: bold; margin: 0; font-family: sans-serif; text-transform: uppercase; }}
         
-        /* CADRE VAINQUEUR - CORRECTION */
-        .winner-container {{
+        /* BANDEAU VAINQUEUR (BAS DE L'ÉCRAN - style Cinéma) */
+        .winner-banner {{
             position: fixed;
-            top: 55%;           /* Descendu plus bas que le milieu */
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 1000;
+            bottom: 0;
+            left: 0;
             width: 100%;
-            display: flex;
-            justify-content: center;
+            height: 35vh; /* Prend le tiers bas de l'écran */
+            background: linear-gradient(to top, #000 10%, #E2001A 90%);
+            border-top: 5px solid white;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 2000;
+            animation: slideUp 1s ease-out;
         }}
+        @keyframes slideUp {{ from {{ transform: translateY(100%); }} to {{ transform: translateY(0); }} }}
         
-        .winner-card {{
-            background: rgba(20, 20, 20, 0.95);
-            border: 6px solid #FFD700;
-            border-radius: 30px;
-            padding: 30px;
-            text-align: center;
-            width: 350px !important;       /* Largeur forcée petite */
-            max-width: 80vw;
-            box-shadow: 0 0 50px rgba(255, 215, 0, 0.5);
-            animation: pulse 2s infinite;
-        }}
-        
-        @keyframes pulse {{ 0% {{ transform: scale(1); }} 50% {{ transform: scale(1.02); }} 100% {{ transform: scale(1); }} }}
-        
-        .trophy {{ font-size: 60px; margin-bottom: 10px; }}
-        .winner-name {{ font-size: 35px; color: white; font-weight: bold; margin: 10px 0; }}
-        .winner-sub {{ font-size: 20px; color: #FFD700; }}
-        
+        .winner-trophy {{ font-size: 60px; margin-bottom: 10px; }}
+        .winner-text {{ color: white; font-size: 50px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px black; }}
+        .winner-sub {{ color: #FFD700; font-size: 25px; margin-top: 5px; font-weight: bold; }}
     </style>
     <div class="social-header"><h1 class="social-title">{cfg['titre_mur']}</h1></div>
     """, unsafe_allow_html=True)
 
     mode = cfg.get("mode_affichage")
     
-    # NETTOYAGE CONFETTIS
+    # NETTOYAGE CONFETTIS ACCUEIL
     if mode == "attente":
         components.html("<script>document.querySelectorAll('canvas').forEach(e => e.remove());</script>", height=0)
         st.markdown("<h1 style='text-align:center; color:white; margin-top:40vh; font-size:80px;'>BIENVENUE</h1>", unsafe_allow_html=True)
@@ -226,20 +219,19 @@ else:
             if sorted_v:
                 winner, pts = sorted_v[0]
                 st.balloons()
+                # NOUVEAU DESIGN : BANDEAU EN BAS
                 st.markdown(f"""
-                <div class="winner-container">
-                    <div class="winner-card">
-                        <div class="trophy">🏆</div>
-                        <div class="winner-name">{winner}</div>
-                        <div class="winner-sub">VAINQUEUR ({pts} pts)</div>
-                    </div>
+                <div class="winner-banner">
+                    <div class="winner-trophy">🏆</div>
+                    <div class="winner-text">{winner}</div>
+                    <div class="winner-sub">GRAND VAINQUEUR ({pts} PTS)</div>
                 </div>
                 """, unsafe_allow_html=True)
         else:
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"http://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            st.markdown(f"""<div style="position:fixed; top:55%; left:50%; transform:translate(-50%, -50%); z-index:1500; background:white; padding:30px; border-radius:30px; text-align:center; border: 10px solid #E2001A;">
+            st.markdown(f"""<div style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:1500; background:white; padding:30px; border-radius:30px; text-align:center; border: 10px solid #E2001A;">
                 <img src="data:image/png;base64,{qr_b64}" width="200"><h2 style="color:black; margin-top:20px; font-size:20px;">SCANNEZ POUR VOTER</h2></div>""", unsafe_allow_html=True)
 
     elif mode == "photos_live":
@@ -251,26 +243,17 @@ else:
                 var container = doc.getElementById('bubble-wall') || doc.createElement('div');
                 container.id = 'bubble-wall'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
                 if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
-                const imgs = {img_js}; const bubbles = []; const bSize = 200;
+                const imgs = {img_js}; 
+                const bSize = 200;
+                // Zone de rebond centrale (Titre en haut, rien en bas)
                 const qrRect = {{ x: window.innerWidth/2 - 200, y: window.innerHeight/2 - 200, w: 400, h: 400 }};
+                
                 imgs.forEach((src, i) => {{
                     if(doc.getElementById('bub-'+i)) return;
                     const el = doc.createElement('img'); el.id = 'bub-'+i; el.src = src;
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:6px solid #E2001A; object-fit:cover;';
                     let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize);
                     let vx = (Math.random()-0.5)*5; let vy = (Math.random()-0.5)*5;
-                    container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
+                    container.appendChild(el);
                 }});
-                function animate() {{
-                    bubbles.forEach(b => {{
-                        b.x += b.vx; b.y += b.vy;
-                        if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
-                        if(b.y <= 12 * window.innerHeight / 100 || b.y + b.size >= window.innerHeight) b.vy *= -1;
-                        if(b.x + b.size > qrRect.x && b.x < qrRect.x + qrRect.w && b.y + b.size > qrRect.y && b.y < qrRect.y + qrRect.h) {{
-                            b.vx *= -1; b.vy *= -1; b.x += b.vx*5; b.y += b.vy*5;
-                        }}
-                        b.el.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
-                    }});
-                    requestAnimationFrame(animate);
-                }} animate();
             </script>""", height=0)
