@@ -13,8 +13,8 @@ try:
 except ImportError:
     HAS_ALTAIR = False
 
-# --- CONFIGURATION ---
-st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="collapsed")
+# --- CONFIGURATION (SIDEBAR ÉTENDUE PAR DÉFAUT) ---
+st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
 # Dossiers & Fichiers
 LIVE_DIR = "galerie_live_users"
@@ -44,7 +44,7 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILITAIRES (CORRIGÉES) ---
+# --- FONCTIONS UTILITAIRES ---
 def load_json(file, default):
     if os.path.exists(file):
         try:
@@ -54,14 +54,12 @@ def load_json(file, default):
 
 def save_json(file, data):
     try:
-        # CORRECTION DU BUG TYPEERROR : default=str convertit tout objet inconnu en texte
         with open(str(file), "w", encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=4, default=str)
     except Exception as e:
         print(f"Erreur sauvegarde {file}: {e}")
 
 def save_config():
-    # Conversion en dict pour casser les liens Proxy de Streamlit
     clean_config = dict(st.session_state.config)
     save_json(CONFIG_FILE, clean_config)
 
@@ -137,22 +135,37 @@ if est_admin:
 
     st.markdown(f"""
     <style>
-        .main .block-container {{ margin-top: 60px !important; padding-top: 20px !important; }}
+        /* On remonte un peu le contenu */
+        .main .block-container {{ margin-top: 50px !important; padding-top: 20px !important; }}
+        
+        /* HEADER FIXE MAIS QUI NE CACHE PAS LE MENU */
         .fixed-header {{
-            position: fixed; top: 0; left: 0; width: 100%; height: 70px;
-            background-color: #1E1E1E; z-index: 100000;
+            position: fixed; top: 0; left: 0; width: 100%; height: 60px;
+            background-color: #1E1E1E; z-index: 99999; /* Z-Index réduit pour laisser passer le menu Streamlit */
             display: flex; align-items: center; justify-content: center;
             border-bottom: 3px solid #E2001A; transition: none !important;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            pointer-events: none; /* Laisse passer les clics vers le header Streamlit si besoin */
         }}
-        .header-title {{ color: white; font-size: 24px; font-weight: 800; text-transform: uppercase; font-family: sans-serif; }}
+        /* Le texte et le logo doivent capter les événements si on veut */
+        .header-content {{ pointer-events: auto; display: flex; align-items: center; width: 100%; justify-content: center; }}
+        
+        .header-title {{ color: white; font-size: 22px; font-weight: 800; text-transform: uppercase; font-family: sans-serif; }}
         .header-logo {{
-            position: absolute; right: 30px; top: 5px; height: 60px; width: 100px;
+            position: absolute; right: 20px; top: 5px; height: 50px; width: 80px;
             background-size: contain; background-repeat: no-repeat; background-position: center; {logo_css}
         }}
-        header[data-testid="stHeader"] {{ visibility: hidden; }}
+        
+        /* ON NE CACHE PLUS LE HEADER STREAMLIT POUR GARDER LE MENU */
+        header[data-testid="stHeader"] {{ background: transparent; }}
+        [data-testid="stSidebar"] {{ z-index: 100000; }} /* Sidebar au dessus de tout */
     </style>
-    <div class="fixed-header"><div class="header-title">CONSOLE RÉGIE</div><div class="header-logo"></div></div>
+    <div class="fixed-header">
+        <div class="header-content">
+            <div class="header-title">CONSOLE RÉGIE</div>
+            <div class="header-logo"></div>
+        </div>
+    </div>
     """, unsafe_allow_html=True)
     
     if "auth" not in st.session_state: st.session_state["auth"] = False
@@ -166,14 +179,16 @@ if est_admin:
         with st.sidebar:
             st.title("🎛️ PILOTAGE")
             menu = st.radio("Menu", ["🔴 PILOTAGE LIVE", "⚙️ Paramétrage", "📸 Médiathèque", "📊 Data"])
-            if st.button("🔓 Déconnexion"): st.session_state["auth"] = False; st.rerun()
+            st.divider()
+            st.markdown("""<div style='display:flex; gap:5px; flex-direction:column;'><a href="/" target="_blank" style='text-decoration:none; background:#E2001A; color:white; padding:8px; border-radius:5px; text-align:center; font-weight:bold;'>📺 MUR SOCIAL</a><a href="/?mode=vote" target="_blank" style='text-decoration:none; background:#333; color:white; padding:8px; border-radius:5px; text-align:center;'>📱 TEST MOBILE</a></div>""", unsafe_allow_html=True)
+            st.divider()
+            if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
         cfg = st.session_state.config
 
         if menu == "🔴 PILOTAGE LIVE":
             st.subheader("Séquenceur")
             
-            # --- DETERMINER LE BOUTON ACTIF (Visuel) ---
             mode = cfg["mode_affichage"]
             open = cfg["session_ouverte"]
             reveal = cfg["reveal_resultats"]
@@ -208,27 +223,11 @@ if est_admin:
                 save_config(); st.rerun()
 
             st.divider()
-            st.subheader("📡 Effets")
-            ce1, ce2 = st.columns(2)
-            with ce1:
-                intensity = st.slider("Densité", 0, 50, cfg.get("effect_intensity", 25))
-                speed = st.slider("Vitesse", 0, 50, cfg.get("effect_speed", 25))
-                if intensity != cfg.get("effect_intensity") or speed != cfg.get("effect_speed"):
-                    cfg["effect_intensity"] = intensity; cfg["effect_speed"] = speed; save_config()
-            
-            with ce2:
-                EFFS = ["Aucun", "🎈 Ballons", "❄️ Neige", "🎉 Confettis"]
-                cfg["screen_effects"]["attente"] = st.selectbox("Effet Accueil", EFFS, index=EFFS.index(cfg["screen_effects"].get("attente","Aucun")))
-                cfg["screen_effects"]["podium"] = st.selectbox("Effet Podium", EFFS, index=EFFS.index(cfg["screen_effects"].get("podium","🎉 Confettis")))
-                if st.button("Sauver Effets"): save_config(); st.toast("Effets mis à jour")
-
-            st.divider()
             with st.expander("🚨 ZONE DE DANGER (Reset)"):
                 st.warning("Ceci effacera tous les votes et permettra aux téléphones de revoter.")
                 if st.button("🗑️ RESET TOTAL & DÉBLOQUER TÉLÉPHONES", type="primary"):
                     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
                         if os.path.exists(f): os.remove(f)
-                    
                     cfg["session_id"] = str(uuid.uuid4())
                     save_config()
                     st.success("Système réinitialisé !"); time.sleep(1); st.rerun()
@@ -276,7 +275,7 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # SYSTEME DE SESSION (Déblocage automatique au Reset)
+    # SYSTEME DE SESSION
     current_session = cfg.get("session_id", "init")
     components.html(f"""<script>
         const serverSession = "{current_session}";
@@ -379,7 +378,7 @@ else:
             border-radius: 15px; padding: 2px 10px; margin: 2px; font-size: 14px; border: 1px solid #555;
         }}
         
-        /* LISTE CANDIDATS OPTIMISÉE */
+        /* LISTE CANDIDATS */
         .list-container {{ position: absolute; top: 22vh; width: 100%; display: flex; justify-content: center; gap: 20px; }}
         .col-list {{ width: 38%; display: flex; flex-direction: column; }}
         .cand-row {{ 
@@ -446,7 +445,6 @@ else:
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)
-            
             elapsed = time.time() - cfg.get("timestamp_podium", 0)
             
             if elapsed < 6.0:
