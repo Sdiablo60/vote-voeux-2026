@@ -37,17 +37,12 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILITAIRES (BLINDÉES) ---
+# --- FONCTIONS UTILITAIRES ---
 def clean_for_json(data):
-    """Nettoie récursivement les données pour qu'elles soient compatibles JSON"""
-    if isinstance(data, dict):
-        return {k: clean_for_json(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [clean_for_json(v) for v in data]
-    elif isinstance(data, (str, int, float, bool, type(None))):
-        return data
-    else:
-        return str(data)
+    if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
+    elif isinstance(data, list): return [clean_for_json(v) for v in data]
+    elif isinstance(data, (str, int, float, bool, type(None))): return data
+    else: return str(data)
 
 def load_json(file, default):
     if os.path.exists(file):
@@ -56,23 +51,18 @@ def load_json(file, default):
                 content = f.read().strip()
                 if not content: return default
                 return json.loads(content)
-        except: 
-            return default
+        except: return default
     return default
 
 def save_json(file, data):
     try:
-        # On nettoie d'abord pour être sûr qu'il n'y a pas d'objets Streamlit
         safe_data = clean_for_json(data)
         with open(str(file), "w", encoding='utf-8') as f:
             json.dump(safe_data, f, ensure_ascii=False, indent=4)
-        return True
-    except Exception as e:
-        print(f"ERREUR SAVE: {e}")
-        return False
+    except Exception as e: print(f"Erreur Save: {e}")
 
 def save_config():
-    # On met à jour la config en session puis on sauvegarde
+    # Sauvegarde immédiate sur disque
     save_json(CONFIG_FILE, st.session_state.config)
 
 def process_image(uploaded_file):
@@ -88,10 +78,8 @@ def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
         return
-
     duration = max(3, 25 - (speed * 0.4)) 
     interval = int(5000 / (intensity + 1))
-    
     js_code = f"""
     <script>
         var doc = window.parent.document;
@@ -129,28 +117,28 @@ def inject_visual_effect(effect_name, intensity, speed):
     js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- INIT SESSION ---
-# On charge d'abord le fichier s'il existe pour être synchro
-loaded_conf = load_json(CONFIG_FILE, default_config)
-if "config" not in st.session_state: 
-    st.session_state.config = loaded_conf
-else:
-    # Si on est admin, on garde notre session, sinon on suit le fichier
-    if st.query_params.get("admin") != "true":
-        st.session_state.config = loaded_conf
-
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 is_blocked = st.query_params.get("blocked") == "true"
 
+# --- INIT SESSION STATE ---
+# Note : On ne charge la config en session QUE pour l'Admin et le Mobile.
+# Le Mur Social, lui, lira le fichier directement.
+if "config" not in st.session_state:
+    st.session_state.config = load_json(CONFIG_FILE, default_config)
+
 # =========================================================
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
+    # Réinitialiser la config depuis le fichier pour être sûr d'être synchro au chargement
+    st.session_state.config = load_json(CONFIG_FILE, default_config)
+    cfg = st.session_state.config
+
     logo_css = ""
-    if st.session_state.config.get("logo_b64"):
-        logo_css = f"background-image: url('data:image/png;base64,{st.session_state.config['logo_b64']}');"
+    if cfg.get("logo_b64"):
+        logo_css = f"background-image: url('data:image/png;base64,{cfg['logo_b64']}');"
 
     st.markdown(f"""
     <style>
@@ -190,8 +178,6 @@ if est_admin:
             st.divider()
             if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
-        cfg = st.session_state.config
-
         if menu == "🔴 PILOTAGE LIVE":
             st.subheader("Séquenceur")
             
@@ -199,7 +185,6 @@ if est_admin:
             open = cfg["session_ouverte"]
             reveal = cfg["reveal_resultats"]
             
-            # Couleurs des boutons selon l'état
             type_accueil = "primary" if mode == "attente" else "secondary"
             type_on = "primary" if (mode == "votes" and open) else "secondary"
             type_off = "primary" if (mode == "votes" and not open and not reveal) else "secondary"
@@ -233,7 +218,7 @@ if est_admin:
             with st.expander("🚨 ZONE DE DANGER (Reset)"):
                 st.warning("Ceci effacera tous les votes et permettra aux téléphones de revoter.")
                 if st.button("🗑️ RESET TOTAL & DÉBLOQUER TÉLÉPHONES", type="primary"):
-                    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE, CONFIG_FILE]:
+                    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
                         if os.path.exists(f): os.remove(f)
                     
                     st.session_state.config = default_config.copy()
@@ -284,7 +269,6 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # SYSTEME DE SESSION
     current_session = cfg.get("session_id", "init")
     components.html(f"""<script>
         const serverSession = "{current_session}";
@@ -366,10 +350,10 @@ elif est_utilisateur:
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
-    # REFRESH FORCÉ CHAQUE 2 SECONDES
     st_autorefresh(interval=2000, key="wall_refresh")
     
-    # CHARGEMENT FORCÉ DU FICHIER (Pas de cache session pour le Mur)
+    # FORCER LA LECTURE DU FICHIER (Bypass Cache Session)
+    # C'est ICI que ça se joue : on ne prend pas le session_state, mais le fichier direct.
     cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown(f"""
@@ -380,6 +364,7 @@ else:
         .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }}
         .social-title {{ color: white; font-size: 45px; font-weight: bold; margin: 0; text-transform: uppercase; }}
         
+        /* BARRE VOTANTS (TAGS) */
         .tags-marquee {{
             position: absolute; top: 13vh; width: 100%; height: 8vh;
             display: flex; justify-content: center; align-items: center; flex-wrap: wrap; overflow: hidden;
@@ -389,6 +374,7 @@ else:
             border-radius: 15px; padding: 2px 10px; margin: 2px; font-size: 14px; border: 1px solid #555;
         }}
         
+        /* LISTE CANDIDATS OPTIMISÉE */
         .list-container {{ position: absolute; top: 22vh; width: 100%; display: flex; justify-content: center; gap: 20px; }}
         .col-list {{ width: 38%; display: flex; flex-direction: column; }}
         .cand-row {{ 
@@ -401,9 +387,11 @@ else:
         .row-left {{ flex-direction: row; justify-content: flex-end; text-align: right; }}
         .row-right {{ flex-direction: row; justify-content: flex-start; text-align: left; }}
         
+        /* QR BOX */
         .qr-center {{ display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top: 0px; }}
         .qr-logo {{ width: 80px; margin-bottom: 10px; object-fit: contain; }}
         
+        /* PODIUM CENTRÉ */
         .winner-card {{ 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; 
@@ -411,6 +399,7 @@ else:
             box-shadow: 0 0 80px #FFD700;
         }}
         
+        /* SUSPENSE CARDS */
         .suspense-container {{ 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             display: flex; gap: 30px; z-index: 1000;
