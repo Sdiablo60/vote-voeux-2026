@@ -64,7 +64,7 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- CALLBACKS ADMIN (POUR BOUTONS FIABLES) ---
+# --- CALLBACKS ADMIN ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
@@ -210,8 +210,7 @@ if est_admin:
         elif menu == "📸 MÉDIATHÈQUE":
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
             if st.button("Tout supprimer"):
-                for f in files: os.remove(f)
-                st.rerun()
+                for f in files: os.remove(f); st.rerun()
             cols = st.columns(4)
             for i, f in enumerate(files):
                 with cols[i%4]:
@@ -366,37 +365,38 @@ else:
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            # --- CONSTRUCTION HTML PROPRE ---
+            # CONSTRUCTION HTML PROPRE (SANS INDENTATION INTERNE)
             html_left = ""
             for c in left_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                html_left += f"""<div class="cand-row row-left"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
+                html_left += f"<div class='cand-row row-left'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+            
             html_right = ""
             for c in right_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                html_right += f"""<div class="cand-row row-right"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
+                html_right += f"<div class='cand-row row-right'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>"
             
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             
-            # Gestion du Logo et QR séparée pour éviter le bug de string
             logo_div = ""
             if cfg.get("logo_b64"): logo_div = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="qr-logo">'
-            qr_img = f'<img src="data:image/png;base64,{qr_b64}" width="220">'
-
+            
+            # LE HTML EST MAINTENANT COMPACT POUR ÉVITER LE BUG
             st.markdown(f"""
-            <div class="list-container">
-                <div class="col-list">{html_left}</div>
-                <div class="qr-center">
-                    {logo_div}
-                    <div style="background:white; padding:10px; border-radius:15px; border:5px solid #E2001A;">
-                        {qr_img}
-                    </div>
-                    <div class="vote-cta">À VOS VOTES !</div>
-                </div>
-                <div class="col-list">{html_right}</div>
-            </div>""", unsafe_allow_html=True)
+<div class="list-container">
+    <div class="col-list">{html_left}</div>
+    <div class="qr-center">
+        {logo_div}
+        <div style="background:white; padding:10px; border-radius:15px; border:5px solid #E2001A;">
+            <img src="data:image/png;base64,{qr_b64}" width="220">
+        </div>
+        <div class="vote-cta">À VOS VOTES !</div>
+    </div>
+    <div class="col-list">{html_right}</div>
+</div>""", unsafe_allow_html=True)
+
         else:
             st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; border: 5px solid #E2001A; padding: 60px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div>", unsafe_allow_html=True)
 
