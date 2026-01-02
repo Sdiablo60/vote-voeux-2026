@@ -9,24 +9,11 @@ import zipfile
 import uuid
 import textwrap
 
-# --- GESTION PDF & ALTAIR & EXCEL ---
-try:
-    from fpdf import FPDF
-    HAS_FPDF = True
-except ImportError:
-    HAS_FPDF = False
-
-try:
-    import altair as alt
-    HAS_ALTAIR = True
-except ImportError:
-    HAS_ALTAIR = False
-
 # --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Régie Master - IT SQUAD", layout="wide", initial_sidebar_state="collapsed")
 
 GALLERY_DIR, LIVE_DIR = "galerie_images", "galerie_live_users"
-VOTES_FILE, PARTICIPANTS_FILE, CONFIG_FILE, VOTERS_FILE, DETAILED_VOTES_FILE = "votes.json", "participants.json", "config_mur.json", "voters.json", "detailed_votes.json"
+VOTES_FILE, CONFIG_FILE, VOTERS_FILE, DETAILED_VOTES_FILE = "votes.json", "config_mur.json", "voters.json", "detailed_votes.json"
 
 for d in [GALLERY_DIR, LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
@@ -59,35 +46,23 @@ if "config" not in st.session_state:
         "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "podium": "🎉 Confettis"}
     })
 
-def process_image_upload(uploaded_file):
-    try:
-        img = Image.open(uploaded_file)
-        img.thumbnail((300, 300))
-        buffered = BytesIO()
-        img.save(buffered, format="PNG") 
-        return base64.b64encode(buffered.getvalue()).decode()
-    except: return None
-
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 is_blocked = st.query_params.get("blocked") == "true"
 
 # =========================================================
-# 1. CONSOLE ADMIN
+# 1. CONSOLE ADMIN (FIX : ANTI-CLIGNOTEMENT)
 # =========================================================
 if est_admin:
     logo_b64 = st.session_state.config.get("logo_b64")
     logo_style = f"background-image: url('data:image/png;base64,{logo_b64}');" if logo_b64 else ""
-    st.markdown(f"""
-    <style>
+    st.markdown(f"""<style>
         .fixed-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 70px; background: #1E1E1E; z-index: 10000; display: flex; align-items: center; justify-content: center; border-bottom: 2px solid #E2001A; }}
         .header-title {{ color: white; font-size: 22px; font-weight: bold; text-transform: uppercase; }}
         .header-logo {{ position: absolute; right: 20px; top: 5px; height: 60px; width: 120px; background-size: contain; background-repeat: no-repeat; {logo_style} }}
-        .main .block-container {{ padding-top: 90px; }}
-    </style>
-    <div class="fixed-header"><div class="header-title">Console Admin Gestion des Votes</div><div class="header-logo"></div></div>
-    """, unsafe_allow_html=True)
+        .main .block-container {{ padding-top: 100px; }}
+    </style><div class="fixed-header"><div class="header-title">Console Admin Gestion des Votes</div><div class="header-logo"></div></div>""", unsafe_allow_html=True)
 
     if "auth" not in st.session_state: st.session_state["auth"] = False
     if not st.session_state["auth"]:
@@ -117,12 +92,11 @@ if est_admin:
         elif menu == "📸 MÉDIATHÈQUE":
             st.title("📸 Photos Live (Triées par Date)")
             files = glob.glob(f"{LIVE_DIR}/*")
-            # --- TRI CHRONOLOGIQUE DÉCROISSANT ---
             files.sort(key=os.path.getmtime, reverse=True)
             cols = st.columns(4)
             for i, f in enumerate(files):
                 with cols[i%4]:
-                    st.image(f, caption=f"{datetime.fromtimestamp(os.path.getmtime(f)).strftime('%H:%M:%S')}")
+                    st.image(f, caption=f"Reçue à {datetime.fromtimestamp(os.path.getmtime(f)).strftime('%H:%M:%S')}")
                     if st.button("Supprimer", key=f"del_{i}"): os.remove(f); st.rerun()
 
         elif menu == "📊 DATA":
@@ -137,14 +111,14 @@ if est_admin:
                 st.download_button("📥 EXPORTER EXCEL", data=output.getvalue(), file_name="resultats_votes.xlsx")
 
 # =========================================================
-# 2. APPLICATION MOBILE
+# 2. APPLICATION MOBILE (FIX : ANTI-FRAUDE & ANIMATION)
 # =========================================================
 elif est_utilisateur:
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # --- DOUBLE SÉCURITÉ : BLOCAGE IMMÉDIAT ---
+    # 1. ANTI-FRAUDE STRICT (Injection locale)
     components.html("""<script>
-        if(localStorage.getItem('voted_2026_final')) {
+        if(localStorage.getItem('vote_completed_2026')) {
             if(!window.parent.location.href.includes('blocked=true')) {
                 window.parent.location.href = window.parent.location.href + '&blocked=true';
             }
@@ -152,22 +126,12 @@ elif est_utilisateur:
     </script>""", height=0)
 
     if is_blocked:
-        st.balloons() # L'animation se joue ici sur la page de blocage
-        st.markdown("<div style='text-align:center; margin-top:50px;'><h2>✅ VOTE ENREGISTRÉ</h2><p>Merci pour votre participation ! Les ballons s'envolent pour vous !</p></div>", unsafe_allow_html=True)
-        # Animation supplémentaire en JS pour être sûr
-        components.html("""<script>
-            for(let i=0; i<30; i++) {
-                let b = window.parent.document.createElement('div');
-                b.innerHTML = '🎈'; b.style.cssText = 'position:fixed; bottom:-50px; left:'+(Math.random()*100)+'vw; font-size:30px; z-index:99999; transition: transform '+(2+Math.random()*2)+'s linear;';
-                window.parent.document.body.appendChild(b);
-                setTimeout(() => b.style.transform = 'translateY(-130vh)', 50);
-            }
-        </script>""", height=0)
+        st.markdown("<div style='text-align:center; margin-top:50px;'><h2>✅ VOTE ENREGISTRÉ</h2><p>Merci pour votre participation !</p></div>", unsafe_allow_html=True)
         st.stop()
 
     if "user_pseudo" not in st.session_state:
         pseudo = st.text_input("Ton prénom :")
-        if st.button("VALIDER", type="primary", use_container_width=True) and pseudo:
+        if st.button("VALIDER L'IDENTITÉ", type="primary", use_container_width=True) and pseudo:
             st.session_state.user_pseudo = pseudo; st.rerun()
     else:
         cfg = load_json(CONFIG_FILE, st.session_state.config)
@@ -176,63 +140,71 @@ elif est_utilisateur:
         else:
             if not cfg["session_ouverte"]: st.info("⏳ En attente des votes...")
             else:
-                choix = st.multiselect("Sélectionne tes 3 favoris :", cfg["candidats"], max_selections=3)
+                choix = st.multiselect("Choisis tes 3 favoris :", cfg["candidats"], max_selections=3)
                 if len(choix) == 3:
                     st.markdown("---")
+                    # BOUTON TOUJOURS VISIBLE SI 3 CHOIX
                     if st.button("🚀 VALIDER MON VOTE", type="primary", use_container_width=True):
-                        # Enregistrement du vote
+                        # 2. ANIMATION ET BLOCAGE JS
+                        components.html("""<script>
+                            // Animation Ballons
+                            for(let i=0; i<35; i++) {
+                                let b = window.parent.document.createElement('div');
+                                b.innerHTML = '🎈'; b.style.position='fixed'; b.style.bottom='-50px';
+                                b.style.left = Math.random()*100+'vw'; b.style.fontSize = (25+Math.random()*25)+'px';
+                                b.style.zIndex='99999'; b.style.transition = 'transform '+(2+Math.random()*2)+'s ease-in';
+                                window.parent.document.body.appendChild(b);
+                                setTimeout(() => b.style.transform = 'translateY(-130vh)', 50);
+                            }
+                            // Sauvegarde Double Vote
+                            localStorage.setItem('vote_completed_2026', 'true');
+                            // Redirection
+                            setTimeout(() => { window.parent.location.href += '&blocked=true'; }, 2800);
+                        </script>""", height=0)
+                        
                         vts = load_json(VOTES_FILE, {})
                         for v in choix: vts[v] = vts.get(v, 0) + 1
                         save_json(VOTES_FILE, vts)
-                        
-                        # Marquage du téléphone et redirection pour l'animation
-                        components.html("""<script>
-                            localStorage.setItem('voted_2026_final', 'true');
-                            setTimeout(() => { window.parent.location.href += '&blocked=true'; }, 100);
-                        </script>""", height=0)
-                        st.rerun()
+                        st.info("Transmission en cours... 🎈")
+                        time.sleep(3)
 
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (FIX : CADRE VAINQUEUR & SANS CONFETTI ACCUEIL)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=2000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, st.session_state.config)
     
-    st.markdown(f"""
-    <style>
-        body, .stApp {{ background-color: black !important; overflow: hidden; font-family: 'Montserrat', sans-serif; }} 
+    st.markdown(f"""<style>
+        body, .stApp {{ background-color: black !important; overflow: hidden; height: 100vh; font-family: 'Montserrat', sans-serif; }} 
         [data-testid='stHeader'] {{ display: none !important; }} 
-        .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; border-bottom: 5px solid white; z-index: 1500; }}
+        .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; border-bottom: 5px solid white; z-index: 2000; }}
         .social-title {{ color: white; font-size: 50px; text-transform: uppercase; margin: 0; }}
         
-        /* GAGNANT : CENTRÉ ET TAILLE MAÎTRISÉE */
+        /* GAGNANT : TAILLE FIXE 400PX ET POSITION BASSE */
         .winner-box {{ 
-            position: absolute;
-            top: 58%; /* Descendu sous le titre de 12vh */
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 450px; /* Largeur réduite demandée */
+            position: absolute; 
+            top: 62%; /* Descendu pour ne pas toucher le titre */
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            width: 400px; /* Taille réduite demandée */
             text-align: center; 
-            z-index: 1000;
+            z-index: 1000; 
         }}
         .winner-card {{ 
-            background: rgba(15, 15, 15, 0.95); 
-            border: 10px solid #FFD700; 
-            border-radius: 50px; 
-            padding: 30px;
-            box-shadow: 0 0 50px #FFD700;
-            animation: glow-gold 1.5s infinite alternate;
+            background: rgba(15, 15, 15, 0.95); border: 10px solid #FFD700; border-radius: 50px; padding: 30px;
+            box-shadow: 0 0 50px #FFD700; animation: glow-gold 1.5s infinite alternate;
         }}
-        @keyframes glow-gold {{ from {{ box-shadow: 0 0 20px #FFD700; }} to {{ box-shadow: 0 0 60px #FFD700, 0 0 20px #FFF; }} }}
-    </style>
-    <div class="social-header"><h1 class="social-title">{cfg['titre_mur']}</h1></div>
-    """, unsafe_allow_html=True)
+        @keyframes glow-gold {{ from {{ box-shadow: 0 0 20px #FFD700; }} to {{ box-shadow: 0 0 70px #FFD700, 0 0 20px #FFF; }} }}
+    </style><div class="social-header"><h1 class="social-title">{cfg['titre_mur']}</h1></div>""", unsafe_allow_html=True)
 
     mode = cfg.get("mode_affichage")
+    
+    # --- FIX : SUPPRESSION DES CONFETTIS SUR L'ACCUEIL ---
     if mode == "attente":
-        st.markdown("<h1 style='text-align:center; color:white; margin-top:40vh; font-size:100px;'>BIENVENUE</h1>", unsafe_allow_html=True)
+        components.html("<script>var l = window.parent.document.getElementById('effect-layer'); if(l) l.remove();</script>", height=0)
+        st.markdown("<h1 style='text-align:center; color:white; margin-top:45vh; font-size:80px;'>BIENVENUE</h1>", unsafe_allow_html=True)
     
     elif mode == "votes" or mode == "photos_live":
         if cfg.get("reveal_resultats"):
@@ -241,21 +213,13 @@ else:
             if sorted_v:
                 winner, pts = sorted_v[0]
                 st.balloons()
-                st.markdown(f"""
-                <div class="winner-box">
-                    <div class="winner-card">
-                        <h1 style="color:#FFD700; font-size:100px; margin:0;">🏆</h1>
-                        <h1 style="color:white; font-size:60px; margin:10px 0;">{winner}</h1>
-                        <h2 style="color:#FFD700; font-size:30px; margin:0;">VAINQUEUR - {pts} POINTS</h2>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(f"""<div class="winner-box"><div class="winner-card"><h1 style="color:#FFD700; font-size:80px; margin:0;">🏆</h1><h1 style="color:white; font-size:55px; margin:10px 0;">{winner}</h1><h2 style="color:#FFD700; font-size:25px; margin:0;">VAINQUEUR - {pts} POINTS</h2></div></div>""", unsafe_allow_html=True)
         else:
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"http://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            st.markdown(f"""<div style="position:fixed; top:55%; left:50%; transform:translate(-50%, -50%); z-index:100; background:white; padding:30px; border-radius:30px; text-align:center; border: 10px solid #E2001A;">
-                <img src="data:image/png;base64,{qr_b64}" width="280"><h2 style="color:black; margin-top:20px; font-size:28px;">SCANNEZ POUR VOTER</h2></div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div style="position:fixed; top:55%; left:50%; transform:translate(-50%, -50%); z-index:1500; background:white; padding:30px; border-radius:30px; text-align:center; border: 10px solid #E2001A;">
+                <img src="data:image/png;base64,{qr_b64}" width="250"><h2 style="color:black; margin-top:20px; font-size:25px;">SCANNEZ POUR VOTER</h2></div>""", unsafe_allow_html=True)
 
         # BULLES 220PX AVEC REBOND
         photos = glob.glob(f"{LIVE_DIR}/*")
