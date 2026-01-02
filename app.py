@@ -1,10 +1,4 @@
-import streamlit as st
-import os, glob, base64, qrcode, json, time, uuid
-from io import BytesIO
-import streamlit.components.v1 as components
-from PIL import Image
 
-# --- CONFIGURATION ---
 st.set_page_config(page_title="Régie IT SQUAD", layout="wide", initial_sidebar_state="collapsed")
 
 LIVE_DIR = "galerie_live_users"
@@ -323,3 +317,4 @@ else:
                     requestAnimationFrame(animate);
                 }} animate();
             </script>""", height=0)
+
