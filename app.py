@@ -64,7 +64,7 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- CALLBACKS ADMIN ---
+# --- CALLBACKS (CRUCIAL POUR LES BOUTONS ADMIN) ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
@@ -153,6 +153,7 @@ if est_admin:
             st.session_state["auth"] = True; st.rerun()
     else:
         cfg = st.session_state.config
+        
         with st.sidebar:
             if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
             st.header("MENU")
@@ -164,6 +165,7 @@ if est_admin:
 
         if menu == "🔴 PILOTAGE LIVE":
             st.subheader("Séquenceur")
+            
             etat = "Inconnu"
             if cfg["mode_affichage"] == "attente": etat = "ACCUEIL"
             elif cfg["mode_affichage"] == "votes":
@@ -281,7 +283,7 @@ elif est_utilisateur:
         else: st.info("⏳ En attente de l'ouverture des votes...")
 
 # =========================================================
-# 3. MUR SOCIAL (CORRECTION AFFICHAGE)
+# 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -358,7 +360,6 @@ else:
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            # CONSTRUCTION HTML PROPRE (CORRECTION DU BUG)
             html_left = ""
             for c in left_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
@@ -373,17 +374,26 @@ else:
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             
-            # IMAGE SÉPARÉE
+            # --- CORRECTION DE L'AFFICHAGE DU CODE BLANC ---
+            # Au lieu de tout mélanger, on construit le HTML du centre proprement
+            logo_html = ""
+            if cfg.get("logo_b64"):
+                logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="qr-logo">'
+                
+            center_html = f"""
+            <div class="qr-center">
+                {logo_html}
+                <div style="background:white; padding:10px; border-radius:15px; border:5px solid #E2001A;">
+                    <img src="data:image/png;base64,{qr_b64}" width="220">
+                </div>
+                <div class="vote-cta">À VOS VOTES !</div>
+            </div>
+            """
+
             st.markdown(f"""
             <div class="list-container">
                 <div class="col-list">{html_left}</div>
-                <div class="qr-center">
-                    {'<img src="data:image/png;base64,' + cfg["logo_b64"] + '" class="qr-logo">' if cfg.get("logo_b64") else ''}
-                    <div style="background:white; padding:10px; border-radius:15px; border:5px solid #E2001A;">
-                        <img src="data:image/png;base64,{qr_b64}" width="220">
-                    </div>
-                    <div class="vote-cta">À VOS VOTES !</div>
-                </div>
+                {center_html}
                 <div class="col-list">{html_right}</div>
             </div>""", unsafe_allow_html=True)
         else:
