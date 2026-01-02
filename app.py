@@ -6,6 +6,7 @@ from PIL import Image
 from datetime import datetime
 import pandas as pd
 import random
+import altair as alt # Nécessaire pour le graphique fixe
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
@@ -249,34 +250,60 @@ if est_admin:
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats & Export")
             
-            # 1. TABLEAU DES TOTAUX
+            # --- CALCUL DES SCORES ---
             votes = load_json(VOTES_FILE, {})
-            # On s'assure que TOUS les candidats sont dans la liste, même ceux à 0
+            # Assurer que tous les candidats sont là
             all_cands = {c: 0 for c in cfg["candidats"]}
             all_cands.update(votes)
-            
             df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points'])
             df_totals = df_totals.sort_values(by='Points', ascending=False)
             
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.bar_chart(df_totals.set_index('Candidat'), color="#E2001A")
-            with col2:
-                st.dataframe(df_totals, use_container_width=True, hide_index=True)
-                st.metric("Total Points", df_totals['Points'].sum())
-
-            st.divider()
+            # --- GRAPHIQUE FIXE (Altair) ---
+            # Le zoom est désactivé par défaut si on n'ajoute pas .interactive()
+            chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
+                x=alt.X('Points', title='Points'),
+                y=alt.Y('Candidat', sort='-x', title='Candidat'),
+                tooltip=['Candidat', 'Points']
+            ).properties(height=400)
             
-            # 2. EXPORT DÉTAILLÉ
-            st.subheader("📑 Rapport Détaillé (Qui a voté Quoi)")
+            st.altair_chart(chart, use_container_width=True)
+            
+            # --- EXPORTS ---
+            col_exp1, col_exp2, col_exp3 = st.columns(3)
+            
+            # 1. CSV
+            csv = df_totals.to_csv(index=False).encode('utf-8')
+            col_exp1.download_button("📥 Export CSV", data=csv, file_name="resultats.csv", mime="text/csv")
+            
+            # 2. EXCEL (Tentative)
+            try:
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df_totals.to_excel(writer, sheet_name='Resultats', index=False)
+                col_exp2.download_button("📊 Export Excel", data=buffer.getvalue(), file_name="resultats.xlsx", mime="application/vnd.ms-excel")
+            except:
+                col_exp2.warning("Excel non dispo")
+
+            # 3. HTML (Pour PDF)
+            html_content = f"""
+            <html><head><style>body{{font-family:Arial;}} table{{width:100%;border-collapse:collapse;}} th,td{{border:1px solid #ddd;padding:8px;text-align:left;}} th{{background-color:#E2001A;color:white;}}</style></head>
+            <body>
+            <h1>Rapport de Votes - {cfg['titre_mur']}</h1>
+            <p>Date : {datetime.now().strftime('%d/%m/%Y %H:%M')}</p>
+            {df_totals.to_html(index=False)}
+            </body></html>
+            """
+            col_exp3.download_button("📄 Rapport Imprimable (Pour PDF)", data=html_content, file_name="rapport_print.html", mime="text/html")
+
+            # DETAIL DES VOTES
+            st.divider()
+            st.subheader("Détail des votes (Audit)")
             detailed_data = load_json(DETAILED_VOTES_FILE, [])
             if detailed_data:
                 df_detail = pd.DataFrame(detailed_data)
-                csv = df_detail.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Télécharger le rapport complet (CSV)", data=csv, file_name="rapport_votes_detaille.csv", mime="text/csv")
                 st.dataframe(df_detail, use_container_width=True)
             else:
-                st.info("Aucun vote détaillé enregistré.")
+                st.info("Aucun détail disponible.")
 
 # =========================================================
 # 2. APPLICATION MOBILE
@@ -287,6 +314,7 @@ elif est_utilisateur:
     
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
+    
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
     if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 
@@ -343,17 +371,24 @@ elif est_utilisateur:
         # --- MODE PHOTO ---
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 ENVOYER UNE PHOTO")
+            
             up_key = f"uploader_{st.session_state.cam_reset_id}"
             cam_key = f"camera_{st.session_state.cam_reset_id}"
+            
             uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
             cam_file = st.camera_input("Prendre une photo", key=cam_key)
+            
             final_file = uploaded_file if uploaded_file else cam_file
+            
             if final_file:
                 fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
-                with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
+                with open(os.path.join(LIVE_DIR, fname), "wb") as f: 
+                    f.write(final_file.getbuffer())
+                
                 st.success("Photo envoyée !")
-                st.session_state.cam_reset_id += 1
-                time.sleep(1); st.rerun()
+                st.session_state.cam_reset_id += 1 # Reset immédiat
+                time.sleep(1)
+                st.rerun()
         
         # --- MODE VOTE ---
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
@@ -361,7 +396,14 @@ elif est_utilisateur:
             
             if not st.session_state.rules_accepted:
                 st.info("⚠️ **RÈGLES DU VOTE**")
-                st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
+                st.markdown("""
+                1. Sélectionnez **3 vidéos** par ordre de préférence.
+                2. 🥇 1er choix = **5 points**
+                3. 🥈 2ème choix = **3 points**
+                4. 🥉 3ème choix = **1 point**
+                
+                **Attention :** Le vote est définitif et unique.
+                """)
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True):
                     st.session_state.rules_accepted = True
                     st.rerun()
@@ -375,7 +417,7 @@ elif est_utilisateur:
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                         save_json(VOTES_FILE, vts)
                         
-                        # 2. Sauvegarde Détail (Export)
+                        # 2. Sauvegarde Détail
                         details = load_json(DETAILED_VOTES_FILE, [])
                         details.append({
                             "Utilisateur": st.session_state.user_pseudo,
@@ -390,7 +432,7 @@ elif est_utilisateur:
                         voters = load_json(VOTERS_FILE, [])
                         voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
                         
-                        # 4. Blocage LocalStorage
+                        # 4. Blocage
                         st.session_state.vote_success = True
                         components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
                         time.sleep(1); st.rerun()
@@ -418,8 +460,8 @@ else:
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         /* CSS POUR PODIUM AVEC EGALITE */
-        .podium-container { display: flex; justify-content: center; gap: 40px; align-items: center; margin-top: 50px; width: 100%; }
-        .winner-card { width: 400px; background: rgba(15,15,15,0.98); border: 8px solid #FFD700; border-radius: 40px; padding: 30px; text-align: center; z-index: 1000; box-shadow: 0 0 50px #FFD700; }
+        .podium-container { display: flex; justify-content: center; gap: 40px; align-items: center; margin-top: 50px; width: 100%; flex-wrap: wrap;}
+        .winner-card { width: 400px; background: rgba(15,15,15,0.98); border: 8px solid #FFD700; border-radius: 40px; padding: 30px; text-align: center; z-index: 1000; box-shadow: 0 0 50px #FFD700; margin-bottom: 20px; }
         .suspense-grid { display: flex; justify-content: center; gap: 30px; margin-top: 30px; }
         .suspense-item { text-align: center; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
@@ -444,13 +486,10 @@ else:
         if cfg.get("reveal_resultats"):
             elapsed = time.time() - cfg.get("timestamp_podium", 0)
             v_data = load_json(VOTES_FILE, {})
-            # CALCUL DES GAGNANTS (EGALITE)
             if not v_data: v_data = {"Personne": 0}
             max_score = max(v_data.values()) if v_data else 0
             winners = [k for k, v in v_data.items() if v == max_score]
-            
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
-            
             if elapsed < 10.0:
                 remaining = 10 - int(elapsed)
                 top3 = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
@@ -463,14 +502,12 @@ else:
                 st.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
             else:
-                # AFFICHAGE DES GAGNANTS (BOUCLE)
                 cards_html = ""
                 for winner in winners:
                     img = ""
                     if winner in cfg.get("candidats_images", {}): 
                         img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
                     cards_html += f"<div class='winner-card'><div style='font-size:60px;'>🏆</div>{img}<h1 style='color:white; font-size:40px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:30px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:20px;'>{max_score} points</h3></div>"
-                
                 st.markdown(f"<div class='full-screen-center'>{logo_html}<div class='podium-container'>{cards_html}</div></div>", unsafe_allow_html=True)
 
         elif cfg.get("session_ouverte"):
