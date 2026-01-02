@@ -20,7 +20,7 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
-# --- CONFIG PAR DÉFAUT (SANS COTILLONS) ---
+# --- CONFIG PAR DÉFAUT ---
 default_config = {
     "mode_affichage": "attente", 
     "titre_mur": "CONCOURS VIDÉO 2026", 
@@ -89,7 +89,7 @@ def process_image(uploaded_file):
     except: return None
 
 def inject_visual_effect(effect_name, intensity, speed):
-    if effect_name == "Aucun" or effect_name == "🎉 Confettis": # Confettis désactivés
+    if effect_name == "Aucun" or effect_name == "🎉 Confettis":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
         return
     
@@ -289,14 +289,16 @@ else:
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         
-        .marquee-container { position: absolute; top: 13vh; width: 100%; height: 60px; overflow: hidden; white-space: nowrap; display: flex; align-items: center; background: rgba(255,255,255,0.05); border-bottom: 1px solid #333; z-index: 100; }
-        .marquee-content { display: inline-block; animation: marquee 25s linear infinite; }
-        .user-tag { display: inline-block; color: #FFF; font-size: 20px; font-weight: bold; margin-right: 40px; background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px; }
-        @keyframes marquee { 0% { transform: translate(100%, 0); } 100% { transform: translate(-100%, 0); } }
-        
         .vote-cta { text-align: center; color: #E2001A; font-size: 30px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
+        /* STYLE LISTE VOTANTS FIXE (AU CENTRE) */
+        .voters-fixed {
+            display: flex; flex-wrap: wrap; justify-content: center; align-items: center; 
+            margin-bottom: 20px; gap: 8px; max-height: 150px; overflow: hidden;
+        }
+        .user-tag { background: rgba(255,255,255,0.2); color: #FFF; padding: 5px 12px; border-radius: 20px; font-size: 16px; font-weight: bold; border: 1px solid #E2001A; }
+
         .cand-row { display: flex; align-items: center; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 20px; border-radius: 50px; width: 100%; height: 70px; }
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; }
         .cand-name { color: white; font-size: 22px; font-weight: 600; margin: 0 15px; white-space: nowrap; }
@@ -304,8 +306,6 @@ else:
         .row-right { flex-direction: row; justify-content: flex-start; text-align: left; }
         
         .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 80px #FFD700; }
-        .suspense-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 30px; z-index: 1000; }
-        .suspense-card { width: 250px; height: 300px; background: rgba(255,255,255,0.05); border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 20px; animation: pulse 1s infinite; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -314,11 +314,6 @@ else:
     mode = cfg.get("mode_affichage")
     inject_visual_effect(cfg["screen_effects"].get("attente" if mode=="attente" else "podium", "Aucun"), 25, 15)
 
-    if mode == "votes":
-        parts = load_json(PARTICIPANTS_FILE, [])
-        tags = "".join([f"<span class='user-tag'>{p}</span>" for p in parts])
-        st.markdown(f'<div class="marquee-container"><div class="marquee-content">{tags}</div></div>', unsafe_allow_html=True)
-
     if mode == "attente":
         st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;'><h1 style='color:white; font-size:100px;'>BIENVENUE</h1><h2 style='color:#AAA; font-size:40px;'>L'événement va commencer...</h2></div>", unsafe_allow_html=True)
 
@@ -326,24 +321,12 @@ else:
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)
-            elapsed = time.time() - cfg.get("timestamp_podium", 0)
             
-            if elapsed < 6.0:
-                top3 = sorted_v[:3]
-                suspense_html = ""
-                for name, score in top3:
-                    img = ""
-                    if name in cfg.get("candidats_images", {}): img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; margin-bottom:30px; border:4px solid white;">'
-                    suspense_html += f'<div class="suspense-card">{img}<h2 style="color:white; font-size:30px;">{name}</h2></div>'
-                st.markdown(f'<div class="suspense-container">{suspense_html}</div>', unsafe_allow_html=True)
-                st.markdown("<h1 style='position:fixed; bottom:10%; width:100%; text-align:center; color:#E2001A; font-size:60px; font-weight:bold;'>LE VAINQUEUR EST...</h1>", unsafe_allow_html=True)
-                time.sleep(1); st.rerun()
-            else:
-                if sorted_v:
-                    winner, pts = sorted_v[0]
-                    img = ""
-                    if winner in cfg.get("candidats_images", {}): img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:180px; height:180px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:30px;">'
-                    st.markdown(f"""<div class="winner-card"><div style="font-size:100px;">🏆</div>{img}<h1 style="color:white; font-size:60px; margin:10px 0;">{winner}</h1><h2 style="color:#FFD700; font-size:40px;">VAINQUEUR</h2><h3 style="color:#CCC; font-size:25px;">Avec {pts} points</h3></div>""", unsafe_allow_html=True)
+            if sorted_v:
+                winner, pts = sorted_v[0]
+                img = ""
+                if winner in cfg.get("candidats_images", {}): img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:180px; height:180px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:30px;">'
+                st.markdown(f"""<div class="winner-card"><div style="font-size:100px;">🏆</div>{img}<h1 style="color:white; font-size:60px; margin:10px 0;">{winner}</h1><h2 style="color:#FFD700; font-size:40px;">VAINQUEUR</h2><h3 style="color:#CCC; font-size:25px;">Avec {pts} points</h3></div>""", unsafe_allow_html=True)
 
         elif cfg.get("session_ouverte"):
             cands = cfg.get("candidats", [])
@@ -351,10 +334,7 @@ else:
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            # --- STRUCTURE EN COLONNES (POUR EVITER L'ERREUR D'AFFICHAGE DU CODE) ---
-            # Le problème venait du mélange HTML string + Base64.
-            # En utilisant st.columns et st.image, on règle ça.
-            
+            # --- COLONNES ---
             c_left, c_center, c_right = st.columns([1, 1, 1])
             
             with c_left:
@@ -364,14 +344,21 @@ else:
                     st.markdown(f"<div class='cand-row row-left'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             
             with c_center:
-                # Affichage natif des images pour éviter le bug de string HTML
-                st.markdown("<div style='height:20vh'></div>", unsafe_allow_html=True) # Spacer
+                # LISTE DES VOTANTS (FIXE)
+                parts = load_json(PARTICIPANTS_FILE, [])
+                if parts:
+                    # On affiche les 20 derniers pour ne pas saturer
+                    tags_html = "".join([f"<div class='user-tag'>{p}</div>" for p in parts[-20:]])
+                    st.markdown(f"<div class='voters-fixed'>{tags_html}</div>", unsafe_allow_html=True)
+                else:
+                    st.markdown("<div style='height:50px'></div>", unsafe_allow_html=True)
+
                 if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
                 
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
                 st.image(qr_buf, width=250)
-                st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
+                st.markdown("<div class='vote-cta'>À VOS VOTES !</div></div>", unsafe_allow_html=True)
 
             with c_right:
                 st.markdown("<br><br><br>", unsafe_allow_html=True)
