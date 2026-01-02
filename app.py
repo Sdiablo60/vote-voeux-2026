@@ -125,6 +125,7 @@ def inject_visual_effect(effect_name, intensity, speed):
     """
     if effect_name == "🎈 Ballons": js_code += f"if(!window.balloonInterval) window.balloonInterval = setInterval(createBalloon, {interval});"
     elif effect_name == "❄️ Neige": js_code += f"if(!window.snowInterval) window.snowInterval = setInterval(createSnow, {interval});"
+    
     js_code += "</script>"
     components.html(js_code, height=0)
 
@@ -225,7 +226,7 @@ elif est_utilisateur:
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
 
-    # --- SÉCURITÉ ---
+    # --- SÉCURITÉ (Sauf mode photo) ---
     if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
@@ -265,7 +266,7 @@ elif est_utilisateur:
     else:
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 ENVOYER UNE PHOTO")
-            st.write("Si la caméra ne s'ouvre pas, utilisez le bouton 'Parcourir' ci-dessous pour choisir une photo de votre galerie.")
+            st.write("Si la caméra ne s'ouvre pas, utilisez le bouton 'Importer' ci-dessous.")
             
             uploaded_file = st.file_uploader("Importer depuis la galerie", type=['png', 'jpg', 'jpeg'])
             cam_file = st.camera_input("Prendre une photo")
@@ -307,22 +308,36 @@ else:
     
     st.markdown("""
     <style>
-        body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden; }
+        body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
         [data-testid='stHeader'] { display: none; }
+        
+        /* BANDEAU FIXE HAUT */
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         
-        .vote-cta { text-align: center; color: #E2001A; font-size: 30px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
+        /* TEXTE VOTE */
+        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
         
+        /* TAGS VOTANTS */
         .voters-fixed-container { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; width: 100%; min-height: 40px; }
         .user-tag { background: rgba(255,255,255,0.15); color: #FFF; padding: 5px 15px; border-radius: 20px; font-size: 18px; font-weight: bold; border: 1px solid #E2001A; white-space: nowrap; }
 
-        .cand-row { display: flex; align-items: center; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 320px; height: 70px; margin: 0 auto 10px auto; }
+        /* LISTE CANDIDATS */
+        .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         
-        .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 80px #FFD700; }
+        /* CARTES PODIUM */
+        .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 600px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 100px #FFD700; }
+        
+        /* SUSPENSE PODIUM */
+        .suspense-grid { display: flex; justify-content: center; gap: 30px; margin-top: 30px; }
+        .suspense-item { text-align: center; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; }
+        
+        /* LOGO CENTER (CLASS) */
+        .logo-center { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 10px; }
+        .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -331,34 +346,73 @@ else:
     mode = cfg.get("mode_affichage")
     inject_visual_effect(cfg["screen_effects"].get("attente" if mode=="attente" else "podium", "Aucun"), 25, 15)
 
-    # --- BANDEAU VOTANTS ---
+    # --- BANDEAU VOTANTS (Seulement Vote On) ---
     parts = load_json(PARTICIPANTS_FILE, [])
     if parts and mode == "votes" and not cfg.get("reveal_resultats") and cfg.get("session_ouverte"):
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-10:]])
         st.markdown(f'<div style="position:fixed; top:13vh; width:100%; text-align:center; z-index:100;">{tags_html}</div>', unsafe_allow_html=True)
 
     if mode == "attente":
-        # ACCUEIL : LOGO XXL + TEXTE
-        st.markdown("<div style='display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; padding-top:100px;'>", unsafe_allow_html=True)
-        if cfg.get("logo_b64"): 
-            st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=450)
-        st.markdown("<h1 style='color:white; font-size:100px; margin-top:20px;'>BIENVENUE</h1>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
+        # LOGO XXL + BIENVENUE CENTRÉ
+        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:400px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
+        st.markdown(f"""
+        <div class="full-screen-center">
+            {logo_html}
+            <h1 style='color:white; font-size:100px; margin:0;'>BIENVENUE</h1>
+        </div>
+        """, unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            if cfg.get("logo_b64"): 
-                st.markdown("<div style='position:fixed; top:15vh; left:50%; transform:translate(-50%,0); text-align:center;'>", unsafe_allow_html=True)
-                st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=150)
-                st.markdown("</div>", unsafe_allow_html=True)
-            
+            # PODIUM LOGIQUE
+            elapsed = time.time() - cfg.get("timestamp_podium", 0)
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)
-            if sorted_v:
-                winner, pts = sorted_v[0]
-                img = ""
-                if winner in cfg.get("candidats_images", {}): img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:180px; height:180px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:30px;">'
-                st.markdown(f"""<div class="winner-card"><div style="font-size:100px;">🏆</div>{img}<h1 style="color:white; font-size:60px; margin:10px 0;">{winner}</h1><h2 style="color:#FFD700; font-size:40px;">VAINQUEUR</h2><h3 style="color:#CCC; font-size:25px;">Avec {pts} points</h3></div>""", unsafe_allow_html=True)
+            
+            # Logo toujours présent (taille accueil)
+            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
+            
+            if elapsed < 10.0:
+                # COMPTE A REBOURS + TOP 3
+                remaining = 10 - int(elapsed)
+                top3 = sorted_v[:3]
+                
+                suspense_html = ""
+                for name, score in top3:
+                    img = ""
+                    if name in cfg.get("candidats_images", {}): 
+                        img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
+                    suspense_html += f'<div class="suspense-item">{img}<h3 style="color:white; margin:0;">{name}</h3></div>'
+                
+                st.markdown(f"""
+                <div class="full-screen-center">
+                    {logo_html}
+                    <h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1>
+                    <div class="suspense-grid">{suspense_html}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                time.sleep(1); st.rerun()
+                
+            else:
+                # VAINQUEUR
+                if sorted_v:
+                    winner, pts = sorted_v[0]
+                    img = ""
+                    if winner in cfg.get("candidats_images", {}): 
+                        img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:200px; height:200px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
+                    
+                    st.markdown(f"""
+                    <div class="full-screen-center">
+                        {logo_html}
+                        <div class="winner-card" style="position:relative; transform:none; top:auto; left:auto;">
+                            <div style="font-size:80px;">🏆</div>
+                            {img}
+                            <h1 style="color:white; font-size:60px; margin:10px 0;">{winner}</h1>
+                            <h2 style="color:#FFD700; font-size:40px;">VAINQUEUR</h2>
+                            <h3 style="color:#CCC; font-size:25px;">Avec {pts} points</h3>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
         elif cfg.get("session_ouverte"):
             cands = cfg.get("candidats", [])
@@ -375,22 +429,23 @@ else:
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             
             with c_center:
-                # LOGO XXL -> QR (NU) -> TEXTE
-                st.markdown("<div style='height:15vh'></div>", unsafe_allow_html=True)
+                # REMONTER LE LOGO
+                st.markdown("<div style='height:5vh'></div>", unsafe_allow_html=True)
                 
-                # 1. LOGO XXL
+                # 1. LOGO XXL (Comme Accueil)
                 if cfg.get("logo_b64"): 
-                    st.markdown("<div style='text-align:center; margin-bottom:20px;'>", unsafe_allow_html=True)
-                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=400)
-                    st.markdown("</div>", unsafe_allow_html=True)
+                    st.markdown(f'<div class="logo-center"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px;"></div>', unsafe_allow_html=True)
 
-                # 2. QR CODE (SANS CADRE BLANC, JUSTE L'IMAGE)
+                # 2. QR CODE NU (Pas de cadre, sous le logo)
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+                qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
                 
-                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-                st.image(qr_buf, width=300)
-                st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown(f"""
+                <div style='text-align:center; margin-top:10px;'>
+                    <img src="data:image/png;base64,{qr_b64}" style="width:280px; border-radius:10px;">
+                </div>
+                """, unsafe_allow_html=True)
                 
                 # 3. TEXTE (EN DESSOUS)
                 st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
@@ -402,11 +457,16 @@ else:
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
 
         else:
-            if cfg.get("logo_b64"): 
-                st.markdown("<div style='position:fixed; top:20vh; left:50%; transform:translate(-50%,0); text-align:center;'>", unsafe_allow_html=True)
-                st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=300)
-                st.markdown("</div>", unsafe_allow_html=True)
-            st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; border: 5px solid #E2001A; padding: 60px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div>", unsafe_allow_html=True)
+            # VOTE OFF
+            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
+            st.markdown(f"""
+            <div class="full-screen-center">
+                {logo_html}
+                <div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'>
+                    <h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
@@ -414,10 +474,9 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         
-        # CENTRE : LOGO XXL + QR PETIT
         center_html = f"""
         <div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">' if logo_data else ''}
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:200px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">' if logo_data else ''}
             <div style="background:white; padding:10px; border-radius:10px; display:inline-block;">
                 <img src="data:image/png;base64,{qr_b64}" style="width:150px;">
             </div>
