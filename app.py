@@ -30,7 +30,7 @@ for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
 # --- AVATAR ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
@@ -76,7 +76,7 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- PDF ---
+# --- GÉNÉRATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -299,7 +299,6 @@ if est_admin:
                             st.success("Image OK")
                             time.sleep(0.5); st.rerun()
                         if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
-                
                 if candidates_to_remove:
                     for c in candidates_to_remove:
                         cfg['candidats'].remove(c)
@@ -343,7 +342,7 @@ if est_admin:
                         ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
                         new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
                         zf.write(file_path, arcname=new_name)
-                c3.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live_{int(time.time())}.zip", mime="application/zip", type="primary")
+                c3.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos.zip", mime="application/zip", type="primary")
 
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats & Export")
@@ -579,18 +578,17 @@ else:
                 
                 imgs.forEach((src, i) => {{
                     const el = doc.createElement('img'); el.src = src;
-                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover; transform:translate3d(-1000px,0,0);';
+                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover; will-change:transform;';
                     
                     let startX = Math.random() * (window.innerWidth - bSize);
-                    let startY = window.innerHeight - 200 - (Math.random() * 300);
-                    if(startY < 300) startY = 600;
+                    let startY = window.innerHeight + 100; // SPAWN BELOW SCREEN
 
                     let b = {{
                         el: el,
                         x: startX,
                         y: startY,
-                        vx: (Math.random() - 0.5) * 2, // VITESSE LATERALE REDUITE
-                        vy: - (2 + Math.random() * 3), // MONTE DOUCEMENT
+                        vx: (Math.random() - 0.5) * 2, 
+                        vy: - (2 + Math.random() * 2), // CONSTANT UP
                         size: bSize
                     }};
                     container.appendChild(el); 
@@ -598,21 +596,25 @@ else:
                 }});
                 
                 function animate() {{
-                    var centerBox = doc.getElementById('center-box');
-                    var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
-                    
                     bubbles.forEach(b => {{
                         b.x += b.vx; 
                         b.y += b.vy;
                         
+                        // Bounce Walls
                         if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
-                        if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
                         
-                        if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
-                            b.vx *= -1; b.vy *= -1;
+                        // Reset if goes too high
+                        if(b.y < -300) {{
+                            b.y = window.innerHeight + 100;
+                            b.x = Math.random() * (window.innerWidth - b.size);
                         }}
+
+                        // NO CENTER COLLISION -> FREE FLOAT
                         
-                        if(b.y < 50) b.vy = Math.abs(b.vy) + 1; 
+                        // Title Repulsion (Soft)
+                        if(b.y < 150) {{
+                             b.vy += 0.1; // Gravity pushes down
+                        }}
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
                     }});
