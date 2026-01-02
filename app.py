@@ -212,7 +212,6 @@ if est_admin:
         elif menu == "📸 MÉDIATHÈQUE":
             st.subheader("Gestion des Photos Live")
             
-            # --- BOUTON DE SUPPRESSION TOTALE ---
             if st.button("🗑️ TOUT SUPPRIMER D'UN COUP", type="primary"):
                 files = glob.glob(f"{LIVE_DIR}/*")
                 for f in files: os.remove(f)
@@ -222,7 +221,6 @@ if est_admin:
             
             st.divider()
 
-            # Récupérer les fichiers
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
             
             if not files:
@@ -281,10 +279,12 @@ elif est_utilisateur:
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     
-    # COMPTEUR POUR RESET CAMÉRA
+    if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
+    
+    # ID Dynamique pour forcer le reset des composants caméra
     if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
 
-    # --- SÉCURITÉ (Sauf mode photo) ---
+    # --- SÉCURITÉ ---
     if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
@@ -341,7 +341,7 @@ elif est_utilisateur:
                     f.write(final_file.getbuffer())
                 
                 st.success("Photo envoyée !")
-                # ON INCREMENTE POUR RESET LE WIDGET
+                # ON INCREMENTE POUR RESET LE WIDGET AU RECHARGEMENT
                 st.session_state.cam_reset_id += 1
                 time.sleep(1)
                 st.rerun()
@@ -349,20 +349,34 @@ elif est_utilisateur:
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             
-            # RAPPEL REGLES
-            st.info("1er = 5 pts | 2ème = 3 pts | 3ème = 1 pt. (Vote unique)")
-            
-            choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
-            if len(choix) == 3:
-                if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    vts = load_json(VOTES_FILE, {})
-                    pts = cfg.get("points_ponderation", [5, 3, 1])
-                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-                    save_json(VOTES_FILE, vts)
-                    voters = load_json(VOTERS_FILE, [])
-                    voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
-                    st.session_state.vote_success = True
+            if not st.session_state.rules_accepted:
+                st.info("⚠️ **RÈGLES DU VOTE**")
+                st.markdown("""
+                1. Sélectionnez **3 vidéos** par ordre de préférence.
+                2. 🥇 1er choix = **5 points**
+                3. 🥈 2ème choix = **3 points**
+                4. 🥉 3ème choix = **1 point**
+                
+                **Attention :** Le vote est définitif et unique.
+                """)
+                if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True):
+                    st.session_state.rules_accepted = True
                     st.rerun()
+            else:
+                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+                if len(choix) == 3:
+                    if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
+                        vts = load_json(VOTES_FILE, {})
+                        pts = cfg.get("points_ponderation", [5, 3, 1])
+                        for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
+                        save_json(VOTES_FILE, vts)
+                        voters = load_json(VOTERS_FILE, [])
+                        voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
+                        
+                        st.session_state.vote_success = True
+                        components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
+                        time.sleep(1)
+                        st.rerun()
         else: st.info("⏳ En attente...")
 
 # =========================================================
@@ -471,29 +485,35 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:200px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Partagez vos sourires et vos moments forts !</h2></div>"
+        center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Partagez vos sourires et vos moments forts !</h2></div>"
         st.markdown(center_html, unsafe_allow_html=True)
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        # CORRECTION ANIMATION BULLES (Vitesse et Position)
         components.html(f"""<script>
             var doc = window.parent.document;
-            var container = doc.getElementById('bubble-wall') || doc.createElement('div');
+            var old = doc.getElementById('bubble-wall');
+            if(old) old.remove();
+            
+            var container = doc.createElement('div');
             container.id = 'bubble-wall'; 
             container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
-            if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
+            doc.body.appendChild(container);
+            
             const imgs = {img_js}; const bubbles = []; const bSize = 250;
             imgs.forEach((src, i) => {{
-                if(doc.getElementById('bub-'+i)) return;
-                const el = doc.createElement('img'); el.id = 'bub-'+i; el.src = src;
+                const el = doc.createElement('img'); el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
+                
                 let x = Math.random() * (window.innerWidth - bSize); 
                 let y = Math.random() * (window.innerHeight - bSize);
-                let vx = (Math.random()-0.5)*4; 
-                let vy = (Math.random()-0.5)*4;
-                if(Math.abs(vx) < 0.5) vx = 1; if(Math.abs(vy) < 0.5) vy = 1;
+                let vx = (Math.random()-0.5)*8; // VITESSE AUGMENTÉE
+                let vy = (Math.random()-0.5)*8;
+                
                 container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
             }});
+            
             function animate() {{
                 var centerBox = doc.getElementById('center-box');
                 var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
@@ -501,6 +521,8 @@ else:
                     b.x += b.vx; b.y += b.vy;
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                    
+                    // REBOND SUR BLOC CENTRAL
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
