@@ -64,7 +64,7 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- CALLBACKS (CRUCIAL POUR LES BOUTONS ADMIN) ---
+# --- CALLBACKS ADMIN ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
@@ -141,7 +141,7 @@ if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
 # =========================================================
-# 1. CONSOLE ADMIN
+# 1. CONSOLE ADMIN (VERSION STABLE ET STANDARD)
 # =========================================================
 if est_admin:
     st.title("🎛️ CONSOLE RÉGIE")
@@ -153,7 +153,6 @@ if est_admin:
             st.session_state["auth"] = True; st.rerun()
     else:
         cfg = st.session_state.config
-        
         with st.sidebar:
             if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
             st.header("MENU")
@@ -165,7 +164,6 @@ if est_admin:
 
         if menu == "🔴 PILOTAGE LIVE":
             st.subheader("Séquenceur")
-            
             etat = "Inconnu"
             if cfg["mode_affichage"] == "attente": etat = "ACCUEIL"
             elif cfg["mode_affichage"] == "votes":
@@ -206,8 +204,7 @@ if est_admin:
 
         elif menu == "📸 MÉDIATHÈQUE":
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
-            if st.button("Tout supprimer"):
-                for f in files: os.remove(f); st.rerun()
+            if st.button("Tout supprimer"): for f in files: os.remove(f); st.rerun()
             cols = st.columns(4)
             for i, f in enumerate(files):
                 with cols[i%4]:
@@ -218,7 +215,7 @@ if est_admin:
             st.json(load_json(VOTES_FILE, {}))
 
 # =========================================================
-# 2. APPLICATION MOBILE
+# 2. APPLICATION MOBILE (SÉCURISÉE)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
@@ -233,9 +230,7 @@ elif est_utilisateur:
         if(lS !== sS) {{ 
             localStorage.removeItem('VOTE_DONE_SECURE'); 
             localStorage.setItem('VOTE_SID_SECURE', sS); 
-            if(window.parent.location.href.includes('blocked=true')) {{
-                window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
-            }}
+            if(window.parent.location.href.includes('blocked=true')) window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
         }}
         if(localStorage.getItem('VOTE_DONE_SECURE') && !window.parent.location.href.includes('blocked=true')) {{
             window.parent.location.href = window.parent.location.href + '&blocked=true';
@@ -280,10 +275,10 @@ elif est_utilisateur:
                     st.session_state.vote_just_done = True
                     components.html("""<script>localStorage.setItem('VOTE_DONE_SECURE', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
                     st.rerun()
-        else: st.info("⏳ En attente de l'ouverture des votes...")
+        else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (CORRIGÉ ET FIABLE)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -302,15 +297,13 @@ else:
         @keyframes marquee { 0% { transform: translate(100%, 0); } 100% { transform: translate(-100%, 0); } }
         .vote-cta { text-align: center; color: #E2001A; font-size: 30px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .list-container { position: absolute; top: 22vh; left: 20px; right: 20px; display: flex; justify-content: center; align-items: flex-start; gap: 40px; }
-        .col-list { width: 35%; display: flex; flex-direction: column; }
+        .list-container { position: absolute; top: 22vh; width: 100%; display: flex; justify-content: center; gap: 40px; }
+        .col-list { width: 30%; display: flex; flex-direction: column; }
         .cand-row { display: flex; align-items: center; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 20px; border-radius: 50px; width: 100%; height: 70px; }
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; }
         .cand-name { color: white; font-size: 22px; font-weight: 600; margin: 0 15px; white-space: nowrap; }
         .row-left { flex-direction: row; justify-content: flex-end; text-align: right; }
         .row-right { flex-direction: row; justify-content: flex-start; text-align: left; }
-        .qr-center { display:flex; flex-direction:column; align-items:center; justify-content:center; }
-        .qr-logo { width: 220px; margin-bottom: 10px; object-fit: contain; }
         .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 80px #FFD700; }
         .suspense-container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; gap: 30px; z-index: 1000; }
         .suspense-card { width: 250px; height: 300px; background: rgba(255,255,255,0.05); border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 20px; animation: pulse 1s infinite; }
@@ -341,8 +334,8 @@ else:
                 suspense_html = ""
                 for name, score in top3:
                     img = ""
-                    if name in cfg.get("candidats_images", {}): img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; margin-bottom:30px; border:4px solid white;">'
-                    suspense_html += f'<div class="suspense-card">{img}<h2 style="color:white; font-size:30px;">{name}</h2></div>'
+                    if name in cfg.get("candidats_images", {}): img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:20px;">'
+                    suspense_html += f'<div class="suspense-card">{img}<h2 style="color:white">{name}</h2></div>'
                 st.markdown(f'<div class="suspense-container">{suspense_html}</div>', unsafe_allow_html=True)
                 st.markdown("<h1 style='position:fixed; bottom:10%; width:100%; text-align:center; color:#E2001A; font-size:60px; font-weight:bold;'>LE VAINQUEUR EST...</h1>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
@@ -350,7 +343,7 @@ else:
                 if sorted_v:
                     winner, pts = sorted_v[0]
                     img = ""
-                    if winner in cfg.get("candidats_images", {}): img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:180px; height:180px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:30px;">'
+                    if winner in cfg.get("candidats_images", {}): img = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
                     st.markdown(f"""<div class="winner-card"><div style="font-size:100px;">🏆</div>{img}<h1 style="color:white; font-size:60px; margin:10px 0;">{winner}</h1><h2 style="color:#FFD700; font-size:40px;">VAINQUEUR</h2><h3 style="color:#CCC; font-size:25px;">Avec {pts} points</h3></div>""", unsafe_allow_html=True)
                     inject_visual_effect("🎉 Confettis", 50, 20)
 
@@ -360,42 +353,32 @@ else:
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            html_left = ""
-            for c in left_list:
-                img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                html_left += f"<div class='cand-row row-left'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+            # UTILISATION DE COLONNES POUR EVITER LE BUG DE RENDU HTML
+            c_left, c_center, c_right = st.columns([1, 1, 1])
             
-            html_right = ""
-            for c in right_list:
-                img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
-                html_right += f"<div class='cand-row row-right'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+            with c_left:
+                st.markdown("<br><br><br>", unsafe_allow_html=True)
+                for c in left_list:
+                    img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
+                    st.markdown(f"<div class='cand-row row-left'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             
-            host = st.context.headers.get('host', 'localhost')
-            qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-            qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            
-            # --- CORRECTION DE L'AFFICHAGE DU CODE BLANC ---
-            # Au lieu de tout mélanger, on construit le HTML du centre proprement
-            logo_html = ""
-            if cfg.get("logo_b64"):
-                logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="qr-logo">'
+            with c_center:
+                # Affichage propre du centre sans concaténation dangereuse
+                st.markdown("<div style='display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top:20px;'>", unsafe_allow_html=True)
+                if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
                 
-            center_html = f"""
-            <div class="qr-center">
-                {logo_html}
-                <div style="background:white; padding:10px; border-radius:15px; border:5px solid #E2001A;">
-                    <img src="data:image/png;base64,{qr_b64}" width="220">
-                </div>
-                <div class="vote-cta">À VOS VOTES !</div>
-            </div>
-            """
+                host = st.context.headers.get('host', 'localhost')
+                qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+                st.image(qr_buf, width=250)
+                
+                st.markdown("<div class='vote-cta'>À VOS VOTES !</div></div>", unsafe_allow_html=True)
 
-            st.markdown(f"""
-            <div class="list-container">
-                <div class="col-list">{html_left}</div>
-                {center_html}
-                <div class="col-list">{html_right}</div>
-            </div>""", unsafe_allow_html=True)
+            with c_right:
+                st.markdown("<br><br><br>", unsafe_allow_html=True)
+                for c in right_list:
+                    img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
+                    st.markdown(f"<div class='cand-row row-right'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
+
         else:
             st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; border: 5px solid #E2001A; padding: 60px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div>", unsafe_allow_html=True)
 
