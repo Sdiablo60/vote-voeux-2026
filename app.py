@@ -1,38 +1,4 @@
 
-st.set_page_config(page_title="Régie IT SQUAD", layout="wide", initial_sidebar_state="collapsed")
-
-LIVE_DIR = "galerie_live_users"
-VOTES_FILE = "votes.json"
-CONFIG_FILE = "config_mur.json"
-VOTERS_FILE = "voters.json" # Pour l'anti-fraude serveur
-
-for d in [LIVE_DIR]:
-    if not os.path.exists(d): os.makedirs(d)
-
-def load_json(file, default):
-    if os.path.exists(file):
-        try:
-            with open(file, "r", encoding='utf-8') as f: return json.load(f)
-        except: return default
-    return default
-
-def save_json(file, data):
-    with open(file, "w", encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
-
-def process_image(uploaded_file):
-    try:
-        img = Image.open(uploaded_file)
-        img.thumbnail((300, 300))
-        buf = BytesIO()
-        img.save(buf, format="PNG")
-        return base64.b64encode(buf.getvalue()).decode()
-    except: return None
-
-# --- INIT CONFIG ---
-if "config" not in st.session_state: 
-    st.session_state.config = load_json(CONFIG_FILE, {
-        "mode_affichage": "attente", 
         "titre_mur": "CONCOURS VIDÉO 2026", 
         "session_ouverte": False, 
         "reveal_resultats": False,
@@ -317,4 +283,5 @@ else:
                     requestAnimationFrame(animate);
                 }} animate();
             </script>""", height=0)
+
 
