@@ -6,14 +6,7 @@ from PIL import Image
 from datetime import datetime
 import pandas as pd
 
-# --- GESTION DES LIBRAIRIES OPTIONNELLES ---
-try:
-    import altair as alt
-    HAS_ALTAIR = True
-except ImportError:
-    HAS_ALTAIR = False
-
-# --- CONFIGURATION (SIDEBAR ÉTENDUE PAR DÉFAUT) ---
+# --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
 # Dossiers & Fichiers
@@ -44,39 +37,42 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILITAIRES (NETTOYAGE PROFOND) ---
-def load_json(file, default):
-    if os.path.exists(file):
-        try:
-            with open(file, "r", encoding='utf-8') as f:
-                content = f.read()
-                if not content: return default
-                return json.loads(content)
-        except: return default
-    return default
-
-def clean_data_for_json(data):
-    """Convertit récursivement tout ce qui n'est pas standard en string pour éviter le TypeError"""
+# --- FONCTIONS UTILITAIRES (BLINDÉES) ---
+def clean_for_json(data):
+    """Nettoie récursivement les données pour qu'elles soient compatibles JSON"""
     if isinstance(data, dict):
-        return {k: clean_data_for_json(v) for k, v in data.items()}
+        return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list):
-        return [clean_data_for_json(v) for v in data]
+        return [clean_for_json(v) for v in data]
     elif isinstance(data, (str, int, float, bool, type(None))):
         return data
     else:
         return str(data)
 
+def load_json(file, default):
+    if os.path.exists(file):
+        try:
+            with open(file, "r", encoding='utf-8') as f:
+                content = f.read().strip()
+                if not content: return default
+                return json.loads(content)
+        except: 
+            return default
+    return default
+
 def save_json(file, data):
     try:
-        # ÉTAPE CLÉ : On nettoie les données avant de les écrire
-        safe_data = clean_data_for_json(data)
+        # On nettoie d'abord pour être sûr qu'il n'y a pas d'objets Streamlit
+        safe_data = clean_for_json(data)
         with open(str(file), "w", encoding='utf-8') as f:
             json.dump(safe_data, f, ensure_ascii=False, indent=4)
+        return True
     except Exception as e:
-        print(f"ERREUR CRITIQUE SAUVEGARDE {file}: {e}")
+        print(f"ERREUR SAVE: {e}")
+        return False
 
 def save_config():
-    # On force la conversion de la config session_state en dictionnaire propre
+    # On met à jour la config en session puis on sauvegarde
     save_json(CONFIG_FILE, st.session_state.config)
 
 def process_image(uploaded_file):
@@ -134,7 +130,14 @@ def inject_visual_effect(effect_name, intensity, speed):
     components.html(js_code, height=0)
 
 # --- INIT SESSION ---
-if "config" not in st.session_state: st.session_state.config = load_json(CONFIG_FILE, default_config)
+# On charge d'abord le fichier s'il existe pour être synchro
+loaded_conf = load_json(CONFIG_FILE, default_config)
+if "config" not in st.session_state: 
+    st.session_state.config = loaded_conf
+else:
+    # Si on est admin, on garde notre session, sinon on suit le fichier
+    if st.query_params.get("admin") != "true":
+        st.session_state.config = loaded_conf
 
 # --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
@@ -156,7 +159,7 @@ if est_admin:
             position: fixed; top: 0; left: 0; width: 100%; height: 60px;
             background-color: #1E1E1E; z-index: 99999;
             display: flex; align-items: center; justify-content: center;
-            border-bottom: 3px solid #E2001A; transition: none !important;
+            border-bottom: 3px solid #E2001A;
             box-shadow: 0 4px 6px rgba(0,0,0,0.3); pointer-events: none;
         }}
         .header-content {{ pointer-events: auto; display: flex; align-items: center; width: 100%; justify-content: center; }}
@@ -191,28 +194,38 @@ if est_admin:
 
         if menu == "🔴 PILOTAGE LIVE":
             st.subheader("Séquenceur")
-            mode, open, reveal = cfg["mode_affichage"], cfg["session_ouverte"], cfg["reveal_resultats"]
             
+            mode = cfg["mode_affichage"]
+            open = cfg["session_ouverte"]
+            reveal = cfg["reveal_resultats"]
+            
+            # Couleurs des boutons selon l'état
+            type_accueil = "primary" if mode == "attente" else "secondary"
+            type_on = "primary" if (mode == "votes" and open) else "secondary"
+            type_off = "primary" if (mode == "votes" and not open and not reveal) else "secondary"
+            type_podium = "primary" if reveal else "secondary"
+            type_photo = "primary" if mode == "photos_live" else "secondary"
+
             c1, c2, c3, c4 = st.columns(4)
-            if c1.button("1. ACCUEIL", type="primary" if mode=="attente" else "secondary", use_container_width=True):
+            if c1.button("1. ACCUEIL", type=type_accueil, use_container_width=True):
                 cfg.update({"mode_affichage": "attente", "session_ouverte": False, "reveal_resultats": False})
                 save_config(); st.rerun()
                 
-            if c2.button("2. VOTES ON", type="primary" if (mode=="votes" and open) else "secondary", use_container_width=True):
+            if c2.button("2. VOTES ON", type=type_on, use_container_width=True):
                 cfg.update({"mode_affichage": "votes", "session_ouverte": True, "reveal_resultats": False})
                 save_config(); st.rerun()
                 
-            if c3.button("3. VOTES OFF", type="primary" if (mode=="votes" and not open and not reveal) else "secondary", use_container_width=True):
+            if c3.button("3. VOTES OFF", type=type_off, use_container_width=True):
                 cfg.update({"mode_affichage": "votes", "session_ouverte": False, "reveal_resultats": False})
                 save_config(); st.rerun()
                 
-            if c4.button("4. PODIUM", type="primary" if reveal else "secondary", use_container_width=True):
+            if c4.button("4. PODIUM", type=type_podium, use_container_width=True):
                 cfg.update({"mode_affichage": "votes", "reveal_resultats": True, "session_ouverte": False})
                 cfg["timestamp_podium"] = time.time()
                 save_config(); st.rerun()
 
             st.markdown("<br>", unsafe_allow_html=True)
-            if st.button("5. 📸 MUR PHOTOS LIVE", type="primary" if mode=="photos_live" else "secondary", use_container_width=True):
+            if st.button("5. 📸 MUR PHOTOS LIVE", type=type_photo, use_container_width=True):
                 cfg.update({"mode_affichage": "photos_live", "session_ouverte": False, "reveal_resultats": False})
                 save_config(); st.rerun()
 
@@ -220,9 +233,11 @@ if est_admin:
             with st.expander("🚨 ZONE DE DANGER (Reset)"):
                 st.warning("Ceci effacera tous les votes et permettra aux téléphones de revoter.")
                 if st.button("🗑️ RESET TOTAL & DÉBLOQUER TÉLÉPHONES", type="primary"):
-                    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
+                    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE, CONFIG_FILE]:
                         if os.path.exists(f): os.remove(f)
-                    cfg["session_id"] = str(uuid.uuid4())
+                    
+                    st.session_state.config = default_config.copy()
+                    st.session_state.config["session_id"] = str(uuid.uuid4())
                     save_config()
                     st.success("Système réinitialisé !"); time.sleep(1); st.rerun()
 
@@ -269,6 +284,7 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
+    # SYSTEME DE SESSION
     current_session = cfg.get("session_id", "init")
     components.html(f"""<script>
         const serverSession = "{current_session}";
@@ -350,7 +366,10 @@ elif est_utilisateur:
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
+    # REFRESH FORCÉ CHAQUE 2 SECONDES
     st_autorefresh(interval=2000, key="wall_refresh")
+    
+    # CHARGEMENT FORCÉ DU FICHIER (Pas de cache session pour le Mur)
     cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown(f"""
@@ -361,7 +380,6 @@ else:
         .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }}
         .social-title {{ color: white; font-size: 45px; font-weight: bold; margin: 0; text-transform: uppercase; }}
         
-        /* BARRE VOTANTS (TAGS) */
         .tags-marquee {{
             position: absolute; top: 13vh; width: 100%; height: 8vh;
             display: flex; justify-content: center; align-items: center; flex-wrap: wrap; overflow: hidden;
@@ -371,7 +389,6 @@ else:
             border-radius: 15px; padding: 2px 10px; margin: 2px; font-size: 14px; border: 1px solid #555;
         }}
         
-        /* LISTE CANDIDATS OPTIMISÉE */
         .list-container {{ position: absolute; top: 22vh; width: 100%; display: flex; justify-content: center; gap: 20px; }}
         .col-list {{ width: 38%; display: flex; flex-direction: column; }}
         .cand-row {{ 
@@ -384,11 +401,9 @@ else:
         .row-left {{ flex-direction: row; justify-content: flex-end; text-align: right; }}
         .row-right {{ flex-direction: row; justify-content: flex-start; text-align: left; }}
         
-        /* QR BOX */
         .qr-center {{ display:flex; flex-direction:column; align-items:center; justify-content:center; margin-top: 0px; }}
         .qr-logo {{ width: 80px; margin-bottom: 10px; object-fit: contain; }}
         
-        /* PODIUM CENTRÉ */
         .winner-card {{ 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
             width: 500px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; 
@@ -396,7 +411,6 @@ else:
             box-shadow: 0 0 80px #FFD700;
         }}
         
-        /* SUSPENSE CARDS */
         .suspense-container {{ 
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
             display: flex; gap: 30px; z-index: 1000;
