@@ -30,7 +30,7 @@ for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
 # --- AVATAR ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
@@ -576,7 +576,7 @@ else:
                 doc.body.appendChild(container);
                 
                 const imgs = {img_js}; const bubbles = [];
-                // REDUCTION TAILLE : 80px à 200px (Demandé)
+                // REDUCTION TAILLE : 80px à 200px
                 const minSize = 80; const maxSize = 200;
                 
                 imgs.forEach((src, i) => {{
@@ -584,17 +584,16 @@ else:
                     const el = doc.createElement('img'); el.src = src;
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover; will-change:transform;';
                     
-                    // SPAWN SECURISE (Loin des murs)
-                    let startX = Math.random() * (window.innerWidth - 300) + 100;
-                    let startY = Math.random() * (window.innerHeight - 300) + 200;
+                    // SPAWN ALEATOIRE
+                    let startX = Math.random() * (window.innerWidth - bSize);
+                    let startY = 200 + Math.random() * (window.innerHeight - 200 - bSize);
 
-                    // VITESSE ET DIRECTION ALEATOIRES (XY équilibrés)
-                    let vx = (Math.random() - 0.5) * 6; // Vitesse -3 à 3
-                    let vy = (Math.random() - 0.5) * 6;
-                    
-                    // Anti-Stagnation : Si trop lent, on force une vitesse min
-                    if(Math.abs(vx) < 1.5) vx = (vx < 0 ? -2 : 2);
-                    if(Math.abs(vy) < 1.5) vy = (vy < 0 ? -2 : 2);
+                    // VITESSE ET DIRECTION
+                    let vx = (Math.random() - 0.5) * 8; 
+                    let vy = (Math.random() - 0.5) * 8;
+                    // Force minimum speed
+                    if(Math.abs(vx) < 2) vx = (vx < 0 ? -3 : 3);
+                    if(Math.abs(vy) < 2) vy = (vy < 0 ? -3 : 3);
 
                     container.appendChild(el); 
                     bubbles.push({{el, x: startX, y: startY, vx, vy, size: bSize}});
@@ -605,29 +604,15 @@ else:
                         b.x += b.vx; 
                         b.y += b.vy;
                         
-                        // --- PHYSIQUE DE REBOND ("BILLARD") ---
-                        // MUR GAUCHE
-                        if(b.x <= 0) {{
-                            b.x = 0; // Sort du mur
-                            if(b.vx < 0) b.vx *= -1; // Inverse seulement si va vers le mur
-                        }}
-                        // MUR DROITE
-                        else if(b.x + b.size >= window.innerWidth) {{
-                            b.x = window.innerWidth - b.size;
-                            if(b.vx > 0) b.vx *= -1;
-                        }}
+                        // REBOND GAUCHE/DROITE
+                        if(b.x <= 0) {{ b.x = 0; if(b.vx < 0) b.vx *= -1; }}
+                        else if(b.x + b.size >= window.innerWidth) {{ b.x = window.innerWidth - b.size; if(b.vx > 0) b.vx *= -1; }}
                         
-                        // MUR BAS
-                        if(b.y + b.size >= window.innerHeight) {{
-                            b.y = window.innerHeight - b.size;
-                            if(b.vy > 0) b.vy *= -1;
-                        }}
+                        // REBOND BAS
+                        if(b.y + b.size >= window.innerHeight) {{ b.y = window.innerHeight - b.size; if(b.vy > 0) b.vy *= -1; }}
                         
-                        // PLAFOND (TITRE - Zone 180px)
-                        if(b.y <= 180) {{
-                            b.y = 180;
-                            if(b.vy < 0) b.vy *= -1; // Rebond vers le bas
-                        }}
+                        // REBOND HAUT (TITRE 180px)
+                        if(b.y <= 180) {{ b.y = 180; if(b.vy < 0) b.vy *= -1; }}
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
                     }});
