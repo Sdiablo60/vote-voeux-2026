@@ -335,9 +335,7 @@ else:
         .suspense-grid { display: flex; justify-content: center; gap: 30px; margin-top: 30px; }
         .suspense-item { text-align: center; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; }
         
-        /* LOGO CENTER (CLASS) */
-        .logo-center { display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 10px; }
-        .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; }
+        .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -353,12 +351,15 @@ else:
         st.markdown(f'<div style="position:fixed; top:13vh; width:100%; text-align:center; z-index:100;">{tags_html}</div>', unsafe_allow_html=True)
 
     if mode == "attente":
-        # LOGO XXL + BIENVENUE CENTRÉ
-        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:400px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
+        # CORRECTION BUG AFFICHAGE CODE
+        logo_html = ""
+        if cfg.get("logo_b64"): 
+            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">'
+        
         st.markdown(f"""
         <div class="full-screen-center">
             {logo_html}
-            <h1 style='color:white; font-size:100px; margin:0;'>BIENVENUE</h1>
+            <h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1>
         </div>
         """, unsafe_allow_html=True)
 
@@ -434,18 +435,17 @@ else:
                 
                 # 1. LOGO XXL (Comme Accueil)
                 if cfg.get("logo_b64"): 
-                    st.markdown(f'<div class="logo-center"><img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px;"></div>', unsafe_allow_html=True)
+                    st.markdown("<div style='text-align:center; margin-bottom:20px;'>", unsafe_allow_html=True)
+                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=350)
+                    st.markdown("</div>", unsafe_allow_html=True)
 
                 # 2. QR CODE NU (Pas de cadre, sous le logo)
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-                qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
                 
-                st.markdown(f"""
-                <div style='text-align:center; margin-top:10px;'>
-                    <img src="data:image/png;base64,{qr_b64}" style="width:280px; border-radius:10px;">
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+                st.image(qr_buf, width=300)
+                st.markdown("</div>", unsafe_allow_html=True)
                 
                 # 3. TEXTE (EN DESSOUS)
                 st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
@@ -474,9 +474,10 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         
+        # CENTRE : LOGO XXL + QR PETIT
         center_html = f"""
         <div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:200px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">' if logo_data else ''}
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">' if logo_data else ''}
             <div style="background:white; padding:10px; border-radius:10px; display:inline-block;">
                 <img src="data:image/png;base64,{qr_b64}" style="width:150px;">
             </div>
@@ -517,12 +518,14 @@ else:
                 
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
+                    
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
                     
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
+                    
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
                 requestAnimationFrame(animate);
