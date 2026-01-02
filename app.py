@@ -30,7 +30,7 @@ for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
 # --- AVATAR PAR DEFAUT ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
@@ -157,7 +157,7 @@ def reset_app_data():
 def process_image(uploaded_file):
     try:
         img = Image.open(uploaded_file)
-        # QUALITÉ AUGMENTÉE POUR PODIUM (800px)
+        # QUALITÉ AUGMENTÉE
         img.thumbnail((800, 800)) 
         buf = BytesIO()
         img.save(buf, format="PNG")
@@ -269,18 +269,49 @@ if est_admin:
                 upl = st.file_uploader("Logo", type=["png", "jpg"])
                 if upl: st.session_state.config["logo_b64"] = process_image(upl); save_config(); st.rerun()
             with t2:
-                for i, c in enumerate(cfg["candidats"]):
-                    c1, c2 = st.columns([1, 4])
+                # GESTION DYNAMIQUE
+                st.subheader(f"Liste des participants ({len(cfg['candidats'])}/15)")
+                
+                if len(cfg['candidats']) < 15:
+                    with st.form("add_cand"):
+                        col_add1, col_add2 = st.columns([4, 1])
+                        new_cand = col_add1.text_input("Nouveau participant")
+                        if col_add2.form_submit_button("➕ Ajouter") and new_cand:
+                            if new_cand not in cfg['candidats']:
+                                cfg['candidats'].append(new_cand)
+                                save_config()
+                                st.rerun()
+                            else: st.error("Existe déjà !")
+                else: st.warning("Maximum de 15 participants atteint.")
+
+                st.divider()
+                candidates_to_remove = []
+                for i, cand in enumerate(cfg['candidats']):
+                    c1, c2, c3 = st.columns([0.5, 3, 2])
                     with c1:
-                        if c in cfg.get("candidats_images", {}): st.image(BytesIO(base64.b64decode(cfg["candidats_images"][c])), width=50)
+                        if cand in cfg.get("candidats_images", {}): st.image(BytesIO(base64.b64decode(cfg["candidats_images"][cand])), width=40)
+                        else: st.write("🚫")
                     with c2:
-                        up = st.file_uploader(f"Image pour {c}", key=f"u_{i}")
-                        if up: st.session_state.config.setdefault("candidats_images", {})[c] = process_image(up); save_config(); st.rerun()
+                        new_name = st.text_input(f"Participant {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
+                        if new_name != cand and new_name:
+                            cfg['candidats'][i] = new_name
+                            if cand in cfg.get("candidats_images", {}): cfg["candidats_images"][new_name] = cfg["candidats_images"].pop(cand)
+                            save_config(); st.rerun()
+                    with c3:
+                        col_up, col_del = st.columns([3, 1])
+                        up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
+                        if up_img: cfg.setdefault("candidats_images", {})[cand] = process_image(up_img); save_config(); st.rerun()
+                        if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
+
+                if candidates_to_remove:
+                    for c in candidates_to_remove:
+                        cfg['candidats'].remove(c)
+                        if c in cfg.get("candidats_images", {}): del cfg["candidats_images"][c]
+                    save_config(); st.rerun()
 
         elif menu == "📸 MÉDIATHÈQUE":
             st.subheader("Gestion des Photos Live")
             
-            # --- BOUTON DELETE ALL ---
             if st.button("🗑️ TOUT SUPPRIMER D'UN COUP", type="primary"):
                 files = glob.glob(f"{LIVE_DIR}/*")
                 for f in files: os.remove(f)
@@ -290,29 +321,22 @@ if est_admin:
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
             if not files: st.info("Aucune photo.")
             else:
-                # --- SANS FORMULAIRE POUR ÉVITER LE BUG DOWNLOAD ---
                 st.write("**Sélectionnez les photos à traiter :**")
-                
-                # Container pour checkboxes
                 if "selected_photos" not in st.session_state: st.session_state.selected_photos = []
                 
-                # Grille
                 cols = st.columns(5)
                 new_selection = []
                 
-                # On utilise un dictionnaire pour suivre l'état
                 for i, f in enumerate(files):
                     date_str = get_file_info(f)
                     with cols[i % 5]:
                         st.image(f, use_container_width=True)
-                        # Checkbox unique
                         if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"):
                             new_selection.append(f)
                 
                 st.write("---")
                 c1, c2, c3 = st.columns(3)
                 
-                # BOUTONS D'ACTION (HORS FORMULAIRE)
                 if c1.button("Supprimer la sélection") and new_selection:
                     for f in new_selection: os.remove(f)
                     st.success("Supprimé !"); time.sleep(1); st.rerun()
@@ -320,14 +344,24 @@ if est_admin:
                 if new_selection:
                     zip_buffer = BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w") as zf:
-                        for file_path in new_selection: zf.write(file_path, os.path.basename(file_path))
+                        for idx, file_path in enumerate(new_selection): 
+                            # RENOMMAGE PROPRE
+                            ts = os.path.getmtime(file_path)
+                            date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                            new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
+                            zf.write(file_path, arcname=new_name)
                     c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_buffer.getvalue(), file_name="selection.zip", mime="application/zip")
                 
-                # DOWNLOAD ALL
+                # DOWNLOAD ALL RENAMED
                 zip_all = BytesIO()
                 with zipfile.ZipFile(zip_all, "w") as zf:
-                    for file_path in files: zf.write(file_path, os.path.basename(file_path))
-                c3.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name="toutes_les_photos.zip", mime="application/zip", type="primary")
+                    for idx, file_path in enumerate(files): 
+                        # RENOMMAGE PROPRE
+                        ts = os.path.getmtime(file_path)
+                        date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                        new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
+                        zf.write(file_path, arcname=new_name)
+                c3.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live_{int(time.time())}.zip", mime="application/zip", type="primary")
 
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats & Export")
@@ -344,9 +378,10 @@ if est_admin:
             ).properties(height=400).interactive(bind_y=False, bind_x=False)
             st.altair_chart(chart, use_container_width=True)
             
+            st.divider()
             col_exp1, col_exp2, col_exp3 = st.columns(3)
             csv = df_totals.to_csv(index=False).encode('utf-8')
-            col_exp1.download_button("📥 Résultats (CSV)", data=csv, file_name="resultats.csv", mime="text/csv")
+            col_exp1.download_button("📥 Résultats (CSV)", data=csv, file_name="resultats_votes.csv", mime="text/csv")
             
             parts = load_json(PARTICIPANTS_FILE, [])
             df_parts = pd.DataFrame(parts, columns=["Nom Participant"])
@@ -578,22 +613,34 @@ else:
             imgs.forEach((src, i) => {{
                 const el = doc.createElement('img'); el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
-                // START AT MIDDLE OF SCREEN TO AVOID STUCK
-                let x = (window.innerWidth / 2) + (Math.random() - 0.5) * 200; 
-                let y = (window.innerHeight / 2) + (Math.random() - 0.5) * 200;
-                let vx = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3);
-                let vy = (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 3);
+                
+                // FORCE SPAWN IN BOTTOM HALF
+                let x = Math.random() * (window.innerWidth - bSize); 
+                let y = window.innerHeight - 200 - (Math.random() * 300); // Start near bottom
+                
+                // FORCE UPWARD MOVEMENT
+                let vx = (Math.random()-0.5)*4; 
+                let vy = -(2 + Math.random()*3); // Always move UP initially
+                
                 container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
             }});
             
             function animate() {{
                 var centerBox = doc.getElementById('center-box');
                 var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
+                
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
+                    
+                    // Bounce Walls
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
-                    if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{ b.vx *= -1; b.vy *= -1; }}
+                    
+                    // Bounce Center
+                    if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
+                           b.vx *= -1; b.vy *= -1;
+                    }}
+                    
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
                 requestAnimationFrame(animate);
