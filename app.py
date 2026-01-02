@@ -226,28 +226,30 @@ elif est_utilisateur:
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
 
-    components.html(f"""<script>
-        var sS = "{curr_sess}";
-        var lS = localStorage.getItem('VOTE_SID_2026');
-        if(lS !== sS) {{ 
-            localStorage.removeItem('HAS_VOTED_2026'); 
-            localStorage.setItem('VOTE_SID_2026', sS); 
-            if(window.parent.location.href.includes('blocked=true')) {{
-                window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
+    # --- SÉCURITÉ (Uniquement si ce n'est PAS le mode photo) ---
+    if cfg["mode_affichage"] != "photos_live":
+        components.html(f"""<script>
+            var sS = "{curr_sess}";
+            var lS = localStorage.getItem('VOTE_SID_2026');
+            if(lS !== sS) {{ 
+                localStorage.removeItem('HAS_VOTED_2026'); 
+                localStorage.setItem('VOTE_SID_2026', sS); 
+                if(window.parent.location.href.includes('blocked=true')) {{
+                    window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
+                }}
             }}
-        }}
-        if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
-            if(!window.parent.location.href.includes('blocked=true')) {{
-                window.parent.location.href = window.parent.location.href + '&blocked=true';
+            if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
+                if(!window.parent.location.href.includes('blocked=true')) {{
+                    window.parent.location.href = window.parent.location.href + '&blocked=true';
+                }}
             }}
-        }}
-    </script>""", height=0)
+        </script>""", height=0)
 
-    if is_blocked or st.session_state.vote_success:
-        st.balloons()
-        st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Action enregistrée.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-        components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-        st.stop()
+        if is_blocked or st.session_state.vote_success:
+            st.balloons()
+            st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div><p style='color:#777; margin-top:20px;'>Un seul vote autorisé.</p></div>""", unsafe_allow_html=True)
+            components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+            st.stop()
 
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
@@ -262,23 +264,27 @@ elif est_utilisateur:
                 if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
                 st.rerun()
     else:
+        # --- MODE PHOTO (LIBRE) ---
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 ENVOYER UNE PHOTO")
-            st.write("Si la caméra ne s'ouvre pas, utilisez le bouton 'Parcourir' ci-dessous pour choisir une photo de votre galerie.")
+            st.write("Participez au mur photo en direct !")
             
-            # --- DOUBLE OPTION : CAMERA OU GALERIE ---
-            uploaded_file = st.file_uploader("Importer depuis la galerie", type=['png', 'jpg', 'jpeg'])
-            cam_file = st.camera_input("Prendre une photo (Si activé)")
+            uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'])
+            cam_file = st.camera_input("Ou prendre une photo")
             
             final_file = uploaded_file if uploaded_file else cam_file
             
             if final_file:
-                with open(os.path.join(LIVE_DIR, f"live_{uuid.uuid4().hex}.jpg"), "wb") as f: f.write(final_file.getbuffer())
-                st.success("Envoyé !"); 
-                time.sleep(2)
-                st.session_state.vote_success = True
-                st.rerun()
+                # Nom unique pour éviter les doublons
+                fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
+                with open(os.path.join(LIVE_DIR, fname), "wb") as f: 
+                    f.write(final_file.getbuffer())
+                
+                st.success("Photo envoyée !")
+                time.sleep(1) # Pause courte
+                st.rerun() # On recharge pour permettre une nouvelle photo
         
+        # --- MODE VOTE (VERROUILLÉ) ---
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             choix = st.multiselect("Choisis 3 vidéos :", cfg["candidats"], max_selections=3)
@@ -336,18 +342,16 @@ else:
 
     if mode == "attente":
         if cfg.get("logo_b64"): 
-            st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;'>", unsafe_allow_html=True)
+            st.markdown("<div style='position:fixed; top:20vh; left:50%; transform:translate(-50%,0); text-align:center;'>", unsafe_allow_html=True)
             st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=400)
-            st.markdown("<br><h1 style='color:white; font-size:80px;'>BIENVENUE</h1><h2 style='color:#AAA; font-size:40px;'>L'événement va commencer...</h2></div>", unsafe_allow_html=True)
-        else:
-            st.markdown("<div style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;'><h1 style='color:white; font-size:100px;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div style='position:fixed; top:55%; left:50%; transform:translate(-50%,-50%); text-align:center;'><h1 style='color:white; font-size:100px;'>BIENVENUE</h1><h2 style='color:#AAA; font-size:40px;'>L'événement va commencer...</h2></div>", unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # Logo centré pour le Podium
             if cfg.get("logo_b64"): 
                 st.markdown("<div style='position:fixed; top:15vh; left:50%; transform:translate(-50%,0); text-align:center;'>", unsafe_allow_html=True)
-                st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=150)
+                st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
                 st.markdown("</div>", unsafe_allow_html=True)
             
             v_data = load_json(VOTES_FILE, {})
@@ -373,24 +377,21 @@ else:
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             
             with c_center:
-                # LOGO + QR + TEXTE (GROS ET CENTRÉ)
-                st.markdown("<div style='height:18vh'></div>", unsafe_allow_html=True)
-                
-                # 1. LOGO EN GROS
-                if cfg.get("logo_b64"): 
-                    st.markdown("<div style='display:flex; justify-content:center; margin-bottom:20px;'>", unsafe_allow_html=True)
-                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=350)
-                    st.markdown("</div>", unsafe_allow_html=True)
-
-                # 2. TEXTE
+                st.markdown("<div style='height:15vh'></div>", unsafe_allow_html=True)
                 st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
                 
-                # 3. QR CODE
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+                
                 st.markdown("<div style='background:white; padding:15px; border-radius:20px; border:5px solid #E2001A; width:280px; margin:0 auto;'>", unsafe_allow_html=True)
                 st.image(qr_buf, width=250)
                 st.markdown("</div>", unsafe_allow_html=True)
+                
+                if cfg.get("logo_b64"): 
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
+                    st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=200)
+                    st.markdown("</div>", unsafe_allow_html=True)
 
             with c_right:
                 st.markdown("<br><br><br><br>", unsafe_allow_html=True)
@@ -411,59 +412,65 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         
-        # CENTRE : LOGO XXL + QR
+        # CENTRE : LOGO XXL + QR PETIT
         center_html = f"""
-        <div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:40px; border-radius:40px; border:4px solid #E2001A;'>
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:300px; margin-bottom:30px; display:block; margin-left:auto; margin-right:auto;">' if logo_data else ''}
-            <div style="background:white; padding:15px; border-radius:20px; display:inline-block;">
-                <img src="data:image/png;base64,{qr_b64}" style="width:250px;">
+        <div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">' if logo_data else ''}
+            <div style="background:white; padding:10px; border-radius:10px; display:inline-block;">
+                <img src="data:image/png;base64,{qr_b64}" style="width:150px;">
             </div>
-            <h2 style="color:white; margin-top:20px; font-size:30px;">Envoyez vos photos !</h2>
+            <h2 style="color:white; margin-top:10px; font-size:24px;">Envoyez vos photos !</h2>
         </div>
         """
         st.markdown(center_html, unsafe_allow_html=True)
 
         photos = glob.glob(f"{LIVE_DIR}/*")
-        if photos:
-            img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]])
-            components.html(f"""<script>
-                var doc = window.parent.document;
-                var container = doc.getElementById('bubble-wall') || doc.createElement('div');
-                container.id = 'bubble-wall'; 
-                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
-                if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
+        # On affiche l'animation même s'il n'y a pas encore de photos (ça fera juste rien de spécial)
+        # Mais pour éviter le bug JSON si vide:
+        if not photos:
+            photos = [] # Liste vide
+            
+        # On peut avoir des photos fictives ou attendre
+        img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        
+        components.html(f"""<script>
+            var doc = window.parent.document;
+            var container = doc.getElementById('bubble-wall') || doc.createElement('div');
+            container.id = 'bubble-wall'; 
+            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
+            if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
+            
+            const imgs = {img_js}; const bubbles = []; const bSize = 250;
+            
+            imgs.forEach((src, i) => {{
+                if(doc.getElementById('bub-'+i)) return;
+                const el = doc.createElement('img'); el.id = 'bub-'+i; el.src = src;
+                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
                 
-                const imgs = {img_js}; const bubbles = []; const bSize = 250;
+                let x = Math.random() * (window.innerWidth - bSize); 
+                let y = Math.random() * (window.innerHeight - bSize);
+                let vx = (Math.random()-0.5)*6; 
+                let vy = (Math.random()-0.5)*6;
                 
-                imgs.forEach((src, i) => {{
-                    if(doc.getElementById('bub-'+i)) return;
-                    const el = doc.createElement('img'); el.id = 'bub-'+i; el.src = src;
-                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
+                container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
+            }});
+            
+            function animate() {{
+                var centerBox = doc.getElementById('center-box');
+                var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
+                
+                bubbles.forEach(b => {{
+                    b.x += b.vx; b.y += b.vy;
                     
-                    let x = Math.random() * (window.innerWidth - bSize); 
-                    let y = Math.random() * (window.innerHeight - bSize);
-                    let vx = (Math.random()-0.5)*6; 
-                    let vy = (Math.random()-0.5)*6;
+                    if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
+                    if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
                     
-                    container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
+                    if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
+                           b.vx *= -1; b.vy *= -1;
+                    }}
+                    
+                    b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
-                
-                function animate() {{
-                    var centerBox = doc.getElementById('center-box');
-                    var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
-                    
-                    bubbles.forEach(b => {{
-                        b.x += b.vx; b.y += b.vy;
-                        
-                        if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
-                        if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
-                        
-                        if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
-                               b.vx *= -1; b.vy *= -1;
-                        }}
-                        
-                        b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
-                    }});
-                    requestAnimationFrame(animate);
-                }} animate();
-            </script>""", height=0)
+                requestAnimationFrame(animate);
+            }} animate();
+        </script>""", height=0)
