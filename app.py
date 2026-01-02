@@ -310,31 +310,18 @@ else:
     <style>
         body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
         [data-testid='stHeader'] { display: none; }
-        
-        /* BANDEAU FIXE HAUT */
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
-        
-        /* TEXTE VOTE */
         .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        
-        /* TAGS VOTANTS */
         .voters-fixed-container { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; margin-bottom: 10px; width: 100%; min-height: 40px; }
         .user-tag { background: rgba(255,255,255,0.15); color: #FFF; padding: 5px 15px; border-radius: 20px; font-size: 18px; font-weight: bold; border: 1px solid #E2001A; white-space: nowrap; }
-
-        /* LISTE CANDIDATS */
         .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
-        
-        /* CARTES PODIUM */
         .winner-card { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 600px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; border-radius: 50px; padding: 40px; text-align: center; z-index: 1000; box-shadow: 0 0 100px #FFD700; }
-        
-        /* SUSPENSE PODIUM */
         .suspense-grid { display: flex; justify-content: center; gap: 30px; margin-top: 30px; }
         .suspense-item { text-align: center; background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; }
-        
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
     </style>
     """, unsafe_allow_html=True)
@@ -344,41 +331,29 @@ else:
     mode = cfg.get("mode_affichage")
     inject_visual_effect(cfg["screen_effects"].get("attente" if mode=="attente" else "podium", "Aucun"), 25, 15)
 
-    # --- BANDEAU VOTANTS (Seulement Vote On) ---
     parts = load_json(PARTICIPANTS_FILE, [])
     if parts and mode == "votes" and not cfg.get("reveal_resultats") and cfg.get("session_ouverte"):
         tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-10:]])
         st.markdown(f'<div style="position:fixed; top:13vh; width:100%; text-align:center; z-index:100;">{tags_html}</div>', unsafe_allow_html=True)
 
     if mode == "attente":
-        # CORRECTION BUG AFFICHAGE HTML ACCUEIL
         logo_html = ""
         if cfg.get("logo_b64"): 
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">'
         
-        # NOTE : Pas d'indentation dans la chaine HTML ci-dessous !
-        html_code = f"""
-<div class="full-screen-center">
-    {logo_html}
-    <h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1>
-</div>"""
-        st.markdown(html_code, unsafe_allow_html=True)
+        # ICI C'EST CORRIGÉ : TOUT SUR UNE LIGNE POUR ÉVITER LES BUGS D'INDENTATION
+        st.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # PODIUM LOGIQUE
             elapsed = time.time() - cfg.get("timestamp_podium", 0)
             v_data = load_json(VOTES_FILE, {})
             sorted_v = sorted(v_data.items(), key=lambda x: x[1], reverse=True)
-            
-            # Logo toujours présent (taille accueil)
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
             
             if elapsed < 10.0:
-                # COMPTE A REBOURS + TOP 3
                 remaining = 10 - int(elapsed)
                 top3 = sorted_v[:3]
-                
                 suspense_html = ""
                 for name, score in top3:
                     img = ""
@@ -386,17 +361,11 @@ else:
                         img = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
                     suspense_html += f'<div class="suspense-item">{img}<h3 style="color:white; margin:0;">{name}</h3></div>'
                 
-                st.markdown(f"""
-                <div class="full-screen-center">
-                    {logo_html}
-                    <h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1>
-                    <div class="suspense-grid">{suspense_html}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                # CORRECTION : UNE LIGNE
+                st.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
                 
             else:
-                # VAINQUEUR
                 if sorted_v:
                     winner, pts = sorted_v[0]
                     img = ""
@@ -421,36 +390,24 @@ else:
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
-            
             c_left, c_center, c_right = st.columns([1, 1, 1])
-            
             with c_left:
                 st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                 for c in left_list:
                     img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
-            
             with c_center:
-                # REMONTER LE LOGO
                 st.markdown("<div style='height:5vh'></div>", unsafe_allow_html=True)
-                
-                # 1. LOGO XXL (Comme Accueil)
                 if cfg.get("logo_b64"): 
                     st.markdown("<div style='text-align:center; margin-bottom:20px;'>", unsafe_allow_html=True)
                     st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=350)
                     st.markdown("</div>", unsafe_allow_html=True)
-
-                # 2. QR CODE NU (Pas de cadre, sous le logo)
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-                
                 st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
                 st.image(qr_buf, width=300)
                 st.markdown("</div>", unsafe_allow_html=True)
-                
-                # 3. TEXTE (EN DESSOUS)
                 st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
-
             with c_right:
                 st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                 for c in right_list:
@@ -458,24 +415,15 @@ else:
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
 
         else:
-            # VOTE OFF (CORRECTION BUG AFFICHAGE)
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-            html_off = f"""
-<div class="full-screen-center">
-    {logo_html}
-    <div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'>
-        <h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1>
-    </div>
-</div>"""
-            st.markdown(html_off, unsafe_allow_html=True)
+            # ICI AUSSI C'EST CORRIGÉ : UNE SEULE LIGNE SANS ESPACES
+            st.markdown(f"<div class='full-screen-center'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        
-        # CENTRE : LOGO XXL + QR PETIT
         center_html = f"""
         <div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>
             {f'<img src="data:image/png;base64,{logo_data}" style="width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;">' if logo_data else ''}
@@ -486,42 +434,33 @@ else:
         </div>
         """
         st.markdown(center_html, unsafe_allow_html=True)
-
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        
         components.html(f"""<script>
             var doc = window.parent.document;
             var container = doc.getElementById('bubble-wall') || doc.createElement('div');
             container.id = 'bubble-wall'; 
             container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
             if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
-            
             const imgs = {img_js}; const bubbles = []; const bSize = 250;
-            
             imgs.forEach((src, i) => {{
                 if(doc.getElementById('bub-'+i)) return;
                 const el = doc.createElement('img'); el.id = 'bub-'+i; el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
-                
                 let x = Math.random() * (window.innerWidth - bSize); 
                 let y = Math.random() * (window.innerHeight - bSize);
                 let vx = (Math.random()-0.5)*6; 
                 let vy = (Math.random()-0.5)*6;
-                
                 container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
             }});
-            
             function animate() {{
                 var centerBox = doc.getElementById('center-box');
                 var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
-                
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
-                    
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
