@@ -216,19 +216,11 @@ if est_admin:
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats des Votes")
             votes = load_json(VOTES_FILE, {})
-            
             if votes:
-                # Création d'un DataFrame pour un affichage propre
                 df = pd.DataFrame(list(votes.items()), columns=['Candidat', 'Points'])
                 df = df.sort_values(by='Points', ascending=False)
-                
-                # Affichage Graphique
                 st.bar_chart(df.set_index('Candidat'), color="#E2001A")
-                
-                # Affichage Tableau
                 st.dataframe(df, use_container_width=True)
-                
-                # Stats
                 total_points = df['Points'].sum()
                 st.metric("Total Points Distribués", total_points)
             else:
@@ -244,29 +236,37 @@ elif est_utilisateur:
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
 
-    # --- SÉCURITÉ ---
+    # --- SÉCURITÉ RENFORCÉE ---
+    # On vérifie AVANT TOUT si le cookie existe.
+    # Le script JS va rediriger si le cookie est trouvé.
     if cfg["mode_affichage"] != "photos_live":
         components.html(f"""<script>
             var sS = "{curr_sess}";
-            var lS = localStorage.getItem('VOTE_SID_2026');
+            var lS = localStorage.getItem('VOTE_SID_SECURE');
+            
+            // Si nouvelle session (reset admin), on nettoie
             if(lS !== sS) {{ 
-                localStorage.removeItem('HAS_VOTED_2026'); 
-                localStorage.setItem('VOTE_SID_2026', sS); 
+                localStorage.removeItem('HAS_VOTED_SECURE'); 
+                localStorage.setItem('VOTE_SID_SECURE', sS); 
                 if(window.parent.location.href.includes('blocked=true')) {{
                     window.parent.location.href = window.parent.location.href.replace('&blocked=true','');
                 }}
             }}
-            if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{
+            
+            // VÉRIFICATION CRITIQUE : Si le cookie est là, on bloque.
+            if(localStorage.getItem('HAS_VOTED_SECURE') === 'true') {{
                 if(!window.parent.location.href.includes('blocked=true')) {{
                     window.parent.location.href = window.parent.location.href + '&blocked=true';
                 }}
             }}
         </script>""", height=0)
 
+        # Si l'URL contient "blocked=true" OU si la session Python dit succès -> STOP
         if is_blocked or st.session_state.vote_success:
             st.balloons()
-            st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div><p style='color:#777; margin-top:20px;'>Un seul vote autorisé.</p></div>""", unsafe_allow_html=True)
-            components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+            st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote bien pris en compte.</h2><br><div style='font-size:80px;'>✅</div><p style='color:#777; margin-top:20px;'>Vote unique autorisé.</p></div>""", unsafe_allow_html=True)
+            # On force la pose du cookie au cas où
+            components.html("""<script>localStorage.setItem('HAS_VOTED_SECURE', 'true');</script>""", height=0)
             st.stop()
 
     if "user_pseudo" not in st.session_state:
@@ -284,22 +284,20 @@ elif est_utilisateur:
     else:
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 ENVOYER UNE PHOTO")
-            st.write("Si la caméra ne s'ouvre pas, utilisez le bouton 'Importer' ci-dessous.")
+            st.warning("Utilisez le bouton 'Importer' ci-dessous pour prendre une photo avec votre mobile.")
             
-            uploaded_file = st.file_uploader("Importer depuis la galerie", type=['png', 'jpg', 'jpeg'])
-            cam_file = st.camera_input("Prendre une photo")
+            # --- CORRECTION CAMERA ---
+            # file_uploader est plus fiable sur mobile (ouvre la galerie/caméra native)
+            uploaded_file = st.file_uploader("Prendre une photo ou choisir", type=['png', 'jpg', 'jpeg'], accept_multiple_files=False)
             
-            final_file = uploaded_file if uploaded_file else cam_file
-            
-            if final_file:
+            if uploaded_file:
                 fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
                 with open(os.path.join(LIVE_DIR, fname), "wb") as f: 
-                    f.write(final_file.getbuffer())
+                    f.write(uploaded_file.getbuffer())
                 
-                st.success("Envoyé !"); 
+                st.success("Photo envoyée !")
                 time.sleep(2)
-                st.session_state.vote_success = True
-                st.rerun()
+                st.rerun() # On recharge pour permettre une nouvelle photo
         
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
@@ -312,7 +310,11 @@ elif est_utilisateur:
                     save_json(VOTES_FILE, vts)
                     voters = load_json(VOTERS_FILE, [])
                     voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
+                    
                     st.session_state.vote_success = True
+                    # On pose le cookie immédiatement
+                    components.html("""<script>localStorage.setItem('HAS_VOTED_SECURE', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
+                    time.sleep(1)
                     st.rerun()
         else: st.info("⏳ En attente...")
 
@@ -328,8 +330,6 @@ else:
     <style>
         body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
         [data-testid='stHeader'] { display: none; }
-        
-        /* BANDEAU FIXE HAUT */
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
@@ -401,23 +401,17 @@ else:
                     img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
                     st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
             with c_center:
-                # CORRECTION : DESCENDRE LE BLOC ET AJUSTER LE LOGO
+                # --- CORRECTION MUR VOTE ON ---
+                # Plus de marges excessives, tout est centré.
                 st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
-                
-                # 1. LOGO XXL (Comme Accueil) - CENTRÉ
                 if cfg.get("logo_b64"): 
                     st.markdown(f"<div style='text-align:center; width:100%; margin-bottom:20px;'><img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px;'></div>", unsafe_allow_html=True)
-
-                # 2. QR CODE NU - CENTRÉ
                 host = st.context.headers.get('host', 'localhost')
                 qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
                 qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-                
-                st.markdown(f"<div style='text-align:center; width:100%;'><img src='data:image/png;base64,{qr_b64}' style='width:240px;'></div>", unsafe_allow_html=True)
-                
-                # 3. TEXTE
+                # QR CODE PETIT ET CENTRÉ (240px)
+                st.markdown(f"<div style='text-align:center; width:100%;'><img src='data:image/png;base64,{qr_b64}' style='width:240px; border-radius:10px;'></div>", unsafe_allow_html=True)
                 st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
-
             with c_right:
                 st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                 for c in right_list:
@@ -433,38 +427,58 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:250px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Envoyez vos photos !</h2></div>"
+        # --- CORRECTION MUR PHOTO LIVE (Design + Animation) ---
+        # Bloc central compact, QR plus petit (150px)
+        center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:200px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Envoyez vos photos !</h2></div>"
         st.markdown(center_html, unsafe_allow_html=True)
+        
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        
+        # SCRIPT ANIMATION FLUIDE
         components.html(f"""<script>
             var doc = window.parent.document;
             var container = doc.getElementById('bubble-wall') || doc.createElement('div');
             container.id = 'bubble-wall'; 
             container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;';
             if(!doc.getElementById('bubble-wall')) doc.body.appendChild(container);
+            
             const imgs = {img_js}; const bubbles = []; const bSize = 250;
+            
+            // Création des bulles
             imgs.forEach((src, i) => {{
                 if(doc.getElementById('bub-'+i)) return;
                 const el = doc.createElement('img'); el.id = 'bub-'+i; el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
+                
+                // Position Aléatoire
                 let x = Math.random() * (window.innerWidth - bSize); 
                 let y = Math.random() * (window.innerHeight - bSize);
-                let vx = (Math.random()-0.5)*6; 
-                let vy = (Math.random()-0.5)*6;
+                // Vitesse Aléatoire
+                let vx = (Math.random()-0.5)*4; 
+                let vy = (Math.random()-0.5)*4;
+                if(vx == 0) vx = 1; if(vy == 0) vy = 1;
+
                 container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
             }});
+            
             function animate() {{
                 var centerBox = doc.getElementById('center-box');
                 var rect = centerBox ? centerBox.getBoundingClientRect() : {{left:0, right:0, top:0, bottom:0}};
+                
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
+                    
+                    // Rebond Bords
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
+                    
+                    // Rebond Bloc Central
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
                            b.vx *= -1; b.vy *= -1;
                     }}
+                    
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
                 requestAnimationFrame(animate);
