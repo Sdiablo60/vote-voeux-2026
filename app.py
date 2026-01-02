@@ -29,9 +29,6 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
-# --- AVATAR PAR DEFAUT ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
-
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
     "mode_affichage": "attente", 
@@ -157,7 +154,6 @@ def reset_app_data():
 def process_image(uploaded_file):
     try:
         img = Image.open(uploaded_file)
-        # QUALITÉ AUGMENTÉE
         img.thumbnail((800, 800)) 
         buf = BytesIO()
         img.save(buf, format="PNG")
@@ -269,9 +265,7 @@ if est_admin:
                 upl = st.file_uploader("Logo", type=["png", "jpg"])
                 if upl: st.session_state.config["logo_b64"] = process_image(upl); save_config(); st.rerun()
             with t2:
-                # GESTION DYNAMIQUE
                 st.subheader(f"Liste des participants ({len(cfg['candidats'])}/15)")
-                
                 if len(cfg['candidats']) < 15:
                     with st.form("add_cand"):
                         col_add1, col_add2 = st.columns([4, 1])
@@ -279,11 +273,9 @@ if est_admin:
                         if col_add2.form_submit_button("➕ Ajouter") and new_cand:
                             if new_cand not in cfg['candidats']:
                                 cfg['candidats'].append(new_cand)
-                                save_config()
-                                st.rerun()
+                                save_config(); st.rerun()
                             else: st.error("Existe déjà !")
-                else: st.warning("Maximum de 15 participants atteint.")
-
+                else: st.warning("Maximum atteint.")
                 st.divider()
                 candidates_to_remove = []
                 for i, cand in enumerate(cfg['candidats']):
@@ -302,7 +294,6 @@ if est_admin:
                         up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
                         if up_img: cfg.setdefault("candidats_images", {})[cand] = process_image(up_img); save_config(); st.rerun()
                         if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
-
                 if candidates_to_remove:
                     for c in candidates_to_remove:
                         cfg['candidats'].remove(c)
@@ -311,52 +302,40 @@ if est_admin:
 
         elif menu == "📸 MÉDIATHÈQUE":
             st.subheader("Gestion des Photos Live")
-            
             if st.button("🗑️ TOUT SUPPRIMER D'UN COUP", type="primary"):
                 files = glob.glob(f"{LIVE_DIR}/*")
                 for f in files: os.remove(f)
                 st.success("Nettoyage effectué."); time.sleep(1); st.rerun()
             st.divider()
-
             files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
             if not files: st.info("Aucune photo.")
             else:
                 st.write("**Sélectionnez les photos à traiter :**")
                 if "selected_photos" not in st.session_state: st.session_state.selected_photos = []
-                
                 cols = st.columns(5)
                 new_selection = []
-                
                 for i, f in enumerate(files):
                     date_str = get_file_info(f)
                     with cols[i % 5]:
                         st.image(f, use_container_width=True)
-                        if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"):
-                            new_selection.append(f)
-                
+                        if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
                 st.write("---")
                 c1, c2, c3 = st.columns(3)
-                
                 if c1.button("Supprimer la sélection") and new_selection:
                     for f in new_selection: os.remove(f)
                     st.success("Supprimé !"); time.sleep(1); st.rerun()
-                
                 if new_selection:
                     zip_buffer = BytesIO()
                     with zipfile.ZipFile(zip_buffer, "w") as zf:
                         for idx, file_path in enumerate(new_selection): 
-                            # RENOMMAGE PROPRE
                             ts = os.path.getmtime(file_path)
                             date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
                             new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
                             zf.write(file_path, arcname=new_name)
                     c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_buffer.getvalue(), file_name="selection.zip", mime="application/zip")
-                
-                # DOWNLOAD ALL RENAMED
                 zip_all = BytesIO()
                 with zipfile.ZipFile(zip_all, "w") as zf:
                     for idx, file_path in enumerate(files): 
-                        # RENOMMAGE PROPRE
                         ts = os.path.getmtime(file_path)
                         date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
                         new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
@@ -545,15 +524,22 @@ else:
                 top3 = sorted(v_data.items(), key=lambda x: x[1], reverse=True)[:3]
                 suspense_html = ""
                 for name, score in top3:
-                    img_src = f"data:image/png;base64,{cfg['candidats_images'][name]}" if name in cfg.get("candidats_images", {}) else f"data:image/png;base64,{DEFAULT_AVATAR}"
-                    suspense_html += f'<div class="suspense-item"><img src="{img_src}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;"><h3 style="color:white; margin:0;">{name}</h3></div>'
+                    # GESTION TROPHÉE SI PAS D'IMAGE
+                    if name in cfg.get("candidats_images", {}):
+                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][name]}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; margin-bottom:10px;">'
+                    else:
+                        img_html = '<div style="width:100px; height:100px; border-radius:50%; background:black; border:4px solid #FFD700; display:flex; align-items:center; justify-content:center; margin:0 auto 10px auto;"><span style="font-size:50px;">🏆</span></div>'
+                    suspense_html += f'<div class="suspense-item">{img_html}<h3 style="color:white; margin:0;">{name}</h3></div>'
                 ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:80px; margin:0;'>RÉSULTATS DANS... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
             else:
                 cards_html = ""
                 for winner in winners:
-                    img_src = f"data:image/png;base64,{cfg['candidats_images'][winner]}" if winner in cfg.get("candidats_images", {}) else f"data:image/png;base64,{DEFAULT_AVATAR}"
-                    cards_html += f"<div class='winner-card'><div style='font-size:60px;'>🏆</div><img src='{img_src}' style='width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;'><h1 style='color:white; font-size:40px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:30px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:20px;'>{max_score} points</h3></div>"
+                    if winner in cfg.get("candidats_images", {}):
+                        img_html = f'<img src="data:image/png;base64,{cfg["candidats_images"][winner]}" style="width:150px; height:150px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
+                    else:
+                        img_html = '<div style="width:150px; height:150px; border-radius:50%; background:black; border:6px solid #FFD700; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto;"><span style="font-size:80px;">🏆</span></div>'
+                    cards_html += f"<div class='winner-card'><div style='font-size:60px;'>🏆</div>{img_html}<h1 style='color:white; font-size:40px; margin:10px 0;'>{winner}</h1><h2 style='color:#FFD700; font-size:30px;'>VAINQUEUR</h2><h3 style='color:#CCC; font-size:20px;'>{max_score} points</h3></div>"
                 ph.markdown(f"<div class='full-screen-center'>{logo_html}<div class='podium-container'>{cards_html}</div></div>", unsafe_allow_html=True)
 
         elif cfg.get("session_ouverte"):
@@ -566,8 +552,13 @@ else:
                 with c_left:
                     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                     for c in left_list:
-                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else f"data:image/png;base64,{DEFAULT_AVATAR}"
-                        st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
+                        # GESTION TROPHÉE
+                        if c in imgs:
+                            img_src = f"data:image/png;base64,{imgs[c]}"
+                            html = f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+                        else:
+                            html = f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
+                        st.markdown(html, unsafe_allow_html=True)
                 with c_center:
                     st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
                     if cfg.get("logo_b64"): st.markdown(f"<div style='text-align:center; width:100%; margin-bottom:20px;'><img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px;'></div>", unsafe_allow_html=True)
@@ -579,8 +570,13 @@ else:
                 with c_right:
                     st.markdown("<br><br><br><br>", unsafe_allow_html=True)
                     for c in right_list:
-                        img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else f"data:image/png;base64,{DEFAULT_AVATAR}"
-                        st.markdown(f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>", unsafe_allow_html=True)
+                        # GESTION TROPHÉE
+                        if c in imgs:
+                            img_src = f"data:image/png;base64,{imgs[c]}"
+                            html = f"<div class='cand-row'><img src='{img_src}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+                        else:
+                            html = f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
+                        st.markdown(html, unsafe_allow_html=True)
 
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
@@ -614,13 +610,14 @@ else:
                 const el = doc.createElement('img'); el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover;';
                 
-                // FORCE SPAWN IN BOTTOM HALF
+                // --- CORRECTION COORDONNÉES DE DÉPART ---
+                // Force l'apparition en bas de l'écran pour éviter le blocage en haut
                 let x = Math.random() * (window.innerWidth - bSize); 
-                let y = window.innerHeight - 200 - (Math.random() * 300); // Start near bottom
+                let y = window.innerHeight - 300 - (Math.random() * 200); 
                 
-                // FORCE UPWARD MOVEMENT
-                let vx = (Math.random()-0.5)*4; 
-                let vy = -(2 + Math.random()*3); // Always move UP initially
+                // Force la vitesse vers le HAUT
+                let vx = (Math.random() - 0.5) * 6;
+                let vy = - (3 + Math.random() * 3); // Toujours négatif = vers le haut
                 
                 container.appendChild(el); bubbles.push({{el, x, y, vx, vy, size: bSize}});
             }});
@@ -632,13 +629,23 @@ else:
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
                     
-                    // Bounce Walls
+                    // REBONDS BORDS
                     if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1;
                     if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1;
                     
-                    // Bounce Center
+                    // REBOND ET RÉPULSION CENTRALE
                     if(centerBox && b.x + b.size > rect.left && b.x < rect.right && b.y + b.size > rect.top && b.y < rect.bottom) {{
+                           // Inverse la direction
                            b.vx *= -1; b.vy *= -1;
+                           // Ajoute une petite poussée pour dégager la bulle si elle est coincée
+                           b.x += b.vx * 5;
+                           b.y += b.vy * 5;
+                    }}
+                    
+                    // REPULSION TITRE (ZONE HAUTE)
+                    // Si la bulle est trop haut (< 15% de l'écran), on la pousse vers le bas
+                    if(b.y < window.innerHeight * 0.15) {{
+                        b.vy = Math.abs(b.vy) + 1; // Force vers le bas
                     }}
                     
                     b.element.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
