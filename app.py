@@ -10,6 +10,7 @@ st.set_page_config(page_title="Régie IT SQUAD", layout="wide", initial_sidebar_
 LIVE_DIR = "galerie_live_users"
 VOTES_FILE = "votes.json"
 CONFIG_FILE = "config_mur.json"
+VOTERS_FILE = "voters.json" # Pour l'anti-fraude serveur
 
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
@@ -75,9 +76,10 @@ if est_admin:
             st.divider()
             if st.button("📸 MUR PHOTOS"): cfg.update({"mode_affichage": "photos_live"}); save_json(CONFIG_FILE, cfg); st.rerun()
             
-            if st.button("🗑️ RESET VOTES"):
+            if st.button("🗑️ RESET TOTAL (VIDER TOUT)"):
                 if os.path.exists(VOTES_FILE): os.remove(VOTES_FILE)
-                st.success("Votes remis à zéro !")
+                if os.path.exists(VOTERS_FILE): os.remove(VOTERS_FILE)
+                st.success("Système remis à neuf. Prêt pour le live.")
 
         elif menu == "⚙️ CONFIG":
             t1, t2 = st.tabs(["Général", "Images Candidats"])
@@ -105,14 +107,14 @@ if est_admin:
                     if st.button("X", key=f"del_{i}"): os.remove(f); st.rerun()
 
 # =========================================================
-# 2. APPLICATION MOBILE (STANDARD)
+# 2. APPLICATION MOBILE
 # =========================================================
 elif est_utilisateur:
     st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     
-    # Vérification simple par cookie
+    # 1. Vérification Locale
     components.html("""<script>
-        if(localStorage.getItem('VOTE_SIMPLE_LOCK')) {
+        if(localStorage.getItem('VOTE_SESSION_FINAL_V9')) {
             if(!window.parent.location.href.includes('blocked=true')) {
                 window.parent.location.href = window.parent.location.href + '&blocked=true';
             }
@@ -120,15 +122,21 @@ elif est_utilisateur:
     </script>""", height=0)
 
     if is_blocked:
-        st.markdown("<div style='text-align:center; margin-top:100px;'><h1>✅ VOTE VALIDÉ</h1></div>", unsafe_allow_html=True)
+        st.balloons()
+        st.markdown("<div style='text-align:center; margin-top:100px;'><h1>✅ VOTE ENREGISTRÉ</h1><p>Merci pour votre participation.</p></div>", unsafe_allow_html=True)
         st.stop()
 
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         pseudo = st.text_input("Ton Prénom :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            st.session_state.user_pseudo = pseudo.strip()
-            st.rerun()
+            # Vérification Serveur (Liste Noire)
+            voters = load_json(VOTERS_FILE, [])
+            if pseudo.strip().upper() in [v.upper() for v in voters]:
+                st.error("⛔ Ce prénom a déjà été utilisé.")
+            else:
+                st.session_state.user_pseudo = pseudo.strip()
+                st.rerun()
     else:
         cfg = load_json(CONFIG_FILE, st.session_state.config)
         
@@ -146,19 +154,28 @@ elif est_utilisateur:
             if len(choix) == 3:
                 st.markdown("---")
                 if st.button("🚀 VALIDER", type="primary", use_container_width=True):
+                    # Double check
+                    voters = load_json(VOTERS_FILE, [])
+                    if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]:
+                        st.error("Déjà voté !")
+                        time.sleep(2); st.rerun()
+
                     vts = load_json(VOTES_FILE, {})
                     for v in choix: vts[v] = vts.get(v, 0) + 1
                     save_json(VOTES_FILE, vts)
                     
+                    voters.append(st.session_state.user_pseudo)
+                    save_json(VOTERS_FILE, voters)
+                    
                     components.html("""<script>
-                        localStorage.setItem('VOTE_SIMPLE_LOCK', 'true');
+                        localStorage.setItem('VOTE_SESSION_FINAL_V9', 'true');
                         window.parent.location.href = window.parent.location.href + '&blocked=true';
                     </script>""", height=0)
         else:
             st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (DESIGN CORRIGÉ)
+# 3. MUR SOCIAL (CORRECTION DESIGN DEMANDÉE)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -173,25 +190,41 @@ else:
         .social-header {{ position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }}
         .social-title {{ color: white; font-size: 45px; font-weight: bold; margin: 0; text-transform: uppercase; }}
         
-        /* STYLE LIGNE CANDIDAT */
-        .cand-row {{ display: flex; align-items: center; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 10px 20px; border-radius: 50px; width: 100%; }}
+        /* STYLE GLOBAL LIGNE */
+        .cand-row {{ 
+            display: flex; 
+            align-items: center; 
+            margin-bottom: 20px; 
+            background: rgba(255,255,255,0.1); 
+            padding: 10px 20px; 
+            border-radius: 50px; 
+            width: 100%; 
+        }}
         .cand-img {{ width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; }}
         .cand-name {{ color: white; font-size: 20px; font-weight: 600; margin: 0 15px; white-space: nowrap; }}
         
-        /* CORRECTION DEMANDÉE : */
-        /* GAUCHE : [Photo] [Texte] | Aligné à droite (vers le centre) */
-        .row-left {{ justify-content: flex-end; text-align: right; }}
-        .row-left .cand-name {{ order: 2; }} /* Texte après */
-        .row-left .cand-img {{ order: 1; }}  /* Photo avant */
+        /* CORRECTION SPÉCIFIQUE DEMANDÉE : 
+           Les deux côtés doivent afficher [PHOTO] puis [TEXTE]
+           Mais l'alignement global du bloc change.
+        */
+
+        /* COLONNE GAUCHE : Aligné vers la droite (flex-end) */
+        .row-left {{ 
+            flex-direction: row;      /* Ordre normal : Photo -> Texte */
+            justify-content: flex-end; /* Collé à droite */
+            text-align: right; 
+        }}
         
-        /* DROITE : [Photo] [Texte] | Aligné à gauche (vers le centre) */
-        .row-right {{ justify-content: flex-start; text-align: left; }}
-        /* Par défaut l'ordre HTML est Photo puis Texte, donc pas besoin de 'order' */
+        /* COLONNE DROITE : Aligné vers la gauche (flex-start) */
+        .row-right {{ 
+            flex-direction: row;       /* Ordre normal : Photo -> Texte */
+            justify-content: flex-start; /* Collé à gauche */
+            text-align: left; 
+        }}
         
-        .list-container {{ position: absolute; top: 18vh; width: 100%; display: flex; justify-content: center; gap: 50px; }}
+        .list-container {{ position: absolute; top: 18vh; width: 100%; display: flex; justify-content: center; gap: 40px; }}
         .col-list {{ width: 35%; display: flex; flex-direction: column; }}
         
-        /* PODIUM (Bas et Petit) */
         .winner-card {{ 
             position: fixed; top: 400px; left: 50%; transform: translateX(-50%); 
             width: 300px; background: rgba(15,15,15,0.98); border: 10px solid #FFD700; 
@@ -222,26 +255,25 @@ else:
                     <h2 style="color:#FFD700; font-size:25px; margin:0;">VAINQUEUR</h2>
                 </div>""", unsafe_allow_html=True)
         else:
-            # LISTES CANDIDATS
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
             left_list = cands[:mid]
             right_list = cands[mid:]
             
-            # Construction Gauche : [Photo] [Texte] (Aligné droite via CSS)
+            # Construction HTML
+            # Note : On met l'image EN PREMIER pour les deux côtés
+            
             html_left = ""
             for c in left_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
                 html_left += f"""<div class="cand-row row-left"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
 
-            # Construction Droite : [Photo] [Texte] (Aligné gauche via CSS)
             html_right = ""
             for c in right_list:
                 img_src = f"data:image/png;base64,{imgs[c]}" if c in imgs else "https://via.placeholder.com/60/333/FFF?text=?"
                 html_right += f"""<div class="cand-row row-right"><img src="{img_src}" class="cand-img"><span class="cand-name">{c}</span></div>"""
             
-            # QR CODE
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"http://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
