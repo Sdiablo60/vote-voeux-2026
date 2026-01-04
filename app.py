@@ -29,9 +29,6 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
-# --- AVATAR ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
-
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
     "mode_affichage": "attente", 
@@ -452,8 +449,9 @@ elif est_utilisateur:
 # 3. MUR SOCIAL
 # =========================================================
 else:
+    # 4000ms = 4 secondes pour laisser les bulles bouger
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=2000, key="wall_refresh")
+    st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
     
     st.markdown("""
@@ -556,61 +554,74 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        # MODIF: BOX WIDTH 300px
-        center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A; width:300px;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:180px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"
         
-        ph.markdown(center_html, unsafe_allow_html=True)
-        
+        # --- CENTRE BOX INTÉGRÉE AU JS POUR ÉVITER LE CLIGNOTEMENT ---
+        # On passe les données au JS
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
+        # Le contenu HTML de la boîte centrale est généré en string pour le JS
+        center_html_content = f"""
+            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:300px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
+                {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
+                <div style='background:white; padding:10px; border-radius:10px; display:inline-block;'>
+                    <img src='data:image/png;base64,{qr_b64}' style='width:150px;'>
+                </div>
+                <h2 style='color:white; margin-top:15px; font-size:24px; font-family:Arial; line-height:1.4;'>Partagez vos sourires<br>et vos moments forts !</h2>
+            </div>
+        """
+        
+        # On injecte le tout : Bulles + Boîte Centrale dans le même composant
         components.html(f"""<script>
             setTimeout(function() {{
                 var doc = window.parent.document;
-                var container = doc.getElementById('bubble-wall');
-                if(container) container.remove();
                 
-                container = doc.createElement('div');
-                container.id = 'bubble-wall'; 
-                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;pointer-events:none;overflow:hidden;';
+                // Nettoyage complet
+                var existing = doc.getElementById('live-container');
+                if(existing) existing.remove();
+                
+                var container = doc.createElement('div');
+                container.id = 'live-container'; 
+                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
                 doc.body.appendChild(container);
+                
+                // 1. AJOUT DE LA BOITE CENTRALE (Directement dans le DOM)
+                container.innerHTML = `{center_html_content}`;
                 
                 const imgs = {img_js}; const bubbles = [];
                 const minSize = 80; const maxSize = 200;
                 
-                // --- SAFE SPAWN FUNCTION ---
+                // 2. SPAWN SÛR (EVITER LA BOITE AU DÉPART)
                 function getSafeSpawn(bSize) {{
-                    let maxAttempts = 50;
-                    let x, y;
+                    let maxAttempts = 100;
+                    // Définition de la "Boîte Interdite" (Un peu plus large que la boîte visuelle)
+                    let bx = window.innerWidth/2 - 200; 
+                    let by = window.innerHeight/2 - 250;
+                    let bw = 400; let bh = 500;
                     
-                    // Box Dimensions (approx 300x400 center)
-                    let bx = window.innerWidth/2 - 150;
-                    let by = window.innerHeight/2 - 200;
-                    let bw = 300; let bh = 400;
-
                     for(let i=0; i<maxAttempts; i++) {{
-                        x = Math.random() * (window.innerWidth - bSize);
-                        y = 150 + Math.random() * (window.innerHeight - 150 - bSize);
+                        let x = Math.random() * (window.innerWidth - bSize);
+                        let y = 180 + Math.random() * (window.innerHeight - 180 - bSize); // Sous le titre
                         
-                        // Check Collision with Center Box
-                        if(x + bSize > bx && x < bx + bw && y + bSize > by && y < by + bh) {{
-                            continue; // Try again
-                        }}
+                        // Si on est DANS la boîte, on recommence
+                        if (x + bSize > bx && x < bx + bw && y + bSize > by && y < by + bh) continue;
+                        
                         return {{x, y}};
                     }}
-                    return {{x: 0, y: window.innerHeight - bSize}}; // Fallback
+                    return {{x:0, y:window.innerHeight-bSize}}; // Fallback
                 }}
 
                 imgs.forEach((src, i) => {{
                     const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
                     const el = doc.createElement('img'); el.src = src;
-                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover; will-change:transform;';
+                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform;';
                     
                     let pos = getSafeSpawn(bSize);
-
-                    let speed = 2 + Math.random() * 3;
+                    
+                    // Vitesse aléatoire
                     let angle = Math.random() * Math.PI * 2;
+                    let speed = 2 + Math.random() * 3;
                     let vx = Math.cos(angle) * speed;
                     let vy = Math.sin(angle) * speed;
 
@@ -619,50 +630,36 @@ else:
                 }});
                 
                 function animate() {{
-                    // Box Rect for Collision
-                    let bx = window.innerWidth/2 - 170; // 300 width + padding
-                    let by = window.innerHeight/2 - 250; // Height est + padding
-                    let bw = 340; 
-                    let bh = 500; 
+                    // Boîte de collision centrale (Physique)
+                    // Plus petite que la boîte visuelle pour laisser passer les bulles sur les bords
+                    let cx = window.innerWidth/2 - 160; 
+                    let cy = window.innerHeight/2 - 200;
+                    let cw = 320; let ch = 400;
 
                     bubbles.forEach(b => {{
                         b.x += b.vx; 
                         b.y += b.vy;
                         
-                        // SCREEN WALLS
-                        if(b.x <= 0) {{ b.x = 0; b.vx *= -1; }}
-                        else if(b.x + b.size >= window.innerWidth) {{ b.x = window.innerWidth - b.size; b.vx *= -1; }}
-                        
-                        if(b.y + b.size >= window.innerHeight) {{ b.y = window.innerHeight - b.size; b.vy *= -1; }}
-                        
-                        // TITLE BAR
-                        if(b.y <= 150) {{ b.y = 150; b.vy = Math.abs(b.vy); }}
+                        // REBOND MURS ECRAN
+                        if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
+                        if(b.x + b.size >= window.innerWidth) {{ b.x=window.innerWidth-b.size; b.vx *= -1; }}
+                        if(b.y + b.size >= window.innerHeight) {{ b.y=window.innerHeight-b.size; b.vy *= -1; }}
+                        if(b.y <= 180) {{ b.y=180; b.vy = Math.abs(b.vy); }} // Rebond titre
 
-                        // CENTER BOX COLLISION (PUSH OUT LOGIC)
-                        if(b.x + b.size > bx && b.x < bx + bw && b.y + b.size > by && b.y < by + bh) {{
+                        // REBOND BOITE CENTRALE (Logique AABB)
+                        if (b.x < cx + cw && b.x + b.size > cx && b.y < cy + ch && b.y + b.size > cy) {{
+                            // Pénétration calculée
+                            let pLeft = (b.x + b.size) - cx;
+                            let pRight = (cx + cw) - b.x;
+                            let pTop = (b.y + b.size) - cy;
+                            let pBottom = (cy + ch) - b.y;
                             
-                            // Calculate overlaps
-                            let overlapLeft = (b.x + b.size) - bx;
-                            let overlapRight = (bx + bw) - b.x;
-                            let overlapTop = (b.y + b.size) - by;
-                            let overlapBottom = (by + bh) - b.y;
+                            let minP = Math.min(pLeft, pRight, pTop, pBottom);
                             
-                            // Find smallest overlap
-                            let minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
-                            
-                            if(minOverlap == overlapLeft) {{
-                                b.x = bx - b.size; // Push Left
-                                b.vx = -Math.abs(b.vx);
-                            }} else if(minOverlap == overlapRight) {{
-                                b.x = bx + bw; // Push Right
-                                b.vx = Math.abs(b.vx);
-                            }} else if(minOverlap == overlapTop) {{
-                                b.y = by - b.size; // Push Up
-                                b.vy = -Math.abs(b.vy);
-                            }} else if(minOverlap == overlapBottom) {{
-                                b.y = by + bh; // Push Down
-                                b.vy = Math.abs(b.vy);
-                            }}
+                            if (minP == pLeft) {{ b.x = cx - b.size; b.vx = -Math.abs(b.vx); }}
+                            else if (minP == pRight) {{ b.x = cx + cw; b.vx = Math.abs(b.vx); }}
+                            else if (minP == pTop) {{ b.y = cy - b.size; b.vy = -Math.abs(b.vy); }}
+                            else if (minP == pBottom) {{ b.y = cy + ch; b.vy = Math.abs(b.vy); }}
                         }}
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
@@ -670,5 +667,5 @@ else:
                     requestAnimationFrame(animate);
                 }}
                 animate();
-            }}, 500);
+            }}, 200);
         </script>""", height=0)
