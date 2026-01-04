@@ -29,9 +29,6 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
-# --- AVATAR ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
-
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
     "mode_affichage": "attente", 
@@ -452,7 +449,7 @@ elif est_utilisateur:
 # 3. MUR SOCIAL
 # =========================================================
 else:
-    # 4000ms de refresh
+    # 4000ms REFRESH
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
@@ -574,7 +571,14 @@ else:
         """
         
         components.html(f"""<script>
-            setTimeout(function() {{
+            // FUNCTION D'INITIALISATION
+            function init() {{
+                // SECURITE : Attendre une vraie taille d'écran
+                if (window.innerHeight < 100 || window.innerWidth < 100) {{
+                    requestAnimationFrame(init);
+                    return;
+                }}
+
                 var doc = window.parent.document;
                 
                 var existing = doc.getElementById('live-container');
@@ -588,50 +592,37 @@ else:
                 container.innerHTML = `{center_html_content}`;
                 
                 const imgs = {img_js}; const bubbles = [];
-                // 1. TAILLE REDUITE (60px - 160px) pour plus d'espace
                 const minSize = 60; const maxSize = 160;
                 
-                // 2. SPAWN INTELLIGENT (CHERCHE PLACE LIBRE)
-                function getSafeSpawn(bSize) {{
-                    let maxAttempts = 100;
-                    // On définit la "Boîte Visuelle" à éviter
-                    let bx = window.innerWidth/2 - 200; 
-                    let by = window.innerHeight/2 - 250;
-                    let bw = 400; let bh = 500;
-                    
-                    for(let i=0; i<maxAttempts; i++) {{
-                        let x = Math.random() * (window.innerWidth - bSize);
-                        let y = Math.random() * (window.innerHeight - bSize); // PEUT ETRE PARTOUT
-                        
-                        // Si dans la boîte, on rejette
-                        if (x + bSize > bx && x < bx + bw && y + bSize > by && y < by + bh) continue;
-                        
-                        // Si trop haut (titre), on rejette aussi un peu
-                        if (y < 120) continue;
-
-                        return {{x, y}};
-                    }}
-                    return {{x:0, y:window.innerHeight-bSize}}; // Fallback
-                }}
-
+                // --- SPAWN EXPLOSIF (SUR TOUT L'ECRAN) ---
                 imgs.forEach((src, i) => {{
                     const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
                     const el = doc.createElement('img'); el.src = src;
-                    // Z-INDEX FAIBLE pour passer DERRIERE le QR
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
                     
-                    let pos = getSafeSpawn(bSize);
-                    
+                    // Spawn PARTOUT (Haut, Bas, Gauche, Droite)
+                    // On evite juste la boite centrale au demarrage
+                    let startX, startY;
+                    let safe = false;
+                    while(!safe) {{
+                        startX = Math.random() * (window.innerWidth - bSize);
+                        startY = Math.random() * (window.innerHeight - bSize);
+                        
+                        // Check Collision Boite (Approximatif 400x500 au centre)
+                        let bx = window.innerWidth/2 - 200;
+                        let by = window.innerHeight/2 - 250;
+                        if(startX > bx && startX < bx+400 && startY > by && startY < by+500) continue;
+                        safe = true;
+                    }}
+
+                    // --- VITESSE EXPLOSIVE ---
                     let angle = Math.random() * Math.PI * 2;
-                    let speed = 2 + Math.random() * 2;
+                    let speed = 3 + Math.random() * 3; // Rapide !
                     let vx = Math.cos(angle) * speed;
                     let vy = Math.sin(angle) * speed;
-                    
-                    if(Math.abs(vx)<1) vx=1.5;
-                    if(Math.abs(vy)<1) vy=1.5;
 
                     container.appendChild(el); 
-                    bubbles.push({{el, x: pos.x, y: pos.y, vx, vy, size: bSize}});
+                    bubbles.push({{el, x: startX, y: startY, vx, vy, size: bSize}});
                 }});
                 
                 function animate() {{
@@ -639,19 +630,21 @@ else:
                         b.x += b.vx; 
                         b.y += b.vy;
                         
-                        // REBOND MURS ECRAN (G, D, H, B)
+                        // REBOND MURS
                         if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
                         if(b.x + b.size >= window.innerWidth) {{ b.x=window.innerWidth-b.size; b.vx *= -1; }}
+                        if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
                         if(b.y + b.size >= window.innerHeight) {{ b.y=window.innerHeight-b.size; b.vy *= -1; }}
-                        // REBOND TITRE SEULEMENT
-                        if(b.y <= 120) {{ b.y=120; b.vy = Math.abs(b.vy); }}
 
-                        // PAS DE REBOND CENTRAL -> MODE FANTOME (Passage derrière)
+                        // PAS DE REBOND CENTRAL -> MODE FANTOME
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
                     }});
                     requestAnimationFrame(animate);
                 }}
                 animate();
-            }}, 200);
+            }}
+            
+            // Lancer l'initialisation
+            init();
         </script>""", height=0)
