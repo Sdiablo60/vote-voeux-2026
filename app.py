@@ -462,7 +462,7 @@ elif est_utilisateur:
 # 3. MUR SOCIAL
 # =========================================================
 else:
-    # REFRESH 4000ms
+    # 4000ms REFRESH
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
@@ -576,6 +576,7 @@ else:
         # 340px width, 22px text
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
+                <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
                 {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
                 <div style='background:white; padding:10px; border-radius:10px; display:inline-block;'>
                     <img src='data:image/png;base64,{qr_b64}' style='width:150px;'>
