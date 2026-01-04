@@ -326,9 +326,7 @@ if "config" not in st.session_state:
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
-    
     if "auth" not in st.session_state: st.session_state["auth"] = False
-    
     if not st.session_state["auth"]:
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
@@ -341,14 +339,11 @@ if est_admin:
                     st.rerun()
                 else: st.error("Code incorrect")
             st.markdown('</div>', unsafe_allow_html=True)
-            
     else:
         if "session_active" not in st.session_state or not st.session_state["session_active"]:
             st.title("🗂️ GESTIONNAIRE DE SESSIONS")
             st.info("Avant d'accéder au pilotage, choisissez une session.")
-            
             current_title = st.session_state.config.get("titre_mur", "Session Inconnue")
-            
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("### 🚀 Continuer")
@@ -364,7 +359,6 @@ if est_admin:
                     st.success("Nouvelle session vierge prête !")
                     time.sleep(1)
                     st.rerun()
-            
             st.divider()
             st.markdown("### 📚 Historique / Archives")
             archives = sorted([d for d in os.listdir(ARCHIVE_DIR) if os.path.isdir(os.path.join(ARCHIVE_DIR, d))], reverse=True)
@@ -383,7 +377,6 @@ if est_admin:
                         confirm = c_del.checkbox("Confirmer", key=f"chk_{arc}")
                         if c_del.button("🗑️", key=f"del_{arc}", disabled=not confirm):
                             delete_archived_session(arc); st.rerun()
-
         else:
             cfg = st.session_state.config
             with st.sidebar:
@@ -550,16 +543,8 @@ elif est_utilisateur:
             components.html(f"""<script>
                 var sS = "{curr_sess}";
                 var lS = localStorage.getItem('VOTE_SID_2026');
-                if(lS !== sS) {{ 
-                    localStorage.removeItem('HAS_VOTED_2026'); 
-                    localStorage.setItem('VOTE_SID_2026', sS); 
-                    if(window.parent.location.href.includes('blocked=true')) {{ 
-                        window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); 
-                    }} 
-                }}
-                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ 
-                    window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>';
-                }}
+                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
+                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
             </script>""", height=0)
         else:
             st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
@@ -627,13 +612,29 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (AVEC JS COUNTDOWN COMPACT & BLOQUE)
+# 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
+    
+    st.markdown("""
+    <style>
+        body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
+        [data-testid='stHeader'] { display: none; }
+        .block-container { padding: 0 !important; max-width: 100% !important; }
+        .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
+        .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
+        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
+        .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
+        .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
+        .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
+    </style>
+    """, unsafe_allow_html=True)
     
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     mode = cfg.get("mode_affichage")
@@ -645,11 +646,7 @@ else:
     
     if mode == "attente":
         logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-        ph.markdown(f"""
-        <div style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:2; overflow:hidden;'>
-            {logo_html}
-            <h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1>
-        </div>""", unsafe_allow_html=True)
+        ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
@@ -679,7 +676,6 @@ else:
             ts_start = cfg.get("timestamp_podium", 0) * 1000
             logo_data = cfg.get("logo_b64", "")
             
-            # --- PODIUM COMPACT ---
             components.html(f"""
             <html>
             <head>
@@ -687,13 +683,11 @@ else:
                 body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }}
                 .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; max-height:100vh; }}
                 
-                /* LOGO REDUIT A 350px (DEMANDE UTILISATEUR) */
                 .logo-img {{ width: 350px; margin-bottom: 20px; object-fit: contain; display: block; }}
                 
                 .countdown {{ font-size: 100px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 10px 0; }}
                 .title {{ color:white; font-size:40px; font-weight:bold; margin-bottom:15px; }}
                 
-                /* GRILLE COMPACTE */
                 .grid {{ display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; width: 90%; }}
                 
                 .card {{ background: rgba(255,255,255,0.1); padding: 10px; border-radius: 15px; width: 160px; text-align: center; color: white; }}
@@ -748,12 +742,12 @@ else:
                         const now = Date.now();
                         const elapsed = (now - startTime) / 1000;
                         if (elapsed < 10) {{
-                            document.getElementById('screen-suspense').style.display = 'flex';
+                            document.getElementById('screen-suspense').style.display = 'block';
                             document.getElementById('screen-winner').style.display = 'none';
                             document.getElementById('timer').innerText = Math.ceil(10 - elapsed);
                         }} else {{
                             document.getElementById('screen-suspense').style.display = 'none';
-                            document.getElementById('screen-winner').style.display = 'flex';
+                            document.getElementById('screen-winner').style.display = 'block';
                         }}
                     }}
                     setInterval(update, 100);
