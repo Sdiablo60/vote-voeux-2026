@@ -30,7 +30,7 @@ for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
 # --- AVATAR ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
@@ -343,7 +343,7 @@ if est_admin:
                         ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
                         new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
                         zf.write(file_path, arcname=new_name)
-                c3.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos.zip", mime="application/zip", type="primary")
+                c3.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live_{int(time.time())}.zip", mime="application/zip", type="primary")
 
         elif menu == "📊 DATA":
             st.subheader("📊 Résultats & Export")
@@ -576,7 +576,7 @@ else:
                 doc.body.appendChild(container);
                 
                 const imgs = {img_js}; const bubbles = [];
-                // TAILLE REDUITE (Demandé)
+                // TAILLES VARIÉES (80px - 200px)
                 const minSize = 80; const maxSize = 200;
                 
                 imgs.forEach((src, i) => {{
@@ -584,19 +584,18 @@ else:
                     const el = doc.createElement('img'); el.src = src;
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover; will-change:transform;';
                     
-                    // 1. SPAWN SÛR (Milieu-Bas)
-                    let startX = Math.random() * (window.innerWidth - bSize);
-                    let startY = 180 + Math.random() * (window.innerHeight - 180 - bSize);
+                    // SPAWN SÉCURISÉ (Loin des bords)
+                    let startX = Math.random() * (window.innerWidth - 300) + 150;
+                    let startY = Math.random() * (window.innerHeight - 400) + 200;
 
-                    // 2. VITESSE DIAGONALE (Anti-latéral)
-                    let speed = 2 + Math.random() * 3; // Vitesse entre 2 et 5
-                    let angle = Math.random() * Math.PI * 2; // Angle aléatoire 0-360 degrés
-                    
+                    // DIRECTION INITIALE FORCÉE EN DIAGONALE (Anti-latéral)
+                    let angle = Math.random() * Math.PI * 2; 
+                    let speed = 3 + Math.random() * 2;
                     let vx = Math.cos(angle) * speed;
                     let vy = Math.sin(angle) * speed;
-
-                    // Sécurité : si trop horizontal, on booste le vertical
-                    if(Math.abs(vy) < 1) vy = (vy < 0 ? -1.5 : 1.5);
+                    
+                    // FORCE VY SI TROP FAIBLE (Empêche le mouvement plat)
+                    if (Math.abs(vy) < 1.5) vy = (vy < 0 ? -2 : 2);
 
                     container.appendChild(el); 
                     bubbles.push({{el, x: startX, y: startY, vx, vy, size: bSize}});
@@ -604,31 +603,30 @@ else:
                 
                 function animate() {{
                     bubbles.forEach(b => {{
+                        // DÉPLACEMENT
                         b.x += b.vx; 
                         b.y += b.vy;
                         
-                        // 3. REBONDS SUR LES 4 MURS (Anti-Vibration)
-                        // GAUCHE
+                        // REBOND GAUCHE / DROITE
                         if(b.x <= 0) {{
-                            b.x = 0; // Sortir du mur
-                            b.vx *= -1; // Inverser
+                            b.x = 0; // Reset position pour éviter blocage
+                            b.vx = Math.abs(b.vx); // Force vers la droite
                         }}
-                        // DROITE
                         else if(b.x + b.size >= window.innerWidth) {{
                             b.x = window.innerWidth - b.size;
-                            b.vx *= -1;
+                            b.vx = -Math.abs(b.vx); // Force vers la gauche
                         }}
                         
-                        // PLAFOND (Titre)
-                        if(b.y <= 180) {{
-                            b.y = 180;
-                            b.vy = Math.abs(b.vy); // Force vers le BAS
-                        }}
-                        
-                        // SOL
-                        else if(b.y + b.size >= window.innerHeight) {{
+                        // REBOND BAS
+                        if(b.y + b.size >= window.innerHeight) {{
                             b.y = window.innerHeight - b.size;
-                            b.vy *= -1; // Force vers le HAUT
+                            b.vy = -Math.abs(b.vy); // Force vers le haut
+                        }}
+                        
+                        // REBOND HAUT (TITRE 150px)
+                        if(b.y <= 150) {{
+                            b.y = 150;
+                            b.vy = Math.abs(b.vy); // Force vers le bas
                         }}
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
