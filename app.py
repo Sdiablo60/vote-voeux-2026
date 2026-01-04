@@ -30,7 +30,7 @@ for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
 # --- AVATAR ---
-DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
@@ -556,7 +556,8 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:200px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Partagez vos sourires et vos moments forts !</h2></div>"
+        # MODIF: BOX WIDTH 300px
+        center_html = f"<div id='center-box' style='position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.8); padding:20px; border-radius:30px; border:2px solid #E2001A; width:300px;'>{'<img src=\"data:image/png;base64,'+logo_data+'\" style=\"width:180px; margin-bottom:15px; display:block; margin-left:auto; margin-right:auto;\">' if logo_data else ''}<div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div><h2 style='color:white; margin-top:10px; font-size:24px;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"
         
         ph.markdown(center_html, unsafe_allow_html=True)
         
@@ -576,57 +577,92 @@ else:
                 doc.body.appendChild(container);
                 
                 const imgs = {img_js}; const bubbles = [];
-                // TAILLES VARIÉES (80px - 200px)
                 const minSize = 80; const maxSize = 200;
                 
+                // --- SAFE SPAWN FUNCTION ---
+                function getSafeSpawn(bSize) {{
+                    let maxAttempts = 50;
+                    let x, y;
+                    
+                    // Box Dimensions (approx 300x400 center)
+                    let bx = window.innerWidth/2 - 150;
+                    let by = window.innerHeight/2 - 200;
+                    let bw = 300; let bh = 400;
+
+                    for(let i=0; i<maxAttempts; i++) {{
+                        x = Math.random() * (window.innerWidth - bSize);
+                        y = 150 + Math.random() * (window.innerHeight - 150 - bSize);
+                        
+                        // Check Collision with Center Box
+                        if(x + bSize > bx && x < bx + bw && y + bSize > by && y < by + bh) {{
+                            continue; // Try again
+                        }}
+                        return {{x, y}};
+                    }}
+                    return {{x: 0, y: window.innerHeight - bSize}}; // Fallback
+                }}
+
                 imgs.forEach((src, i) => {{
                     const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
                     const el = doc.createElement('img'); el.src = src;
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:8px solid #E2001A; object-fit:cover; will-change:transform;';
                     
-                    // SPAWN SÉCURISÉ (Loin des bords)
-                    let startX = Math.random() * (window.innerWidth - 300) + 150;
-                    let startY = Math.random() * (window.innerHeight - 400) + 200;
+                    let pos = getSafeSpawn(bSize);
 
-                    // DIRECTION INITIALE FORCÉE EN DIAGONALE (Anti-latéral)
-                    let angle = Math.random() * Math.PI * 2; 
-                    let speed = 3 + Math.random() * 2;
+                    let speed = 2 + Math.random() * 3;
+                    let angle = Math.random() * Math.PI * 2;
                     let vx = Math.cos(angle) * speed;
                     let vy = Math.sin(angle) * speed;
-                    
-                    // FORCE VY SI TROP FAIBLE (Empêche le mouvement plat)
-                    if (Math.abs(vy) < 1.5) vy = (vy < 0 ? -2 : 2);
 
                     container.appendChild(el); 
-                    bubbles.push({{el, x: startX, y: startY, vx, vy, size: bSize}});
+                    bubbles.push({{el, x: pos.x, y: pos.y, vx, vy, size: bSize}});
                 }});
                 
                 function animate() {{
+                    // Box Rect for Collision
+                    let bx = window.innerWidth/2 - 170; // 300 width + padding
+                    let by = window.innerHeight/2 - 250; // Height est + padding
+                    let bw = 340; 
+                    let bh = 500; 
+
                     bubbles.forEach(b => {{
-                        // DÉPLACEMENT
                         b.x += b.vx; 
                         b.y += b.vy;
                         
-                        // REBOND GAUCHE / DROITE
-                        if(b.x <= 0) {{
-                            b.x = 0; // Reset position pour éviter blocage
-                            b.vx = Math.abs(b.vx); // Force vers la droite
-                        }}
-                        else if(b.x + b.size >= window.innerWidth) {{
-                            b.x = window.innerWidth - b.size;
-                            b.vx = -Math.abs(b.vx); // Force vers la gauche
-                        }}
+                        // SCREEN WALLS
+                        if(b.x <= 0) {{ b.x = 0; b.vx *= -1; }}
+                        else if(b.x + b.size >= window.innerWidth) {{ b.x = window.innerWidth - b.size; b.vx *= -1; }}
                         
-                        // REBOND BAS
-                        if(b.y + b.size >= window.innerHeight) {{
-                            b.y = window.innerHeight - b.size;
-                            b.vy = -Math.abs(b.vy); // Force vers le haut
-                        }}
+                        if(b.y + b.size >= window.innerHeight) {{ b.y = window.innerHeight - b.size; b.vy *= -1; }}
                         
-                        // REBOND HAUT (TITRE 150px)
-                        if(b.y <= 150) {{
-                            b.y = 150;
-                            b.vy = Math.abs(b.vy); // Force vers le bas
+                        // TITLE BAR
+                        if(b.y <= 150) {{ b.y = 150; b.vy = Math.abs(b.vy); }}
+
+                        // CENTER BOX COLLISION (PUSH OUT LOGIC)
+                        if(b.x + b.size > bx && b.x < bx + bw && b.y + b.size > by && b.y < by + bh) {{
+                            
+                            // Calculate overlaps
+                            let overlapLeft = (b.x + b.size) - bx;
+                            let overlapRight = (bx + bw) - b.x;
+                            let overlapTop = (b.y + b.size) - by;
+                            let overlapBottom = (by + bh) - b.y;
+                            
+                            // Find smallest overlap
+                            let minOverlap = Math.min(overlapLeft, overlapRight, overlapTop, overlapBottom);
+                            
+                            if(minOverlap == overlapLeft) {{
+                                b.x = bx - b.size; // Push Left
+                                b.vx = -Math.abs(b.vx);
+                            }} else if(minOverlap == overlapRight) {{
+                                b.x = bx + bw; // Push Right
+                                b.vx = Math.abs(b.vx);
+                            }} else if(minOverlap == overlapTop) {{
+                                b.y = by - b.size; // Push Up
+                                b.vy = -Math.abs(b.vy);
+                            }} else if(minOverlap == overlapBottom) {{
+                                b.y = by + bh; // Push Down
+                                b.vy = Math.abs(b.vy);
+                            }}
                         }}
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
