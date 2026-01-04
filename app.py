@@ -449,7 +449,7 @@ elif est_utilisateur:
 # 3. MUR SOCIAL
 # =========================================================
 else:
-    # 4000ms REFRESH
+    # 4000ms de refresh
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
@@ -560,6 +560,7 @@ else:
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
         # --- CENTRE BOX ---
+        # 340px width, 22px text
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
@@ -570,81 +571,65 @@ else:
             </div>
         """
         
+        # --- COMPOSANT SANS "INIT" BLOCKANT, AVEC VALEURS PAR DEFAUT ET SANS BOITE PHYSIQUE ---
         components.html(f"""<script>
-            // FUNCTION D'INITIALISATION
-            function init() {{
-                // SECURITE : Attendre une vraie taille d'écran
-                if (window.innerHeight < 100 || window.innerWidth < 100) {{
-                    requestAnimationFrame(init);
-                    return;
-                }}
-
-                var doc = window.parent.document;
-                
-                var existing = doc.getElementById('live-container');
-                if(existing) existing.remove();
-                
-                var container = doc.createElement('div');
-                container.id = 'live-container'; 
-                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
-                doc.body.appendChild(container);
-                
-                container.innerHTML = `{center_html_content}`;
-                
-                const imgs = {img_js}; const bubbles = [];
-                const minSize = 60; const maxSize = 160;
-                
-                // --- SPAWN EXPLOSIF (SUR TOUT L'ECRAN) ---
-                imgs.forEach((src, i) => {{
-                    const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-                    const el = doc.createElement('img'); el.src = src;
-                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
-                    
-                    // Spawn PARTOUT (Haut, Bas, Gauche, Droite)
-                    // On evite juste la boite centrale au demarrage
-                    let startX, startY;
-                    let safe = false;
-                    while(!safe) {{
-                        startX = Math.random() * (window.innerWidth - bSize);
-                        startY = Math.random() * (window.innerHeight - bSize);
-                        
-                        // Check Collision Boite (Approximatif 400x500 au centre)
-                        let bx = window.innerWidth/2 - 200;
-                        let by = window.innerHeight/2 - 250;
-                        if(startX > bx && startX < bx+400 && startY > by && startY < by+500) continue;
-                        safe = true;
-                    }}
-
-                    // --- VITESSE EXPLOSIVE ---
-                    let angle = Math.random() * Math.PI * 2;
-                    let speed = 3 + Math.random() * 3; // Rapide !
-                    let vx = Math.cos(angle) * speed;
-                    let vy = Math.sin(angle) * speed;
-
-                    container.appendChild(el); 
-                    bubbles.push({{el, x: startX, y: startY, vx, vy, size: bSize}});
-                }});
-                
-                function animate() {{
-                    bubbles.forEach(b => {{
-                        b.x += b.vx; 
-                        b.y += b.vy;
-                        
-                        // REBOND MURS
-                        if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
-                        if(b.x + b.size >= window.innerWidth) {{ b.x=window.innerWidth-b.size; b.vx *= -1; }}
-                        if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
-                        if(b.y + b.size >= window.innerHeight) {{ b.y=window.innerHeight-b.size; b.vy *= -1; }}
-
-                        // PAS DE REBOND CENTRAL -> MODE FANTOME
-
-                        b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
-                    }});
-                    requestAnimationFrame(animate);
-                }}
-                animate();
-            }}
+            var doc = window.parent.document;
             
-            // Lancer l'initialisation
-            init();
+            // CLEANUP
+            var existing = doc.getElementById('live-container');
+            if(existing) existing.remove();
+            
+            var container = doc.createElement('div');
+            container.id = 'live-container'; 
+            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
+            doc.body.appendChild(container);
+            
+            container.innerHTML = `{center_html_content}`;
+            
+            const imgs = {img_js}; const bubbles = [];
+            const minSize = 60; const maxSize = 160;
+            
+            // VALEURS PAR DEFAUT SI "window.innerWidth" EST 0
+            var screenW = window.innerWidth || 1920;
+            var screenH = window.innerHeight || 1080;
+
+            imgs.forEach((src, i) => {{
+                const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
+                const el = doc.createElement('img'); el.src = src;
+                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
+                
+                // SPAWN ALEATOIRE TOTAL
+                let x = Math.random() * (screenW - bSize);
+                let y = Math.random() * (screenH - bSize);
+                
+                // VITESSE RAPIDE
+                let angle = Math.random() * Math.PI * 2;
+                let speed = 3 + Math.random() * 2;
+                let vx = Math.cos(angle) * speed;
+                let vy = Math.sin(angle) * speed;
+
+                container.appendChild(el); 
+                bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
+            }});
+            
+            function animate() {{
+                // MISE A JOUR DES DIMS EN TEMPS REEL
+                screenW = window.innerWidth || 1920;
+                screenH = window.innerHeight || 1080;
+
+                bubbles.forEach(b => {{
+                    b.x += b.vx; 
+                    b.y += b.vy;
+                    
+                    // REBOND SIMPLE SUR LES 4 MURS
+                    if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
+                    if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
+                    if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
+                    if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
+
+                    b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
+                }});
+                requestAnimationFrame(animate);
+            }}
+            animate();
         </script>""", height=0)
