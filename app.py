@@ -8,6 +8,7 @@ import pandas as pd
 import random
 import altair as alt
 import copy
+import re
 
 # TENTATIVE D'IMPORT DE FPDF
 try:
@@ -134,15 +135,29 @@ def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
 # --- GESTION SESSIONS ---
-def archive_current_session(name_suffix="AutoSave"):
+def sanitize_filename(name):
+    """Nettoie un nom pour qu'il soit valide en nom de dossier"""
+    return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
+
+def archive_current_session():
+    """Archive la session en utilisant son TITRE"""
+    # Charge la config actuelle pour choper le titre
+    current_cfg = load_json(CONFIG_FILE, default_config)
+    titre = current_cfg.get("titre_mur", "Session")
+    safe_titre = sanitize_filename(titre)
+    
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    folder_name = f"{timestamp}_{name_suffix}"
+    folder_name = f"{timestamp}_{safe_titre}"
     archive_path = os.path.join(ARCHIVE_DIR, folder_name)
+    
     os.makedirs(archive_path, exist_ok=True)
+    
     for f in [VOTES_FILE, CONFIG_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): shutil.copy2(f, archive_path)
+    
     live_archive = os.path.join(archive_path, "galerie_live_users")
     if os.path.exists(LIVE_DIR): shutil.copytree(LIVE_DIR, live_archive)
+    
     return folder_name
 
 def restore_session_from_archive(folder_name):
@@ -341,17 +356,21 @@ if est_admin:
             st.title("🗂️ GESTIONNAIRE DE SESSIONS")
             st.info("Avant d'accéder au pilotage, choisissez une session.")
             
+            # RECUPERER LE TITRE DE LA SESSION ACTUELLE POUR L'AFFICHAGE
+            current_title = st.session_state.config.get("titre_mur", "Session Inconnue")
+            
             c1, c2 = st.columns(2)
             with c1:
-                st.markdown("### 🚀 Session Actuelle")
-                if st.button("CONTINUER LA SESSION EN COURS", type="primary", use_container_width=True):
+                st.markdown("### 🚀 Continuer")
+                # LE BOUTON AFFICHE LE TITRE DE LA SESSION
+                if st.button(f"OUVRIR : {current_title}", type="primary", use_container_width=True):
                     st.session_state["session_active"] = True
                     st.rerun()
             with c2:
-                st.markdown("### ✨ Nouvelle Session")
-                new_name = st.text_input("Nom de la sauvegarde (Optionnel)", placeholder="Ex: Matin_10h")
+                st.markdown("### ✨ Créer")
+                st.write("Archive la session actuelle et repart à zéro.")
                 if st.button("CRÉER UNE NOUVELLE SESSION VIERGE", type="primary", use_container_width=True):
-                    archive_current_session(new_name if new_name else "AutoSave")
+                    archive_current_session() # Archive automatique avec le titre actuel
                     reset_app_data(init_mode="blank")
                     st.session_state["session_active"] = True
                     st.success("Nouvelle session vierge prête !")
@@ -367,7 +386,7 @@ if est_admin:
                     with st.expander(f"📁 {arc}"):
                         c_res, c_del = st.columns([3, 1])
                         if c_res.button(f"Restaurer {arc}", key=f"res_{arc}"):
-                            archive_current_session("PreRestoreBackup")
+                            archive_current_session() # Sauvegarde sécu
                             restore_session_from_archive(arc)
                             st.session_state.config = load_json(CONFIG_FILE, default_config)
                             st.session_state["session_active"] = True
@@ -636,13 +655,14 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (AVEC JS COUNTDOWN)
+# 3. MUR SOCIAL (AVEC JS COUNTDOWN COMPACT)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     
-    st_autorefresh(interval=3000, key="wall_refresh")
+    refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
+    st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
     st.markdown("""
     <style>
@@ -699,20 +719,24 @@ else:
             ts_start = cfg.get("timestamp_podium", 0) * 1000
             logo_data = cfg.get("logo_b64", "")
             
+            # --- PODIUM HTML COMPACT ---
             components.html(f"""
             <html>
             <head>
             <style>
                 body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; display:flex; justify-content:center; align-items:center; height:100vh; }}
-                .wrapper {{ text-align: center; width: 100%; }}
-                .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 20px 0; }}
-                .title {{ color:white; font-size:50px; font-weight:bold; margin-bottom:20px; }}
-                .grid {{ display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; }}
-                .card {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 220px; text-align: center; color: white; }}
-                .card img {{ width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; }}
-                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 400px; text-align: center; box-shadow: 0 0 60px #FFD700; margin: 0 auto; }}
-                .winner-card img {{ width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 6px solid white; margin-bottom: 20px; }}
-                .logo-img {{ width: 250px; margin-bottom: 30px; }}
+                .wrapper {{ text-align: center; width: 100%; transform: scale(0.9); }} /* ECHELLE REDUITE */
+                .countdown {{ font-size: 100px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 10px 0; }}
+                .title {{ color:white; font-size:40px; font-weight:bold; margin-bottom:15px; }}
+                .grid {{ display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; }}
+                .card {{ background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; width: 180px; text-align: center; color: white; }}
+                .card img {{ width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid white; }}
+                .winner-card {{ background: rgba(20,20,20,0.95); border: 5px solid #FFD700; padding: 30px; border-radius: 30px; width: 350px; text-align: center; box-shadow: 0 0 50px #FFD700; margin: 0 auto; }}
+                .winner-card img {{ width: 150px; height: 150px; border-radius: 50%; object-fit: cover; border: 5px solid white; margin-bottom: 15px; }}
+                .logo-img {{ width: 150px; margin-bottom: 15px; }}
+                h1 {{ font-size: 30px; margin: 10px 0; }}
+                h2 {{ font-size: 25px; }}
+                h3 {{ font-size: 18px; }}
             </style>
             </head>
             <body>
@@ -744,7 +768,7 @@ else:
 
                     const wGrid = document.getElementById('winners-grid');
                     winners.forEach(w => {{
-                        let html = `<div class="winner-card"><div style="font-size:60px">🥇</div>`;
+                        let html = `<div class="winner-card"><div style="font-size:50px">🥇</div>`;
                         if(w.img) html += `<img src="${{w.img}}">`;
                         else html += `<div style="font-size:80px">🏆</div>`;
                         html += `<h1 style="color:white;margin:10px 0">${{w.name}}</h1><h2 style="color:#FFD700">VAINQUEUR</h2><h3 style="color:#CCC">${{w.score}} pts</h3></div>`;
@@ -768,7 +792,7 @@ else:
                 </script>
             </body>
             </html>
-            """, height=1000, scrolling=False)
+            """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
             with ph.container():
@@ -810,6 +834,7 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
