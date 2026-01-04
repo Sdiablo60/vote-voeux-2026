@@ -40,8 +40,9 @@ st.markdown("""
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; }
     
-    /* STYLE SPECIFIQUE POUR LE MENU SIDEBAR (NAVIGATION) */
-    /* Bouton Actif (Rouge comme le Mur Social) */
+    /* --- STYLE SIDEBAR NAVIGATION --- */
+    
+    /* Bouton Menu Actif (Rouge) */
     section[data-testid="stSidebar"] button[kind="primary"] {
         background-color: #E2001A !important;
         border: none !important;
@@ -49,9 +50,10 @@ st.markdown("""
         font-weight: bold !important;
         padding: 10px !important;
         margin-bottom: 5px !important;
+        transition: all 0.3s ease;
     }
     
-    /* Bouton Inactif (Gris Foncé) */
+    /* Bouton Menu Inactif (Gris Foncé) */
     section[data-testid="stSidebar"] button[kind="secondary"] {
         background-color: #333333 !important;
         border: none !important;
@@ -59,12 +61,42 @@ st.markdown("""
         font-weight: bold !important;
         padding: 10px !important;
         margin-bottom: 5px !important;
+        transition: all 0.3s ease;
     }
-    
-    /* Hover effect */
     section[data-testid="stSidebar"] button:hover {
         opacity: 0.8;
+        transform: scale(1.02);
     }
+
+    /* --- STYLE BOUTONS LIENS EXTERNES --- */
+    .custom-link-btn {
+        display: block;
+        text-align: center;
+        padding: 10px;
+        border-radius: 5px;
+        text-decoration: none !important;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: white !important;
+        font-family: "Source Sans Pro", sans-serif;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    .custom-link-btn:hover {
+        transform: scale(1.02);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        color: white !important;
+    }
+
+    /* Rouge pour Mur Social */
+    .btn-red { background-color: #E2001A; border: 1px solid #E2001A; }
+    .btn-red:hover { background-color: #C20015; }
+
+    /* Bleu pour Test Mobile */
+    .btn-blue { background-color: #2980b9; border: 1px solid #2980b9; }
+    .btn-blue:hover { background-color: #1f618d; }
 
     img { max-width: 100%; }
 </style>
@@ -288,16 +320,14 @@ if est_admin:
             if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
             st.header("MENU")
             
-            # --- NOUVELLE NAVIGATION (BOUTONS COLORES) ---
+            # --- NOUVELLE NAVIGATION ---
             if "admin_menu" not in st.session_state: st.session_state.admin_menu = "🔴 PILOTAGE LIVE"
             
             menu_options = ["🔴 PILOTAGE LIVE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE", "📊 DATA"]
             for m in menu_options:
                 if st.session_state.admin_menu == m:
-                    # Bouton Actif (Rouge via CSS "primary")
                     st.button(m, key=f"nav_{m}", type="primary", use_container_width=True)
                 else:
-                    # Bouton Inactif (Gris via CSS "secondary")
                     if st.button(m, key=f"nav_{m}", type="secondary", use_container_width=True):
                         st.session_state.admin_menu = m
                         st.rerun()
@@ -305,8 +335,12 @@ if est_admin:
             menu = st.session_state.admin_menu
             
             st.divider()
-            st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none;">📺 OUVRIR MUR SOCIAL</a>""", unsafe_allow_html=True)
-            st.markdown("""<a href="/?mode=vote&test_admin=true" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none;">📱 TESTER MOBILE (ILLIMITÉ)</a>""", unsafe_allow_html=True)
+            # LIENS EXTERNES COLORES VIA CSS CLASS
+            st.markdown("""
+                <a href="/" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>
+                <a href="/?mode=vote&test_admin=true" target="_blank" class="custom-link-btn btn-blue">📱 TESTER MOBILE (ILLIMITÉ)</a>
+            """, unsafe_allow_html=True)
+            
             if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
         if menu == "🔴 PILOTAGE LIVE":
@@ -373,6 +407,7 @@ if est_admin:
                             save_config(); st.rerun()
                     with c3:
                         col_up, col_del = st.columns([3, 1])
+                        # PARTICIPANTS
                         up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
                         if up_img: 
                             if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
