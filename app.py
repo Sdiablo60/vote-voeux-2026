@@ -39,6 +39,23 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # --- CSS GLOBAL ---
 st.markdown("""
 <style>
+    /* Supprime les marges par défaut de Streamlit */
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
+        max-width: 100% !important;
+    }
+    
+    /* Force le fond noir partout */
+    .stApp {
+        background-color: black;
+    }
+    
+    /* Cache le header Streamlit */
+    header { visibility: hidden; }
+    
     /* Boutons */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
@@ -326,7 +343,9 @@ if "config" not in st.session_state:
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
+    
     if "auth" not in st.session_state: st.session_state["auth"] = False
+    
     if not st.session_state["auth"]:
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
@@ -339,11 +358,14 @@ if est_admin:
                     st.rerun()
                 else: st.error("Code incorrect")
             st.markdown('</div>', unsafe_allow_html=True)
+            
     else:
         if "session_active" not in st.session_state or not st.session_state["session_active"]:
             st.title("🗂️ GESTIONNAIRE DE SESSIONS")
             st.info("Avant d'accéder au pilotage, choisissez une session.")
+            
             current_title = st.session_state.config.get("titre_mur", "Session Inconnue")
+            
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("### 🚀 Continuer")
@@ -359,6 +381,7 @@ if est_admin:
                     st.success("Nouvelle session vierge prête !")
                     time.sleep(1)
                     st.rerun()
+            
             st.divider()
             st.markdown("### 📚 Historique / Archives")
             archives = sorted([d for d in os.listdir(ARCHIVE_DIR) if os.path.isdir(os.path.join(ARCHIVE_DIR, d))], reverse=True)
@@ -377,6 +400,7 @@ if est_admin:
                         confirm = c_del.checkbox("Confirmer", key=f"chk_{arc}")
                         if c_del.button("🗑️", key=f"del_{arc}", disabled=not confirm):
                             delete_archived_session(arc); st.rerun()
+
         else:
             cfg = st.session_state.config
             with st.sidebar:
@@ -624,7 +648,6 @@ else:
     <style>
         body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
         [data-testid='stHeader'] { display: none; }
-        .block-container { padding: 0 !important; max-width: 100% !important; }
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
@@ -633,6 +656,7 @@ else:
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
+        .logo-img { width: 200px; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -680,26 +704,20 @@ else:
             <html>
             <head>
             <style>
-                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }}
-                .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; max-height:100vh; }}
-                
-                .logo-img {{ width: 350px; margin-bottom: 20px; object-fit: contain; display: block; }}
-                
-                .countdown {{ font-size: 100px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 10px 0; }}
-                .title {{ color:white; font-size:40px; font-weight:bold; margin-bottom:15px; }}
-                
-                .grid {{ display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; width: 90%; }}
-                
-                .card {{ background: rgba(255,255,255,0.1); padding: 10px; border-radius: 15px; width: 160px; text-align: center; color: white; }}
-                .card img {{ width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 3px solid white; }}
-                .card h3 {{ font-size: 16px; margin: 5px 0; }}
-                .card h4 {{ font-size: 14px; margin: 0; color: #CCC; }}
-                
+                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:850px; display:flex; flex-direction:column; justify-content:center; align-items:center; }}
+                .wrapper {{ text-align: center; width: 100%; transform: scale(0.9); }}
+                .logo-img {{ width: 250px; margin-bottom: 20px; object-fit: contain; }}
+                .countdown {{ font-size: 80px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 10px 0; }}
+                .title {{ color:white; font-size:35px; font-weight:bold; margin-bottom:15px; }}
+                .grid {{ display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; width: 95%; }}
+                .card {{ background: rgba(255,255,255,0.1); padding: 10px; border-radius: 15px; width: 140px; text-align: center; color: white; }}
+                .card img {{ width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid white; }}
+                .card h3 {{ font-size: 14px; margin: 5px 0; }}
+                .card h4 {{ font-size: 12px; margin: 0; color: #CCC; }}
                 .winner-card {{ background: rgba(20,20,20,0.95); border: 5px solid #FFD700; padding: 20px; border-radius: 30px; width: 300px; text-align: center; box-shadow: 0 0 50px #FFD700; margin: 0 auto; }}
                 .winner-card img {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 5px solid white; margin-bottom: 10px; }}
                 .winner-card h1 {{ font-size: 28px; margin: 10px 0; color: white; }}
                 .winner-card h2 {{ font-size: 22px; color: #FFD700; }}
-                
             </style>
             </head>
             <body>
@@ -709,17 +727,14 @@ else:
                     <div id="timer" class="countdown">10</div>
                     <div class="grid" id="finalists-grid"></div>
                 </div>
-                
                 <div id="screen-winner" class="wrapper" style="display:none;">
                     {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
                     <div class="grid" id="winners-grid"></div>
                 </div>
-
                 <script>
                     const finalists = {json.dumps(js_finalists)};
                     const winners = {json.dumps(js_winners)};
                     const startTime = {ts_start};
-                    
                     const fGrid = document.getElementById('finalists-grid');
                     finalists.forEach(f => {{
                         let html = `<div class="card">`;
@@ -728,7 +743,6 @@ else:
                         html += `<h3>${{f.name}}</h3><h4>${{f.score}} pts</h4></div>`;
                         fGrid.innerHTML += html;
                     }});
-
                     const wGrid = document.getElementById('winners-grid');
                     winners.forEach(w => {{
                         let html = `<div class="winner-card"><div style="font-size:50px">🥇</div>`;
@@ -737,7 +751,6 @@ else:
                         html += `<h1>${{w.name}}</h1><h2>VAINQUEUR</h2><h3>${{w.score}} pts</h3></div>`;
                         wGrid.innerHTML += html;
                     }});
-
                     function update() {{
                         const now = Date.now();
                         const elapsed = (now - startTime) / 1000;
@@ -755,7 +768,7 @@ else:
                 </script>
             </body>
             </html>
-            """, height=1000, scrolling=False)
+            """, height=850, scrolling=False)
 
         elif cfg.get("session_ouverte"):
             with ph.container():
