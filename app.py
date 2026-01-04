@@ -74,19 +74,19 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- OPTIMISATION IMAGES (ANTI-LAG) ---
+# --- OPTIMISATION DRASTIQUE IMAGES (300px / Q=50) ---
 def process_image(uploaded_file):
     try:
         img = Image.open(uploaded_file)
         # Conversion en RGB si image transparente (sinon erreur JPG)
         if img.mode in ("RGBA", "P"): img = img.convert("RGB")
         
-        # Redimensionnement agressif (400px suffisent largement)
-        img.thumbnail((400, 400))
+        # Redimensionnement agressif (300px suffisent pour un rond de podium)
+        img.thumbnail((300, 300))
         
         buf = BytesIO()
-        # Compression JPEG Qualité 70 (Beaucoup plus léger que PNG)
-        img.save(buf, format="JPEG", quality=70, optimize=True)
+        # Compression JPEG Qualité 50 (Ultra léger)
+        img.save(buf, format="JPEG", quality=50, optimize=True)
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
@@ -435,6 +435,9 @@ elif est_utilisateur:
                 st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
         
         elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
+            # CORRECTION : SI MODE TEST ADMIN, LE FORMULAIRE S'AFFICHE TOUJOURS
+            # SI PAS MODE TEST, ON VERIFIE JUSTE QUE "SESSION_OUVERTE" (DEJA FAIT DANS LE IF PRINCIPAL)
+            
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             if not st.session_state.rules_accepted:
                 st.info("⚠️ **RÈGLES DU VOTE**")
@@ -465,6 +468,25 @@ elif est_utilisateur:
                                 st.session_state["widget_choix"] = [] # FORCE RESET SELECTION
                                 st.rerun()
                             st.stop()
+        
+        # SI ON EST EN MODE TEST ADMIN ET QUE "SESSION OUVERTE" EST FALSE, ON AFFICHE QUAND MEME
+        # MAIS LE IF PRINCIPAL (L.678) FILTRE DEJA SUR "session_ouverte".
+        # CORRECTION : POUR LE MODE TEST, IL FAUT POUVOIR VOTER MEME SI FERME.
+        # J'AI MODIFIE LA CONDITION CI-DESSOUS :
+        elif is_test_admin and cfg["mode_affichage"] == "votes":
+             # DUPLICATION DE LA LOGIQUE DE VOTE POUR LE MODE TEST QUAND SESSION FERMEE
+             st.write(f"Bonjour **{st.session_state.user_pseudo}** (Mode Test Force)")
+             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix_force")
+             if len(choix) == 3:
+                if st.button("VALIDER (MODE TEST)", type="primary"):
+                    vts = load_json(VOTES_FILE, {})
+                    pts = cfg.get("points_ponderation", [5, 3, 1])
+                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
+                    save_json(VOTES_FILE, vts)
+                    st.balloons()
+                    st.success("Vote Test OK")
+                    if st.button("🔄 Voter à nouveau"): st.rerun()
+                    
         else: st.info("⏳ En attente...")
 
 # =========================================================
