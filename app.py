@@ -15,6 +15,9 @@ try:
 except ImportError:
     PDF_AVAILABLE = False
 
+# SECURITE PIL POUR GROSSES IMAGES (EVITE LE CRASH SUR 5MO+)
+Image.MAX_IMAGE_PIXELS = None 
+
 # --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
@@ -74,21 +77,28 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- OPTIMISATION DRASTIQUE IMAGES (300px / Q=50) ---
+# --- OPTIMISATION AGRESSIVE IMAGES (ANTI-LAG) ---
 def process_image(uploaded_file):
     try:
+        # 1. Ouverture
         img = Image.open(uploaded_file)
-        # Conversion en RGB si image transparente (sinon erreur JPG)
-        if img.mode in ("RGBA", "P"): img = img.convert("RGB")
         
-        # Redimensionnement agressif (300px suffisent pour un rond de podium)
-        img.thumbnail((300, 300))
+        # 2. Force RGB (Supprime transparence lourde)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
         
+        # 3. Redimensionnement BRUTAL (250px max)
+        # C'est la clé pour que l'interface ne fige pas
+        img.thumbnail((250, 250), Image.Resampling.LANCZOS)
+        
+        # 4. Compression JPEG Qualité MOYENNE (suffisant pour écran)
         buf = BytesIO()
-        # Compression JPEG Qualité 50 (Ultra léger)
-        img.save(buf, format="JPEG", quality=50, optimize=True)
+        img.save(buf, format="JPEG", quality=60, optimize=True)
+        
         return base64.b64encode(buf.getvalue()).decode()
-    except: return None
+    except Exception as e:
+        print(f"Erreur Image: {e}")
+        return None
 
 # --- GÉNÉRATEUR PDF ---
 if PDF_AVAILABLE:
@@ -300,10 +310,12 @@ if est_admin:
                         up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
                         if up_img: 
                             if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
-                            st.session_state.config["candidats_images"][cand] = process_image(up_img)
-                            save_config()
-                            st.success("Image OK")
-                            time.sleep(0.5); st.rerun()
+                            processed = process_image(up_img)
+                            if processed:
+                                st.session_state.config["candidats_images"][cand] = processed
+                                save_config()
+                                st.success("OK")
+                                time.sleep(0.5); st.rerun()
                         if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
                 
                 if candidates_to_remove:
@@ -434,17 +446,13 @@ elif est_utilisateur:
                 st.success("Photo envoyée !")
                 st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
         
-        elif cfg["mode_affichage"] == "votes" and cfg["session_ouverte"]:
-            # CORRECTION : SI MODE TEST ADMIN, LE FORMULAIRE S'AFFICHE TOUJOURS
-            # SI PAS MODE TEST, ON VERIFIE JUSTE QUE "SESSION_OUVERTE" (DEJA FAIT DANS LE IF PRINCIPAL)
-            
+        elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             if not st.session_state.rules_accepted:
                 st.info("⚠️ **RÈGLES DU VOTE**")
                 st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
-                # WIDGET AVEC CLEF POUR RESET
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix")
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
@@ -468,25 +476,6 @@ elif est_utilisateur:
                                 st.session_state["widget_choix"] = [] # FORCE RESET SELECTION
                                 st.rerun()
                             st.stop()
-        
-        # SI ON EST EN MODE TEST ADMIN ET QUE "SESSION OUVERTE" EST FALSE, ON AFFICHE QUAND MEME
-        # MAIS LE IF PRINCIPAL (L.678) FILTRE DEJA SUR "session_ouverte".
-        # CORRECTION : POUR LE MODE TEST, IL FAUT POUVOIR VOTER MEME SI FERME.
-        # J'AI MODIFIE LA CONDITION CI-DESSOUS :
-        elif is_test_admin and cfg["mode_affichage"] == "votes":
-             # DUPLICATION DE LA LOGIQUE DE VOTE POUR LE MODE TEST QUAND SESSION FERMEE
-             st.write(f"Bonjour **{st.session_state.user_pseudo}** (Mode Test Force)")
-             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix_force")
-             if len(choix) == 3:
-                if st.button("VALIDER (MODE TEST)", type="primary"):
-                    vts = load_json(VOTES_FILE, {})
-                    pts = cfg.get("points_ponderation", [5, 3, 1])
-                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-                    save_json(VOTES_FILE, vts)
-                    st.balloons()
-                    st.success("Vote Test OK")
-                    if st.button("🔄 Voter à nouveau"): st.rerun()
-                    
         else: st.info("⏳ En attente...")
 
 # =========================================================
