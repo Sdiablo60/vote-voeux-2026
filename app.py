@@ -33,11 +33,39 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS GLOBAL ---
+# --- CSS GLOBAL (NAVIGATION & BOUTONS) ---
 st.markdown("""
 <style>
+    /* Boutons standards dans la page principale */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; }
+    
+    /* STYLE SPECIFIQUE POUR LE MENU SIDEBAR (NAVIGATION) */
+    /* Bouton Actif (Rouge comme le Mur Social) */
+    section[data-testid="stSidebar"] button[kind="primary"] {
+        background-color: #E2001A !important;
+        border: none !important;
+        color: white !important;
+        font-weight: bold !important;
+        padding: 10px !important;
+        margin-bottom: 5px !important;
+    }
+    
+    /* Bouton Inactif (Gris Foncé) */
+    section[data-testid="stSidebar"] button[kind="secondary"] {
+        background-color: #333333 !important;
+        border: none !important;
+        color: white !important;
+        font-weight: bold !important;
+        padding: 10px !important;
+        margin-bottom: 5px !important;
+    }
+    
+    /* Hover effect */
+    section[data-testid="stSidebar"] button:hover {
+        opacity: 0.8;
+    }
+
     img { max-width: 100%; }
 </style>
 """, unsafe_allow_html=True)
@@ -86,7 +114,7 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- TRAITEMENT LOGO (PNG TRANSPARENT) ---
+# --- TRAITEMENT LOGO ---
 def process_logo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -97,7 +125,7 @@ def process_logo(uploaded_file):
     except Exception as e:
         return None
 
-# --- TRAITEMENT PARTICIPANTS (JPEG LEGER) ---
+# --- TRAITEMENT PARTICIPANTS ---
 def process_participant_image(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -259,7 +287,23 @@ if est_admin:
         with st.sidebar:
             if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
             st.header("MENU")
-            menu = st.radio("Navigation", ["🔴 PILOTAGE LIVE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE", "📊 DATA"])
+            
+            # --- NOUVELLE NAVIGATION (BOUTONS COLORES) ---
+            if "admin_menu" not in st.session_state: st.session_state.admin_menu = "🔴 PILOTAGE LIVE"
+            
+            menu_options = ["🔴 PILOTAGE LIVE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE", "📊 DATA"]
+            for m in menu_options:
+                if st.session_state.admin_menu == m:
+                    # Bouton Actif (Rouge via CSS "primary")
+                    st.button(m, key=f"nav_{m}", type="primary", use_container_width=True)
+                else:
+                    # Bouton Inactif (Gris via CSS "secondary")
+                    if st.button(m, key=f"nav_{m}", type="secondary", use_container_width=True):
+                        st.session_state.admin_menu = m
+                        st.rerun()
+            
+            menu = st.session_state.admin_menu
+            
             st.divider()
             st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none;">📺 OUVRIR MUR SOCIAL</a>""", unsafe_allow_html=True)
             st.markdown("""<a href="/?mode=vote&test_admin=true" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none;">📱 TESTER MOBILE (ILLIMITÉ)</a>""", unsafe_allow_html=True)
@@ -334,7 +378,6 @@ if est_admin:
                             if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
                             processed = process_participant_image(up_img)
                             if processed:
-                                # VERIFICATION ANTI-BOUCLE INFINIE
                                 current_img = st.session_state.config["candidats_images"].get(cand)
                                 if processed != current_img:
                                     st.session_state.config["candidats_images"][cand] = processed
