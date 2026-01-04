@@ -74,6 +74,22 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
+# --- OPTIMISATION IMAGES (ANTI-LAG) ---
+def process_image(uploaded_file):
+    try:
+        img = Image.open(uploaded_file)
+        # Conversion en RGB si image transparente (sinon erreur JPG)
+        if img.mode in ("RGBA", "P"): img = img.convert("RGB")
+        
+        # Redimensionnement agressif (400px suffisent largement)
+        img.thumbnail((400, 400))
+        
+        buf = BytesIO()
+        # Compression JPEG Qualité 70 (Beaucoup plus léger que PNG)
+        img.save(buf, format="JPEG", quality=70, optimize=True)
+        return base64.b64encode(buf.getvalue()).decode()
+    except: return None
+
 # --- GÉNÉRATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
@@ -150,15 +166,6 @@ def reset_app_data():
     save_config()
     st.toast("✅ RESET OK")
     time.sleep(1)
-
-def process_image(uploaded_file):
-    try:
-        img = Image.open(uploaded_file)
-        img.thumbnail((800, 800))
-        buf = BytesIO()
-        img.save(buf, format="PNG")
-        return base64.b64encode(buf.getvalue()).decode()
-    except: return None
 
 def get_file_info(filepath):
     try:
@@ -434,7 +441,7 @@ elif est_utilisateur:
                 st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
-                # AJOUT KEY WIDGET POUR RESET
+                # WIDGET AVEC CLEF POUR RESET
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix")
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
@@ -452,10 +459,10 @@ elif est_utilisateur:
                             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
                             st.stop()
                         else:
-                            # MODE TEST : BOUTON RAZ
+                            # RESET POUR TEST ADMIN
                             if st.button("🔄 Voter à nouveau (RAZ)"):
                                 st.session_state.vote_success = False
-                                st.session_state["widget_choix"] = [] # Reset selection
+                                st.session_state["widget_choix"] = [] # FORCE RESET SELECTION
                                 st.rerun()
                             st.stop()
         else: st.info("⏳ En attente...")
@@ -464,11 +471,10 @@ elif est_utilisateur:
 # 3. MUR SOCIAL
 # =========================================================
 else:
-    # 4000ms REFRESH
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # REFRESH ADAPTATIF : 5s SI PODIUM (ANTI-BLINK), 4s SINON
+    # REFRESH ADAPTATIF
     refresh_rate = 4000
     if cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats"):
         refresh_rate = 5000 
@@ -602,7 +608,6 @@ else:
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
-        # --- CENTRE BOX ---
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
@@ -618,12 +623,10 @@ else:
             var doc = window.parent.document;
             var existing = doc.getElementById('live-container');
             if(existing) existing.remove();
-            
             var container = doc.createElement('div');
             container.id = 'live-container'; 
             container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
             doc.body.appendChild(container);
-            
             container.innerHTML = `{center_html_content}`;
             
             const imgs = {img_js}; const bubbles = [];
