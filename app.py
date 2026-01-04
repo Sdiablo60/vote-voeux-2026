@@ -26,8 +26,9 @@ VOTERS_FILE = "voters.json"
 PARTICIPANTS_FILE = "participants.json"
 DETAILED_VOTES_FILE = "detailed_votes.json"
 
+# --- CORRECTION DU BUG DE DEMARRAGE ---
 for d in [LIVE_DIR]:
-    if not os.path.exists(d): os.makedirs(d)
+    os.makedirs(d, exist_ok=True)
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
