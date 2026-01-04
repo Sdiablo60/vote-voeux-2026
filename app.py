@@ -383,41 +383,31 @@ elif est_utilisateur:
         if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": del st.session_state["user_pseudo"]; st.rerun()
 
     if cfg["mode_affichage"] != "photos_live":
-        # --- VERIFICATION ANTI-DOUBLE VOTE (JS BLINDÉ) ---
-        # Le script s'exécute AVANT tout affichage
+        # --- VERIFICATION ANTI-DOUBLE VOTE (JS) ---
+        # Si le téléphone a le cookie du vote, on le redirige direct vers BLOCKED
         components.html(f"""<script>
             var sS = "{curr_sess}";
             var lS = localStorage.getItem('VOTE_SID_2026');
-            
-            // RESET ADMIN DETECTE
+            // Si l'ID de session a changé (RESET ADMIN), on efface le cookie pour revoter
             if(lS !== sS) {{ 
                 localStorage.removeItem('HAS_VOTED_2026'); 
                 localStorage.setItem('VOTE_SID_2026', sS); 
-                // Nettoyage URL si bloqué
                 if(window.parent.location.href.includes('blocked=true')) {{ 
                     window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); 
                 }} 
             }}
-            
-            // BLOCAGE IMMEDIAT
+            // Si le cookie est présent, on bloque l'accès
             if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ 
-                // Ecrasement du contenu de la page
+                // ECRAN NOIR + MESSAGE
                 window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>';
             }}
         </script>""", height=0)
         
-        # --- BACKUP : REDIRECTION SI LE SCRIPT JS EST LENT ---
-        if is_blocked or st.session_state.vote_success:
-            st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-            components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-            st.stop()
-
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
         pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            # PLUS DE BLOCAGE SUR LE NOM (Juste enregistrement pour info)
             st.session_state.user_pseudo = pseudo.strip()
             parts = load_json(PARTICIPANTS_FILE, [])
             parts.append(pseudo.strip())
@@ -447,31 +437,32 @@ elif est_utilisateur:
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                        # ENREGISTREMENT
+                        # 1. ENREGISTREMENT
                         vts = load_json(VOTES_FILE, {})
                         pts = cfg.get("points_ponderation", [5, 3, 1])
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                         save_json(VOTES_FILE, vts)
                         
-                        # AUDIT
                         details = load_json(DETAILED_VOTES_FILE, [])
                         details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                         save_json(DETAILED_VOTES_FILE, details)
                         
-                        # MARQUAGE TELEPHONE + REDIRECTION FORCEE
+                        # 2. EFFETS VISUELS IMMEDIATS (AVANT TOUTE REDIRECTION)
+                        st.balloons()
+                        st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
+                        
+                        # 3. VERROUILLAGE TELEPHONE
+                        components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                        
                         st.session_state.vote_success = True
-                        components.html("""<script>
-                            localStorage.setItem('HAS_VOTED_2026', 'true'); 
-                            window.parent.location.href += '&blocked=true';
-                        </script>""", height=0)
-                        time.sleep(1); st.rerun()
+                        st.stop() # ON STOPPE ICI POUR NE PAS RECHARGER LA PAGE
         else: st.info("⏳ En attente...")
 
 # =========================================================
 # 3. MUR SOCIAL
 # =========================================================
 else:
-    # 4000ms REFRESH
+    # REFRESH 4000ms
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
