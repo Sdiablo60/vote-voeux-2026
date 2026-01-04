@@ -7,7 +7,7 @@ from datetime import datetime
 import pandas as pd
 import random
 import altair as alt
-import copy # IMPORTANT POUR LA NOUVELLE SESSION
+import copy
 
 # TENTATIVE D'IMPORT DE FPDF
 try:
@@ -168,7 +168,6 @@ def reset_app_data(init_mode="blank"):
     for f in files: os.remove(f)
     
     if init_mode == "blank":
-        # UTILISATION DE DEEPCOPY POUR EVITER LES LIENS
         st.session_state.config = copy.deepcopy(blank_config)
         st.session_state.config["session_id"] = str(uuid.uuid4())
         save_config()
@@ -453,7 +452,6 @@ if est_admin:
                     if not cfg["candidats"]: st.error("⚠️ La liste est vide ! Ajoutez des participants pour commencer.")
                     
                     if len(cfg['candidats']) < 15:
-                        # CORRECTION BOUTON AJOUT (HORS FORMULAIRE POUR FLUIDITE)
                         c_add, c_btn = st.columns([4, 1])
                         new_cand = c_add.text_input("Nouveau participant", key="new_cand_input")
                         if c_btn.button("➕ Ajouter") and new_cand:
@@ -557,8 +555,16 @@ elif est_utilisateur:
             components.html(f"""<script>
                 var sS = "{curr_sess}";
                 var lS = localStorage.getItem('VOTE_SID_2026');
-                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
-                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
+                if(lS !== sS) {{ 
+                    localStorage.removeItem('HAS_VOTED_2026'); 
+                    localStorage.setItem('VOTE_SID_2026', sS); 
+                    if(window.parent.location.href.includes('blocked=true')) {{ 
+                        window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); 
+                    }} 
+                }}
+                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ 
+                    window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>';
+                }}
             </script>""", height=0)
         else:
             st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
@@ -607,8 +613,12 @@ elif est_utilisateur:
                         st.session_state.vote_success = True
                         st.balloons()
                         st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-                        if not is_test_admin: components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0); st.stop()
-                        else: st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary"); st.stop()
+                        if not is_test_admin:
+                            components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                            st.stop()
+                        else:
+                            st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
+                            st.stop()
         
         elif is_test_admin and cfg["mode_affichage"] == "votes":
              st.write(f"Bonjour **{st.session_state.user_pseudo}** (Mode Test Force)")
@@ -632,7 +642,6 @@ else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # Refresh de base
     st_autorefresh(interval=3000, key="wall_refresh")
     
     st.markdown("""
@@ -664,7 +673,6 @@ else:
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # --- PODIUM AVEC COMPTE A REBOURS JS FLUIDE ---
             v_data = load_json(VOTES_FILE, {})
             if not v_data: v_data = {"Personne": 0}
             c_imgs = cfg.get("candidats_images", {})
@@ -674,7 +682,6 @@ else:
             max_score = sorted_scores[0] if sorted_scores else 0
             winners = [k for k, v in v_data.items() if v == max_score]
             
-            # Preparation DATA pour JS
             js_finalists = []
             for name in finalists:
                 img = None
@@ -689,32 +696,35 @@ else:
                     if c.strip() == name.strip(): img = i; break
                 js_winners.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
 
-            # Timestamp de début du podium
-            ts_start = cfg.get("timestamp_podium", 0) * 1000 # JS ms
+            ts_start = cfg.get("timestamp_podium", 0) * 1000
+            logo_data = cfg.get("logo_b64", "")
             
             components.html(f"""
             <html>
             <head>
             <style>
-                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; }}
-                .wrapper {{ position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; }}
-                .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; }}
+                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; display:flex; justify-content:center; align-items:center; height:100vh; }}
+                .wrapper {{ text-align: center; width: 100%; }}
+                .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 20px 0; }}
                 .title {{ color:white; font-size:50px; font-weight:bold; margin-bottom:20px; }}
                 .grid {{ display: flex; justify-content: center; gap: 30px; flex-wrap: wrap; }}
                 .card {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 220px; text-align: center; color: white; }}
                 .card img {{ width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; }}
-                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 400px; text-align: center; box-shadow: 0 0 60px #FFD700; }}
+                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 400px; text-align: center; box-shadow: 0 0 60px #FFD700; margin: 0 auto; }}
                 .winner-card img {{ width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 6px solid white; margin-bottom: 20px; }}
+                .logo-img {{ width: 250px; margin-bottom: 30px; }}
             </style>
             </head>
             <body>
                 <div id="screen-suspense" class="wrapper" style="display:none;">
+                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
                     <div class="title">LES FINALISTES...</div>
                     <div id="timer" class="countdown">10</div>
                     <div class="grid" id="finalists-grid"></div>
                 </div>
                 
                 <div id="screen-winner" class="wrapper" style="display:none;">
+                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
                     <div class="grid" id="winners-grid"></div>
                 </div>
 
@@ -723,7 +733,6 @@ else:
                     const winners = {json.dumps(js_winners)};
                     const startTime = {ts_start};
                     
-                    // Render Finalists
                     const fGrid = document.getElementById('finalists-grid');
                     finalists.forEach(f => {{
                         let html = `<div class="card">`;
@@ -733,7 +742,6 @@ else:
                         fGrid.innerHTML += html;
                     }});
 
-                    // Render Winners
                     const wGrid = document.getElementById('winners-grid');
                     winners.forEach(w => {{
                         let html = `<div class="winner-card"><div style="font-size:60px">🥇</div>`;
@@ -746,23 +754,21 @@ else:
                     function update() {{
                         const now = Date.now();
                         const elapsed = (now - startTime) / 1000;
-                        
                         if (elapsed < 10) {{
-                            document.getElementById('screen-suspense').style.display = 'flex';
+                            document.getElementById('screen-suspense').style.display = 'block';
                             document.getElementById('screen-winner').style.display = 'none';
                             document.getElementById('timer').innerText = Math.ceil(10 - elapsed);
                         }} else {{
                             document.getElementById('screen-suspense').style.display = 'none';
-                            document.getElementById('screen-winner').style.display = 'flex';
+                            document.getElementById('screen-winner').style.display = 'block';
                         }}
                     }}
-                    
                     setInterval(update, 100);
                     update();
                 </script>
             </body>
             </html>
-            """, height=800)
+            """, height=1000, scrolling=False)
 
         elif cfg.get("session_ouverte"):
             with ph.container():
@@ -804,7 +810,6 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*")
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
@@ -815,7 +820,6 @@ else:
                 <h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2>
             </div>
         """
-        
         components.html(f"""<script>
             var doc = window.parent.document;
             var existing = doc.getElementById('live-container');
@@ -825,28 +829,23 @@ else:
             container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
             doc.body.appendChild(container);
             container.innerHTML = `{center_html_content}`;
-            
             const imgs = {img_js}; const bubbles = [];
             const minSize = 60; const maxSize = 160;
             var screenW = window.innerWidth || 1920;
             var screenH = window.innerHeight || 1080;
-
             imgs.forEach((src, i) => {{
                 const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
                 const el = doc.createElement('img'); el.src = src;
                 el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
-                
                 let x = Math.random() * (screenW - bSize);
                 let y = Math.random() * (screenH - bSize);
                 let angle = Math.random() * Math.PI * 2;
                 let speed = 0.8 + Math.random() * 1.2;
                 let vx = Math.cos(angle) * speed;
                 let vy = Math.sin(angle) * speed;
-
                 container.appendChild(el); 
                 bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
             }});
-            
             function animate() {{
                 screenW = window.innerWidth || 1920;
                 screenH = window.innerHeight || 1080;
