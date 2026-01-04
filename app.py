@@ -29,6 +29,9 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR]:
     if not os.path.exists(d): os.makedirs(d)
 
+# --- AVATAR ---
+DEFAULT_AVATAR = "iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAM1BMVEXk5ueutLfn6Onj5Oa+wsO2u73q6+zg4eKxvL2/w8Tk5ebl5ufm5+nm6Oni4+Tp6uvr7O24w8qOAAACvklEQVR4nO3b23KCMBBAUYiCoKD+/792RC0iF1ApOcvM2rO+lF8S50ymL6cdAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADgX0a9eT6f13E67e+P5yV/7V6Z5/V0Wubb7XKZl/x9e1Zm3u/reZ7y9+1VmV/X/Xad8vftzT/97iX/3J6V6e+365S/b6/KjP/7cf9u06f8fXtV5vF43L/bdMrft2dl5v1+u075+/aqzL/rfrtO+fv2qsz/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMuP/frtO+fv2qsz4v9+uU/6+vSoz/u+365S/b6/KjP/77Trl79urMgMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/xG2nLBH198qZpAAAAAElFTkSuQmCC"
+
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
     "mode_affichage": "attente", 
@@ -449,7 +452,7 @@ elif est_utilisateur:
 # 3. MUR SOCIAL
 # =========================================================
 else:
-    # 4000ms de refresh pour le mode photo pour moins de saut
+    # REFRESH 4000ms
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
@@ -559,8 +562,7 @@ else:
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
-        # --- CENTRE BOX INTÉGRÉE (LARGEUR AUGMENTÉE POUR 2 LIGNES, POLICE REDUITE) ---
-        # 340px Largeur, 22px Police
+        # --- MODE TEST VERTICAL ---
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
@@ -588,47 +590,23 @@ else:
                 const imgs = {img_js}; const bubbles = [];
                 const minSize = 80; const maxSize = 200;
                 
-                // 1. BOITE PHYSIQUE RÉDUITE (La clé pour éviter le couloir)
-                // On réduit la taille "perçue" par les bulles pour qu'elles passent derrière les bords
-                // Visual box is ~380px wide. Collision box will be 200px only.
-                let cx = window.innerWidth/2 - 100; 
-                let cy = window.innerHeight/2 - 150;
-                let cw = 200; let ch = 300;
-
-                // 2. SPAWN SÛR PARTOUT
-                function getSafeSpawn(bSize) {{
-                    let maxAttempts = 100;
-                    for(let i=0; i<maxAttempts; i++) {{
-                        let x = Math.random() * (window.innerWidth - bSize);
-                        let y = 180 + Math.random() * (window.innerHeight - 180 - bSize); // Sous le titre
-                        
-                        // Si on est DANS la boîte physique, on recommence
-                        if (x + bSize > cx && x < cx + cw && y + bSize > cy && y < cy + ch) continue;
-                        
-                        return {{x, y}};
-                    }}
-                    return {{x:0, y:window.innerHeight-bSize}};
-                }}
-
                 imgs.forEach((src, i) => {{
                     const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
                     const el = doc.createElement('img'); el.src = src;
-                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform;';
+                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform;z-index:1;';
                     
-                    let pos = getSafeSpawn(bSize);
+                    let startX = Math.random() * (window.innerWidth - bSize);
+                    let startY = window.innerHeight - 100;
+
+                    // MODE TEST VERTICAL
+                    // VX très faible (bouge à peine sur le côté)
+                    let vx = (Math.random() - 0.5) * 2; 
                     
-                    // VITESSE ET DIRECTION
-                    let angle = Math.random() * Math.PI * 2;
-                    let speed = 2 + Math.random() * 2;
-                    let vx = Math.cos(angle) * speed;
-                    let vy = Math.sin(angle) * speed;
-                    
-                    // Force minimum movement (Anti-surplace)
-                    if(Math.abs(vx)<1) vx=1.5;
-                    if(Math.abs(vy)<1) vy=1.5;
+                    // VY très forte (Monte ou descend vite)
+                    let vy = (Math.random() > 0.5 ? 1 : -1) * (4 + Math.random() * 4);
 
                     container.appendChild(el); 
-                    bubbles.push({{el, x: pos.x, y: pos.y, vx, vy, size: bSize}});
+                    bubbles.push({{el, x: startX, y: startY, vx, vy, size: bSize}});
                 }});
                 
                 function animate() {{
@@ -636,28 +614,16 @@ else:
                         b.x += b.vx; 
                         b.y += b.vy;
                         
-                        // REBOND MURS ECRAN
-                        if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
-                        if(b.x + b.size >= window.innerWidth) {{ b.x=window.innerWidth-b.size; b.vx *= -1; }}
-                        if(b.y + b.size >= window.innerHeight) {{ b.y=window.innerHeight-b.size; b.vy *= -1; }}
+                        // WRAP GAUCHE / DROITE
+                        if(b.x > window.innerWidth) b.x = -b.size;
+                        else if(b.x < -b.size) b.x = window.innerWidth;
                         
-                        // REBOND TITRE (180px)
-                        if(b.y <= 180) {{ b.y=180; b.vy = Math.abs(b.vy); }}
-
-                        // REBOND BOITE CENTRALE (Logique AABB Réduite)
-                        if (b.x < cx + cw && b.x + b.size > cx && b.y < cy + ch && b.y + b.size > cy) {{
-                            let pLeft = (b.x + b.size) - cx;
-                            let pRight = (cx + cw) - b.x;
-                            let pTop = (b.y + b.size) - cy;
-                            let pBottom = (cy + ch) - b.y;
-                            
-                            let minP = Math.min(pLeft, pRight, pTop, pBottom);
-                            
-                            if (minP == pLeft) {{ b.x = cx - b.size; b.vx = -Math.abs(b.vx); }}
-                            else if (minP == pRight) {{ b.x = cx + cw; b.vx = Math.abs(b.vx); }}
-                            else if (minP == pTop) {{ b.y = cy - b.size; b.vy = -Math.abs(b.vy); }}
-                            else if (minP == pBottom) {{ b.y = cy + ch; b.vy = Math.abs(b.vy); }}
-                        }}
+                        // WRAP HAUT / BAS (TELEPORTATION)
+                        // Si sort en bas -> revient en haut
+                        if(b.y > window.innerHeight) b.y = -b.size;
+                        
+                        // Si sort en haut -> revient en bas
+                        if(b.y < -b.size) b.y = window.innerHeight;
 
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
                     }});
