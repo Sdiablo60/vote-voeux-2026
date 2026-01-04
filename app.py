@@ -15,7 +15,7 @@ try:
 except ImportError:
     PDF_AVAILABLE = False
 
-# SECURITE PIL POUR GROSSES IMAGES (EVITE LE CRASH SUR 5MO+)
+# SECURITE PIL
 Image.MAX_IMAGE_PIXELS = None 
 
 # --- CONFIGURATION ---
@@ -32,6 +32,17 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 # --- CORRECTION DEMARRAGE ---
 for d in [LIVE_DIR]:
     os.makedirs(d, exist_ok=True)
+
+# --- CSS GLOBAL (Correction Boutons Blancs) ---
+st.markdown("""
+<style>
+    /* Force la couleur du texte des boutons pour qu'ils soient lisibles */
+    button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
+    button[kind="primary"] { color: white !important; }
+    /* Optimisation affichage images admin */
+    img { max-width: 100%; }
+</style>
+""", unsafe_allow_html=True)
 
 # --- CONFIG PAR DÉFAUT ---
 default_config = {
@@ -77,28 +88,35 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- OPTIMISATION AGRESSIVE IMAGES (ANTI-LAG) ---
+# --- OPTIMISATION ULTIME IMAGES (RAPIDE ET LEGER) ---
 def process_image(uploaded_file):
     try:
-        # 1. Ouverture
         img = Image.open(uploaded_file)
-        
-        # 2. Force RGB (Supprime transparence lourde)
+        # Force RGB
         if img.mode != "RGB":
             img = img.convert("RGB")
         
-        # 3. Redimensionnement BRUTAL (250px max)
-        # C'est la clé pour que l'interface ne fige pas
-        img.thumbnail((250, 250), Image.Resampling.LANCZOS)
+        # Redimensionnement Rapide (BICUBIC est plus rapide que LANCZOS)
+        # 300px est largement suffisant
+        img.thumbnail((300, 300), Image.Resampling.BICUBIC)
         
-        # 4. Compression JPEG Qualité MOYENNE (suffisant pour écran)
         buf = BytesIO()
+        # Compression JPEG 60% sans métadonnées
         img.save(buf, format="JPEG", quality=60, optimize=True)
-        
         return base64.b64encode(buf.getvalue()).decode()
     except Exception as e:
         print(f"Erreur Image: {e}")
         return None
+
+# --- CALLBACK POUR RESET VOTE (TEST ADMIN) ---
+def reset_vote_callback():
+    st.session_state.vote_success = False
+    # On vide explicitement la clé du widget
+    if "widget_choix" in st.session_state:
+        st.session_state.widget_choix = []
+    # Idem pour le mode forcé
+    if "widget_choix_force" in st.session_state:
+        st.session_state.widget_choix_force = []
 
 # --- GÉNÉRATEUR PDF ---
 if PDF_AVAILABLE:
@@ -315,7 +333,7 @@ if est_admin:
                                 st.session_state.config["candidats_images"][cand] = processed
                                 save_config()
                                 st.success("OK")
-                                time.sleep(0.5); st.rerun()
+                                time.sleep(0.1); st.rerun()
                         if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
                 
                 if candidates_to_remove:
@@ -470,12 +488,24 @@ elif est_utilisateur:
                             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
                             st.stop()
                         else:
-                            # RESET POUR TEST ADMIN
-                            if st.button("🔄 Voter à nouveau (RAZ)"):
-                                st.session_state.vote_success = False
-                                st.session_state["widget_choix"] = [] # FORCE RESET SELECTION
-                                st.rerun()
+                            st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
                             st.stop()
+        
+        elif is_test_admin and cfg["mode_affichage"] == "votes":
+             # CAS SPECIAL: TEST ADMIN QUAND MEME SI SESSION FERMEE
+             st.write(f"Bonjour **{st.session_state.user_pseudo}** (Mode Test Force)")
+             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix_force")
+             if len(choix) == 3:
+                if st.button("VALIDER (MODE TEST)", type="primary"):
+                    vts = load_json(VOTES_FILE, {})
+                    pts = cfg.get("points_ponderation", [5, 3, 1])
+                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
+                    save_json(VOTES_FILE, vts)
+                    st.balloons()
+                    st.success("Vote Test OK")
+                    st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
+                    st.stop()
+                    
         else: st.info("⏳ En attente...")
 
 # =========================================================
