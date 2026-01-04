@@ -36,26 +36,9 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS GLOBAL ---
+# --- CSS COMMUN (BOUTONS & LOGIN) ---
 st.markdown("""
 <style>
-    /* Supprime les marges par défaut de Streamlit */
-    .block-container {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
-        max-width: 100% !important;
-    }
-    
-    /* Force le fond noir partout */
-    .stApp {
-        background-color: black;
-    }
-    
-    /* Cache le header Streamlit */
-    header { visibility: hidden; }
-    
     /* Boutons */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
@@ -64,8 +47,8 @@ st.markdown("""
     /* Login Box */
     .login-container {
         max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #1E1E1E; border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; border: 1px solid #333;
+        background: #f0f2f6; border-radius: 20px; /* Fond clair pour Admin */
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
     }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
     .stTextInput input { text-align: center; font-size: 18px; }
@@ -363,9 +346,7 @@ if est_admin:
         if "session_active" not in st.session_state or not st.session_state["session_active"]:
             st.title("🗂️ GESTIONNAIRE DE SESSIONS")
             st.info("Avant d'accéder au pilotage, choisissez une session.")
-            
             current_title = st.session_state.config.get("titre_mur", "Session Inconnue")
-            
             c1, c2 = st.columns(2)
             with c1:
                 st.markdown("### 🚀 Continuer")
@@ -381,7 +362,6 @@ if est_admin:
                     st.success("Nouvelle session vierge prête !")
                     time.sleep(1)
                     st.rerun()
-            
             st.divider()
             st.markdown("### 📚 Historique / Archives")
             archives = sorted([d for d in os.listdir(ARCHIVE_DIR) if os.path.isdir(os.path.join(ARCHIVE_DIR, d))], reverse=True)
@@ -400,7 +380,6 @@ if est_admin:
                         confirm = c_del.checkbox("Confirmer", key=f"chk_{arc}")
                         if c_del.button("🗑️", key=f"del_{arc}", disabled=not confirm):
                             delete_archived_session(arc); st.rerun()
-
         else:
             cfg = st.session_state.config
             with st.sidebar:
@@ -551,7 +530,13 @@ if est_admin:
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+            .stApp {background-color:black; color:white;} 
+            [data-testid='stHeader'] {display:none;}
+            .block-container {padding: 1rem !important;}
+        </style>
+    """, unsafe_allow_html=True)
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
@@ -646,8 +631,10 @@ else:
     
     st.markdown("""
     <style>
+        /* CSS SOCIAL WALL UNIQUEMENT */
         body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
         [data-testid='stHeader'] { display: none; }
+        .block-container { padding: 0 !important; max-width: 100% !important; }
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
@@ -656,7 +643,6 @@ else:
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
-        .logo-img { width: 200px; margin-bottom: 10px; display: block; margin-left: auto; margin-right: auto; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -700,24 +686,33 @@ else:
             ts_start = cfg.get("timestamp_podium", 0) * 1000
             logo_data = cfg.get("logo_b64", "")
             
+            # --- PODIUM HTML (BIG & NO SCROLL) ---
             components.html(f"""
             <html>
             <head>
             <style>
-                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:850px; display:flex; flex-direction:column; justify-content:center; align-items:center; }}
-                .wrapper {{ text-align: center; width: 100%; transform: scale(0.9); }}
-                .logo-img {{ width: 250px; margin-bottom: 20px; object-fit: contain; }}
-                .countdown {{ font-size: 80px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 10px 0; }}
-                .title {{ color:white; font-size:35px; font-weight:bold; margin-bottom:15px; }}
-                .grid {{ display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; width: 95%; }}
-                .card {{ background: rgba(255,255,255,0.1); padding: 10px; border-radius: 15px; width: 140px; text-align: center; color: white; }}
-                .card img {{ width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid white; }}
-                .card h3 {{ font-size: 14px; margin: 5px 0; }}
-                .card h4 {{ font-size: 12px; margin: 0; color: #CCC; }}
-                .winner-card {{ background: rgba(20,20,20,0.95); border: 5px solid #FFD700; padding: 20px; border-radius: 30px; width: 300px; text-align: center; box-shadow: 0 0 50px #FFD700; margin: 0 auto; }}
-                .winner-card img {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 5px solid white; margin-bottom: 10px; }}
-                .winner-card h1 {{ font-size: 28px; margin: 10px 0; color: white; }}
-                .winner-card h2 {{ font-size: 22px; color: #FFD700; }}
+                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }}
+                .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; }}
+                
+                .logo-img {{ width: 300px; margin-bottom: 20px; object-fit: contain; display: block; }}
+                
+                .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 20px 0; }}
+                .title {{ color:white; font-size:50px; font-weight:bold; margin-bottom:20px; }}
+                
+                /* GRILLE FINALISTES & VAINQUEURS */
+                .grid {{ 
+                    display: flex; justify-content: center; align-items: flex-end; 
+                    gap: 30px; width: 95%; flex-wrap: wrap;
+                }}
+                
+                .card {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; text-align: center; color: white; }}
+                .card img {{ width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; }}
+                .card h3 {{ font-size: 20px; margin: 10px 0; }}
+                
+                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 350px; text-align: center; box-shadow: 0 0 60px #FFD700; margin: 0 auto; }}
+                .winner-card img {{ width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 6px solid white; margin-bottom: 20px; }}
+                .winner-card h1 {{ font-size: 35px; margin: 10px 0; color: white; }}
+                .winner-card h2 {{ font-size: 28px; color: #FFD700; }}
             </style>
             </head>
             <body>
@@ -727,14 +722,17 @@ else:
                     <div id="timer" class="countdown">10</div>
                     <div class="grid" id="finalists-grid"></div>
                 </div>
+                
                 <div id="screen-winner" class="wrapper" style="display:none;">
                     {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
                     <div class="grid" id="winners-grid"></div>
                 </div>
+
                 <script>
                     const finalists = {json.dumps(js_finalists)};
                     const winners = {json.dumps(js_winners)};
                     const startTime = {ts_start};
+                    
                     const fGrid = document.getElementById('finalists-grid');
                     finalists.forEach(f => {{
                         let html = `<div class="card">`;
@@ -743,24 +741,26 @@ else:
                         html += `<h3>${{f.name}}</h3><h4>${{f.score}} pts</h4></div>`;
                         fGrid.innerHTML += html;
                     }});
+
                     const wGrid = document.getElementById('winners-grid');
                     winners.forEach(w => {{
-                        let html = `<div class="winner-card"><div style="font-size:50px">🥇</div>`;
+                        let html = `<div class="winner-card"><div style="font-size:60px">🥇</div>`;
                         if(w.img) html += `<img src="${{w.img}}">`;
                         else html += `<div style="font-size:80px">🏆</div>`;
                         html += `<h1>${{w.name}}</h1><h2>VAINQUEUR</h2><h3>${{w.score}} pts</h3></div>`;
                         wGrid.innerHTML += html;
                     }});
+
                     function update() {{
                         const now = Date.now();
                         const elapsed = (now - startTime) / 1000;
                         if (elapsed < 10) {{
-                            document.getElementById('screen-suspense').style.display = 'block';
+                            document.getElementById('screen-suspense').style.display = 'flex';
                             document.getElementById('screen-winner').style.display = 'none';
                             document.getElementById('timer').innerText = Math.ceil(10 - elapsed);
                         }} else {{
                             document.getElementById('screen-suspense').style.display = 'none';
-                            document.getElementById('screen-winner').style.display = 'block';
+                            document.getElementById('screen-winner').style.display = 'flex';
                         }}
                     }}
                     setInterval(update, 100);
