@@ -86,39 +86,28 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- TRAITEMENT LOGO (GARDE TRANSPARENCE PNG) ---
+# --- TRAITEMENT LOGO (PNG TRANSPARENT) ---
 def process_logo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
-        # On ne convertit PAS en RGB pour garder la transparence (RGBA)
-        # On redimensionne juste si c'est gigantesque
         img.thumbnail((600, 600), Image.Resampling.BICUBIC)
-        
         buf = BytesIO()
-        # On sauvegarde en PNG pour garder la couche Alpha
         img.save(buf, format="PNG", optimize=True)
         return base64.b64encode(buf.getvalue()).decode()
     except Exception as e:
-        print(f"Erreur Logo: {e}")
         return None
 
-# --- TRAITEMENT PARTICIPANTS (OPTIMISATION JPEG AGRESSIVE) ---
+# --- TRAITEMENT PARTICIPANTS (JPEG LEGER) ---
 def process_participant_image(uploaded_file):
     try:
         img = Image.open(uploaded_file)
-        # Force RGB pour le JPEG (supprime transparence, fond blanc/noir)
         if img.mode != "RGB":
             img = img.convert("RGB")
-        
-        # Redimensionnement Rapide (300px suffisant pour podium)
         img.thumbnail((300, 300), Image.Resampling.BICUBIC)
-        
         buf = BytesIO()
-        # Compression JPEG 60%
         img.save(buf, format="JPEG", quality=60, optimize=True)
         return base64.b64encode(buf.getvalue()).decode()
     except Exception as e:
-        print(f"Erreur Participant: {e}")
         return None
 
 # --- CALLBACK RESET VOTE ---
@@ -305,7 +294,7 @@ if est_admin:
             with t1:
                 new_t = st.text_input("Titre", value=cfg["titre_mur"])
                 if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
-                # LOGO: Utilise process_logo (PNG)
+                # LOGO
                 upl = st.file_uploader("Logo (PNG Transparent)", type=["png", "jpg"])
                 if upl: 
                     processed_logo = process_logo(upl)
@@ -340,17 +329,19 @@ if est_admin:
                             save_config(); st.rerun()
                     with c3:
                         col_up, col_del = st.columns([3, 1])
-                        # PARTICIPANTS: Utilise process_participant_image (JPEG COMPRESSE)
                         up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
                         if up_img: 
                             if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
                             processed = process_participant_image(up_img)
                             if processed:
-                                st.session_state.config["candidats_images"][cand] = processed
-                                save_config() # SAUVEGARDE IMMEDIATE SUR DISQUE
-                                st.toast(f"✅ Image {cand} sauvegardée")
-                                time.sleep(0.5)
-                                st.rerun()
+                                # VERIFICATION ANTI-BOUCLE INFINIE
+                                current_img = st.session_state.config["candidats_images"].get(cand)
+                                if processed != current_img:
+                                    st.session_state.config["candidats_images"][cand] = processed
+                                    save_config()
+                                    st.toast(f"✅ Image {cand} sauvegardée")
+                                    time.sleep(0.5)
+                                    st.rerun()
                         if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
                 
                 if candidates_to_remove:
@@ -488,7 +479,6 @@ elif est_utilisateur:
                 st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
-                # WIDGET AVEC CLEF POUR RESET
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix")
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
@@ -506,12 +496,10 @@ elif est_utilisateur:
                             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
                             st.stop()
                         else:
-                            # RESET POUR TEST ADMIN
                             st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
                             st.stop()
         
         elif is_test_admin and cfg["mode_affichage"] == "votes":
-             # CAS SPECIAL: TEST ADMIN QUAND MEME SI SESSION FERMEE
              st.write(f"Bonjour **{st.session_state.user_pseudo}** (Mode Test Force)")
              choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix_force")
              if len(choix) == 3:
@@ -534,7 +522,6 @@ else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # REFRESH ADAPTATIF
     refresh_rate = 4000
     if cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats"):
         refresh_rate = 5000 
