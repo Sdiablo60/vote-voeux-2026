@@ -449,7 +449,7 @@ elif est_utilisateur:
 # 3. MUR SOCIAL
 # =========================================================
 else:
-    # 4000ms de refresh
+    # 4000ms REFRESH
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
@@ -602,9 +602,9 @@ else:
                 let x = Math.random() * (screenW - bSize);
                 let y = Math.random() * (screenH - bSize);
                 
-                // VITESSE RAPIDE
+                // VITESSE LENTE ET FLUIDE
                 let angle = Math.random() * Math.PI * 2;
-                let speed = 3 + Math.random() * 2;
+                let speed = 0.8 + Math.random() * 1.2;
                 let vx = Math.cos(angle) * speed;
                 let vy = Math.sin(angle) * speed;
 
