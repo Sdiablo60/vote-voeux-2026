@@ -204,7 +204,6 @@ def inject_visual_effect(effect_name, intensity, speed):
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 is_blocked = st.query_params.get("blocked") == "true"
-# NOUVEAU: DETECTION MODE TEST ADMIN
 is_test_admin = st.query_params.get("test_admin") == "true"
 
 # --- INIT SESSION ---
@@ -230,7 +229,6 @@ if est_admin:
             menu = st.radio("Navigation", ["🔴 PILOTAGE LIVE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE", "📊 DATA"])
             st.divider()
             st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none;">📺 OUVRIR MUR SOCIAL</a>""", unsafe_allow_html=True)
-            # MODIF LIEN TEST ILLIMITE
             st.markdown("""<a href="/?mode=vote&test_admin=true" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none;">📱 TESTER MOBILE (ILLIMITÉ)</a>""", unsafe_allow_html=True)
             if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
@@ -386,8 +384,7 @@ elif est_utilisateur:
         if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": del st.session_state["user_pseudo"]; st.rerun()
 
     if cfg["mode_affichage"] != "photos_live":
-        # --- VERIFICATION ANTI-DOUBLE VOTE (JS) ---
-        # S'ACTIVE SEULEMENT SI PAS EN MODE TEST
+        # --- VERIFICATION ANTI-DOUBLE VOTE ---
         if not is_test_admin:
             components.html(f"""<script>
                 var sS = "{curr_sess}";
@@ -404,7 +401,6 @@ elif est_utilisateur:
                 }}
             </script>""", height=0)
         else:
-            # MODE TEST : BANDEAU INFO
             st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
         
     if "user_pseudo" not in st.session_state:
@@ -438,7 +434,8 @@ elif est_utilisateur:
                 st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
-                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+                # AJOUT KEY WIDGET POUR RESET
+                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix")
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
                         vts = load_json(VOTES_FILE, {})
@@ -448,23 +445,19 @@ elif est_utilisateur:
                         details = load_json(DETAILED_VOTES_FILE, [])
                         details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                         save_json(DETAILED_VOTES_FILE, details)
-                        
+                        st.session_state.vote_success = True
                         st.balloons()
                         st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-                        
-                        # SI PAS DE MODE TEST, ON BLOQUE LE TELEPHONE
                         if not is_test_admin:
                             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-                            st.session_state.vote_success = True
                             st.stop()
                         else:
-                            # MODE TEST: BOUTON RETOUR
-                            if st.button("Voter à nouveau (Mode Test)"):
-                                del st.session_state.rules_accepted
-                                del st.session_state.user_pseudo
+                            # MODE TEST : BOUTON RAZ
+                            if st.button("🔄 Voter à nouveau (RAZ)"):
+                                st.session_state.vote_success = False
+                                st.session_state["widget_choix"] = [] # Reset selection
                                 st.rerun()
                             st.stop()
-
         else: st.info("⏳ En attente...")
 
 # =========================================================
@@ -473,8 +466,14 @@ elif est_utilisateur:
 else:
     # 4000ms REFRESH
     from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
+    
+    # REFRESH ADAPTATIF : 5s SI PODIUM (ANTI-BLINK), 4s SINON
+    refresh_rate = 4000
+    if cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats"):
+        refresh_rate = 5000 
+    
+    st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
     st.markdown("""
     <style>
@@ -519,10 +518,7 @@ else:
             v_data = load_json(VOTES_FILE, {})
             if not v_data: v_data = {"Personne": 0}
             
-            # --- LOGIQUE CLASSEMENT (CORRECTE) ---
-            # On recupère les noms et on s'assure d'avoir l'image même si espace en trop
             c_imgs = cfg.get("candidats_images", {})
-            
             sorted_scores = sorted(list(set(v_data.values())), reverse=True)
             top_3_scores = sorted_scores[:3]
             finalists = [k for k, v in v_data.items() if v in top_3_scores]
@@ -531,12 +527,10 @@ else:
 
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:250px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
             
-            # --- PHASE 1 : SUSPENSE ---
             if elapsed < 10.0:
                 remaining = 10 - int(elapsed)
                 suspense_html = ""
                 for name in finalists:
-                    # Recherche insensible à la casse/espace
                     img_b64 = None
                     for c_name, c_img in c_imgs.items():
                         if c_name.strip() == name.strip(): img_b64 = c_img; break
@@ -549,9 +543,7 @@ else:
                     suspense_html += f'<div class="suspense-item">{img_html}<h3 style="color:white; margin:0; font-size:20px;">{name}</h3><h4 style="color:#CCC; margin:0;">{v_data[name]} pts</h4></div>'
                 
                 ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0;'>LES FINALISTES... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
-                time.sleep(1); st.rerun()
             
-            # --- PHASE 2 : VAINQUEURS ---
             else:
                 cards_html = ""
                 for winner in winners:
@@ -610,6 +602,7 @@ else:
         if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
+        # --- CENTRE BOX ---
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
