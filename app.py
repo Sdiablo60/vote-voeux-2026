@@ -204,6 +204,8 @@ def inject_visual_effect(effect_name, intensity, speed):
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 is_blocked = st.query_params.get("blocked") == "true"
+# NOUVEAU: DETECTION MODE TEST ADMIN
+is_test_admin = st.query_params.get("test_admin") == "true"
 
 # --- INIT SESSION ---
 if "config" not in st.session_state:
@@ -228,7 +230,8 @@ if est_admin:
             menu = st.radio("Navigation", ["🔴 PILOTAGE LIVE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE", "📊 DATA"])
             st.divider()
             st.markdown("""<a href="/" target="_blank" style="display:block; text-align:center; background:#E2001A; color:white; padding:10px; border-radius:5px; text-decoration:none;">📺 OUVRIR MUR SOCIAL</a>""", unsafe_allow_html=True)
-            st.markdown("""<a href="/?mode=vote" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none;">📱 TESTER MOBILE</a>""", unsafe_allow_html=True)
+            # MODIF LIEN TEST ILLIMITE
+            st.markdown("""<a href="/?mode=vote&test_admin=true" target="_blank" style="display:block; text-align:center; background:#333; color:white; padding:10px; border-radius:5px; text-decoration:none;">📱 TESTER MOBILE (ILLIMITÉ)</a>""", unsafe_allow_html=True)
             if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
         if menu == "🔴 PILOTAGE LIVE":
@@ -384,20 +387,25 @@ elif est_utilisateur:
 
     if cfg["mode_affichage"] != "photos_live":
         # --- VERIFICATION ANTI-DOUBLE VOTE (JS) ---
-        components.html(f"""<script>
-            var sS = "{curr_sess}";
-            var lS = localStorage.getItem('VOTE_SID_2026');
-            if(lS !== sS) {{ 
-                localStorage.removeItem('HAS_VOTED_2026'); 
-                localStorage.setItem('VOTE_SID_2026', sS); 
-                if(window.parent.location.href.includes('blocked=true')) {{ 
-                    window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); 
-                }} 
-            }}
-            if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ 
-                window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>';
-            }}
-        </script>""", height=0)
+        # S'ACTIVE SEULEMENT SI PAS EN MODE TEST
+        if not is_test_admin:
+            components.html(f"""<script>
+                var sS = "{curr_sess}";
+                var lS = localStorage.getItem('VOTE_SID_2026');
+                if(lS !== sS) {{ 
+                    localStorage.removeItem('HAS_VOTED_2026'); 
+                    localStorage.setItem('VOTE_SID_2026', sS); 
+                    if(window.parent.location.href.includes('blocked=true')) {{ 
+                        window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); 
+                    }} 
+                }}
+                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ 
+                    window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>';
+                }}
+            </script>""", height=0)
+        else:
+            # MODE TEST : BANDEAU INFO
+            st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
         
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
@@ -440,18 +448,30 @@ elif est_utilisateur:
                         details = load_json(DETAILED_VOTES_FILE, [])
                         details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                         save_json(DETAILED_VOTES_FILE, details)
-                        st.session_state.vote_success = True
+                        
                         st.balloons()
                         st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-                        components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-                        st.stop()
+                        
+                        # SI PAS DE MODE TEST, ON BLOQUE LE TELEPHONE
+                        if not is_test_admin:
+                            components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                            st.session_state.vote_success = True
+                            st.stop()
+                        else:
+                            # MODE TEST: BOUTON RETOUR
+                            if st.button("Voter à nouveau (Mode Test)"):
+                                del st.session_state.rules_accepted
+                                del st.session_state.user_pseudo
+                                st.rerun()
+                            st.stop()
+
         else: st.info("⏳ En attente...")
 
 # =========================================================
 # 3. MUR SOCIAL
 # =========================================================
 else:
-    # REFRESH 4000ms
+    # 4000ms REFRESH
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=4000, key="wall_refresh")
     cfg = load_json(CONFIG_FILE, default_config)
@@ -499,27 +519,28 @@ else:
             v_data = load_json(VOTES_FILE, {})
             if not v_data: v_data = {"Personne": 0}
             
-            # --- LOGIQUE CLASSEMENT (GESTION EGALITES) ---
-            # 1. Trier les scores
+            # --- LOGIQUE CLASSEMENT (CORRECTE) ---
+            # On recupère les noms et on s'assure d'avoir l'image même si espace en trop
+            c_imgs = cfg.get("candidats_images", {})
+            
             sorted_scores = sorted(list(set(v_data.values())), reverse=True)
-            # 2. Récupérer le TOP 3 des SCORES (ex: [10, 8, 5])
             top_3_scores = sorted_scores[:3]
-            # 3. Récupérer TOUS les candidats qui ont ces scores
             finalists = [k for k, v in v_data.items() if v in top_3_scores]
-            # 4. Récupérer les VAINQUEURS (Score max)
             max_score = sorted_scores[0] if sorted_scores else 0
             winners = [k for k, v in v_data.items() if v == max_score]
 
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:250px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
             
-            # --- PHASE 1 : SUSPENSE (LES FINALISTES) ---
+            # --- PHASE 1 : SUSPENSE ---
             if elapsed < 10.0:
                 remaining = 10 - int(elapsed)
                 suspense_html = ""
-                # Affiche TOUS les finalistes (même si 10 ex-aequo)
                 for name in finalists:
-                    # RECUPERATION PHOTO SECURISEE
-                    img_b64 = cfg.get("candidats_images", {}).get(name)
+                    # Recherche insensible à la casse/espace
+                    img_b64 = None
+                    for c_name, c_img in c_imgs.items():
+                        if c_name.strip() == name.strip(): img_b64 = c_img; break
+                    
                     if img_b64:
                         img_html = f'<img src="data:image/png;base64,{img_b64}" style="width:120px; height:120px; border-radius:50%; object-fit:cover; margin-bottom:10px; border:4px solid white;">'
                     else:
@@ -530,12 +551,14 @@ else:
                 ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0;'>LES FINALISTES... {remaining}</h1><div class='suspense-grid'>{suspense_html}</div></div>", unsafe_allow_html=True)
                 time.sleep(1); st.rerun()
             
-            # --- PHASE 2 : VAINQUEUR(S) ---
+            # --- PHASE 2 : VAINQUEURS ---
             else:
                 cards_html = ""
                 for winner in winners:
-                    # RECUPERATION PHOTO VAINQUEUR
-                    img_b64 = cfg.get("candidats_images", {}).get(winner)
+                    img_b64 = None
+                    for c_name, c_img in c_imgs.items():
+                        if c_name.strip() == winner.strip(): img_b64 = c_img; break
+
                     if img_b64:
                         img_html = f'<img src="data:image/png;base64,{img_b64}" style="width:180px; height:180px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px;">'
                     else:
@@ -602,10 +625,12 @@ else:
             var doc = window.parent.document;
             var existing = doc.getElementById('live-container');
             if(existing) existing.remove();
+            
             var container = doc.createElement('div');
             container.id = 'live-container'; 
             container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
             doc.body.appendChild(container);
+            
             container.innerHTML = `{center_html_content}`;
             
             const imgs = {img_js}; const bubbles = [];
