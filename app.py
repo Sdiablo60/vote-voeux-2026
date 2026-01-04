@@ -382,15 +382,32 @@ elif est_utilisateur:
         if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": del st.session_state["user_pseudo"]; st.rerun()
 
     if cfg["mode_affichage"] != "photos_live":
+        # --- VERIFICATION ANTI-DOUBLE VOTE (JS) ---
+        # Si le téléphone a le cookie du vote, on le redirige direct vers BLOCKED
         components.html(f"""<script>
             var sS = "{curr_sess}";
             var lS = localStorage.getItem('VOTE_SID_2026');
-            if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
-            if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ if(!window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true'; }} }}
+            // Si l'ID de session a changé (RESET ADMIN), on efface le cookie pour revoter
+            if(lS !== sS) {{ 
+                localStorage.removeItem('HAS_VOTED_2026'); 
+                localStorage.setItem('VOTE_SID_2026', sS); 
+                if(window.parent.location.href.includes('blocked=true')) {{ 
+                    window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); 
+                }} 
+            }}
+            // Si le cookie est présent, on bloque l'accès
+            if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ 
+                if(!window.parent.location.href.includes('blocked=true')) {{ 
+                    window.parent.location.href = window.parent.location.href.split('?')[0] + '?mode=vote&blocked=true'; 
+                }} 
+            }}
         </script>""", height=0)
+        
+        # --- PAGE DE BLOCAGE (MERCI) ---
         if is_blocked or st.session_state.vote_success:
             st.balloons()
             st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
+            # On grave le cookie dans le marbre
             components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
             st.stop()
 
@@ -399,13 +416,12 @@ elif est_utilisateur:
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
         pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
         if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            voters = load_json(VOTERS_FILE, [])
-            if pseudo.strip().upper() in [v.upper() for v in voters]: st.error("Ce pseudo a déjà voté.")
-            else:
-                st.session_state.user_pseudo = pseudo.strip()
-                parts = load_json(PARTICIPANTS_FILE, [])
-                if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
-                st.rerun()
+            # PLUS DE VERIFICATION "PSEUDO EXISTE DEJA"
+            st.session_state.user_pseudo = pseudo.strip()
+            parts = load_json(PARTICIPANTS_FILE, [])
+            # On logue quand même le participant pour l'audit
+            if pseudo.strip() not in parts: parts.append(pseudo.strip()); save_json(PARTICIPANTS_FILE, parts)
+            st.rerun()
     else:
         if cfg["mode_affichage"] == "photos_live":
             st.info("📸 ENVOYER UNE PHOTO")
@@ -430,18 +446,23 @@ elif est_utilisateur:
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                        voters = load_json(VOTERS_FILE, [])
-                        if st.session_state.user_pseudo.upper() in [v.upper() for v in voters]: st.error("Vote déjà enregistré !"); st.stop()
+                        # SAUVEGARDE DU VOTE
                         vts = load_json(VOTES_FILE, {})
                         pts = cfg.get("points_ponderation", [5, 3, 1])
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                         save_json(VOTES_FILE, vts)
+                        
+                        # AUDIT
                         details = load_json(DETAILED_VOTES_FILE, [])
                         details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                         save_json(DETAILED_VOTES_FILE, details)
-                        voters.append(st.session_state.user_pseudo); save_json(VOTERS_FILE, voters)
+                        
+                        # MARQUAGE LOCALSTORAGE + REDIRECTION
                         st.session_state.vote_success = True
-                        components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true'); window.parent.location.href += '&blocked=true';</script>""", height=0)
+                        components.html("""<script>
+                            localStorage.setItem('HAS_VOTED_2026', 'true'); 
+                            window.parent.location.href += '&blocked=true';
+                        </script>""", height=0)
                         time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 
