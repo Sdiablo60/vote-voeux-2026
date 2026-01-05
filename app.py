@@ -198,7 +198,7 @@ if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
 # ==============================================================================
-#  ZONE 1 : CONSOLE ADMIN (SILO INDEPENDANT)
+#  ZONE 1 : CONSOLE ADMIN
 # ==============================================================================
 def interface_admin():
     # Force Fond Blanc Admin
@@ -414,7 +414,7 @@ def interface_admin():
                 else: st.info("Aucun vote enregistré.")
 
 # ==============================================================================
-#  ZONE 2 : INTERFACE MOBILE (SILO INDEPENDANT)
+#  ZONE 2 : INTERFACE MOBILE
 # ==============================================================================
 def interface_mobile_vote():
     cfg = load_json(CONFIG_FILE, default_config)
@@ -503,7 +503,7 @@ def interface_mobile_vote():
         else: st.info("⏳ En attente...")
 
 # ==============================================================================
-#  ZONE 3 : INTERFACE MUR SOCIAL (SILO INDEPENDANT AVEC SOUS-FONCTIONS)
+#  ZONE 3 : INTERFACE MUR SOCIAL (SILO)
 # ==============================================================================
 
 # SOUS-FONCTION : ACCUEIL
@@ -530,36 +530,49 @@ def interface_mur_vote_off(cfg, logo_data, titre_text):
     """
     components.html(html, height=1000)
 
-# SOUS-FONCTION : VOTE ON (QR + PARTICIPANTS)
+# SOUS-FONCTION : VOTE ON (FLEXBOX VERTICAL CORRECT)
 def interface_mur_vote_on(cfg, logo_data, titre_text):
     host = st.context.headers.get('host', 'localhost')
     qr = qrcode.make(f"https://{host}/?mode=vote"); buf=BytesIO(); qr.save(buf, format="PNG"); qrb64=base64.b64encode(buf.getvalue()).decode()
     parts = load_json(PARTICIPANTS_FILE, [])
-    # Modification ici pour afficher plus de participants et en plus petit si besoin
-    tags_html = "".join([f"<div style='background:rgba(255,255,255,0.1);color:white;padding:8px 15px;border-radius:20px;border:1px solid #E2001A;font-size:20px;margin:5px;display:inline-block;'>{p}</div>" for p in parts[-15:]])
+    # 20 derniers participants
+    tags_html = "".join([f"<div class='user-badge'>{p}</div>" for p in parts[-20:]])
     
     html = f"""
-    <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-        <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
+    <html>
+    <head>
+    <style>
+        body {{ background:black; margin:0; height:100vh; display:flex; flex-direction:column; font-family:Arial; overflow:hidden; }}
+        .header {{ width:100%; text-align:center; background:#E2001A; padding:15px 0; flex-shrink:0; }}
+        .header h1 {{ color:white; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase; }}
         
-        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; margin-top:20px;">
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:200px;margin-bottom:15px;object-fit:contain;">' if logo_data else ''}
-            <div style="background:white;padding:15px;border-radius:25px;display:inline-block;margin-bottom:15px;">
-                <img src="data:image/png;base64,{qrb64}" style="width:220px;">
-            </div>
-            <div style="color:#E2001A;font-size:50px;font-weight:bold;animation:blink 1s infinite;margin-bottom:20px;">À VOS VOTES !</div>
+        .content {{ flex-grow:1; display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; }}
+        .qr-box {{ background:white; padding:15px; border-radius:25px; display:inline-block; margin:20px 0; }}
+        
+        .footer {{ width:100%; min-height:100px; background:rgba(20,20,20,0.9); border-top:2px solid #E2001A; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; padding:10px; flex-shrink:0; }}
+        .user-badge {{ background:rgba(255,255,255,0.15); color:white; padding:8px 15px; border-radius:20px; border:1px solid #E2001A; font-size:20px; margin:5px; animation:pop 0.5s; }}
+        @keyframes pop {{ 0% {{ transform:scale(0); }} 100% {{ transform:scale(1); }} }}
+        @keyframes blink {{ 50% {{ opacity: 0; }} }}
+    </style>
+    </head>
+    <body>
+        <div class="header"><h1>{titre_text}</h1></div>
+        
+        <div class="content">
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:250px; object-fit:contain;">' if logo_data else ''}
+            <div class="qr-box"><img src="data:image/png;base64,{qrb64}" style="width:250px;"></div>
+            <div style="color:#E2001A; font-size:60px; font-weight:bold; animation:blink 1s infinite;">À VOS VOTES !</div>
         </div>
         
-        <div style="position:fixed; bottom:0; left:0; width:100%; min-height:15vh; background:rgba(20,20,20,0.9); border-top:2px solid #E2001A; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; padding:10px; z-index:2000;">
+        <div class="footer">
             {tags_html}
         </div>
-        
-        <style>@keyframes blink {{ 50% {{ opacity: 0; }} }}</style>
-    </body></html>
+    </body>
+    </html>
     """
     components.html(html, height=1000)
 
-# SOUS-FONCTION : PODIUM ANIMÉ
+# SOUS-FONCTION : PODIUM
 def interface_mur_podium(cfg, logo_data, titre_text):
     v_data = load_json(VOTES_FILE, {}); scores = sorted(list(set(v_data.values())), reverse=True)
     s1 = scores[0] if len(scores)>0 else 0; s2 = scores[1] if len(scores)>1 else -1; s3 = scores[2] if len(scores)>2 else -1
@@ -578,6 +591,7 @@ def interface_mur_podium(cfg, logo_data, titre_text):
     components.html(f"""
     <html><head><style>
         body {{ background:black; margin:0; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:Arial; overflow:hidden; }}
+        .header {{ position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0; }}
         .logo {{ width:300px; margin-bottom:20px; object-fit:contain; }}
         .txt {{ color:white; font-size:40px; font-weight:bold; margin-bottom:10px; }}
         .count {{ color:#E2001A; font-size:120px; font-weight:bold; }}
@@ -590,7 +604,7 @@ def interface_mur_podium(cfg, logo_data, titre_text):
         @keyframes pop {{ 0% {{ transform:scale(0); }} 100% {{ transform:scale(1); }} }}
         @keyframes pulse {{ 0% {{ transform:scale(1); }} 50% {{ transform:scale(1.05); }} 100% {{ transform:scale(1); }} }}
     </style></head><body>
-        <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
+        <div class="header"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
         <div id="intro" style="display:none;text-align:center;">
             {f'<img src="data:image/png;base64,{logo_data}" class="logo">' if logo_data else ''}
             <div id="lbl" class="txt"></div><div id="cnt" class="count"></div>
@@ -638,7 +652,7 @@ def interface_mur_podium(cfg, logo_data, titre_text):
     </body></html>
     """, height=1000)
 
-# SOUS-FONCTION : PHOTOS LIVE ANIMÉES (QR + TITRE)
+# SOUS-FONCTION : PHOTOS LIVE ANIMÉES
 def interface_mur_photos_live(cfg, logo_data, titre_text):
     photos = glob.glob(f"{LIVE_DIR}/*")
     js_imgs = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]])
