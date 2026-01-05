@@ -9,6 +9,7 @@ import random
 import altair as alt
 import copy
 import re
+import tempfile
 
 # TENTATIVE D'IMPORT DE FPDF
 try:
@@ -39,7 +40,7 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # --- CSS COMMUN (BOUTONS & LOGIN) ---
 st.markdown("""
 <style>
-    /* Boutons */
+    /* Boutons Généraux */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
@@ -47,7 +48,7 @@ st.markdown("""
     /* Login Box */
     .login-container {
         max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f0f2f6; border-radius: 20px; /* Fond clair pour Admin */
+        background: #f0f2f6; border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
     }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
@@ -61,6 +62,20 @@ st.markdown("""
         background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
     }
     
+    /* STYLE DES BOUTONS D'EXPORT BLEUS ANIMÉS */
+    .blue-anim-btn button {
+        background-color: #2980b9 !important;
+        color: white !important;
+        border: none !important;
+        transition: all 0.3s ease !important;
+        font-weight: bold !important;
+    }
+    .blue-anim-btn button:hover {
+        transform: scale(1.05) !important;
+        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
+        background-color: #3498db !important;
+    }
+
     /* Liens externes */
     .custom-link-btn {
         display: block; text-align: center; padding: 12px; border-radius: 8px;
@@ -255,17 +270,46 @@ def inject_visual_effect(effect_name, intensity, speed):
     js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- GENERATEUR PDF ---
+# --- ANALYTIQUE ---
+def count_votes_per_candidate():
+    # Compte combien de personnes ont voté pour chaque candidat (peu importe la position)
+    details = load_json(DETAILED_VOTES_FILE, [])
+    counts = {}
+    for record in details:
+        # On regarde les choix 1, 2 et 3
+        for k in ["Choix 1 (5pts)", "Choix 2 (3pts)", "Choix 3 (1pt)"]:
+            cand = record.get(k)
+            if cand:
+                counts[cand] = counts.get(cand, 0) + 1
+    return counts
+
+# --- GENERATEUR PDF AVANCÉ ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
+            # Logo Gauche
+            if "logo_b64" in st.session_state.config and st.session_state.config["logo_b64"]:
+                try:
+                    # Sauvegarde temporaire du logo pour FPDF
+                    logo_data = base64.b64decode(st.session_state.config["logo_b64"])
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
+                        tmp.write(logo_data)
+                        tmp_path = tmp.name
+                    self.image(tmp_path, 10, 8, 25)
+                    os.unlink(tmp_path) # Nettoyage
+                except: pass
+            
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
+            # Decalage du titre si logo
+            self.cell(25) 
             self.cell(0, 10, f"Rapport: {st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'C')
+            
             self.set_font('Arial', 'I', 10)
             self.set_text_color(100, 100, 100)
-            self.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 0, 1, 'C')
-            self.ln(5)
+            self.cell(0, 10, f"Date d'export: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 0, 1, 'R')
+            self.ln(15)
+
         def footer(self):
             self.set_y(-15)
             self.set_font('Arial', 'I', 8)
@@ -277,21 +321,25 @@ if PDF_AVAILABLE:
         pdf.add_page()
         pdf.set_font("Arial", size=12)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="CLASSEMENT FINAL", ln=True, align='L')
+        pdf.cell(0, 10, txt="CLASSEMENT FINAL & STATISTIQUES", ln=True, align='L')
         pdf.ln(5)
         
+        # En-tête Tableau
         pdf.set_fill_color(226, 0, 26)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(140, 10, "Candidat", 1, 0, 'C', 1)
-        pdf.cell(40, 10, "Points", 1, 1, 'C', 1)
+        pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1)
+        pdf.cell(45, 10, "Points Total", 1, 0, 'C', 1)
+        pdf.cell(45, 10, "Nb Votants", 1, 1, 'C', 1) # Nouvelle colonne
+        
         pdf.set_text_color(0, 0, 0)
-        pdf.ln()
+        pdf.set_font("Arial", size=11)
         
         for i, row in df.iterrows():
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
-            pdf.cell(140, 10, cand, 1)
-            pdf.cell(40, 10, str(row['Points']), 1, 1, 'C')
-            pdf.ln()
+            pdf.cell(100, 10, cand, 1, 0, 'L')
+            pdf.cell(45, 10, str(row['Points']), 1, 0, 'C')
+            pdf.cell(45, 10, str(row['Nb Votes']), 1, 1, 'C')
+            
         return pdf.output(dest='S').encode('latin-1')
 
     def create_pdf_audit(title, df):
@@ -299,30 +347,26 @@ if PDF_AVAILABLE:
         pdf.add_page()
         pdf.set_font("Arial", size=10)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt="JOURNAL D'AUDIT (DÉTAILS VOTES)", ln=True, align='L')
+        pdf.cell(0, 10, txt="JOURNAL D'AUDIT (DÉTAILS SANS DATE)", ln=True, align='L')
         pdf.ln(5)
         
-        # En-têtes dynamiques
-        cols = df.columns.tolist()
-        w_map = {'Utilisateur': 40, 'Date': 35}
-        remaining_w = 190 - 75
-        col_w = remaining_w / max(1, len(cols) - 2)
+        cols = df.columns.tolist() # Date est deja retire avant appel
+        col_w = 190 / len(cols)
         
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255)
+        pdf.set_font("Arial", 'B', 9)
         for col in cols:
-            w = w_map.get(col, col_w)
             c_txt = str(col).encode('latin-1', 'replace').decode('latin-1')
-            pdf.cell(w, 8, c_txt, 1, 0, 'C', 1)
+            pdf.cell(col_w, 8, c_txt, 1, 0, 'C', 1)
         pdf.ln()
         
         pdf.set_text_color(0)
         pdf.set_font("Arial", size=8)
         for i, row in df.iterrows():
             for col in cols:
-                w = w_map.get(col, col_w)
                 txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
-                pdf.cell(w, 8, txt, 1)
+                pdf.cell(col_w, 8, txt, 1, 0, 'C') # Centré
             pdf.ln()
         return pdf.output(dest='S').encode('latin-1')
 
@@ -504,18 +548,25 @@ if est_admin:
                 files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
                 
                 # --- ACTIONS GLOBALES ---
-                st.markdown("### 📤 Actions Globales")
-                c1, c2 = st.columns([2, 1])
+                st.markdown("### 📤 Actions Export")
+                
+                # Boutons d'export bleus
+                c1, c2 = st.columns(2)
+                
+                # Télécharger TOUT
                 with c1:
                     if files:
                         zip_buffer_all = BytesIO()
                         with zipfile.ZipFile(zip_buffer_all, "w") as zf:
                             for idx, file_path in enumerate(files):
                                 zf.write(file_path, arcname=os.path.basename(file_path))
-                        st.download_button("📥 TÉLÉCHARGER TOUTE LA GALERIE (ZIP)", data=zip_buffer_all.getvalue(), file_name=f"galerie_complete_{int(time.time())}.zip", mime="application/zip", type="secondary", use_container_width=True)
+                        # Container avec classe CSS personnalisée bleue
+                        st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
+                        st.download_button("📥 TÉLÉCHARGER TOUTE LA GALERIE (ZIP)", data=zip_buffer_all.getvalue(), file_name=f"galerie_complete_{int(time.time())}.zip", mime="application/zip", use_container_width=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
                     else:
-                        st.button("📥 TÉLÉCHARGER TOUTE LA GALERIE (ZIP)", disabled=True, type="secondary", use_container_width=True)
-                
+                        st.button("📥 TÉLÉCHARGER TOUT (VIDE)", disabled=True, use_container_width=True)
+
                 st.divider()
                 
                 if not files: st.info("Aucune photo.")
@@ -530,24 +581,22 @@ if est_admin:
                     
                     st.write("---")
                     
-                    # Actions sur selection
-                    if new_selection:
-                        st.write(f"**{len(new_selection)} photos sélectionnées**")
-                        c_down, c_del = st.columns(2)
-                        
-                        # Download Selection
-                        zip_buffer_sel = BytesIO()
-                        with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
-                            for idx, file_path in enumerate(new_selection): 
-                                zf.write(file_path, arcname=os.path.basename(file_path))
-                        c_down.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_buffer_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True)
-                        
-                        # Delete Selection
-                        if c_del.button("🗑️ Supprimer la sélection", type="primary", use_container_width=True):
-                            for f in new_selection: os.remove(f)
-                            st.success("Supprimé !"); time.sleep(1); st.rerun()
+                    # Bouton d'export SELECTION (Bleu aussi)
+                    with c2:
+                        if new_selection:
+                            zip_buffer_sel = BytesIO()
+                            with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
+                                for idx, file_path in enumerate(new_selection): 
+                                    zf.write(file_path, arcname=os.path.basename(file_path))
+                            st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
+                            st.download_button(f"📥 TÉLÉCHARGER SÉLECTION ({len(new_selection)})", data=zip_buffer_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True)
+                            st.markdown('</div>', unsafe_allow_html=True)
+                        else:
+                            st.button("📥 TÉLÉCHARGER SÉLECTION (0)", disabled=True, use_container_width=True)
+
+                st.markdown("<br><br><br>", unsafe_allow_html=True)
                 
-                st.markdown("<br><br>", unsafe_allow_html=True)
+                # Zone de danger (Suppression)
                 with st.expander("🚨 ZONE DE DANGER (SUPPRESSION TOTALE)"):
                     st.write("Attention, cette action est irréversible.")
                     if st.button("🗑️ TOUT SUPPRIMER DÉFINITIVEMENT", type="primary", use_container_width=True):
@@ -558,11 +607,19 @@ if est_admin:
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
                 
-                # --- CHARGEMENT DONNEES ---
+                # --- CALCULS DONNEES ---
                 votes = load_json(VOTES_FILE, {})
-                all_cands = {c: 0 for c in cfg["candidats"]}
-                all_cands.update(votes)
-                df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
+                vote_counts = count_votes_per_candidate() # Nombre de votants par candidat
+                
+                all_cands_data = []
+                for c in cfg["candidats"]:
+                    all_cands_data.append({
+                        "Candidat": c,
+                        "Points": votes.get(c, 0),
+                        "Nb Votes": vote_counts.get(c, 0)
+                    })
+                
+                df_totals = pd.DataFrame(all_cands_data).sort_values(by='Points', ascending=False)
                 
                 # --- SECTION 1: RESULTATS ---
                 st.subheader("🏆 Classement Général")
@@ -572,7 +629,7 @@ if est_admin:
                     chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
                         x=alt.X('Points'), 
                         y=alt.Y('Candidat', sort='-x'), 
-                        tooltip=['Candidat', 'Points']
+                        tooltip=['Candidat', 'Points', 'Nb Votes']
                     ).properties(height=350).interactive()
                     st.altair_chart(chart, use_container_width=True)
                 
@@ -580,10 +637,18 @@ if est_admin:
                     st.dataframe(df_totals, height=350, use_container_width=True, hide_index=True)
                 
                 # Exports Résultats
+                st.markdown("##### 📥 Exporter le Rapport de Résultats")
                 c1, c2 = st.columns(2)
                 if PDF_AVAILABLE:
-                    c1.download_button("📄 Télécharger Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
-                c2.download_button("📊 Télécharger Résultats (CSV)", data=df_totals.to_csv(index=False).encode('utf-8'), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
+                    # Bouton bleu animé
+                    st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
+                    c1.download_button("📄 Rapport Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                
+                # Bouton bleu animé
+                st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
+                c2.download_button("📊 Données Résultats (CSV)", data=df_totals.to_csv(index=False).encode('utf-8'), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
 
                 st.divider()
 
@@ -592,13 +657,22 @@ if est_admin:
                 raw_details = load_json(DETAILED_VOTES_FILE, [])
                 if raw_details:
                     df_audit = pd.DataFrame(raw_details)
+                    # Suppression de la date pour l'affichage et export, centrage géré par PDF/CSS
+                    if 'Date' in df_audit.columns:
+                        df_audit = df_audit.drop(columns=['Date'])
+                        
                     st.dataframe(df_audit, use_container_width=True, height=400)
                     
-                    # Exports Audit
+                    st.markdown("##### 📥 Exporter l'Audit")
                     c3, c4 = st.columns(2)
                     if PDF_AVAILABLE:
-                        c3.download_button("📄 Télécharger Audit (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_audit), file_name=f"Audit_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
-                    c4.download_button("📊 Télécharger Audit (CSV)", data=df_audit.to_csv(index=False).encode('utf-8'), file_name=f"Audit_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
+                        st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
+                        c3.download_button("📄 Audit Détaillé (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_audit), file_name=f"Audit_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
+                    c4.download_button("📊 Audit Détaillé (CSV)", data=df_audit.to_csv(index=False).encode('utf-8'), file_name=f"Audit_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
                 else:
                     st.info("Aucun vote enregistré pour le moment.")
 
