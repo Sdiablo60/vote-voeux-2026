@@ -36,10 +36,19 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS COMMUN ---
+# --- CSS GLOBAL ---
 st.markdown("""
 <style>
-    /* Boutons */
+    /* Supprime les marges par défaut de Streamlit */
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
+        max-width: 100% !important;
+    }
+    
+    /* Boutons standards */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
@@ -73,7 +82,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONFIGURATIONS ---
+# --- CONFIGURATION VIERGE ---
 blank_config = {
     "mode_affichage": "attente", 
     "titre_mur": "TITRE À DÉFINIR", 
@@ -90,6 +99,7 @@ blank_config = {
     "session_id": ""
 }
 
+# --- CONFIGURATION DEMO ---
 default_config = {
     "mode_affichage": "attente", 
     "titre_mur": "CONCOURS VIDÉO 2026", 
@@ -106,7 +116,7 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILITAIRES ---
+# --- FONCTIONS ---
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list): return [clean_for_json(v) for v in data]
@@ -133,6 +143,7 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
+# --- GESTION SESSIONS ---
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
 
@@ -273,8 +284,6 @@ if PDF_AVAILABLE:
         pdf.set_font("Arial", size=12)
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(200, 10, txt=f"Resultats: {title}", ln=True, align='L')
-        pdf.set_font("Arial", size=10)
-        pdf.cell(200, 10, txt=f"Genere le : {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='L')
         pdf.ln(10)
         pdf.set_fill_color(226, 0, 26)
         pdf.set_text_color(255, 255, 255)
@@ -487,43 +496,46 @@ if est_admin:
 
             elif menu == "📸 MÉDIATHÈQUE":
                 st.title("📸 MÉDIATHÈQUE")
-                if st.button("🗑️ TOUT SUPPRIMER D'UN COUP", type="primary"):
+                
+                c_top1, c_top2 = st.columns(2)
+                if c_top1.button("🗑️ TOUT SUPPRIMER", type="primary", use_container_width=True):
                     files = glob.glob(f"{LIVE_DIR}/*")
                     for f in files: os.remove(f)
-                    st.success("Suppression OK"); time.sleep(1); st.rerun()
-                st.divider()
-                files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
-                if not files: st.info("Aucune photo.")
-                else:
-                    st.write("**Sélectionnez les photos :**")
-                    cols = st.columns(5)
-                    new_selection = []
-                    for i, f in enumerate(files):
-                        with cols[i % 5]:
-                            st.image(f, use_container_width=True)
-                            if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
-                    st.write("---")
-                    c1, c2 = st.columns(2)
-                    if c1.button("Supprimer la sélection") and new_selection:
-                        for f in new_selection: os.remove(f)
-                        st.success("Supprimé !"); time.sleep(1); st.rerun()
-                    if new_selection:
-                        zip_buffer = BytesIO()
-                        with zipfile.ZipFile(zip_buffer, "w") as zf:
-                            for idx, file_path in enumerate(new_selection): 
-                                new_name = f"Photo_{idx}.jpg"
-                                zf.write(file_path, arcname=new_name)
-                        c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_buffer.getvalue(), file_name="selection.zip", mime="application/zip")
+                    st.success("Tout supprimé !"); time.sleep(1); st.rerun()
                 
-                # RESTAURATION BOUTON TOUT TELECHARGER
-                st.write("---")
+                files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
+                
                 zip_all = BytesIO()
                 with zipfile.ZipFile(zip_all, "w") as zf:
                     for idx, file_path in enumerate(files): 
                         ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
                         new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
                         zf.write(file_path, arcname=new_name)
-                st.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live_{int(time.time())}.zip", mime="application/zip", type="primary")
+                c_top2.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live.zip", mime="application/zip", use_container_width=True)
+                
+                st.divider()
+                if not files: st.info("Aucune photo.")
+                else:
+                    st.write(f"**Sélectionnez les photos ({len(files)} au total) :**")
+                    cols = st.columns(5)
+                    new_selection = []
+                    for i, f in enumerate(files):
+                        with cols[i % 5]:
+                            st.image(f, use_container_width=True)
+                            if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
+                    
+                    st.write("---")
+                    c1, c2 = st.columns(2)
+                    if c1.button("Supprimer la sélection") and new_selection:
+                        for f in new_selection: os.remove(f)
+                        st.success("Supprimé !"); time.sleep(1); st.rerun()
+                    
+                    if new_selection:
+                        zip_sel = BytesIO()
+                        with zipfile.ZipFile(zip_sel, "w") as zf:
+                            for idx, file_path in enumerate(new_selection): 
+                                zf.write(file_path, arcname=os.path.basename(file_path))
+                        c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip")
 
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
@@ -533,17 +545,23 @@ if est_admin:
                 df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
                 
                 st.subheader("Classement")
-                chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'), tooltip=['Candidat', 'Points']).properties(height=400).interactive(bind_y=False, bind_x=False)
+                
+                # GRAPHIQUE AVEC ETIQUETTES
+                base = alt.Chart(df_totals).encode(x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'))
+                bars = base.mark_bar(color="#E2001A")
+                text = base.mark_text(align='left', dx=2).encode(text='Points')
+                chart = (bars + text).properties(height=400).interactive()
                 st.altair_chart(chart, use_container_width=True)
+                
+                # TABLEAU RECAPITULATIF
+                st.dataframe(df_totals, use_container_width=True)
                 
                 col_exp1, col_exp2, col_exp3 = st.columns(3)
                 col_exp1.download_button("📥 Résultats (CSV)", data=df_totals.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="resultats.csv", mime="text/csv")
-                
-                if PDF_AVAILABLE: 
-                    col_exp2.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
+                if PDF_AVAILABLE: col_exp2.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
                 
                 st.divider()
-                st.subheader("Audit Détaillé")
+                st.subheader("Audit Détaillé (Vote par Vote)")
                 detailed_data = load_json(DETAILED_VOTES_FILE, [])
                 if detailed_data:
                     df_detail = pd.DataFrame(detailed_data)
@@ -573,16 +591,8 @@ elif est_utilisateur:
             components.html(f"""<script>
                 var sS = "{curr_sess}";
                 var lS = localStorage.getItem('VOTE_SID_2026');
-                if(lS !== sS) {{ 
-                    localStorage.removeItem('HAS_VOTED_2026'); 
-                    localStorage.setItem('VOTE_SID_2026', sS); 
-                    if(window.parent.location.href.includes('blocked=true')) {{ 
-                        window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); 
-                    }} 
-                }}
-                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ 
-                    window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>';
-                }}
+                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
+                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
             </script>""", height=0)
         else:
             st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
@@ -650,7 +660,7 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (AVEC JS COUNTDOWN COMPACT & BLOQUE)
+# 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -680,29 +690,36 @@ else:
             if not v_data: v_data = {"Personne": 0}
             c_imgs = cfg.get("candidats_images", {})
             sorted_scores = sorted(list(set(v_data.values())), reverse=True)
-            top_3_scores = sorted_scores[:3]
-            finalists = [k for k, v in v_data.items() if v in top_3_scores]
-            max_score = sorted_scores[0] if sorted_scores else 0
-            winners = [k for k, v in v_data.items() if v == max_score]
             
-            js_finalists = []
-            for name in finalists:
-                img = None
-                for c, i in c_imgs.items():
-                    if c.strip() == name.strip(): img = i; break
-                js_finalists.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
+            # --- CALCUL PODIUM SEQUENTIEL ---
+            # 1. Identifier les scores uniques
+            score_1 = sorted_scores[0] if len(sorted_scores) > 0 else 0
+            score_2 = sorted_scores[1] if len(sorted_scores) > 1 else -1
+            score_3 = sorted_scores[2] if len(sorted_scores) > 2 else -1
             
-            js_winners = []
-            for name in winners:
-                img = None
-                for c, i in c_imgs.items():
-                    if c.strip() == name.strip(): img = i; break
-                js_winners.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
+            # 2. Identifier les candidats par rang
+            winners_1 = [k for k, v in v_data.items() if v == score_1]
+            winners_2 = [k for k, v in v_data.items() if v == score_2]
+            winners_3 = [k for k, v in v_data.items() if v == score_3]
+            
+            # Fonction helper pour formater JS
+            def get_js_list(names, score):
+                lst = []
+                for name in names:
+                    img = None
+                    for c, i in c_imgs.items():
+                        if c.strip() == name.strip(): img = i; break
+                    lst.append({'name': name, 'score': score, 'img': f"data:image/jpeg;base64,{img}" if img else ""})
+                return lst
+
+            js_1 = get_js_list(winners_1, score_1)
+            js_2 = get_js_list(winners_2, score_2)
+            js_3 = get_js_list(winners_3, score_3)
 
             ts_start = cfg.get("timestamp_podium", 0) * 1000
             logo_data = cfg.get("logo_b64", "")
             
-            # --- PODIUM HTML (BIG & NO SCROLL) ---
+            # --- PODIUM HTML SEQUENTIEL ---
             components.html(f"""
             <html>
             <head>
@@ -711,75 +728,94 @@ else:
                 .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; }}
                 
                 .logo-img {{ width: 300px; margin-bottom: 20px; object-fit: contain; display: block; }}
-                
                 .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 20px 0; }}
                 .title {{ color:white; font-size:50px; font-weight:bold; margin-bottom:20px; }}
                 
-                /* GRILLE FINALISTES & VAINQUEURS */
-                .grid {{ 
-                    display: flex; justify-content: center; align-items: flex-end; 
-                    gap: 30px; width: 95%; flex-wrap: wrap;
+                .grid {{ display: flex; justify-content: center; gap: 30px; width: 95%; flex-wrap: wrap; }}
+                
+                .rank-card {{ 
+                    background: rgba(20,20,20,0.9); padding: 20px; border-radius: 30px; 
+                    width: 250px; text-align: center; color: white; margin: 10px;
+                    box-shadow: 0 0 30px rgba(255,255,255,0.2);
                 }}
+                .rank-card img {{ width: 150px; height: 150px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; }}
+                .rank-card h1 {{ font-size: 24px; margin: 5px 0; }}
+                .rank-card h2 {{ font-size: 18px; margin: 0; opacity: 0.8; }}
                 
-                .card {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; text-align: center; color: white; }}
-                .card img {{ width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; }}
-                .card h3 {{ font-size: 20px; margin: 10px 0; }}
+                .bronze {{ border: 4px solid #CD7F32; }}
+                .silver {{ border: 4px solid #C0C0C0; }}
+                .gold {{ border: 6px solid #FFD700; transform: scale(1.1); box-shadow: 0 0 60px #FFD700; }}
                 
-                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 350px; text-align: center; box-shadow: 0 0 60px #FFD700; margin: 0 auto; }}
-                .winner-card img {{ width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 6px solid white; margin-bottom: 20px; }}
-                .winner-card h1 {{ font-size: 35px; margin: 10px 0; color: white; }}
-                .winner-card h2 {{ font-size: 28px; color: #FFD700; }}
             </style>
             </head>
             <body>
-                <div id="screen-suspense" class="wrapper" style="display:none;">
+                <div id="screen-intro" class="wrapper" style="display:none;">
                     {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
-                    <div class="title">LES FINALISTES...</div>
-                    <div id="timer" class="countdown">10</div>
-                    <div class="grid" id="finalists-grid"></div>
+                    <div class="title">LE PODIUM...</div>
+                    <div id="timer" class="countdown">5</div>
                 </div>
                 
-                <div id="screen-winner" class="wrapper" style="display:none;">
+                <div id="screen-podium" class="wrapper" style="display:none;">
                     {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
-                    <div class="grid" id="winners-grid"></div>
+                    <div class="grid" id="podium-grid"></div>
                 </div>
 
                 <script>
-                    const finalists = {json.dumps(js_finalists)};
-                    const winners = {json.dumps(js_winners)};
+                    const r1 = {json.dumps(js_1)};
+                    const r2 = {json.dumps(js_2)};
+                    const r3 = {json.dumps(js_3)};
                     const startTime = {ts_start};
                     
-                    const fGrid = document.getElementById('finalists-grid');
-                    finalists.forEach(f => {{
-                        let html = `<div class="card">`;
-                        if(f.img) html += `<img src="${{f.img}}">`;
-                        else html += `<div style="font-size:50px">🏆</div>`;
-                        html += `<h3>${{f.name}}</h3><h4>${{f.score}} pts</h4></div>`;
-                        fGrid.innerHTML += html;
-                    }});
-
-                    const wGrid = document.getElementById('winners-grid');
-                    winners.forEach(w => {{
-                        let html = `<div class="winner-card"><div style="font-size:60px">🥇</div>`;
-                        if(w.img) html += `<img src="${{w.img}}">`;
+                    const grid = document.getElementById('podium-grid');
+                    
+                    function createCard(p, rank, cssClass, medal) {{
+                        let html = `<div class="rank-card ${{cssClass}}"><div style="font-size:40px">${{medal}}</div>`;
+                        if(p.img) html += `<img src="${{p.img}}">`;
                         else html += `<div style="font-size:80px">🏆</div>`;
-                        html += `<h1>${{w.name}}</h1><h2>VAINQUEUR</h2><h3>${{w.score}} pts</h3></div>`;
-                        wGrid.innerHTML += html;
-                    }});
+                        html += `<h1>${{p.name}}</h1><h2>${{p.score}} pts</h2></div>`;
+                        return html;
+                    }}
 
                     function update() {{
                         const now = Date.now();
                         const elapsed = (now - startTime) / 1000;
-                        if (elapsed < 10) {{
-                            document.getElementById('screen-suspense').style.display = 'flex';
-                            document.getElementById('screen-winner').style.display = 'none';
-                            document.getElementById('timer').innerText = Math.ceil(10 - elapsed);
-                        }} else {{
-                            document.getElementById('screen-suspense').style.display = 'none';
-                            document.getElementById('screen-winner').style.display = 'flex';
+                        
+                        const intro = document.getElementById('screen-intro');
+                        const podium = document.getElementById('screen-podium');
+                        const timer = document.getElementById('timer');
+                        
+                        // 0s - 5s : INTRO
+                        if (elapsed < 5) {{
+                            intro.style.display = 'flex';
+                            podium.style.display = 'none';
+                            timer.innerText = Math.ceil(5 - elapsed);
+                        }} 
+                        // 5s+ : PODIUM
+                        else {{
+                            intro.style.display = 'none';
+                            podium.style.display = 'flex';
+                            
+                            let content = "";
+                            
+                            // 5s - 12s : AFFICHE 3EME
+                            if (elapsed >= 5) {{
+                                r3.forEach(p => content += createCard(p, 3, "bronze", "🥉"));
+                            }}
+                            
+                            // 12s - 20s : AFFICHE 2EME
+                            if (elapsed >= 12) {{
+                                r2.forEach(p => content += createCard(p, 2, "silver", "🥈"));
+                            }}
+                            
+                            // 20s+ : AFFICHE 1ER
+                            if (elapsed >= 20) {{
+                                r1.forEach(p => content += createCard(p, 1, "gold", "🥇"));
+                            }}
+                            
+                            grid.innerHTML = content;
                         }}
                     }}
-                    setInterval(update, 100);
+                    setInterval(update, 500); // Check every 0.5s
                     update();
                 </script>
             </body>
