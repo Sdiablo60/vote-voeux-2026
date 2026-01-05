@@ -633,30 +633,35 @@ else:
     <style>
         /* CSS SOCIAL WALL UNIQUEMENT - NO SCROLL & NO SIDEBAR */
         
-        /* Cacher la Sidebar */
-        [data-testid="stSidebar"] { display: none !important; }
-        section[data-testid="stSidebar"] { display: none !important; }
+        /* Cacher la scrollbar sur Chrome/Safari */
+        ::-webkit-scrollbar { display: none; }
+
+        /* Cacher la Sidebar de manière brute */
+        [data-testid="stSidebar"], section[data-testid="stSidebar"] { display: none !important; width: 0 !important; }
         [data-testid="stSidebarCollapsedControl"] { display: none !important; }
 
         /* Cacher le Header Streamlit */
-        header, [data-testid="stHeader"] { display: none !important; }
+        header, [data-testid="stHeader"] { display: none !important; height: 0 !important; }
+        [data-testid="stToolbar"] { display: none !important; }
+        [data-testid="stDecoration"] { display: none !important; }
 
-        /* Bloquer le scroll et forcer le fond noir */
-        body, html, .stApp { 
+        /* Bloquer le scroll et forcer le fond noir sur TOUTES les couches */
+        html, body, .stApp, [data-testid="stAppViewContainer"] { 
             background-color: black !important; 
             font-family: 'Arial', sans-serif; 
             overflow: hidden !important; 
             height: 100vh !important;
             width: 100vw !important;
             margin: 0 !important;
+            padding: 0 !important;
+            position: fixed !important; /* Verrouillage ultime */
+            top: 0 !important;
+            left: 0 !important;
         }
 
         /* Supprimer les marges internes de Streamlit */
         .block-container { 
-            padding-top: 0 !important; 
-            padding-bottom: 0 !important; 
-            padding-left: 0 !important; 
-            padding-right: 0 !important; 
+            padding: 0 !important; 
             max-width: 100vw !important; 
             margin: 0 !important;
         }
