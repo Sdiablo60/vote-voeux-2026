@@ -771,19 +771,19 @@ else:
             """, height=850, scrolling=False)
 
         elif cfg.get("session_ouverte"):
-            # --- CODE CORRIGÉ POUR L'AFFICHAGE VOTE ON ---
+            # --- 1. PREPARATION DES DONNEES ---
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            # Generation du QR Code
+            # Génération du QR Code et Logo
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
 
-            # HTML GAUCHE
+            # --- 2. CONSTRUCTION DES LISTES (HTML) ---
             html_left = ""
             for c in left_list:
                 if c in imgs:
@@ -791,7 +791,6 @@ else:
                 else:
                     html_left += f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
 
-            # HTML DROITE
             html_right = ""
             for c in right_list:
                 if c in imgs:
@@ -799,44 +798,51 @@ else:
                 else:
                     html_right += f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
 
-            # INJECTION LAYOUT (Flexbox)
-            ph.markdown(f"""
+            # --- 3. CSS (SÉPARÉ POUR ÉVITER LES BUGS D'AFFICHAGE) ---
+            # Pas de f-string ici, donc les accolades CSS {} fonctionnent normalement
+            css_styles = """
             <style>
-                .vote-container {{
+                .vote-container {
                     display: flex;
                     justify-content: space-between;
                     align-items: flex-start;
                     width: 100vw;
                     height: 85vh;
-                    margin-top: 15vh; /* Espace pour le header */
+                    margin-top: 15vh;
                     padding: 0 20px;
                     box-sizing: border-box;
-                }}
-                .col-participants {{
+                }
+                .col-participants {
                     flex: 1;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: flex-start;
-                }}
-                .col-center {{
+                }
+                .col-center {
                     flex: 0 0 400px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
                     height: 100%;
-                }}
-                .cand-row {{
+                }
+                .cand-row {
                     width: 90% !important;
                     max-width: 400px !important;
                     background: rgba(255,255,255,0.1);
                     backdrop-filter: blur(5px);
-                }}
+                }
             </style>
+            """
 
+            # --- 4. HTML FINAL (AVEC VARIABLES) ---
+            html_content = f"""
             <div class="vote-container">
-                <div class="col-participants">{html_left}</div>
+                <div class="col-participants">
+                    {html_left}
+                </div>
+
                 <div class="col-center">
                     {logo_html}
                     <div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>
@@ -844,9 +850,15 @@ else:
                     </div>
                     <div class='vote-cta' style='margin-top: 30px;'>À VOS VOTES !</div>
                 </div>
-                <div class="col-participants">{html_right}</div>
+
+                <div class="col-participants">
+                    {html_right}
+                </div>
             </div>
-            """, unsafe_allow_html=True)
+            """
+
+            # --- 5. AFFICHAGE SÉCURISÉ ---
+            ph.markdown(css_styles + html_content, unsafe_allow_html=True)
 
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
