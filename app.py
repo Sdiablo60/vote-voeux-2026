@@ -1,5 +1,14 @@
 import streamlit as st
-import os, glob, base64, qrcode, json, time, uuid, textwrap, zipfile, shutil
+import os
+import glob
+import base64
+import qrcode
+import json
+import time
+import uuid
+import textwrap
+import zipfile
+import shutil
 from io import BytesIO
 import streamlit.components.v1 as components
 from PIL import Image
@@ -10,20 +19,20 @@ import altair as alt
 import copy
 import re
 
-# TENTATIVE D'IMPORT DE FPDF POUR LES RAPPORTS
+# TENTATIVE D'IMPORT DE FPDF
 try:
     from fpdf import FPDF
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
 
-# SECURITE PIL (POUR LES GROSSES IMAGES)
+# SECURITE PIL
 Image.MAX_IMAGE_PIXELS = None 
 
-# --- CONFIGURATION STREAMLIT ---
+# --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
-# --- DEFINITION DES DOSSIERS ET FICHIERS ---
+# Dossiers & Fichiers
 LIVE_DIR = "galerie_live_users"
 ARCHIVE_DIR = "_archives_sessions"
 VOTES_FILE = "votes.json"
@@ -32,21 +41,21 @@ VOTERS_FILE = "voters.json"
 PARTICIPANTS_FILE = "participants.json"
 DETAILED_VOTES_FILE = "detailed_votes.json"
 
-# --- CREATION DES DOSSIERS SI INEXISTANTS ---
+# --- INIT DOSSIERS ---
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS GLOBAL (STRUCTURAL UNIQUEMENT) ---
+# --- CSS GLOBAL ---
 st.markdown("""
 <style>
-    /* Supprime les marges par défaut de Streamlit */
+    /* Supprime les marges par défaut */
     .block-container {
         padding-top: 1rem !important;
         padding-bottom: 1rem !important;
         max-width: 100% !important;
     }
     
-    /* Styles des boutons */
+    /* Boutons */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
@@ -81,7 +90,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- MODELES DE CONFIGURATION ---
+# --- CONFIGURATIONS ---
 blank_config = {
     "mode_affichage": "attente", 
     "titre_mur": "TITRE À DÉFINIR", 
@@ -114,24 +123,28 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILITAIRES (JSON, FICHIERS) ---
+# --- FONCTIONS UTILITAIRES ---
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list): return [clean_for_json(v) for v in data]
-    else: return data
+    elif isinstance(data, (str, int, float, bool, type(None))): return data
+    else: return str(data)
 
 def load_json(file, default):
     if os.path.exists(file):
         try:
             with open(file, "r", encoding='utf-8') as f:
-                return json.loads(f.read().strip())
+                content = f.read().strip()
+                if not content: return default
+                return json.loads(content)
         except: return default
     return default
 
 def save_json(file, data):
     try:
+        safe_data = clean_for_json(data)
         with open(str(file), "w", encoding='utf-8') as f:
-            json.dump(clean_for_json(data), f, ensure_ascii=False, indent=4)
+            json.dump(safe_data, f, ensure_ascii=False, indent=4)
     except Exception as e: print(f"Erreur Save: {e}")
 
 def save_config():
@@ -143,13 +156,15 @@ def sanitize_filename(name):
 def archive_current_session(name_suffix="AutoSave"):
     current_cfg = load_json(CONFIG_FILE, default_config)
     titre = current_cfg.get("titre_mur", "Session")
+    safe_titre = sanitize_filename(titre)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    folder_name = f"{timestamp}_{sanitize_filename(titre)}_{name_suffix}"
+    folder_name = f"{timestamp}_{safe_titre}_{name_suffix}"
     archive_path = os.path.join(ARCHIVE_DIR, folder_name)
     os.makedirs(archive_path, exist_ok=True)
     for f in [VOTES_FILE, CONFIG_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): shutil.copy2(f, archive_path)
-    if os.path.exists(LIVE_DIR): shutil.copytree(LIVE_DIR, os.path.join(archive_path, "galerie_live_users"))
+    live_archive = os.path.join(archive_path, "galerie_live_users")
+    if os.path.exists(LIVE_DIR): shutil.copytree(LIVE_DIR, live_archive)
     return folder_name
 
 def restore_session_from_archive(folder_name):
@@ -171,8 +186,8 @@ def reset_app_data(init_mode="blank"):
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
     if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
-    for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
-    
+    files = glob.glob(f"{LIVE_DIR}/*")
+    for f in files: os.remove(f)
     if init_mode == "blank":
         st.session_state.config = copy.deepcopy(blank_config)
         st.session_state.config["session_id"] = str(uuid.uuid4())
@@ -182,7 +197,7 @@ def reset_app_data(init_mode="blank"):
         st.session_state.config["session_id"] = str(uuid.uuid4())
         save_config()
 
-# --- FONCTIONS IMAGES ---
+# --- TRAITEMENT IMAGES ---
 def process_logo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -202,18 +217,24 @@ def process_participant_image(uploaded_file):
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
-# --- FONCTIONS LOGIQUE VOTE ---
 def reset_vote_callback():
     st.session_state.vote_success = False
     if "widget_choix" in st.session_state: st.session_state.widget_choix = []
     if "widget_choix_force" in st.session_state: st.session_state.widget_choix_force = []
 
+# --- ACTIONS ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
     st.session_state.config["reveal_resultats"] = reveal
     if reveal: st.session_state.config["timestamp_podium"] = time.time()
     save_config()
+
+def get_file_info(filepath):
+    try:
+        ts = os.path.getmtime(filepath)
+        return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+    except: return "?"
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
@@ -249,7 +270,7 @@ def inject_visual_effect(effect_name, intensity, speed):
     js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- GENERATION PDF ---
+# --- GENERATEUR PDF SECURISÉ ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -263,6 +284,7 @@ if PDF_AVAILABLE:
             self.set_xy(x_pos, 10)
             self.cell(0, 10, 'REGIE MASTER - RAPPORT OFFICIEL', 0, 1, 'C')
             self.ln(5)
+            # DATE DU RAPPORT
             self.set_font('Arial', 'I', 10)
             self.set_text_color(100)
             self.cell(0, 10, f"Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}", 0, 1, 'R')
@@ -290,7 +312,7 @@ if PDF_AVAILABLE:
             pdf.add_page()
             pdf.set_font("Arial", size=12)
             pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 10, txt=f"Résultats : {title}", ln=True, align='L')
+            pdf.cell(200, 10, txt=f"Résultats : {title}", ln=True, align='L')
             pdf.set_font("Arial", 'I', 11)
             pdf.cell(0, 10, txt=f"Nombre total de votants : {total_voters}", ln=True, align='L')
             pdf.ln(5)
@@ -346,23 +368,21 @@ if PDF_AVAILABLE:
             return pdf.output(dest='S').encode('latin-1')
         except: return b"Erreur PDF"
 
-# --- INIT SESSION ---
+# --- NAVIGATION VARS ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
+is_blocked = st.query_params.get("blocked") == "true"
 is_test_admin = st.query_params.get("test_admin") == "true"
 
+# --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
-
 # ==============================================================================
-#  ZONE DE CLOISONNEMENT DES INTERFACES (SILOS)
-#  Chaque fonction gère son propre affichage sans impacter les autres.
+#  ZONE 1 : CONSOLE ADMIN (SILO INDEPENDANT)
 # ==============================================================================
-
-# 1. INTERFACE ADMIN
 def interface_admin():
-    # Force le fond blanc pour l'admin
+    # Force Fond Blanc Admin
     st.markdown("""<style>.stApp { background-color: #ffffff !important; color: black !important; }</style>""", unsafe_allow_html=True)
     
     if "auth" not in st.session_state: st.session_state["auth"] = False
@@ -373,11 +393,14 @@ def interface_admin():
             st.markdown('<div class="login-container"><div class="login-title">🔒 ADMIN ACCESS</div>', unsafe_allow_html=True)
             pwd = st.text_input("Code de sécurité", type="password", label_visibility="collapsed")
             if st.button("ENTRER", use_container_width=True, type="primary"):
-                if pwd == "ADMIN_LIVE_MASTER": st.session_state["auth"] = True; st.session_state["session_active"] = False; st.rerun()
+                if pwd == "ADMIN_LIVE_MASTER":
+                    st.session_state["auth"] = True
+                    st.session_state["session_active"] = False 
+                    st.rerun()
                 else: st.error("Code incorrect")
             st.markdown('</div>', unsafe_allow_html=True)
+            
     else:
-        # GESTION DES SESSIONS
         if "session_active" not in st.session_state or not st.session_state["session_active"]:
             st.title("🗂️ GESTIONNAIRE DE SESSIONS")
             st.info("Avant d'accéder au pilotage, choisissez une session.")
@@ -417,7 +440,6 @@ def interface_admin():
                         if c_del.button("🗑️", key=f"del_{arc}", disabled=not confirm):
                             delete_archived_session(arc); st.rerun()
         else:
-            # DASHBOARD ADMIN
             cfg = st.session_state.config
             with st.sidebar:
                 if st.button("⬅️ CHANGER DE SESSION"):
@@ -447,6 +469,14 @@ def interface_admin():
             if menu == "🔴 PILOTAGE LIVE":
                 st.title("🔴 PILOTAGE LIVE")
                 st.subheader("Séquenceur")
+                etat = "Inconnu"
+                if cfg["mode_affichage"] == "attente": etat = "ACCUEIL"
+                elif cfg["mode_affichage"] == "votes":
+                    if cfg["reveal_resultats"]: etat = "PODIUM"
+                    elif cfg["session_ouverte"]: etat = "VOTES OUVERTS"
+                    else: etat = "VOTES FERMÉS"
+                elif cfg["mode_affichage"] == "photos_live": etat = "PHOTOS LIVE"
+                st.info(f"État actuel : **{etat}**")
                 c1, c2, c3, c4 = st.columns(4)
                 c1.button("🏠 ACCUEIL", use_container_width=True, type="primary" if cfg["mode_affichage"]=="attente" else "secondary", on_click=set_state, args=("attente", False, False))
                 c2.button("🗳️ VOTES ON", use_container_width=True, type="primary" if (cfg["mode_affichage"]=="votes" and cfg["session_ouverte"]) else "secondary", on_click=set_state, args=("votes", True, False))
@@ -462,20 +492,27 @@ def interface_admin():
                 st.title("⚙️ CONFIGURATION")
                 t1, t2 = st.tabs(["Général", "Candidats & Images"])
                 with t1:
+                    if cfg["titre_mur"] == "TITRE À DÉFINIR": st.error("⚠️ Veuillez définir un titre")
                     new_t = st.text_input("Titre", value=cfg["titre_mur"])
                     if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
                     upl = st.file_uploader("Logo (PNG Transparent)", type=["png", "jpg"])
                     if upl: 
                         processed_logo = process_logo(upl)
-                        if processed_logo: st.session_state.config["logo_b64"] = processed_logo; save_config(); st.rerun()
+                        if processed_logo:
+                            st.session_state.config["logo_b64"] = processed_logo
+                            save_config(); st.rerun()
                 with t2:
                     st.subheader(f"Liste des participants ({len(cfg['candidats'])}/15)")
+                    if not cfg["candidats"]: st.error("⚠️ La liste est vide ! Ajoutez des participants pour commencer.")
                     if len(cfg['candidats']) < 15:
                         c_add, c_btn = st.columns([4, 1])
                         new_cand = c_add.text_input("Nouveau participant", key="new_cand_input")
                         if c_btn.button("➕ Ajouter") and new_cand:
-                            if new_cand.strip() not in cfg['candidats']: cfg['candidats'].append(new_cand.strip()); save_config(); st.rerun()
+                            if new_cand.strip() not in cfg['candidats']:
+                                cfg['candidats'].append(new_cand.strip())
+                                save_config(); st.rerun()
                             else: st.error("Existe déjà !")
+                    else: st.warning("Maximum atteint.")
                     st.divider()
                     candidates_to_remove = []
                     for i, cand in enumerate(cfg['candidats']):
@@ -493,8 +530,13 @@ def interface_admin():
                             col_up, col_del = st.columns([3, 1])
                             up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
                             if up_img: 
+                                if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
                                 processed = process_participant_image(up_img)
-                                if processed: st.session_state.config["candidats_images"][cand] = processed; save_config(); st.toast(f"✅ Image {cand} sauvegardée"); time.sleep(0.5); st.rerun()
+                                if processed:
+                                    current_img = st.session_state.config["candidats_images"].get(cand)
+                                    if processed != current_img:
+                                        st.session_state.config["candidats_images"][cand] = processed
+                                        save_config(); st.toast(f"✅ Image {cand} sauvegardée"); time.sleep(0.5); st.rerun()
                             if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
                     if candidates_to_remove:
                         for c in candidates_to_remove:
@@ -504,27 +546,29 @@ def interface_admin():
 
             elif menu == "📸 MÉDIATHÈQUE":
                 st.title("📸 MÉDIATHÈQUE")
-                st.subheader("🗑️ Zone de Danger")
-                if st.button("🗑️ TOUT SUPPRIMER (Irréversible)", type="primary", use_container_width=True):
+                
+                c_top1, c_top2 = st.columns(2)
+                if c_top1.button("🗑️ TOUT SUPPRIMER", type="primary"):
                     files = glob.glob(f"{LIVE_DIR}/*")
                     for f in files: os.remove(f)
                     st.success("Suppression OK"); time.sleep(1); st.rerun()
                 
-                st.divider()
-                st.subheader("📥 Exportation")
                 files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
                 
-                if not files: st.info("Aucune photo disponible.")
+                with c_top2:
+                    if files:
+                        zip_all = BytesIO()
+                        with zipfile.ZipFile(zip_all, "w") as zf:
+                            for idx, file_path in enumerate(files): 
+                                ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                                new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
+                                zf.write(file_path, arcname=new_name)
+                        st.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name="toutes_photos_live.zip", mime="application/zip", type="secondary", use_container_width=True)
+                
+                st.divider()
+                if not files: st.info("Aucune photo.")
                 else:
-                    zip_all = BytesIO()
-                    with zipfile.ZipFile(zip_all, "w") as zf:
-                        for idx, file_path in enumerate(files): 
-                            ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-                            new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
-                            zf.write(file_path, arcname=new_name)
-                    st.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live.zip", mime="application/zip", type="secondary", use_container_width=True)
-                    
-                    st.write(f"**Sélectionnez les photos ({len(files)} au total) :**")
+                    st.write("**Sélectionnez les photos :**")
                     cols = st.columns(5)
                     new_selection = []
                     for i, f in enumerate(files):
@@ -532,25 +576,34 @@ def interface_admin():
                             st.image(f, use_container_width=True)
                             if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
                     
+                    st.write("---")
+                    c1, c2 = st.columns(2)
+                    if c1.button("Supprimer la sélection") and new_selection:
+                        for f in new_selection: os.remove(f)
+                        st.success("Supprimé !"); time.sleep(1); st.rerun()
                     if new_selection:
-                        st.success(f"{len(new_selection)} photos sélectionnées")
                         zip_sel = BytesIO()
                         with zipfile.ZipFile(zip_sel, "w") as zf:
                             for idx, file_path in enumerate(new_selection): 
                                 zf.write(file_path, arcname=os.path.basename(file_path))
-                        st.download_button("⬇️ TÉLÉCHARGER LA SÉLECTION (ZIP)", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip", type="secondary", use_container_width=True)
+                        c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip", type="secondary", use_container_width=True)
 
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
                 votes = load_json(VOTES_FILE, {})
                 detailed_data = load_json(DETAILED_VOTES_FILE, [])
                 voters_count = len(set([d['Utilisateur'] for d in detailed_data])) if detailed_data else 0
+                
                 all_cands = {c: 0 for c in cfg["candidats"]}
                 all_cands.update(votes)
                 df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
                 
                 st.subheader("Classement")
-                chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'), tooltip=['Candidat', 'Points']).properties(height=400)
+                chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
+                    x=alt.X('Points'), 
+                    y=alt.Y('Candidat', sort='-x'), 
+                    tooltip=['Candidat', 'Points']
+                ).properties(height=400)
                 st.altair_chart(chart, use_container_width=True)
                 st.dataframe(df_totals, use_container_width=True)
                 
@@ -564,16 +617,19 @@ def interface_admin():
                 if detailed_data:
                     df_detail = pd.DataFrame(detailed_data)
                     st.dataframe(df_detail, use_container_width=True)
+                    
                     c_au1, c_au2 = st.columns(2)
                     c_au1.download_button("📥 Audit Complet (CSV)", data=df_detail.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="audit_votes.csv", mime="text/csv", use_container_width=True)
                     if PDF_AVAILABLE: 
                         c_au2.download_button("📄 Audit (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_detail, cfg.get("logo_b64")), file_name="audit.pdf", mime="application/pdf", use_container_width=True)
                 else: st.info("Aucun vote enregistré.")
 
-# 2. INTERFACE MOBILE
+# ==============================================================================
+#  ZONE 2 : INTERFACE MOBILE (SILO INDEPENDANT)
+# ==============================================================================
 def interface_mobile_vote():
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("""<style>.stApp {background-color:black !important; color:white !important;} [data-testid='stHeader'] {display:none;} .block-container {padding:1rem !important;}</style>""", unsafe_allow_html=True)
+    st.markdown("""<style>.stApp {background-color:black !important; color:white !important;} [data-testid='stHeader'] {display:none;} .block-container {padding: 1rem !important;}</style>""", unsafe_allow_html=True)
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
@@ -592,7 +648,8 @@ def interface_mobile_vote():
                 if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
                 if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
             </script>""", height=0)
-        else: st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
+        else:
+            st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
         
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
@@ -656,8 +713,12 @@ def interface_mobile_vote():
                     st.stop()
         else: st.info("⏳ En attente...")
 
-# 3. INTERFACE MUR ATTENTE
-def interface_mur_attente(cfg, logo_data, titre_text):
+# ==============================================================================
+#  ZONE 3 : INTERFACE MUR SOCIAL (SILO INDEPENDANT AVEC SOUS-FONCTIONS)
+# ==============================================================================
+
+# SOUS-FONCTION : ACCUEIL
+def interface_mur_accueil(cfg, logo_data, titre_text):
     html = f"""
     <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
         <div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:#E2001A; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>
@@ -667,7 +728,20 @@ def interface_mur_attente(cfg, logo_data, titre_text):
     """
     components.html(html, height=1000)
 
-# 4. INTERFACE MUR VOTE ON (QR + Participants)
+# SOUS-FONCTION : VOTE OFF
+def interface_mur_vote_off(cfg, logo_data, titre_text):
+    html = f"""
+    <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
+        <div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:#E2001A; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>
+        <div style="border:5px solid #E2001A; padding:60px; border-radius:40px; text-align:center;">
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:250px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
+            <h1 style="color:#E2001A;font-size:70px;margin:0;">VOTES CLÔTURÉS</h1>
+        </div>
+    </body></html>
+    """
+    components.html(html, height=1000)
+
+# SOUS-FONCTION : VOTE ON (QR + PARTICIPANTS)
 def interface_mur_vote_on(cfg, logo_data, titre_text):
     host = st.context.headers.get('host', 'localhost')
     qr = qrcode.make(f"https://{host}/?mode=vote"); buf=BytesIO(); qr.save(buf, format="PNG"); qrb64=base64.b64encode(buf.getvalue()).decode()
@@ -688,20 +762,7 @@ def interface_mur_vote_on(cfg, logo_data, titre_text):
     """
     components.html(html, height=1000)
 
-# 5. INTERFACE MUR VOTE OFF
-def interface_mur_vote_off(cfg, logo_data, titre_text):
-    html = f"""
-    <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-        <div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:#E2001A; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>
-        <div style="border:5px solid #E2001A; padding:60px; border-radius:40px; text-align:center;">
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:250px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
-            <h1 style="color:#E2001A;font-size:70px;margin:0;">VOTES CLÔTURÉS</h1>
-        </div>
-    </body></html>
-    """
-    components.html(html, height=1000)
-
-# 6. INTERFACE MUR PODIUM
+# SOUS-FONCTION : PODIUM ANIMÉ
 def interface_mur_podium(cfg, logo_data, titre_text):
     v_data = load_json(VOTES_FILE, {}); scores = sorted(list(set(v_data.values())), reverse=True)
     s1 = scores[0] if len(scores)>0 else 0; s2 = scores[1] if len(scores)>1 else -1; s3 = scores[2] if len(scores)>2 else -1
@@ -780,7 +841,7 @@ def interface_mur_podium(cfg, logo_data, titre_text):
     </body></html>
     """, height=1000)
 
-# 7. INTERFACE MUR PHOTO LIVE
+# SOUS-FONCTION : PHOTOS LIVE ANIMÉES (QR + TITRE)
 def interface_mur_photos_live(cfg, logo_data, titre_text):
     photos = glob.glob(f"{LIVE_DIR}/*")
     js_imgs = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]])
@@ -815,15 +876,8 @@ def interface_mur_photos_live(cfg, logo_data, titre_text):
     </body></html>
     """, height=1000)
 
-# =========================================================
-# ROUTEUR PRINCIPAL
-# =========================================================
-if est_admin:
-    # La logique admin est déjà exécutée en haut
-    pass
-elif est_utilisateur:
-    interface_mobile_vote()
-else:
+# FONCTION ROUTEUR MUR SOCIAL
+def interface_mur_social():
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     st_autorefresh(interval=4000, key="wall_refresh")
@@ -846,3 +900,13 @@ else:
             interface_mur_vote_off(cfg, logo_data, titre_text)
     elif mode == "photos_live":
         interface_mur_photos_live(cfg, logo_data, titre_text)
+
+# =========================================================
+# ROUTEUR PRINCIPAL (FIN DU SCRIPT)
+# =========================================================
+if est_admin:
+    interface_admin()
+elif est_utilisateur:
+    interface_mobile_vote()
+else:
+    interface_mur_social()
