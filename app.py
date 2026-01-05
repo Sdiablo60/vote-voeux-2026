@@ -39,21 +39,7 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # --- CSS GLOBAL ---
 st.markdown("""
 <style>
-    /* Supprime les marges par défaut de Streamlit */
-    .block-container {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 0rem !important;
-        padding-right: 0rem !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-    }
-    
-    /* Cache header/footer */
-    header { visibility: hidden; }
-    footer { visibility: hidden; }
-    
-    /* Boutons standards */
+    /* Boutons */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
@@ -268,23 +254,21 @@ def inject_visual_effect(effect_name, intensity, speed):
     js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- GENERATEUR PDF AMELIORÉ ---
+# --- GENERATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
-            # Ajout Logo si disponible
+            # Ajout Logo
             if os.path.exists("temp_logo.png"):
                 self.image("temp_logo.png", 10, 8, 33)
             
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
-            # Decalage titre si logo
             x_pos = 50 if os.path.exists("temp_logo.png") else 10
             self.set_xy(x_pos, 10)
             self.cell(0, 10, 'REGIE MASTER - RAPPORT OFFICIEL', 0, 1, 'C')
             self.ln(5)
             
-            # Sous-titre date
             self.set_font('Arial', 'I', 10)
             self.set_text_color(100, 100, 100)
             self.cell(0, 5, f"Date du rapport : {datetime.now().strftime('%d/%m/%Y à %H:%M')}", 0, 1, 'R')
@@ -307,7 +291,6 @@ if PDF_AVAILABLE:
 
     def create_pdf_results(title, df, logo_b64=None, total_voters=0):
         has_logo = prepare_logo_file(logo_b64)
-        
         pdf = PDFReport()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
@@ -317,13 +300,11 @@ if PDF_AVAILABLE:
         pdf.cell(0, 10, txt=f"Nombre total de votants : {total_voters}", ln=True, align='L')
         pdf.ln(5)
         
-        # CENTRAGE DU TABLEAU
+        # Centrage tableau
         margin_left = 35
-        
         pdf.set_fill_color(226, 0, 26)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Arial", 'B', 12)
-        
         pdf.set_x(margin_left)
         pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1)
         pdf.cell(40, 10, "Points", 1, 1, 'C', 1)
@@ -343,7 +324,6 @@ if PDF_AVAILABLE:
 
     def create_pdf_audit(title, df, logo_b64=None):
         has_logo = prepare_logo_file(logo_b64)
-        
         pdf = PDFReport()
         pdf.add_page()
         pdf.set_font("Arial", size=10)
@@ -351,9 +331,7 @@ if PDF_AVAILABLE:
         pdf.cell(200, 10, txt=f"Audit Detaillé : {title}", ln=True, align='L')
         pdf.ln(5)
         
-        # Suppression colonne Date
         cols = [c for c in df.columns.tolist() if "Date" not in c]
-        
         w = 190 / len(cols)
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255)
@@ -720,7 +698,7 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (NOIR, FULL, COMPONENTS)
+# 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -729,75 +707,101 @@ else:
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
     mode = cfg.get("mode_affichage")
+    logo_data = cfg.get("logo_b64", "")
+    titre_text = cfg.get("titre_mur", "")
     effects = cfg.get("screen_effects", {})
     effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
     inject_visual_effect(effect_name, 25, 15)
+
+    # --- CSS AGRESSIF POUR LE MUR SOCIAL ---
+    # Cette section CSS force le background noir, supprime les scrollbars, 
+    # et surtout REMONTE le contenu avec margin-top négatif pour cacher le bandeau blanc.
+    st.markdown("""
+    <style>
+        /* Force le fond noir sur toute l'app en mode Mur */
+        .stApp { background-color: black !important; }
+        
+        /* Cache header et footer */
+        [data-testid='stHeader'], footer { display: none !important; }
+        
+        /* Remonte le contenu principal pour cacher la marge blanche */
+        .block-container {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: 100% !important;
+            margin-top: -100px !important; /* L'ASTUCE EST ICI */
+        }
+        
+        /* CSS Spécifique au contenu */
+        .social-container {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        
+        .user-tag { 
+            background: rgba(255,255,255,0.1); color: white; padding: 8px 15px; 
+            border-radius: 20px; border: 1px solid #E2001A; font-size: 18px; 
+            margin: 5px; display: inline-block;
+            animation: popIn 0.5s ease-out;
+        }
+        @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+    """, unsafe_allow_html=True)
+
+    ph = st.empty()
     
-    logo_data = cfg.get("logo_b64", "")
-    titre_text = cfg.get("titre_mur", "")
-
-    # --- ACCUEIL ---
+    # --- 1. ACCUEIL ---
     if mode == "attente":
-        html = f"""
-        <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:400px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
-            <h1 style="color:white;font-size:90px;font-weight:bold;margin:0;">BIENVENUE</h1>
-            <h2 style="color:#E2001A;font-size:40px;margin-top:20px;">{titre_text}</h2>
-        </body></html>
-        """
-        components.html(html, height=1000)
+        ph.markdown(f"""
+        <div class="social-container">
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:450px;margin-bottom:30px;">' if logo_data else ''}
+            <h1 style="color:white;font-size:100px;margin:0;font-family:Arial;font-weight:bold;">BIENVENUE</h1>
+            <h2 style="color:#E2001A;font-size:40px;margin-top:20px;font-family:Arial;">{titre_text}</h2>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # --- VOTE OFF ---
+    # --- 2. VOTE OFF ---
     elif mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
-        html = f"""
-        <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
+        ph.markdown(f"""
+        <div class="social-container">
             <div style="border:5px solid #E2001A; padding:60px; border-radius:40px; text-align:center;">
-                {f'<img src="data:image/png;base64,{logo_data}" style="width:250px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
-                <h1 style="color:#E2001A;font-size:70px;margin:0;">VOTES CLÔTURÉS</h1>
-                <h2 style="color:white;font-size:35px;margin-top:20px;">{titre_text}</h2>
+                {f'<img src="data:image/png;base64,{logo_data}" style="width:250px;margin-bottom:30px;">' if logo_data else ''}
+                <h1 style="color:#E2001A;font-size:70px;margin:0;font-family:Arial;">VOTES CLÔTURÉS</h1>
+                <h2 style="color:white;font-size:35px;margin-top:20px;font-family:Arial;">{titre_text}</h2>
             </div>
-        </body></html>
-        """
-        components.html(html, height=1000)
+        </div>
+        """, unsafe_allow_html=True)
 
-    # --- VOTE ON ---
+    # --- 3. VOTE ON ---
     elif mode == "votes" and cfg["session_ouverte"]:
         host = st.context.headers.get('host', 'localhost')
         qr = qrcode.make(f"https://{host}/?mode=vote"); buf=BytesIO(); qr.save(buf, format="PNG"); qrb64=base64.b64encode(buf.getvalue()).decode()
         
-        # --- LECTURE ET AFFICHAGE DES PARTICIPANTS ---
+        # Ticker Participants
         parts = load_json(PARTICIPANTS_FILE, [])
-        tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-8:]]) # 8 derniers
+        tags_html = "".join([f"<span class='user-tag'>{p}</span>" for p in parts[-10:]]) # 10 derniers
         
-        html = f"""
-        <html>
-        <head>
-        <style>
-            body{{background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;}}
-            .tags-container {{ margin-top: 30px; display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: 80%; }}
-            .user-tag {{ 
-                background: rgba(255,255,255,0.1); color: white; padding: 8px 15px; 
-                border-radius: 20px; border: 1px solid #E2001A; font-size: 18px; 
-                animation: popIn 0.5s ease-out;
-            }}
-            @keyframes popIn {{ 0% {{ transform: scale(0); opacity: 0; }} 100% {{ transform: scale(1); opacity: 1; }} }}
-            @keyframes blink {{ 50% {{ opacity: 0; }} }}
-        </style>
-        </head>
-        <body>
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:350px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
-            <div style="background:white;padding:25px;border-radius:25px;display:inline-block;margin-bottom:30px;">
+        ph.markdown(f"""
+        <div class="social-container">
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:350px;margin-bottom:20px;">' if logo_data else ''}
+            <div style="background:white;padding:25px;border-radius:25px;display:inline-block;margin-bottom:20px;">
                 <img src="data:image/png;base64,{qrb64}" style="width:300px;">
             </div>
-            <div style="color:#E2001A;font-size:50px;font-weight:bold;animation:blink 1s infinite;">À VOS VOTES !</div>
-            <div style="color:white;font-size:30px;margin-top:20px;">{titre_text}</div>
-            <div class="tags-container">{tags_html}</div>
-        </body>
-        </html>
-        """
-        components.html(html, height=1000)
+            <div style="color:#E2001A;font-size:60px;font-weight:bold;font-family:Arial;animation:blink 1s infinite;">À VOS VOTES !</div>
+            <div style="color:white;font-size:30px;margin-top:10px;font-family:Arial;">{titre_text}</div>
+            <div style="margin-top:30px;display:flex;flex-wrap:wrap;justify-content:center;max-width:90%;">{tags_html}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # --- PODIUM ---
+    # --- 4. PODIUM (SÉQUENTIEL) ---
     elif mode == "votes" and cfg["reveal_resultats"]:
         v_data = load_json(VOTES_FILE, {})
         scores = sorted(list(set(v_data.values())), reverse=True)
@@ -814,13 +818,15 @@ else:
         r1, r2, r3 = get_p(s1), get_p(s2), get_p(s3)
         ts_start = cfg.get("timestamp_podium", 0) * 1000
         
-        html = f"""
+        # Utilisation de components.html pour le JS complexe du podium
+        # On force le style pour matcher le reste
+        components.html(f"""
         <html><head><style>
             body {{ background:black; margin:0; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:Arial; overflow:hidden; }}
             .logo {{ width:300px; margin-bottom:20px; object-fit:contain; }}
             .txt {{ color:white; font-size:40px; font-weight:bold; margin-bottom:10px; }}
             .count {{ color:#E2001A; font-size:120px; font-weight:bold; }}
-            .grid {{ display:flex; justify-content:center; align-items:flex-end; gap:20px; }}
+            .grid {{ display:flex; justify-content:center; align-items:flex-end; gap:30px; width:95%; flex-wrap:wrap; }}
             .card {{ background:rgba(255,255,255,0.1); padding:15px; border-radius:15px; width:220px; text-align:center; color:white; }}
             .card img {{ width:110px; height:110px; border-radius:50%; border:3px solid white; object-fit:cover; }}
             .win {{ background:rgba(20,20,20,0.9); border:6px solid #FFD700; width:450px; padding:40px; box-shadow:0 0 60px #FFD700; text-align:center; }}
@@ -880,25 +886,26 @@ else:
                 }}, 100);
             </script>
         </body></html>
-        """
-        components.html(html, height=1000)
+        """, height=1000) # Hauteur forcée pour couvrir l'écran
 
-    # --- PHOTOS LIVE ---
+    # --- 5. PHOTOS LIVE ---
     elif mode == "photos_live":
         photos = glob.glob(f"{LIVE_DIR}/*")
+        # Correction syntaxe JS et utilisation de components.html pour l'animation fluide
         js_imgs = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]])
-        html = f"""
+        components.html(f"""
         <html><body style="background:black;margin:0;overflow:hidden;">
         <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:100;background:rgba(0,0,0,0.8);padding:30px;border-radius:30px;border:2px solid #E2001A;">
-            <h1 style="color:#E2001A;margin:0;font-family:Arial;">PHOTOS LIVE</h1>
+            <h1 style="color:#E2001A;margin:0;font-family:Arial;font-size:40px;">MUR PHOTOS LIVE</h1>
             {f'<img src="data:image/png;base64,{logo_data}" style="width:150px;margin-top:10px;">' if logo_data else ''}
+            <h2 style="color:white;font-family:Arial;margin-top:10px;">Partagez vos sourires !</h2>
         </div>
         <script>
             const imgs = {js_imgs};
             imgs.forEach(src => {{
                 let img = document.createElement('img'); img.src = src;
-                img.style.cssText = 'position:absolute;width:'+(Math.random()*100+80)+'px;border-radius:50%;border:3px solid #E2001A;';
-                let x = Math.random()*window.innerWidth, y = Math.random()*window.innerHeight, dx = (Math.random()-0.5)*2, dy = (Math.random()-0.5)*2;
+                img.style.cssText = 'position:absolute;width:'+(Math.random()*150+100)+'px;border-radius:50%;border:4px solid #E2001A;object-fit:cover;';
+                let x = Math.random()*window.innerWidth, y = Math.random()*window.innerHeight, dx = (Math.random()-0.5)*3, dy = (Math.random()-0.5)*3;
                 document.body.appendChild(img);
                 setInterval(() => {{
                     x += dx; y += dy;
@@ -908,5 +915,4 @@ else:
             }});
         </script>
         </body></html>
-        """
-        components.html(html, height=1000)
+        """, height=1000)
