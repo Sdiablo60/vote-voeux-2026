@@ -36,6 +36,63 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
+# --- CSS GLOBAL (SOLIDE) ---
+st.markdown("""
+<style>
+    /* Supprime les marges par défaut */
+    .block-container {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
+        max-width: 100% !important;
+    }
+    
+    /* Boutons standards Streamlit */
+    button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
+    button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
+    button[kind="primary"]:hover { background-color: #C20015 !important; }
+    
+    /* Login Box */
+    .login-container {
+        max-width: 400px; margin: 100px auto; padding: 40px;
+        background: #f0f2f6; border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
+    }
+    .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
+    .stTextInput input { text-align: center; font-size: 18px; }
+    
+    /* Sidebar Navigation Boutons */
+    section[data-testid="stSidebar"] button[kind="primary"] {
+        background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
+    }
+    section[data-testid="stSidebar"] button[kind="secondary"] {
+        background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
+    }
+    
+    /* --- BOUTONS LIENS EXTERNES (RÉTABLISSEMENT) --- */
+    a.custom-link-btn {
+        display: block !important;
+        text-align: center !important;
+        padding: 12px !important;
+        border-radius: 8px !important;
+        text-decoration: none !important;
+        font-weight: bold !important;
+        margin-bottom: 10px !important;
+        color: white !important; 
+        transition: transform 0.2s !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+    }
+    a.custom-link-btn:hover { 
+        transform: scale(1.02) !important; 
+        text-decoration: none !important;
+        opacity: 0.9 !important;
+    }
+    .btn-red { background-color: #E2001A !important; border: 1px solid #E2001A !important; }
+    .btn-blue { background-color: #2980b9 !important; border: 1px solid #2980b9 !important; }
+</style>
+""", unsafe_allow_html=True)
+
 # --- CONFIGURATIONS ---
 blank_config = {
     "mode_affichage": "attente", 
@@ -288,11 +345,10 @@ if "config" not in st.session_state:
 # =========================================================
 if est_admin:
     
-    # CSS SPECIFIQUE ADMIN (CLAIR)
     st.markdown("""
     <style>
         /* Force fond clair pour Admin */
-        .stApp { background-color: #ffffff; color: black; }
+        .stApp { background-color: #ffffff !important; color: black !important; }
         .login-container { background: #f0f2f6; border: 1px solid #ddd; }
     </style>
     """, unsafe_allow_html=True)
@@ -368,10 +424,13 @@ if est_admin:
                             st.session_state.admin_menu = m; st.rerun()
                 menu = st.session_state.admin_menu
                 st.divider()
+                
+                # --- LIENS EXTERNES STYLE BOUTONS ---
                 st.markdown("""
                     <a href="/" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>
                     <a href="/?mode=vote&test_admin=true" target="_blank" class="custom-link-btn btn-blue">📱 TESTER MOBILE (ILLIMITÉ)</a>
                 """, unsafe_allow_html=True)
+                
                 if st.button("🔓 DÉCONNEXION"): 
                     st.session_state["auth"] = False
                     st.session_state["session_active"] = False
@@ -646,9 +705,6 @@ else:
     ph = st.empty()
     
     if mode == "attente":
-        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-        
-        # --- FIX: UTILISATION DE COMPONENTS.HTML POUR ISOLER LE CSS ET EVITER LE TEXTE BRUT ---
         html_content = f"""
         <html>
         <head>
@@ -697,7 +753,7 @@ else:
             ts_start = cfg.get("timestamp_podium", 0) * 1000
             logo_data = cfg.get("logo_b64", "")
             
-            # --- PODIUM FINAL (SEQUENTIEL, NO SCROLL, BLACK) ---
+            # --- PODIUM SEQUENTIEL FINAL ---
             components.html(f"""
             <html>
             <head>
