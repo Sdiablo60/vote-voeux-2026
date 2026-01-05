@@ -70,12 +70,12 @@ st.markdown("""
     
     /* Liens externes */
     a.custom-link-btn {
-        display: block !important; text-align: center !important; padding: 12px !important;
-        border-radius: 8px !important; text-decoration: none !important; font-weight: bold !important;
-        margin-bottom: 10px !important; color: white !important; transition: transform 0.2s !important;
+        display: block; text-align: center; padding: 12px; border-radius: 8px;
+        text-decoration: none !important; font-weight: bold; margin-bottom: 10px;
+        color: white !important; transition: transform 0.2s;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
     }
-    a.custom-link-btn:hover { transform: scale(1.02) !important; opacity: 0.9 !important; text-decoration: none !important; }
+    a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; text-decoration: none; }
     .btn-red { background-color: #E2001A !important; border: 1px solid #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; border: 1px solid #2980b9 !important; }
 </style>
@@ -221,12 +221,6 @@ def set_state(mode, open_s, reveal):
     if reveal: st.session_state.config["timestamp_podium"] = time.time()
     save_config()
 
-def get_file_info(filepath):
-    try:
-        ts = os.path.getmtime(filepath)
-        return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-    except: return "?"
-
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
@@ -265,18 +259,14 @@ def inject_visual_effect(effect_name, intensity, speed):
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
-            # TENTATIVE D'AJOUT LOGO SI DISPO
-            if os.path.exists("temp_logo_pdf.png"):
-                try: self.image("temp_logo_pdf.png", 10, 8, 30)
-                except: pass
-            
+            if os.path.exists("temp_logo.png"):
+                self.image("temp_logo.png", 10, 8, 33)
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
-            x_pos = 50 if os.path.exists("temp_logo_pdf.png") else 10
+            x_pos = 50 if os.path.exists("temp_logo.png") else 10
             self.set_xy(x_pos, 10)
             self.cell(0, 10, 'REGIE MASTER - RAPPORT OFFICIEL', 0, 1, 'C')
             self.ln(5)
-            # DATE DU RAPPORT
             self.set_font('Arial', 'I', 10)
             self.set_text_color(100)
             self.cell(0, 10, f"Genere le {datetime.now().strftime('%d/%m/%Y a %H:%M')}", 0, 1, 'R')
@@ -291,7 +281,7 @@ if PDF_AVAILABLE:
     def prepare_logo_file(logo_b64):
         if logo_b64:
             try:
-                with open("temp_logo_pdf.png", "wb") as f:
+                with open("temp_logo.png", "wb") as f:
                     f.write(base64.b64decode(logo_b64))
                 return True
             except: return False
@@ -309,7 +299,6 @@ if PDF_AVAILABLE:
             pdf.cell(0, 10, txt=f"Nombre total de votants : {total_voters}", ln=True, align='L')
             pdf.ln(5)
             
-            # TABLEAU CENTRÉ
             pdf.set_fill_color(226, 0, 26)
             pdf.set_text_color(255, 255, 255)
             pdf.set_font("Arial", 'B', 12)
@@ -328,11 +317,9 @@ if PDF_AVAILABLE:
                 pdf.cell(40, 10, points, 1, 1, 'C')
                 pdf.ln()
                 
-            if os.path.exists("temp_logo_pdf.png"): os.remove("temp_logo_pdf.png")
+            if os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
             return pdf.output(dest='S').encode('latin-1')
-        except Exception as e:
-            print(f"Erreur PDF: {e}")
-            return b"Erreur generation PDF"
+        except: return b"Erreur PDF"
 
     def create_pdf_audit(title, df, logo_data=None):
         try:
@@ -359,10 +346,9 @@ if PDF_AVAILABLE:
                     pdf.cell(w, 8, txt, 1, 0, 'C')
                 pdf.ln()
                 
-            if os.path.exists("temp_logo_pdf.png"): os.remove("temp_logo_pdf.png")
+            if os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
             return pdf.output(dest='S').encode('latin-1')
-        except Exception as e:
-            return b"Erreur generation PDF"
+        except: return b"Erreur PDF"
 
 # --- NAVIGATION VARS ---
 est_admin = st.query_params.get("admin") == "true"
@@ -375,9 +361,9 @@ if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
 # =========================================================
-# 1. CONSOLE ADMIN (ISOLÉE)
+# 1. CONSOLE ADMIN
 # =========================================================
-def afficher_console_admin():
+if est_admin:
     st.markdown("""<style>.stApp { background-color: #ffffff !important; color: black !important; }</style>""", unsafe_allow_html=True)
     if "auth" not in st.session_state: st.session_state["auth"] = False
     
@@ -612,19 +598,17 @@ elif est_utilisateur:
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
-    refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
-    st_autorefresh(interval=refresh_rate, key="wall_refresh")
+    st_autorefresh(interval=4000, key="wall_refresh")
+    
+    st.markdown("""<style>.stApp { background-color: black !important; overflow: hidden !important; } [data-testid='stHeader'] { display: none; } .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; margin-top: -100px !important; }</style>""", unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
     logo_data = cfg.get("logo_b64", "")
     titre_text = cfg.get("titre_mur", "")
     inject_visual_effect(cfg.get("screen_effects", {}).get("attente" if mode=="attente" else "podium", "Aucun"), 25, 15)
 
-    # --- CSS AGRESSIF ---
-    st.markdown("""<style>.stApp { background-color: black !important; } [data-testid='stHeader'], footer { display: none !important; } .block-container { padding: 0 !important; margin: 0 !important; max-width: 100% !important; margin-top: -100px !important; }</style>""", unsafe_allow_html=True)
-
     ph = st.empty()
-    header_html = f"""<div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>"""
+    header_html = f"""<div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:#E2001A; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>"""
 
     if mode == "attente":
         components.html(f"""
