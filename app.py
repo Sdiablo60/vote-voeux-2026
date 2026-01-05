@@ -39,14 +39,21 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # --- CSS GLOBAL ---
 st.markdown("""
 <style>
-    /* Supprime les marges par défaut */
+    /* Supprime les marges par défaut de Streamlit */
     .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0rem !important;
+        padding-right: 0rem !important;
         max-width: 100% !important;
+        margin: 0 !important;
     }
     
-    /* Boutons */
+    /* Cache header/footer */
+    header { visibility: hidden; }
+    footer { visibility: hidden; }
+    
+    /* Boutons standards */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
@@ -69,14 +76,15 @@ st.markdown("""
     }
     
     /* Liens externes */
-    .custom-link-btn {
-        display: block; text-align: center; padding: 12px; border-radius: 8px;
-        text-decoration: none !important; font-weight: bold; margin-bottom: 10px;
-        color: white !important; transition: transform 0.2s;
+    a.custom-link-btn {
+        display: block !important; text-align: center !important; padding: 12px !important;
+        border-radius: 8px !important; text-decoration: none !important; font-weight: bold !important;
+        margin-bottom: 10px !important; color: white !important; transition: transform 0.2s !important;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
     }
-    .custom-link-btn:hover { transform: scale(1.02); }
-    .btn-red { background-color: #E2001A; }
-    .btn-blue { background-color: #2980b9; }
+    a.custom-link-btn:hover { transform: scale(1.02) !important; opacity: 0.9 !important; text-decoration: none !important; }
+    .btn-red { background-color: #E2001A !important; border: 1px solid #E2001A !important; }
+    .btn-blue { background-color: #2980b9 !important; border: 1px solid #2980b9 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -143,12 +151,12 @@ def save_config():
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
 
-def archive_current_session():
+def archive_current_session(name_suffix="AutoSave"):
     current_cfg = load_json(CONFIG_FILE, default_config)
     titre = current_cfg.get("titre_mur", "Session")
     safe_titre = sanitize_filename(titre)
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    folder_name = f"{timestamp}_{safe_titre}"
+    folder_name = f"{timestamp}_{safe_titre}_{name_suffix}"
     archive_path = os.path.join(ARCHIVE_DIR, folder_name)
     os.makedirs(archive_path, exist_ok=True)
     for f in [VOTES_FILE, CONFIG_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
@@ -187,6 +195,7 @@ def reset_app_data(init_mode="blank"):
         st.session_state.config["session_id"] = str(uuid.uuid4())
         save_config()
 
+# --- TRAITEMENT IMAGES ---
 def process_logo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -211,12 +220,19 @@ def reset_vote_callback():
     if "widget_choix" in st.session_state: st.session_state.widget_choix = []
     if "widget_choix_force" in st.session_state: st.session_state.widget_choix_force = []
 
+# --- ACTIONS ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
     st.session_state.config["reveal_resultats"] = reveal
     if reveal: st.session_state.config["timestamp_podium"] = time.time()
     save_config()
+
+def get_file_info(filepath):
+    try:
+        ts = os.path.getmtime(filepath)
+        return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
+    except: return "?"
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
@@ -302,8 +318,6 @@ if PDF_AVAILABLE:
         pdf.ln(5)
         
         # CENTRAGE DU TABLEAU
-        # Page A4 width = 210mm. Table width = 100 + 40 = 140mm.
-        # Marge gauche = (210 - 140) / 2 = 35mm
         margin_left = 35
         
         pdf.set_fill_color(226, 0, 26)
@@ -320,8 +334,8 @@ if PDF_AVAILABLE:
         for i, row in df.iterrows():
             pdf.set_x(margin_left)
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
-            pdf.cell(100, 10, cand, 1, 0, 'C') # Centré
-            pdf.cell(40, 10, str(row['Points']), 1, 1, 'C') # Centré
+            pdf.cell(100, 10, cand, 1, 0, 'C') 
+            pdf.cell(40, 10, str(row['Points']), 1, 1, 'C')
             pdf.ln()
             
         if has_logo and os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
@@ -334,10 +348,10 @@ if PDF_AVAILABLE:
         pdf.add_page()
         pdf.set_font("Arial", size=10)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, txt=f"Audit Detaillé : {title}", ln=True, align='L')
+        pdf.cell(200, 10, txt=f"Audit Detaillé : {title}", ln=True, align='L')
         pdf.ln(5)
         
-        # Suppression colonne Date si présente
+        # Suppression colonne Date
         cols = [c for c in df.columns.tolist() if "Date" not in c]
         
         w = 190 / len(cols)
@@ -352,7 +366,7 @@ if PDF_AVAILABLE:
         for i, row in df.iterrows():
             for col in cols:
                 txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
-                pdf.cell(w, 8, txt, 1, 0, 'C') # Données centrées
+                pdf.cell(w, 8, txt, 1, 0, 'C') 
             pdf.ln()
             
         if has_logo and os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
@@ -396,11 +410,9 @@ if est_admin:
             st.info("Avant d'accéder au pilotage, choisissez une session.")
             current_title = st.session_state.config.get("titre_mur", "Session Inconnue")
             
-            # --- CORRECTION ALIGNEMENT ---
             c1, c2 = st.columns(2, gap="large")
             with c1:
                 st.markdown("### 🚀 Continuer")
-                # Utilisation d'un container pour hauteur fixe si besoin, mais st.columns gère bien l'alignement
                 st.write(f"Session : **{current_title}**")
                 if st.button("OUVRIR LA SESSION", type="primary", use_container_width=True):
                     st.session_state["session_active"] = True
