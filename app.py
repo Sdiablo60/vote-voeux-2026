@@ -157,16 +157,14 @@ if PDF_AVAILABLE:
         try:
             has_logo = prep_logo(logo_data)
             pdf = PDFReport(); pdf.add_page(); pdf.set_font("Arial", size=12); pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 10, txt=f"Résultats : {title}", ln=True, align='L')
+            pdf.cell(0, 10, txt=f"Resultats : {title}", ln=True, align='L')
             pdf.set_font("Arial", 'I', 11); pdf.cell(0, 10, txt=f"Nombre total de votants : {total_voters}", ln=True, align='L'); pdf.ln(5)
-            pdf.set_fill_color(226, 0, 26); pdf.set_text_color(255, 255, 255); pdf.set_font("Arial", 'B', 12); pdf.set_x(35)
-            pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1); pdf.cell(40, 10, "Points", 1, 1, 'C', 1); pdf.set_text_color(0, 0, 0); pdf.ln()
+            pdf.set_fill_color(226, 0, 26); pdf.set_text_color(255); pdf.set_font("Arial", 'B', 12); pdf.set_x(35)
+            pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1); pdf.cell(40, 10, "Points", 1, 1, 'C', 1); pdf.set_text_color(0); pdf.ln()
             pdf.set_font("Arial", size=12)
-            for i, row in df.iterrows():
-                pdf.set_x(35)
-                cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
-                points = str(row['Points'])
-                pdf.cell(100, 10, cand, 1, 0, 'C'); pdf.cell(40, 10, points, 1, 1, 'C'); pdf.ln()
+            for i, r in df.iterrows():
+                pdf.set_x(35); pdf.cell(100, 10, str(r['Candidat']).encode('latin-1','replace').decode('latin-1'), 1, 0, 'C')
+                pdf.cell(40, 10, str(r['Points']), 1, 1, 'C'); pdf.ln()
             if os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
             return pdf.output(dest='S').encode('latin-1')
         except: return b"Erreur PDF"
@@ -175,7 +173,7 @@ if PDF_AVAILABLE:
         try:
             has_logo = prep_logo(logo_data)
             pdf = PDFReport(); pdf.add_page(); pdf.set_font("Arial", size=10); pdf.set_font("Arial", 'B', 14)
-            pdf.cell(200, 10, txt=f"Audit Détail : {title}", ln=True, align='L'); pdf.ln(5)
+            pdf.cell(200, 10, txt=f"Audit Detail : {title}", ln=True, align='L'); pdf.ln(5)
             cols = [str(c) for c in df.columns.tolist() if "Date" not in str(c)]
             w = 190 / max(1, len(cols)); pdf.set_fill_color(50, 50, 50); pdf.set_text_color(255)
             for col in cols:
@@ -408,6 +406,7 @@ def interface_admin():
                 if detailed_data:
                     df_detail = pd.DataFrame(detailed_data)
                     st.dataframe(df_detail, use_container_width=True)
+                    
                     c_au1, c_au2 = st.columns(2)
                     c_au1.download_button("📥 Audit Complet (CSV)", data=df_detail.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="audit_votes.csv", mime="text/csv", use_container_width=True)
                     if PDF_AVAILABLE: 
@@ -511,7 +510,7 @@ def interface_mobile_vote():
 def interface_mur_attente(cfg, logo_data, titre_text):
     html = f"""
     <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-        <div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:#E2001A; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>
+        <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
         {f'<img src="data:image/png;base64,{logo_data}" style="width:450px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
         <h1 style="color:white;font-size:100px;margin:0;font-weight:bold;">BIENVENUE</h1>
     </body></html>
@@ -522,7 +521,7 @@ def interface_mur_attente(cfg, logo_data, titre_text):
 def interface_mur_vote_off(cfg, logo_data, titre_text):
     html = f"""
     <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-        <div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:#E2001A; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>
+        <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
         <div style="border:5px solid #E2001A; padding:60px; border-radius:40px; text-align:center;">
             {f'<img src="data:image/png;base64,{logo_data}" style="width:250px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
             <h1 style="color:#E2001A;font-size:70px;margin:0;">VOTES CLÔTURÉS</h1>
@@ -540,7 +539,7 @@ def interface_mur_vote_on(cfg, logo_data, titre_text):
     
     html = f"""
     <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-        <div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:#E2001A; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>
+        <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
         {f'<img src="data:image/png;base64,{logo_data}" style="width:300px;margin-bottom:20px;object-fit:contain;">' if logo_data else ''}
         <div style="background:white;padding:25px;border-radius:25px;display:inline-block;margin-bottom:20px;">
             <img src="data:image/png;base64,{qrb64}" style="width:280px;">
@@ -583,7 +582,7 @@ def interface_mur_podium(cfg, logo_data, titre_text):
         @keyframes pop {{ 0% {{ transform:scale(0); }} 100% {{ transform:scale(1); }} }}
         @keyframes pulse {{ 0% {{ transform:scale(1); }} 50% {{ transform:scale(1.05); }} 100% {{ transform:scale(1); }} }}
     </style></head><body>
-        <div style="position:fixed;top:30px;width:100%;text-align:center;z-index:1000;"><h1 style="color:#E2001A;font-family:Arial;font-weight:bold;font-size:50px;text-transform:uppercase;">{titre_text}</h1></div>
+        <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
         <div id="intro" style="display:none;text-align:center;">
             {f'<img src="data:image/png;base64,{logo_data}" class="logo">' if logo_data else ''}
             <div id="lbl" class="txt"></div><div id="cnt" class="count"></div>
@@ -640,7 +639,7 @@ def interface_mur_photos_live(cfg, logo_data, titre_text):
     
     components.html(f"""
     <html><body style="background:black;margin:0;overflow:hidden;">
-    <div style="position:fixed;top:30px;width:100%;text-align:center;z-index:1000;"><h1 style="color:#E2001A;font-family:Arial;font-weight:bold;font-size:50px;text-transform:uppercase;">{titre_text}</h1></div>
+    <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
     <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:100;background:rgba(0,0,0,0.8);padding:30px;border-radius:30px;border:2px solid #E2001A;">
         <h1 style="color:#E2001A;margin:0;font-family:Arial;font-size:40px;">MUR PHOTOS LIVE</h1>
         {f'<img src="data:image/png;base64,{logo_data}" style="width:150px;margin-top:10px;">' if logo_data else ''}
