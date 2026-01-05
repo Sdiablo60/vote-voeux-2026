@@ -36,7 +36,7 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS COMMUN (BOUTONS & LOGIN) ---
+# --- CSS COMMUN ---
 st.markdown("""
 <style>
     /* Boutons */
@@ -47,7 +47,7 @@ st.markdown("""
     /* Login Box */
     .login-container {
         max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f0f2f6; border-radius: 20px; /* Fond clair pour Admin */
+        background: #f0f2f6; border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
     }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
@@ -73,7 +73,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONFIGURATION VIERGE ---
+# --- CONFIGURATIONS ---
 blank_config = {
     "mode_affichage": "attente", 
     "titre_mur": "TITRE À DÉFINIR", 
@@ -90,7 +90,6 @@ blank_config = {
     "session_id": ""
 }
 
-# --- CONFIGURATION DEMO ---
 default_config = {
     "mode_affichage": "attente", 
     "titre_mur": "CONCOURS VIDÉO 2026", 
@@ -107,7 +106,7 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS ---
+# --- FONCTIONS UTILITAIRES ---
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list): return [clean_for_json(v) for v in data]
@@ -134,7 +133,6 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- GESTION SESSIONS ---
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
 
@@ -275,6 +273,8 @@ if PDF_AVAILABLE:
         pdf.set_font("Arial", size=12)
         pdf.set_font("Arial", 'B', 14)
         pdf.cell(200, 10, txt=f"Resultats: {title}", ln=True, align='L')
+        pdf.set_font("Arial", size=10)
+        pdf.cell(200, 10, txt=f"Genere le : {datetime.now().strftime('%d/%m/%Y %H:%M')}", ln=True, align='L')
         pdf.ln(10)
         pdf.set_fill_color(226, 0, 26)
         pdf.set_text_color(255, 255, 255)
@@ -514,6 +514,16 @@ if est_admin:
                                 new_name = f"Photo_{idx}.jpg"
                                 zf.write(file_path, arcname=new_name)
                         c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_buffer.getvalue(), file_name="selection.zip", mime="application/zip")
+                
+                # RESTAURATION BOUTON TOUT TELECHARGER
+                st.write("---")
+                zip_all = BytesIO()
+                with zipfile.ZipFile(zip_all, "w") as zf:
+                    for idx, file_path in enumerate(files): 
+                        ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                        new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
+                        zf.write(file_path, arcname=new_name)
+                st.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live_{int(time.time())}.zip", mime="application/zip", type="primary")
 
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
@@ -521,22 +531,33 @@ if est_admin:
                 all_cands = {c: 0 for c in cfg["candidats"]}
                 all_cands.update(votes)
                 df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
+                
+                st.subheader("Classement")
                 chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'), tooltip=['Candidat', 'Points']).properties(height=400).interactive(bind_y=False, bind_x=False)
                 st.altair_chart(chart, use_container_width=True)
-                if PDF_AVAILABLE: st.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
+                
+                col_exp1, col_exp2, col_exp3 = st.columns(3)
+                col_exp1.download_button("📥 Résultats (CSV)", data=df_totals.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="resultats.csv", mime="text/csv")
+                
+                if PDF_AVAILABLE: 
+                    col_exp2.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
+                
+                st.divider()
+                st.subheader("Audit Détaillé")
+                detailed_data = load_json(DETAILED_VOTES_FILE, [])
+                if detailed_data:
+                    df_detail = pd.DataFrame(detailed_data)
+                    st.dataframe(df_detail, use_container_width=True)
+                    st.download_button("📥 Audit Complet (CSV)", data=df_detail.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="audit_votes.csv", mime="text/csv")
+                    if PDF_AVAILABLE: st.download_button("📄 Audit (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_detail), file_name="audit.pdf", mime="application/pdf")
+                else: st.info("Aucun vote enregistré.")
 
 # =========================================================
 # 2. APPLICATION MOBILE
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("""
-        <style>
-            .stApp {background-color:black; color:white;} 
-            [data-testid='stHeader'] {display:none;}
-            .block-container {padding: 1rem !important;}
-        </style>
-    """, unsafe_allow_html=True)
+    st.markdown("<style>.stApp {background-color:black; color:white;} [data-testid='stHeader'] {display:none;}</style>", unsafe_allow_html=True)
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
@@ -552,8 +573,16 @@ elif est_utilisateur:
             components.html(f"""<script>
                 var sS = "{curr_sess}";
                 var lS = localStorage.getItem('VOTE_SID_2026');
-                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
-                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
+                if(lS !== sS) {{ 
+                    localStorage.removeItem('HAS_VOTED_2026'); 
+                    localStorage.setItem('VOTE_SID_2026', sS); 
+                    if(window.parent.location.href.includes('blocked=true')) {{ 
+                        window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); 
+                    }} 
+                }}
+                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ 
+                    window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>';
+                }}
             </script>""", height=0)
         else:
             st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
@@ -621,30 +650,13 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (AVEC JS COUNTDOWN COMPACT & BLOQUE)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
-    
-    st.markdown("""
-    <style>
-        /* CSS SOCIAL WALL UNIQUEMENT */
-        body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
-        [data-testid='stHeader'] { display: none; }
-        .block-container { padding: 0 !important; max-width: 100% !important; }
-        .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
-        .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
-        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
-        .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
-        .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
-        .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
-    </style>
-    """, unsafe_allow_html=True)
     
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     mode = cfg.get("mode_affichage")
@@ -656,7 +668,11 @@ else:
     
     if mode == "attente":
         logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-        ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
+        ph.markdown(f"""
+        <div style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:2; overflow:hidden;'>
+            {logo_html}
+            <h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1>
+        </div>""", unsafe_allow_html=True)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
@@ -691,7 +707,7 @@ else:
             <html>
             <head>
             <style>
-                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }}
+                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:850px; display:flex; flex-direction:column; justify-content:center; align-items:center; }}
                 .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; }}
                 
                 .logo-img {{ width: 300px; margin-bottom: 20px; object-fit: contain; display: block; }}
@@ -861,4 +877,3 @@ else:
             }}
             animate();
         </script>""", height=0)
-
