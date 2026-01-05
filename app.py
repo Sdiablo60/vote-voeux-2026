@@ -36,9 +36,16 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS COMMUN (BOUTONS & LOGIN) ---
+# --- CSS GLOBAL ---
 st.markdown("""
 <style>
+    /* Supprime les marges par défaut */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 1rem !important;
+        max-width: 100% !important;
+    }
+    
     /* Boutons */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
@@ -47,7 +54,7 @@ st.markdown("""
     /* Login Box */
     .login-container {
         max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f0f2f6; border-radius: 20px; /* Fond clair pour Admin */
+        background: #f0f2f6; border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
     }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
@@ -73,7 +80,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONFIGURATION VIERGE ---
+# --- CONFIGURATIONS ---
 blank_config = {
     "mode_affichage": "attente", 
     "titre_mur": "TITRE À DÉFINIR", 
@@ -90,7 +97,6 @@ blank_config = {
     "session_id": ""
 }
 
-# --- CONFIGURATION DEMO ---
 default_config = {
     "mode_affichage": "attente", 
     "titre_mur": "CONCOURS VIDÉO 2026", 
@@ -134,7 +140,6 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- GESTION SESSIONS ---
 def sanitize_filename(name):
     return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
 
@@ -182,7 +187,6 @@ def reset_app_data(init_mode="blank"):
         st.session_state.config["session_id"] = str(uuid.uuid4())
         save_config()
 
-# --- TRAITEMENT IMAGES ---
 def process_logo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -207,19 +211,12 @@ def reset_vote_callback():
     if "widget_choix" in st.session_state: st.session_state.widget_choix = []
     if "widget_choix_force" in st.session_state: st.session_state.widget_choix_force = []
 
-# --- ACTIONS ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
     st.session_state.config["reveal_resultats"] = reveal
     if reveal: st.session_state.config["timestamp_podium"] = time.time()
     save_config()
-
-def get_file_info(filepath):
-    try:
-        ts = os.path.getmtime(filepath)
-        return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-    except: return "?"
 
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
@@ -255,27 +252,53 @@ def inject_visual_effect(effect_name, intensity, speed):
     js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- GENERATEUR PDF ---
+# --- GENERATEUR PDF AMELIORÉ ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
+            # Ajout Logo si disponible
+            if os.path.exists("temp_logo.png"):
+                self.image("temp_logo.png", 10, 8, 33)
+            
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
+            # Decalage titre si logo
+            x_pos = 50 if os.path.exists("temp_logo.png") else 10
+            self.set_xy(x_pos, 10)
             self.cell(0, 10, 'REGIE MASTER - RAPPORT OFFICIEL', 0, 1, 'C')
             self.ln(5)
+            
+            # Sous-titre date
+            self.set_font('Arial', 'I', 10)
+            self.set_text_color(100, 100, 100)
+            self.cell(0, 5, f"Date du rapport : {datetime.now().strftime('%d/%m/%Y à %H:%M')}", 0, 1, 'R')
+            self.ln(10)
+
         def footer(self):
             self.set_y(-15)
             self.set_font('Arial', 'I', 8)
             self.set_text_color(128)
             self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-    def create_pdf_results(title, df):
+    def prepare_logo_file(logo_b64):
+        if logo_b64:
+            try:
+                with open("temp_logo.png", "wb") as f:
+                    f.write(base64.b64decode(logo_b64))
+                return True
+            except: return False
+        return False
+
+    def create_pdf_results(title, df, logo_b64=None):
+        has_logo = prepare_logo_file(logo_b64)
+        
         pdf = PDFReport()
         pdf.add_page()
         pdf.set_font("Arial", size=12)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt=f"Resultats: {title}", ln=True, align='L')
-        pdf.ln(10)
+        pdf.cell(200, 10, txt=f"Résultats : {title}", ln=True, align='L')
+        pdf.ln(5)
+        
         pdf.set_fill_color(226, 0, 26)
         pdf.set_text_color(255, 255, 255)
         pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1)
@@ -287,15 +310,21 @@ if PDF_AVAILABLE:
             pdf.cell(100, 10, cand, 1)
             pdf.cell(40, 10, str(row['Points']), 1, 1, 'C')
             pdf.ln()
+            
+        if has_logo and os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
         return pdf.output(dest='S').encode('latin-1')
 
-    def create_pdf_audit(title, df):
+    def create_pdf_audit(title, df, logo_b64=None):
+        has_logo = prepare_logo_file(logo_b64)
+        
         pdf = PDFReport()
         pdf.add_page()
         pdf.set_font("Arial", size=10)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt=f"Audit Detail: {title}", ln=True, align='L')
+        pdf.cell(200, 10, txt=f"Audit Detaillé : {title}", ln=True, align='L')
         pdf.ln(5)
+        
+        # En-tête tableau dynamique
         cols = df.columns.tolist()
         w = 190 / len(cols)
         pdf.set_fill_color(50, 50, 50)
@@ -304,12 +333,15 @@ if PDF_AVAILABLE:
             c_txt = str(col).encode('latin-1', 'replace').decode('latin-1')
             pdf.cell(w, 8, c_txt, 1, 0, 'C', 1)
         pdf.ln()
+        
         pdf.set_text_color(0)
         for i, row in df.iterrows():
             for col in cols:
                 txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
                 pdf.cell(w, 8, txt, 1)
             pdf.ln()
+            
+        if has_logo and os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
         return pdf.output(dest='S').encode('latin-1')
 
 # --- NAVIGATION VARS ---
@@ -326,6 +358,8 @@ if "config" not in st.session_state:
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
+    
+    st.markdown("""<style>.stApp { background-color: #ffffff !important; color: black !important; }</style>""", unsafe_allow_html=True)
     
     if "auth" not in st.session_state: st.session_state["auth"] = False
     
@@ -355,8 +389,9 @@ if est_admin:
                     st.rerun()
             with c2:
                 st.markdown("### ✨ Créer")
+                new_name = st.text_input("Nom de la sauvegarde (Optionnel)", placeholder="Ex: Matin_10h")
                 if st.button("CRÉER UNE NOUVELLE SESSION VIERGE", type="primary", use_container_width=True):
-                    archive_current_session()
+                    archive_current_session(new_name if new_name else "AutoSave")
                     reset_app_data(init_mode="blank")
                     st.session_state["session_active"] = True
                     st.success("Nouvelle session vierge prête !")
@@ -371,7 +406,7 @@ if est_admin:
                     with st.expander(f"📁 {arc}"):
                         c_res, c_del = st.columns([3, 1])
                         if c_res.button(f"Restaurer {arc}", key=f"res_{arc}"):
-                            archive_current_session()
+                            archive_current_session("PreRestoreBackup")
                             restore_session_from_archive(arc)
                             st.session_state.config = load_json(CONFIG_FILE, default_config)
                             st.session_state["session_active"] = True
@@ -488,45 +523,44 @@ if est_admin:
             elif menu == "📸 MÉDIATHÈQUE":
                 st.title("📸 MÉDIATHÈQUE")
                 
-                # --- REINTÉGRATION DES BOUTONS D'EXPORT ---
-                c_top1, c_top2 = st.columns(2)
-                if c_top1.button("🗑️ TOUT SUPPRIMER", type="primary", use_container_width=True):
+                # SECTION ACTIONS GLOBALES
+                st.subheader("🗑️ Zone de Danger")
+                if st.button("🗑️ TOUT SUPPRIMER (Irréversible)", type="primary", use_container_width=True):
                     files = glob.glob(f"{LIVE_DIR}/*")
                     for f in files: os.remove(f)
                     st.success("Suppression OK"); time.sleep(1); st.rerun()
                 
+                st.divider()
+                
+                # SECTION EXPORTATION
+                st.subheader("📥 Exportation")
                 files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
                 
-                zip_all = BytesIO()
-                with zipfile.ZipFile(zip_all, "w") as zf:
-                    for idx, file_path in enumerate(files): 
-                        ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-                        new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
-                        zf.write(file_path, arcname=new_name)
-                c_top2.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live.zip", mime="application/zip", use_container_width=True)
-                
-                st.divider()
-                if not files: st.info("Aucune photo.")
+                if not files: st.info("Aucune photo disponible.")
                 else:
-                    st.write("**Sélectionnez les photos :**")
+                    zip_all = BytesIO()
+                    with zipfile.ZipFile(zip_all, "w") as zf:
+                        for idx, file_path in enumerate(files): 
+                            ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                            new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
+                            zf.write(file_path, arcname=new_name)
+                    st.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live.zip", mime="application/zip", type="secondary", use_container_width=True)
+                    
+                    st.write(f"**Sélectionnez les photos ({len(files)} au total) :**")
                     cols = st.columns(5)
                     new_selection = []
                     for i, f in enumerate(files):
                         with cols[i % 5]:
                             st.image(f, use_container_width=True)
                             if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
-                    st.write("---")
-                    c1, c2 = st.columns(2)
-                    if c1.button("Supprimer la sélection") and new_selection:
-                        for f in new_selection: os.remove(f)
-                        st.success("Supprimé !"); time.sleep(1); st.rerun()
                     
                     if new_selection:
+                        st.success(f"{len(new_selection)} photos sélectionnées")
                         zip_sel = BytesIO()
                         with zipfile.ZipFile(zip_sel, "w") as zf:
                             for idx, file_path in enumerate(new_selection): 
                                 zf.write(file_path, arcname=os.path.basename(file_path))
-                        c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip")
+                        st.download_button("⬇️ TÉLÉCHARGER LA SÉLECTION (ZIP)", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip", type="secondary", use_container_width=True)
 
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
@@ -536,22 +570,19 @@ if est_admin:
                 df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
                 
                 st.subheader("Classement")
-                
-                # Graphique Altair
+                # ALTAIR SANS INTERACTION
                 base = alt.Chart(df_totals).encode(x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'))
                 bars = base.mark_bar(color="#E2001A")
                 text = base.mark_text(align='left', dx=2).encode(text='Points')
-                chart = (bars + text).properties(height=400).interactive()
+                chart = (bars + text).properties(height=400) # Suppression de .interactive()
                 st.altair_chart(chart, use_container_width=True)
                 
                 st.dataframe(df_totals, use_container_width=True)
                 
-                # --- REINTÉGRATION DES BOUTONS D'EXPORT CSV & PDF ---
-                col_exp1, col_exp2, col_exp3 = st.columns(3)
-                col_exp1.download_button("📥 Résultats (CSV)", data=df_totals.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="resultats.csv", mime="text/csv")
-                
+                c_ex1, c_ex2 = st.columns(2)
+                c_ex1.download_button("📥 Résultats (CSV)", data=df_totals.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="resultats.csv", mime="text/csv", use_container_width=True)
                 if PDF_AVAILABLE: 
-                    col_exp2.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
+                    c_ex2.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals, cfg.get("logo_b64")), file_name="resultats.pdf", mime="application/pdf", use_container_width=True)
                 
                 st.divider()
                 st.subheader("Audit Détaillé")
@@ -559,8 +590,11 @@ if est_admin:
                 if detailed_data:
                     df_detail = pd.DataFrame(detailed_data)
                     st.dataframe(df_detail, use_container_width=True)
-                    st.download_button("📥 Audit Complet (CSV)", data=df_detail.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="audit_votes.csv", mime="text/csv")
-                    if PDF_AVAILABLE: st.download_button("📄 Audit (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_detail), file_name="audit.pdf", mime="application/pdf")
+                    
+                    c_au1, c_au2 = st.columns(2)
+                    c_au1.download_button("📥 Audit Complet (CSV)", data=df_detail.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="audit_votes.csv", mime="text/csv", use_container_width=True)
+                    if PDF_AVAILABLE: 
+                        c_au2.download_button("📄 Audit (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_detail, cfg.get("logo_b64")), file_name="audit.pdf", mime="application/pdf", use_container_width=True)
                 else: st.info("Aucun vote enregistré.")
 
 # =========================================================
@@ -568,13 +602,7 @@ if est_admin:
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("""
-        <style>
-            .stApp {background-color:black; color:white;} 
-            [data-testid='stHeader'] {display:none;}
-            .block-container {padding: 1rem !important;}
-        </style>
-    """, unsafe_allow_html=True)
+    st.markdown("""<style>.stApp {background-color:black !important; color:white !important;} [data-testid='stHeader'] {display:none;} .block-container {padding:1rem !important;}</style>""", unsafe_allow_html=True)
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
@@ -669,7 +697,6 @@ else:
     
     st.markdown("""
     <style>
-        /* CSS SOCIAL WALL UNIQUEMENT */
         body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
         [data-testid='stHeader'] { display: none; }
         .block-container { padding: 0 !important; max-width: 100% !important; }
