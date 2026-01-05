@@ -1,14 +1,5 @@
 import streamlit as st
-import os
-import glob
-import base64
-import qrcode
-import json
-import time
-import uuid
-import textwrap
-import zipfile
-import shutil
+import os, glob, base64, qrcode, json, time, uuid, textwrap, zipfile, shutil
 from io import BytesIO
 import streamlit.components.v1 as components
 from PIL import Image
@@ -19,20 +10,17 @@ import altair as alt
 import copy
 import re
 
-# TENTATIVE D'IMPORT DE FPDF
+# --- 1. IMPORTS & CONFIGURATION ---
 try:
     from fpdf import FPDF
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
 
-# SECURITE PIL
 Image.MAX_IMAGE_PIXELS = None 
-
-# --- CONFIGURATION ---
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
-# Dossiers & Fichiers
+# --- 2. CONSTANTES & DOSSIERS ---
 LIVE_DIR = "galerie_live_users"
 ARCHIVE_DIR = "_archives_sessions"
 VOTES_FILE = "votes.json"
@@ -41,142 +29,65 @@ VOTERS_FILE = "voters.json"
 PARTICIPANTS_FILE = "participants.json"
 DETAILED_VOTES_FILE = "detailed_votes.json"
 
-# --- INIT DOSSIERS ---
-for d in [LIVE_DIR, ARCHIVE_DIR]:
-    os.makedirs(d, exist_ok=True)
+for d in [LIVE_DIR, ARCHIVE_DIR]: os.makedirs(d, exist_ok=True)
 
-# --- CSS GLOBAL ---
+# --- 3. CSS GLOBAL (STRUCTURAL) ---
 st.markdown("""
 <style>
-    /* Supprime les marges par défaut */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-        max-width: 100% !important;
-    }
-    
-    /* Boutons */
+    .block-container { padding-top: 1rem !important; padding-bottom: 1rem !important; max-width: 100% !important; }
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
-    
-    /* Login Box */
-    .login-container {
-        max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f0f2f6; border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
-    }
+    .login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: #f0f2f6; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
-    .stTextInput input { text-align: center; font-size: 18px; }
-    
-    /* Sidebar */
-    section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
-    }
-    section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
-    }
-    
-    /* Liens externes */
-    a.custom-link-btn {
-        display: block; text-align: center; padding: 12px; border-radius: 8px;
-        text-decoration: none !important; font-weight: bold; margin-bottom: 10px;
-        color: white !important; transition: transform 0.2s;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-    }
+    section[data-testid="stSidebar"] button[kind="primary"] { background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px; }
+    section[data-testid="stSidebar"] button[kind="secondary"] { background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important; }
+    a.custom-link-btn { display: block; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none !important; font-weight: bold; margin-bottom: 10px; color: white !important; transition: transform 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
     a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; text-decoration: none; }
     .btn-red { background-color: #E2001A !important; border: 1px solid #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; border: 1px solid #2980b9 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONFIGURATIONS ---
-blank_config = {
-    "mode_affichage": "attente", 
-    "titre_mur": "TITRE À DÉFINIR", 
-    "session_ouverte": False, 
-    "reveal_resultats": False,
-    "timestamp_podium": 0,
-    "logo_b64": None, 
-    "candidats": [], 
-    "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1],
-    "effect_intensity": 25, 
-    "effect_speed": 15, 
-    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": ""
-}
+# --- 4. DATA & MODELS ---
+blank_config = { "mode_affichage": "attente", "titre_mur": "TITRE À DÉFINIR", "session_ouverte": False, "reveal_resultats": False, "timestamp_podium": 0, "logo_b64": None, "candidats": [], "candidats_images": {}, "points_ponderation": [5, 3, 1], "effect_intensity": 25, "effect_speed": 15, "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"}, "session_id": "" }
+default_config = { "mode_affichage": "attente", "titre_mur": "CONCOURS VIDÉO 2026", "session_ouverte": False, "reveal_resultats": False, "timestamp_podium": 0, "logo_b64": None, "candidats": ["BU PAX", "BU FRET", "BU B2B", "RH", "IT", "DPMI", "FINANCES", "AO", "QSSE", "DIRECTION"], "candidats_images": {}, "points_ponderation": [5, 3, 1], "effect_intensity": 25, "effect_speed": 15, "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"}, "session_id": str(uuid.uuid4()) }
 
-default_config = {
-    "mode_affichage": "attente", 
-    "titre_mur": "CONCOURS VIDÉO 2026", 
-    "session_ouverte": False, 
-    "reveal_resultats": False,
-    "timestamp_podium": 0,
-    "logo_b64": None,
-    "candidats": ["BU PAX", "BU FRET", "BU B2B", "RH", "IT", "DPMI", "FINANCES", "AO", "QSSE", "DIRECTION"],
-    "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1],
-    "effect_intensity": 25, 
-    "effect_speed": 15, 
-    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": str(uuid.uuid4())
-}
-
-# --- FONCTIONS UTILITAIRES ---
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list): return [clean_for_json(v) for v in data]
-    elif isinstance(data, (str, int, float, bool, type(None))): return data
-    else: return str(data)
+    else: return data
 
 def load_json(file, default):
     if os.path.exists(file):
         try:
-            with open(file, "r", encoding='utf-8') as f:
-                content = f.read().strip()
-                if not content: return default
-                return json.loads(content)
+            with open(file, "r", encoding='utf-8') as f: return json.loads(f.read().strip())
         except: return default
     return default
 
 def save_json(file, data):
     try:
-        safe_data = clean_for_json(data)
-        with open(str(file), "w", encoding='utf-8') as f:
-            json.dump(safe_data, f, ensure_ascii=False, indent=4)
-    except Exception as e: print(f"Erreur Save: {e}")
+        with open(str(file), "w", encoding='utf-8') as f: json.dump(clean_for_json(data), f, ensure_ascii=False, indent=4)
+    except: pass
 
-def save_config():
-    save_json(CONFIG_FILE, st.session_state.config)
-
-def sanitize_filename(name):
-    return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
+def save_config(): save_json(CONFIG_FILE, st.session_state.config)
+def sanitize_filename(name): return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
 
 def archive_current_session(name_suffix="AutoSave"):
-    current_cfg = load_json(CONFIG_FILE, default_config)
-    titre = current_cfg.get("titre_mur", "Session")
-    safe_titre = sanitize_filename(titre)
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    folder_name = f"{timestamp}_{safe_titre}_{name_suffix}"
-    archive_path = os.path.join(ARCHIVE_DIR, folder_name)
-    os.makedirs(archive_path, exist_ok=True)
+    cfg = load_json(CONFIG_FILE, default_config); title = cfg.get("titre_mur", "Session")
+    fname = f"{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{sanitize_filename(title)}_{name_suffix}"
+    path = os.path.join(ARCHIVE_DIR, fname); os.makedirs(path, exist_ok=True)
     for f in [VOTES_FILE, CONFIG_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
-        if os.path.exists(f): shutil.copy2(f, archive_path)
-    live_archive = os.path.join(archive_path, "galerie_live_users")
-    if os.path.exists(LIVE_DIR): shutil.copytree(LIVE_DIR, live_archive)
-    return folder_name
+        if os.path.exists(f): shutil.copy2(f, path)
+    if os.path.exists(LIVE_DIR): shutil.copytree(LIVE_DIR, os.path.join(path, "galerie_live_users"))
 
 def restore_session_from_archive(folder_name):
-    source_path = os.path.join(ARCHIVE_DIR, folder_name)
-    reset_app_data(init_mode="none")
+    path = os.path.join(ARCHIVE_DIR, folder_name); reset_app_data("none")
     for f in [VOTES_FILE, CONFIG_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
-        src_f = os.path.join(source_path, f)
-        if os.path.exists(src_f): shutil.copy2(src_f, ".")
-    src_live = os.path.join(source_path, "galerie_live_users")
-    if os.path.exists(src_live):
-        if os.path.exists(LIVE_DIR): shutil.rmtree(LIVE_DIR)
-        shutil.copytree(src_live, LIVE_DIR)
+        src = os.path.join(path, f)
+        if os.path.exists(src): shutil.copy2(src, ".")
+    src_live = os.path.join(path, "galerie_live_users")
+    if os.path.exists(src_live): shutil.copytree(src_live, LIVE_DIR)
 
 def delete_archived_session(folder_name):
     path = os.path.join(ARCHIVE_DIR, folder_name)
@@ -186,195 +97,105 @@ def reset_app_data(init_mode="blank"):
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
     if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
-    files = glob.glob(f"{LIVE_DIR}/*")
-    for f in files: os.remove(f)
-    if init_mode == "blank":
-        st.session_state.config = copy.deepcopy(blank_config)
-        st.session_state.config["session_id"] = str(uuid.uuid4())
-        save_config()
-    elif init_mode == "demo":
-        st.session_state.config = copy.deepcopy(default_config)
-        st.session_state.config["session_id"] = str(uuid.uuid4())
-        save_config()
+    for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
+    if init_mode == "blank": st.session_state.config = copy.deepcopy(blank_config); st.session_state.config["session_id"] = str(uuid.uuid4()); save_config()
+    elif init_mode == "demo": st.session_state.config = copy.deepcopy(default_config); st.session_state.config["session_id"] = str(uuid.uuid4()); save_config()
 
-# --- TRAITEMENT IMAGES ---
-def process_logo(uploaded_file):
+def process_logo(upl):
     try:
-        img = Image.open(uploaded_file)
-        img.thumbnail((600, 600), Image.Resampling.BICUBIC)
-        buf = BytesIO()
-        img.save(buf, format="PNG", optimize=True)
+        img = Image.open(upl); img.thumbnail((600, 600)); buf = BytesIO(); img.save(buf, format="PNG")
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
-def process_participant_image(uploaded_file):
+def process_participant_image(upl):
     try:
-        img = Image.open(uploaded_file)
-        if img.mode != "RGB": img = img.convert("RGB")
-        img.thumbnail((300, 300), Image.Resampling.BICUBIC)
-        buf = BytesIO()
-        img.save(buf, format="JPEG", quality=60, optimize=True)
+        img = Image.open(upl).convert("RGB"); img.thumbnail((300, 300)); buf = BytesIO(); img.save(buf, format="JPEG")
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
-def reset_vote_callback():
-    st.session_state.vote_success = False
-    if "widget_choix" in st.session_state: st.session_state.widget_choix = []
-    if "widget_choix_force" in st.session_state: st.session_state.widget_choix_force = []
-
-# --- ACTIONS ---
 def set_state(mode, open_s, reveal):
-    st.session_state.config["mode_affichage"] = mode
-    st.session_state.config["session_ouverte"] = open_s
+    st.session_state.config["mode_affichage"] = mode; st.session_state.config["session_ouverte"] = open_s
     st.session_state.config["reveal_resultats"] = reveal
     if reveal: st.session_state.config["timestamp_podium"] = time.time()
     save_config()
 
-def get_file_info(filepath):
-    try:
-        ts = os.path.getmtime(filepath)
-        return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-    except: return "?"
+def inject_visual_effect(name, intensity, speed):
+    if name == "Aucun" or name == "🎉 Confettis":
+        components.html("<script>var o=window.parent.document.getElementById('effect-layer');if(o)o.remove();</script>", height=0); return
+    js = f"""<script>
+    var d=window.parent.document, l=d.getElementById('effect-layer');
+    if(!l){{l=d.createElement('div');l.id='effect-layer';l.style.cssText='position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:0;overflow:hidden;';d.body.appendChild(l);}}
+    function B(){{var e=d.createElement('div');e.innerHTML='🎈';e.style.cssText='position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*40+30)+'px;transition:bottom {max(3, 25-(speed*0.4))}s linear;';l.appendChild(e);setTimeout(()=>{{e.style.bottom='110vh'}},50);setTimeout(()=>{{e.remove()}},{max(3, 25-(speed*0.4))*1000});}}
+    function S(){{var e=d.createElement('div');e.innerHTML='❄';e.style.cssText='position:absolute;top:-50px;left:'+Math.random()*100+'vw;color:white;font-size:'+(Math.random()*20+10)+'px;transition:top {max(3, 25-(speed*0.4))}s linear;';l.appendChild(e);setTimeout(()=>{{e.style.top='110vh'}},50);setTimeout(()=>{{e.remove()}},{max(3, 25-(speed*0.4))*1000});}}
+    </script>"""
+    if name == "🎈 Ballons": js += f"<script>if(!window.iB)window.iB=setInterval(B,{int(5000/(intensity+1))});</script>"
+    elif name == "❄️ Neige": js += f"<script>if(!window.iS)window.iS=setInterval(S,{int(5000/(intensity+1))});</script>"
+    components.html(js, height=0)
 
-def inject_visual_effect(effect_name, intensity, speed):
-    if effect_name == "Aucun" or effect_name == "🎉 Confettis":
-        components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
-        return
-    duration = max(3, 25 - (speed * 0.4)) 
-    interval = int(5000 / (intensity + 1))
-    js_code = f"""
-    <script>
-        var doc = window.parent.document;
-        var layer = doc.getElementById('effect-layer');
-        if(!layer) {{
-            layer = doc.createElement('div');
-            layer.id = 'effect-layer';
-            layer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:0;overflow:hidden;';
-            doc.body.appendChild(layer);
-        }}
-        function createBalloon() {{
-            var e = doc.createElement('div'); e.innerHTML = '🎈';
-            e.style.cssText = 'position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*40+30)+'px;transition:bottom {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.bottom = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
-        function createSnow() {{
-            var e = doc.createElement('div'); e.innerHTML = '❄';
-            e.style.cssText = 'position:absolute;top:-50px;left:'+Math.random()*100+'vw;color:white;font-size:'+(Math.random()*20+10)+'px;transition:top {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.top = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
-    """
-    if effect_name == "🎈 Ballons": js_code += f"if(!window.balloonInterval) window.balloonInterval = setInterval(createBalloon, {interval});"
-    elif effect_name == "❄️ Neige": js_code += f"if(!window.snowInterval) window.snowInterval = setInterval(createSnow, {interval});"
-    js_code += "</script>"
-    components.html(js_code, height=0)
-
-# --- GENERATEUR PDF SECURISÉ ---
+# --- 5. PDF GENERATOR ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
-            if os.path.exists("temp_logo.png"):
-                try: self.image("temp_logo.png", 10, 8, 33)
-                except: pass
-            
-            self.set_font('Arial', 'B', 15)
-            self.set_text_color(226, 0, 26)
-            x_pos = 50 if os.path.exists("temp_logo.png") else 10
-            self.set_xy(x_pos, 10)
-            self.cell(0, 10, 'REGIE MASTER - RAPPORT OFFICIEL', 0, 1, 'C')
-            self.ln(5)
-            # DATE DU RAPPORT
-            self.set_font('Arial', 'I', 10)
-            self.set_text_color(100)
-            self.cell(0, 10, f"Généré le {datetime.now().strftime('%d/%m/%Y à %H:%M')}", 0, 1, 'R')
-            self.ln(10)
-
+            if os.path.exists("temp_logo.png"): self.image("temp_logo.png", 10, 8, 33)
+            self.set_font('Arial', 'B', 15); self.set_text_color(226, 0, 26)
+            self.set_xy(50 if os.path.exists("temp_logo.png") else 10, 10)
+            self.cell(0, 10, 'REGIE MASTER - RAPPORT OFFICIEL', 0, 1, 'C'); self.ln(5)
+            self.set_font('Arial', 'I', 10); self.set_text_color(100)
+            self.cell(0, 10, f"Le {datetime.now().strftime('%d/%m/%Y a %H:%M')}", 0, 1, 'R'); self.ln(10)
         def footer(self):
-            self.set_y(-15)
-            self.set_font('Arial', 'I', 8)
-            self.set_text_color(128)
-            self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
+            self.set_y(-15); self.set_font('Arial', 'I', 8); self.set_text_color(128); self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
-    def prepare_logo_file(logo_b64):
-        if logo_b64:
-            try:
-                with open("temp_logo.png", "wb") as f:
-                    f.write(base64.b64decode(logo_b64))
+    def prep_logo(b64):
+        if b64: 
+            try: 
+                with open("temp_logo.png", "wb") as f: f.write(base64.b64decode(b64))
                 return True
-            except: return False
+            except: pass
         return False
 
     def create_pdf_results(title, df, logo_data=None, total_voters=0):
         try:
-            has_logo = prepare_logo_file(logo_data)
-            pdf = PDFReport()
-            pdf.add_page()
-            pdf.set_font("Arial", size=12)
-            pdf.set_font("Arial", 'B', 14)
-            pdf.cell(200, 10, txt=f"Résultats : {title}", ln=True, align='L')
-            pdf.set_font("Arial", 'I', 11)
-            pdf.cell(0, 10, txt=f"Nombre total de votants : {total_voters}", ln=True, align='L')
-            pdf.ln(5)
-            
-            pdf.set_fill_color(226, 0, 26)
-            pdf.set_text_color(255, 255, 255)
-            pdf.set_font("Arial", 'B', 12)
-            pdf.set_x(35)
-            pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1)
-            pdf.cell(40, 10, "Points", 1, 1, 'C', 1)
-            pdf.set_text_color(0, 0, 0)
-            pdf.ln()
-            
+            has_logo = prep_logo(logo_data)
+            pdf = PDFReport(); pdf.add_page(); pdf.set_font("Arial", size=12); pdf.set_font("Arial", 'B', 14)
+            pdf.cell(0, 10, txt=f"Résultats : {title}", ln=True, align='L')
+            pdf.set_font("Arial", 'I', 11); pdf.cell(0, 10, txt=f"Nombre total de votants : {total_voters}", ln=True, align='L'); pdf.ln(5)
+            pdf.set_fill_color(226, 0, 26); pdf.set_text_color(255, 255, 255); pdf.set_font("Arial", 'B', 12); pdf.set_x(35)
+            pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1); pdf.cell(40, 10, "Points", 1, 1, 'C', 1); pdf.set_text_color(0, 0, 0); pdf.ln()
             pdf.set_font("Arial", size=12)
             for i, row in df.iterrows():
                 pdf.set_x(35)
                 cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
                 points = str(row['Points'])
-                pdf.cell(100, 10, cand, 1, 0, 'C')
-                pdf.cell(40, 10, points, 1, 1, 'C')
-                pdf.ln()
-                
+                pdf.cell(100, 10, cand, 1, 0, 'C'); pdf.cell(40, 10, points, 1, 1, 'C'); pdf.ln()
             if os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
             return pdf.output(dest='S').encode('latin-1')
         except: return b"Erreur PDF"
 
     def create_pdf_audit(title, df, logo_data=None):
         try:
-            has_logo = prepare_logo_file(logo_data)
-            pdf = PDFReport()
-            pdf.add_page()
-            pdf.set_font("Arial", size=10)
-            pdf.set_font("Arial", 'B', 14)
-            pdf.cell(200, 10, txt=f"Audit Détail : {title}", ln=True, align='L')
-            pdf.ln(5)
-            
+            has_logo = prep_logo(logo_data)
+            pdf = PDFReport(); pdf.add_page(); pdf.set_font("Arial", size=10); pdf.set_font("Arial", 'B', 14)
+            pdf.cell(200, 10, txt=f"Audit Détail : {title}", ln=True, align='L'); pdf.ln(5)
             cols = [str(c) for c in df.columns.tolist() if "Date" not in str(c)]
-            w = 190 / max(1, len(cols))
-            pdf.set_fill_color(50, 50, 50)
-            pdf.set_text_color(255)
+            w = 190 / max(1, len(cols)); pdf.set_fill_color(50, 50, 50); pdf.set_text_color(255)
             for col in cols:
                 c_txt = col.encode('latin-1', 'replace').decode('latin-1')
                 pdf.cell(w, 8, c_txt, 1, 0, 'C', 1)
-            pdf.ln()
-            pdf.set_text_color(0)
+            pdf.ln(); pdf.set_text_color(0)
             for i, row in df.iterrows():
                 for col in cols:
                     txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
                     pdf.cell(w, 8, txt, 1, 0, 'C')
                 pdf.ln()
-                
             if os.path.exists("temp_logo.png"): os.remove("temp_logo.png")
             return pdf.output(dest='S').encode('latin-1')
         except: return b"Erreur PDF"
 
-# --- NAVIGATION VARS ---
+# --- INIT SESSION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
-is_blocked = st.query_params.get("blocked") == "true"
 is_test_admin = st.query_params.get("test_admin") == "true"
 
-# --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
 
@@ -393,13 +214,9 @@ def interface_admin():
             st.markdown('<div class="login-container"><div class="login-title">🔒 ADMIN ACCESS</div>', unsafe_allow_html=True)
             pwd = st.text_input("Code de sécurité", type="password", label_visibility="collapsed")
             if st.button("ENTRER", use_container_width=True, type="primary"):
-                if pwd == "ADMIN_LIVE_MASTER":
-                    st.session_state["auth"] = True
-                    st.session_state["session_active"] = False 
-                    st.rerun()
+                if pwd == "ADMIN_LIVE_MASTER": st.session_state["auth"] = True; st.session_state["session_active"] = False; st.rerun()
                 else: st.error("Code incorrect")
             st.markdown('</div>', unsafe_allow_html=True)
-            
     else:
         if "session_active" not in st.session_state or not st.session_state["session_active"]:
             st.title("🗂️ GESTIONNAIRE DE SESSIONS")
@@ -469,14 +286,6 @@ def interface_admin():
             if menu == "🔴 PILOTAGE LIVE":
                 st.title("🔴 PILOTAGE LIVE")
                 st.subheader("Séquenceur")
-                etat = "Inconnu"
-                if cfg["mode_affichage"] == "attente": etat = "ACCUEIL"
-                elif cfg["mode_affichage"] == "votes":
-                    if cfg["reveal_resultats"]: etat = "PODIUM"
-                    elif cfg["session_ouverte"]: etat = "VOTES OUVERTS"
-                    else: etat = "VOTES FERMÉS"
-                elif cfg["mode_affichage"] == "photos_live": etat = "PHOTOS LIVE"
-                st.info(f"État actuel : **{etat}**")
                 c1, c2, c3, c4 = st.columns(4)
                 c1.button("🏠 ACCUEIL", use_container_width=True, type="primary" if cfg["mode_affichage"]=="attente" else "secondary", on_click=set_state, args=("attente", False, False))
                 c2.button("🗳️ VOTES ON", use_container_width=True, type="primary" if (cfg["mode_affichage"]=="votes" and cfg["session_ouverte"]) else "secondary", on_click=set_state, args=("votes", True, False))
@@ -492,15 +301,12 @@ def interface_admin():
                 st.title("⚙️ CONFIGURATION")
                 t1, t2 = st.tabs(["Général", "Candidats & Images"])
                 with t1:
-                    if cfg["titre_mur"] == "TITRE À DÉFINIR": st.error("⚠️ Veuillez définir un titre")
                     new_t = st.text_input("Titre", value=cfg["titre_mur"])
                     if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
                     upl = st.file_uploader("Logo (PNG Transparent)", type=["png", "jpg"])
                     if upl: 
                         processed_logo = process_logo(upl)
-                        if processed_logo:
-                            st.session_state.config["logo_b64"] = processed_logo
-                            save_config(); st.rerun()
+                        if processed_logo: st.session_state.config["logo_b64"] = processed_logo; save_config(); st.rerun()
                 with t2:
                     st.subheader(f"Liste des participants ({len(cfg['candidats'])}/15)")
                     if not cfg["candidats"]: st.error("⚠️ La liste est vide ! Ajoutez des participants pour commencer.")
@@ -508,11 +314,8 @@ def interface_admin():
                         c_add, c_btn = st.columns([4, 1])
                         new_cand = c_add.text_input("Nouveau participant", key="new_cand_input")
                         if c_btn.button("➕ Ajouter") and new_cand:
-                            if new_cand.strip() not in cfg['candidats']:
-                                cfg['candidats'].append(new_cand.strip())
-                                save_config(); st.rerun()
+                            if new_cand.strip() not in cfg['candidats']: cfg['candidats'].append(new_cand.strip()); save_config(); st.rerun()
                             else: st.error("Existe déjà !")
-                    else: st.warning("Maximum atteint.")
                     st.divider()
                     candidates_to_remove = []
                     for i, cand in enumerate(cfg['candidats']):
@@ -530,13 +333,8 @@ def interface_admin():
                             col_up, col_del = st.columns([3, 1])
                             up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
                             if up_img: 
-                                if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
                                 processed = process_participant_image(up_img)
-                                if processed:
-                                    current_img = st.session_state.config["candidats_images"].get(cand)
-                                    if processed != current_img:
-                                        st.session_state.config["candidats_images"][cand] = processed
-                                        save_config(); st.toast(f"✅ Image {cand} sauvegardée"); time.sleep(0.5); st.rerun()
+                                if processed: st.session_state.config["candidats_images"][cand] = processed; save_config(); st.toast(f"✅ Image {cand} sauvegardée"); time.sleep(0.5); st.rerun()
                             if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
                     if candidates_to_remove:
                         for c in candidates_to_remove:
@@ -546,29 +344,27 @@ def interface_admin():
 
             elif menu == "📸 MÉDIATHÈQUE":
                 st.title("📸 MÉDIATHÈQUE")
-                
-                c_top1, c_top2 = st.columns(2)
-                if c_top1.button("🗑️ TOUT SUPPRIMER", type="primary"):
+                st.subheader("🗑️ Zone de Danger")
+                if st.button("🗑️ TOUT SUPPRIMER (Irréversible)", type="primary", use_container_width=True):
                     files = glob.glob(f"{LIVE_DIR}/*")
                     for f in files: os.remove(f)
                     st.success("Suppression OK"); time.sleep(1); st.rerun()
                 
+                st.divider()
+                st.subheader("📥 Exportation")
                 files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
                 
-                with c_top2:
-                    if files:
-                        zip_all = BytesIO()
-                        with zipfile.ZipFile(zip_all, "w") as zf:
-                            for idx, file_path in enumerate(files): 
-                                ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
-                                new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
-                                zf.write(file_path, arcname=new_name)
-                        st.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name="toutes_photos_live.zip", mime="application/zip", type="secondary", use_container_width=True)
-                
-                st.divider()
-                if not files: st.info("Aucune photo.")
+                if not files: st.info("Aucune photo disponible.")
                 else:
-                    st.write("**Sélectionnez les photos :**")
+                    zip_all = BytesIO()
+                    with zipfile.ZipFile(zip_all, "w") as zf:
+                        for idx, file_path in enumerate(files): 
+                            ts = os.path.getmtime(file_path); date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
+                            new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
+                            zf.write(file_path, arcname=new_name)
+                    st.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live.zip", mime="application/zip", type="secondary", use_container_width=True)
+                    
+                    st.write(f"**Sélectionnez les photos ({len(files)} au total) :**")
                     cols = st.columns(5)
                     new_selection = []
                     for i, f in enumerate(files):
@@ -576,24 +372,19 @@ def interface_admin():
                             st.image(f, use_container_width=True)
                             if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
                     
-                    st.write("---")
-                    c1, c2 = st.columns(2)
-                    if c1.button("Supprimer la sélection") and new_selection:
-                        for f in new_selection: os.remove(f)
-                        st.success("Supprimé !"); time.sleep(1); st.rerun()
                     if new_selection:
+                        st.success(f"{len(new_selection)} photos sélectionnées")
                         zip_sel = BytesIO()
                         with zipfile.ZipFile(zip_sel, "w") as zf:
                             for idx, file_path in enumerate(new_selection): 
                                 zf.write(file_path, arcname=os.path.basename(file_path))
-                        c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip", type="secondary", use_container_width=True)
+                        st.download_button("⬇️ TÉLÉCHARGER LA SÉLECTION (ZIP)", data=zip_sel.getvalue(), file_name="selection.zip", mime="application/zip", type="secondary", use_container_width=True)
 
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
                 votes = load_json(VOTES_FILE, {})
                 detailed_data = load_json(DETAILED_VOTES_FILE, [])
                 voters_count = len(set([d['Utilisateur'] for d in detailed_data])) if detailed_data else 0
-                
                 all_cands = {c: 0 for c in cfg["candidats"]}
                 all_cands.update(votes)
                 df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
@@ -617,7 +408,6 @@ def interface_admin():
                 if detailed_data:
                     df_detail = pd.DataFrame(detailed_data)
                     st.dataframe(df_detail, use_container_width=True)
-                    
                     c_au1, c_au2 = st.columns(2)
                     c_au1.download_button("📥 Audit Complet (CSV)", data=df_detail.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="audit_votes.csv", mime="text/csv", use_container_width=True)
                     if PDF_AVAILABLE: 
@@ -718,7 +508,7 @@ def interface_mobile_vote():
 # ==============================================================================
 
 # SOUS-FONCTION : ACCUEIL
-def interface_mur_accueil(cfg, logo_data, titre_text):
+def interface_mur_attente(cfg, logo_data, titre_text):
     html = f"""
     <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
         <div style="position:fixed; top:30px; width:100%; text-align:center; z-index:1000;"><h1 style="color:#E2001A; font-family:Arial; font-weight:bold; font-size:50px; text-transform:uppercase; text-shadow: 0 0 10px rgba(0,0,0,0.5);">{titre_text}</h1></div>
@@ -902,7 +692,7 @@ def interface_mur_social():
         interface_mur_photos_live(cfg, logo_data, titre_text)
 
 # =========================================================
-# ROUTEUR PRINCIPAL (FIN DU SCRIPT)
+# ROUTEUR PRINCIPAL
 # =========================================================
 if est_admin:
     interface_admin()
