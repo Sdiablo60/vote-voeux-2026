@@ -261,7 +261,10 @@ if PDF_AVAILABLE:
         def header(self):
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
-            self.cell(0, 10, 'REGIE MASTER - RAPPORT OFFICIEL', 0, 1, 'C')
+            self.cell(0, 10, f"Rapport: {st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'C')
+            self.set_font('Arial', 'I', 10)
+            self.set_text_color(100, 100, 100)
+            self.cell(0, 10, f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 0, 1, 'C')
             self.ln(5)
         def footer(self):
             self.set_y(-15)
@@ -274,17 +277,19 @@ if PDF_AVAILABLE:
         pdf.add_page()
         pdf.set_font("Arial", size=12)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt=f"Resultats: {title}", ln=True, align='L')
-        pdf.ln(10)
+        pdf.cell(200, 10, txt="CLASSEMENT FINAL", ln=True, align='L')
+        pdf.ln(5)
+        
         pdf.set_fill_color(226, 0, 26)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1)
+        pdf.cell(140, 10, "Candidat", 1, 0, 'C', 1)
         pdf.cell(40, 10, "Points", 1, 1, 'C', 1)
         pdf.set_text_color(0, 0, 0)
         pdf.ln()
+        
         for i, row in df.iterrows():
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
-            pdf.cell(100, 10, cand, 1)
+            pdf.cell(140, 10, cand, 1)
             pdf.cell(40, 10, str(row['Points']), 1, 1, 'C')
             pdf.ln()
         return pdf.output(dest='S').encode('latin-1')
@@ -294,19 +299,28 @@ if PDF_AVAILABLE:
         pdf.add_page()
         pdf.set_font("Arial", size=10)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(200, 10, txt=f"Audit Detail: {title}", ln=True, align='L')
+        pdf.cell(200, 10, txt="JOURNAL D'AUDIT (DÉTAILS VOTES)", ln=True, align='L')
         pdf.ln(5)
+        
+        # En-têtes dynamiques
         cols = df.columns.tolist()
-        w = 190 / len(cols)
+        w_map = {'Utilisateur': 40, 'Date': 35}
+        remaining_w = 190 - 75
+        col_w = remaining_w / max(1, len(cols) - 2)
+        
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255)
         for col in cols:
+            w = w_map.get(col, col_w)
             c_txt = str(col).encode('latin-1', 'replace').decode('latin-1')
             pdf.cell(w, 8, c_txt, 1, 0, 'C', 1)
         pdf.ln()
+        
         pdf.set_text_color(0)
+        pdf.set_font("Arial", size=8)
         for i, row in df.iterrows():
             for col in cols:
+                w = w_map.get(col, col_w)
                 txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
                 pdf.cell(w, 8, txt, 1)
             pdf.ln()
@@ -487,12 +501,23 @@ if est_admin:
 
             elif menu == "📸 MÉDIATHÈQUE":
                 st.title("📸 MÉDIATHÈQUE")
-                if st.button("🗑️ TOUT SUPPRIMER D'UN COUP", type="primary"):
-                    files = glob.glob(f"{LIVE_DIR}/*")
-                    for f in files: os.remove(f)
-                    st.success("Suppression OK"); time.sleep(1); st.rerun()
-                st.divider()
                 files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
+                
+                # --- ACTIONS GLOBALES ---
+                st.markdown("### 📤 Actions Globales")
+                c1, c2 = st.columns([2, 1])
+                with c1:
+                    if files:
+                        zip_buffer_all = BytesIO()
+                        with zipfile.ZipFile(zip_buffer_all, "w") as zf:
+                            for idx, file_path in enumerate(files):
+                                zf.write(file_path, arcname=os.path.basename(file_path))
+                        st.download_button("📥 TÉLÉCHARGER TOUTE LA GALERIE (ZIP)", data=zip_buffer_all.getvalue(), file_name=f"galerie_complete_{int(time.time())}.zip", mime="application/zip", type="secondary", use_container_width=True)
+                    else:
+                        st.button("📥 TÉLÉCHARGER TOUTE LA GALERIE (ZIP)", disabled=True, type="secondary", use_container_width=True)
+                
+                st.divider()
+                
                 if not files: st.info("Aucune photo.")
                 else:
                     st.write("**Sélectionnez les photos :**")
@@ -502,28 +527,80 @@ if est_admin:
                         with cols[i % 5]:
                             st.image(f, use_container_width=True)
                             if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
+                    
                     st.write("---")
-                    c1, c2 = st.columns(2)
-                    if c1.button("Supprimer la sélection") and new_selection:
-                        for f in new_selection: os.remove(f)
-                        st.success("Supprimé !"); time.sleep(1); st.rerun()
+                    
+                    # Actions sur selection
                     if new_selection:
-                        zip_buffer = BytesIO()
-                        with zipfile.ZipFile(zip_buffer, "w") as zf:
+                        st.write(f"**{len(new_selection)} photos sélectionnées**")
+                        c_down, c_del = st.columns(2)
+                        
+                        # Download Selection
+                        zip_buffer_sel = BytesIO()
+                        with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
                             for idx, file_path in enumerate(new_selection): 
-                                new_name = f"Photo_{idx}.jpg"
-                                zf.write(file_path, arcname=new_name)
-                        c2.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_buffer.getvalue(), file_name="selection.zip", mime="application/zip")
+                                zf.write(file_path, arcname=os.path.basename(file_path))
+                        c_down.download_button("⬇️ Télécharger Sélection (ZIP)", data=zip_buffer_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True)
+                        
+                        # Delete Selection
+                        if c_del.button("🗑️ Supprimer la sélection", type="primary", use_container_width=True):
+                            for f in new_selection: os.remove(f)
+                            st.success("Supprimé !"); time.sleep(1); st.rerun()
+                
+                st.markdown("<br><br>", unsafe_allow_html=True)
+                with st.expander("🚨 ZONE DE DANGER (SUPPRESSION TOTALE)"):
+                    st.write("Attention, cette action est irréversible.")
+                    if st.button("🗑️ TOUT SUPPRIMER DÉFINITIVEMENT", type="primary", use_container_width=True):
+                        files = glob.glob(f"{LIVE_DIR}/*")
+                        for f in files: os.remove(f)
+                        st.success("Suppression OK"); time.sleep(1); st.rerun()
 
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
+                
+                # --- CHARGEMENT DONNEES ---
                 votes = load_json(VOTES_FILE, {})
                 all_cands = {c: 0 for c in cfg["candidats"]}
                 all_cands.update(votes)
                 df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
-                chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'), tooltip=['Candidat', 'Points']).properties(height=400).interactive(bind_y=False, bind_x=False)
-                st.altair_chart(chart, use_container_width=True)
-                if PDF_AVAILABLE: st.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
+                
+                # --- SECTION 1: RESULTATS ---
+                st.subheader("🏆 Classement Général")
+                c_chart, c_data = st.columns([2, 1])
+                
+                with c_chart:
+                    chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
+                        x=alt.X('Points'), 
+                        y=alt.Y('Candidat', sort='-x'), 
+                        tooltip=['Candidat', 'Points']
+                    ).properties(height=350).interactive()
+                    st.altair_chart(chart, use_container_width=True)
+                
+                with c_data:
+                    st.dataframe(df_totals, height=350, use_container_width=True, hide_index=True)
+                
+                # Exports Résultats
+                c1, c2 = st.columns(2)
+                if PDF_AVAILABLE:
+                    c1.download_button("📄 Télécharger Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
+                c2.download_button("📊 Télécharger Résultats (CSV)", data=df_totals.to_csv(index=False).encode('utf-8'), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
+
+                st.divider()
+
+                # --- SECTION 2: AUDIT ---
+                st.subheader("📝 Journal d'Audit (Détails des votes)")
+                raw_details = load_json(DETAILED_VOTES_FILE, [])
+                if raw_details:
+                    df_audit = pd.DataFrame(raw_details)
+                    st.dataframe(df_audit, use_container_width=True, height=400)
+                    
+                    # Exports Audit
+                    c3, c4 = st.columns(2)
+                    if PDF_AVAILABLE:
+                        c3.download_button("📄 Télécharger Audit (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_audit), file_name=f"Audit_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
+                    c4.download_button("📊 Télécharger Audit (CSV)", data=df_audit.to_csv(index=False).encode('utf-8'), file_name=f"Audit_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
+                else:
+                    st.info("Aucun vote enregistré pour le moment.")
 
 # =========================================================
 # 2. APPLICATION MOBILE
