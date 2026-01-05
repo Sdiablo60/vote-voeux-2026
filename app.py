@@ -783,23 +783,23 @@ else:
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
 
-            # --- 2. CONSTRUCTION DES LISTES (HTML) ---
+            # --- 2. CONSTRUCTION DES LISTES (HTML STRING) ---
+            # Construction sécurisée par concaténation simple
             html_left = ""
             for c in left_list:
                 if c in imgs:
-                    html_left += f"<div class='cand-row'><img src='data:image/png;base64,{imgs[c]}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+                    html_left += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
                 else:
-                    html_left += f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
+                    html_left += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
             html_right = ""
             for c in right_list:
                 if c in imgs:
-                    html_right += f"<div class='cand-row'><img src='data:image/png;base64,{imgs[c]}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+                    html_right += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
                 else:
-                    html_right += f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
+                    html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # --- 3. CSS (SÉPARÉ POUR ÉVITER LES BUGS D'AFFICHAGE) ---
-            # Pas de f-string ici, donc les accolades CSS {} fonctionnent normalement
+            # --- 3. CSS (SÉPARÉ) ---
             css_styles = """
             <style>
                 .vote-container {
@@ -836,29 +836,22 @@ else:
             </style>
             """
 
-            # --- 4. HTML FINAL (AVEC VARIABLES) ---
-            html_content = f"""
-            <div class="vote-container">
-                <div class="col-participants">
-                    {html_left}
-                </div>
+            # --- 4. ASSEMBLAGE SANS F-STRING POUR EVITER LES BUGS ---
+            full_html = css_styles
+            full_html += '<div class="vote-container">'
+            full_html += '<div class="col-participants">' + html_left + '</div>'
+            full_html += '<div class="col-center">'
+            full_html += logo_html
+            full_html += "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>"
+            full_html += "<img src='data:image/png;base64," + qr_b64 + "' style='width: 250px; display:block;'>"
+            full_html += "</div>"
+            full_html += "<div class='vote-cta' style='margin-top: 30px;'>À VOS VOTES !</div>"
+            full_html += '</div>'
+            full_html += '<div class="col-participants">' + html_right + '</div>'
+            full_html += '</div>'
 
-                <div class="col-center">
-                    {logo_html}
-                    <div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>
-                        <img src='data:image/png;base64,{qr_b64}' style='width: 250px; display:block;'>
-                    </div>
-                    <div class='vote-cta' style='margin-top: 30px;'>À VOS VOTES !</div>
-                </div>
-
-                <div class="col-participants">
-                    {html_right}
-                </div>
-            </div>
-            """
-
-            # --- 5. AFFICHAGE SÉCURISÉ ---
-            ph.markdown(css_styles + html_content, unsafe_allow_html=True)
+            # --- 5. AFFICHAGE FINAL ---
+            ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
