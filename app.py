@@ -542,14 +542,18 @@ def interface_mur_vote_on(cfg, logo_data, titre_text):
     <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
         <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
         
-        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; margin-top:80px;">
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; margin-top:20px;">
             {f'<img src="data:image/png;base64,{logo_data}" style="width:200px;margin-bottom:15px;object-fit:contain;">' if logo_data else ''}
             <div style="background:white;padding:15px;border-radius:25px;display:inline-block;margin-bottom:15px;">
                 <img src="data:image/png;base64,{qrb64}" style="width:220px;">
             </div>
             <div style="color:#E2001A;font-size:50px;font-weight:bold;animation:blink 1s infinite;margin-bottom:20px;">À VOS VOTES !</div>
-            <div style="width:90%; text-align:center; display:flex; flex-wrap:wrap; justify-content:center; z-index:2000;">{tags_html}</div>
         </div>
+        
+        <div style="position:fixed; bottom:0; left:0; width:100%; min-height:15vh; background:rgba(20,20,20,0.9); border-top:2px solid #E2001A; display:flex; flex-wrap:wrap; justify-content:center; align-items:center; padding:10px; z-index:2000;">
+            {tags_html}
+        </div>
+        
         <style>@keyframes blink {{ 50% {{ opacity: 0; }} }}</style>
     </body></html>
     """
