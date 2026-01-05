@@ -632,13 +632,12 @@ else:
     st.markdown("""
     <style>
         /* CSS SOCIAL WALL UNIQUEMENT */
-        body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
+        body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; height: 100vh; }
         [data-testid='stHeader'] { display: none; }
         .block-container { padding: 0 !important; max-width: 100% !important; }
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
-        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; text-transform: uppercase; }
         .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
@@ -784,7 +783,6 @@ else:
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
 
             # --- 2. CONSTRUCTION DES LISTES (HTML STRING) ---
-            # Construction sécurisée par concaténation simple
             html_left = ""
             for c in left_list:
                 if c in imgs:
@@ -799,16 +797,16 @@ else:
                 else:
                     html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # --- 3. CSS (SÉPARÉ) ---
+            # --- 3. CSS (ALIGNEMENT HAUT + FIX FLASH) ---
             css_styles = """
             <style>
                 .vote-container {
                     display: flex;
                     justify-content: space-between;
-                    align-items: flex-start;
+                    align-items: flex-start; /* Aligne tout en haut */
                     width: 100vw;
                     height: 85vh;
-                    margin-top: 15vh;
+                    margin-top: 13vh; /* Remonté légèrement */
                     padding: 0 20px;
                     box-sizing: border-box;
                 }
@@ -817,15 +815,16 @@ else:
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: flex-start;
+                    justify-content: flex-start; /* Aligne les participants en haut */
                 }
                 .col-center {
                     flex: 0 0 400px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: center;
+                    justify-content: flex-start; /* CORRECTION : Aligne le logo/QR en haut */
                     height: 100%;
+                    padding-top: 10px; /* Petit ajustement pour aligner pile avec les bulles */
                 }
                 .cand-row {
                     width: 90% !important;
@@ -836,10 +835,12 @@ else:
             </style>
             """
 
-            # --- 4. ASSEMBLAGE SANS F-STRING POUR EVITER LES BUGS ---
+            # --- 4. ASSEMBLAGE ---
             full_html = css_styles
             full_html += '<div class="vote-container">'
             full_html += '<div class="col-participants">' + html_left + '</div>'
+            
+            # Colonne Centrale (Logo + QR)
             full_html += '<div class="col-center">'
             full_html += logo_html
             full_html += "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>"
@@ -847,10 +848,11 @@ else:
             full_html += "</div>"
             full_html += "<div class='vote-cta' style='margin-top: 30px;'>À VOS VOTES !</div>"
             full_html += '</div>'
+            
             full_html += '<div class="col-participants">' + html_right + '</div>'
             full_html += '</div>'
 
-            # --- 5. AFFICHAGE FINAL ---
+            # --- 5. AFFICHAGE ---
             ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
