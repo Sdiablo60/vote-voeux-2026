@@ -39,13 +39,6 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # --- CSS COMMUN (BOUTONS & LOGIN) ---
 st.markdown("""
 <style>
-    /* Supprime les marges par défaut */
-    .block-container {
-        padding-top: 1rem !important;
-        padding-bottom: 1rem !important;
-        max-width: 100% !important;
-    }
-    
     /* Boutons */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
@@ -54,7 +47,7 @@ st.markdown("""
     /* Login Box */
     .login-container {
         max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f0f2f6; border-radius: 20px;
+        background: #f0f2f6; border-radius: 20px; /* Fond clair pour Admin */
         box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
     }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
@@ -69,15 +62,14 @@ st.markdown("""
     }
     
     /* Liens externes */
-    a.custom-link-btn {
-        display: block !important; text-align: center !important; padding: 12px !important;
-        border-radius: 8px !important; text-decoration: none !important; font-weight: bold !important;
-        margin-bottom: 10px !important; color: white !important; transition: transform 0.2s !important;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.2) !important;
+    .custom-link-btn {
+        display: block; text-align: center; padding: 12px; border-radius: 8px;
+        text-decoration: none !important; font-weight: bold; margin-bottom: 10px;
+        color: white !important; transition: transform 0.2s;
     }
-    a.custom-link-btn:hover { transform: scale(1.02) !important; opacity: 0.9 !important; text-decoration: none !important; }
-    .btn-red { background-color: #E2001A !important; border: 1px solid #E2001A !important; }
-    .btn-blue { background-color: #2980b9 !important; border: 1px solid #2980b9 !important; }
+    .custom-link-btn:hover { transform: scale(1.02); }
+    .btn-red { background-color: #E2001A; }
+    .btn-blue { background-color: #2980b9; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -335,9 +327,6 @@ if "config" not in st.session_state:
 # =========================================================
 if est_admin:
     
-    # CSS Admin Fond Clair
-    st.markdown("""<style>.stApp { background-color: #ffffff !important; color: black !important; }</style>""", unsafe_allow_html=True)
-    
     if "auth" not in st.session_state: st.session_state["auth"] = False
     
     if not st.session_state["auth"]:
@@ -366,9 +355,8 @@ if est_admin:
                     st.rerun()
             with c2:
                 st.markdown("### ✨ Créer")
-                new_name = st.text_input("Nom de la sauvegarde (Optionnel)", placeholder="Ex: Matin_10h")
                 if st.button("CRÉER UNE NOUVELLE SESSION VIERGE", type="primary", use_container_width=True):
-                    archive_current_session(new_name if new_name else "AutoSave")
+                    archive_current_session()
                     reset_app_data(init_mode="blank")
                     st.session_state["session_active"] = True
                     st.success("Nouvelle session vierge prête !")
@@ -383,7 +371,7 @@ if est_admin:
                     with st.expander(f"📁 {arc}"):
                         c_res, c_del = st.columns([3, 1])
                         if c_res.button(f"Restaurer {arc}", key=f"res_{arc}"):
-                            archive_current_session("PreRestoreBackup")
+                            archive_current_session()
                             restore_session_from_archive(arc)
                             st.session_state.config = load_json(CONFIG_FILE, default_config)
                             st.session_state["session_active"] = True
@@ -499,12 +487,16 @@ if est_admin:
 
             elif menu == "📸 MÉDIATHÈQUE":
                 st.title("📸 MÉDIATHÈQUE")
+                
+                # --- REINTÉGRATION DES BOUTONS D'EXPORT ---
                 c_top1, c_top2 = st.columns(2)
                 if c_top1.button("🗑️ TOUT SUPPRIMER", type="primary", use_container_width=True):
                     files = glob.glob(f"{LIVE_DIR}/*")
                     for f in files: os.remove(f)
                     st.success("Suppression OK"); time.sleep(1); st.rerun()
+                
                 files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
+                
                 zip_all = BytesIO()
                 with zipfile.ZipFile(zip_all, "w") as zf:
                     for idx, file_path in enumerate(files): 
@@ -512,6 +504,7 @@ if est_admin:
                         new_name = f"Photo_Live{idx+1:02d}_{date_str}.jpg"
                         zf.write(file_path, arcname=new_name)
                 c_top2.download_button("⬇️ TOUT TÉLÉCHARGER (ZIP)", data=zip_all.getvalue(), file_name=f"toutes_photos_live.zip", mime="application/zip", use_container_width=True)
+                
                 st.divider()
                 if not files: st.info("Aucune photo.")
                 else:
@@ -527,6 +520,7 @@ if est_admin:
                     if c1.button("Supprimer la sélection") and new_selection:
                         for f in new_selection: os.remove(f)
                         st.success("Supprimé !"); time.sleep(1); st.rerun()
+                    
                     if new_selection:
                         zip_sel = BytesIO()
                         with zipfile.ZipFile(zip_sel, "w") as zf:
@@ -540,16 +534,25 @@ if est_admin:
                 all_cands = {c: 0 for c in cfg["candidats"]}
                 all_cands.update(votes)
                 df_totals = pd.DataFrame(list(all_cands.items()), columns=['Candidat', 'Points']).sort_values(by='Points', ascending=False)
+                
                 st.subheader("Classement")
+                
+                # Graphique Altair
                 base = alt.Chart(df_totals).encode(x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'))
                 bars = base.mark_bar(color="#E2001A")
                 text = base.mark_text(align='left', dx=2).encode(text='Points')
                 chart = (bars + text).properties(height=400).interactive()
                 st.altair_chart(chart, use_container_width=True)
+                
                 st.dataframe(df_totals, use_container_width=True)
+                
+                # --- REINTÉGRATION DES BOUTONS D'EXPORT CSV & PDF ---
                 col_exp1, col_exp2, col_exp3 = st.columns(3)
                 col_exp1.download_button("📥 Résultats (CSV)", data=df_totals.to_csv(index=False, sep=";", encoding='utf-8-sig').encode('utf-8-sig'), file_name="resultats.csv", mime="text/csv")
-                if PDF_AVAILABLE: col_exp2.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
+                
+                if PDF_AVAILABLE: 
+                    col_exp2.download_button("📄 Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name="resultats.pdf", mime="application/pdf")
+                
                 st.divider()
                 st.subheader("Audit Détaillé")
                 detailed_data = load_json(DETAILED_VOTES_FILE, [])
@@ -561,11 +564,17 @@ if est_admin:
                 else: st.info("Aucun vote enregistré.")
 
 # =========================================================
-# 2. APPLICATION MOBILE (FOND NOIR)
+# 2. APPLICATION MOBILE
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("""<style>.stApp {background-color:black !important; color:white !important;} [data-testid='stHeader'] {display:none;} .block-container {padding:1rem !important;}</style>""", unsafe_allow_html=True)
+    st.markdown("""
+        <style>
+            .stApp {background-color:black; color:white;} 
+            [data-testid='stHeader'] {display:none;}
+            .block-container {padding: 1rem !important;}
+        </style>
+    """, unsafe_allow_html=True)
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
@@ -650,7 +659,7 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (NOIR, FULL, COMPONENTS)
+# 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -658,166 +667,235 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
+    st.markdown("""
+    <style>
+        /* CSS SOCIAL WALL UNIQUEMENT */
+        body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; }
+        [data-testid='stHeader'] { display: none; }
+        .block-container { padding: 0 !important; max-width: 100% !important; }
+        .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
+        .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
+        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; animation: blink 2s infinite; text-transform: uppercase; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
+        .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
+        .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
+        .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     mode = cfg.get("mode_affichage")
     effects = cfg.get("screen_effects", {})
     effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
     inject_visual_effect(effect_name, 25, 15)
+
+    ph = st.empty()
     
-    logo_data = cfg.get("logo_b64", "")
-    titre_text = cfg.get("titre_mur", "")
-
-    # --- ACCUEIL ---
     if mode == "attente":
-        html = f"""
-        <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:400px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
-            <h1 style="color:white;font-size:90px;font-weight:bold;margin:0;">BIENVENUE</h1>
-            <h2 style="color:#E2001A;font-size:40px;margin-top:20px;">{titre_text}</h2>
-        </body></html>
-        """
-        components.html(html, height=1000)
+        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
+        ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
 
-    # --- VOTE OFF ---
-    elif mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
-        html = f"""
-        <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-            <div style="border:5px solid #E2001A; padding:60px; border-radius:40px; text-align:center;">
-                {f'<img src="data:image/png;base64,{logo_data}" style="width:250px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
-                <h1 style="color:#E2001A;font-size:70px;margin:0;">VOTES CLÔTURÉS</h1>
-                <h2 style="color:white;font-size:35px;margin-top:20px;">{titre_text}</h2>
-            </div>
-        </body></html>
-        """
-        components.html(html, height=1000)
-
-    # --- VOTE ON ---
-    elif mode == "votes" and cfg["session_ouverte"]:
-        host = st.context.headers.get('host', 'localhost')
-        qr = qrcode.make(f"https://{host}/?mode=vote"); buf=BytesIO(); qr.save(buf, format="PNG"); qrb64=base64.b64encode(buf.getvalue()).decode()
-        html = f"""
-        <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:350px;margin-bottom:30px;object-fit:contain;">' if logo_data else ''}
-            <div style="background:white;padding:25px;border-radius:25px;display:inline-block;margin-bottom:30px;">
-                <img src="data:image/png;base64,{qrb64}" style="width:300px;">
-            </div>
-            <div style="color:#E2001A;font-size:50px;font-weight:bold;animation:blink 1s infinite;">À VOS VOTES !</div>
-            <div style="color:white;font-size:30px;margin-top:20px;">{titre_text}</div>
-            <style>@keyframes blink {{ 50% {{ opacity: 0; }} }}</style>
-        </body></html>
-        """
-        components.html(html, height=1000)
-
-    # --- PODIUM ---
-    elif mode == "votes" and cfg["reveal_resultats"]:
-        v_data = load_json(VOTES_FILE, {})
-        scores = sorted(list(set(v_data.values())), reverse=True)
-        s1 = scores[0] if len(scores)>0 else 0; s2 = scores[1] if len(scores)>1 else -1; s3 = scores[2] if len(scores)>2 else -1
-        
-        def get_p(s): 
-            l=[]; 
-            for k,v in v_data.items():
-                if v==s: 
-                    img = cfg["candidats_images"].get(k); 
-                    l.append({'n':k, 's':v, 'i': f"data:image/jpeg;base64,{img}" if img else ""})
-            return l
+    elif mode == "votes":
+        if cfg.get("reveal_resultats"):
+            v_data = load_json(VOTES_FILE, {})
+            if not v_data: v_data = {"Personne": 0}
+            c_imgs = cfg.get("candidats_images", {})
+            sorted_scores = sorted(list(set(v_data.values())), reverse=True)
+            top_3_scores = sorted_scores[:3]
+            finalists = [k for k, v in v_data.items() if v in top_3_scores]
+            max_score = sorted_scores[0] if sorted_scores else 0
+            winners = [k for k, v in v_data.items() if v == max_score]
             
-        r1, r2, r3 = get_p(s1), get_p(s2), get_p(s3)
-        ts_start = cfg.get("timestamp_podium", 0) * 1000
-        
-        html = f"""
-        <html><head><style>
-            body {{ background:black; margin:0; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; font-family:Arial; overflow:hidden; }}
-            .logo {{ width:300px; margin-bottom:20px; object-fit:contain; }}
-            .txt {{ color:white; font-size:40px; font-weight:bold; margin-bottom:10px; }}
-            .count {{ color:#E2001A; font-size:120px; font-weight:bold; }}
-            .grid {{ display:flex; justify-content:center; align-items:flex-end; gap:20px; }}
-            .card {{ background:rgba(255,255,255,0.1); padding:15px; border-radius:15px; width:220px; text-align:center; color:white; }}
-            .card img {{ width:110px; height:110px; border-radius:50%; border:3px solid white; object-fit:cover; }}
-            .win {{ background:rgba(20,20,20,0.9); border:6px solid #FFD700; width:450px; padding:40px; box-shadow:0 0 60px #FFD700; text-align:center; }}
-            .win img {{ width:220px; height:220px; border-radius:50%; border:6px solid white; object-fit:cover; margin-bottom:20px; }}
-            .win h1 {{ font-size:45px; margin:10px 0; color:white; }}
-            .win h2 {{ font-size:30px; color:#FFD700; }}
-        </style></head><body>
-            <div id="intro" style="display:none;text-align:center;">
-                {f'<img src="data:image/png;base64,{logo_data}" class="logo">' if logo_data else ''}
-                <div id="lbl" class="txt"></div><div id="cnt" class="count"></div>
-            </div>
-            <div id="final" style="display:none;flex-direction:column;align-items:center;">
-                {f'<img src="data:image/png;base64,{logo_data}" class="logo">' if logo_data else ''}
-                <div id="grid" class="grid"></div>
-            </div>
-            <script>
-                const r1={json.dumps(r1)}, r2={json.dumps(r2)}, r3={json.dumps(r3)};
-                const start = {ts_start};
+            js_finalists = []
+            for name in finalists:
+                img = None
+                for c, i in c_imgs.items():
+                    if c.strip() == name.strip(): img = i; break
+                js_finalists.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
+            
+            js_winners = []
+            for name in winners:
+                img = None
+                for c, i in c_imgs.items():
+                    if c.strip() == name.strip(): img = i; break
+                js_winners.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
+
+            ts_start = cfg.get("timestamp_podium", 0) * 1000
+            logo_data = cfg.get("logo_b64", "")
+            
+            # --- PODIUM HTML (BIG & NO SCROLL) ---
+            components.html(f"""
+            <html>
+            <head>
+            <style>
+                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }}
+                .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; }}
                 
-                function card(p, rank) {{
-                    if(rank==1) return `<div class="win"><div style="font-size:60px">🥇</div>`+(p.i?`<img src="${{p.i}}">`:``)+`<h1>${{p.n}}</h1><h2>VAINQUEUR</h2><h3 style="color:#CCC">${{p.s}} pts</h3></div>`;
-                    return `<div class="card"><div style="font-size:40px">${{rank==2?'🥈':'🥉'}}</div>`+(p.i?`<img src="${{p.i}}">`:``)+`<h3>${{p.n}}</h3><h4>${{p.s}} pts</h4></div>`;
+                .logo-img {{ width: 300px; margin-bottom: 20px; object-fit: contain; display: block; }}
+                
+                .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 20px 0; }}
+                .title {{ color:white; font-size:50px; font-weight:bold; margin-bottom:20px; }}
+                
+                /* GRILLE FINALISTES & VAINQUEURS */
+                .grid {{ 
+                    display: flex; justify-content: center; align-items: flex-end; 
+                    gap: 30px; width: 95%; flex-wrap: wrap;
                 }}
+                
+                .card {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; text-align: center; color: white; }}
+                .card img {{ width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; }}
+                .card h3 {{ font-size: 20px; margin: 10px 0; }}
+                
+                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 350px; text-align: center; box-shadow: 0 0 60px #FFD700; margin: 0 auto; }}
+                .winner-card img {{ width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 6px solid white; margin-bottom: 20px; }}
+                .winner-card h1 {{ font-size: 35px; margin: 10px 0; color: white; }}
+                .winner-card h2 {{ font-size: 28px; color: #FFD700; }}
+            </style>
+            </head>
+            <body>
+                <div id="screen-suspense" class="wrapper" style="display:none;">
+                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
+                    <div class="title">LES FINALISTES...</div>
+                    <div id="timer" class="countdown">10</div>
+                    <div class="grid" id="finalists-grid"></div>
+                </div>
+                
+                <div id="screen-winner" class="wrapper" style="display:none;">
+                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
+                    <div class="grid" id="winners-grid"></div>
+                </div>
 
-                setInterval(() => {{
-                    const el = (Date.now() - start)/1000;
-                    const intro = document.getElementById('intro');
-                    const final = document.getElementById('final');
-                    const lbl = document.getElementById('lbl');
-                    const cnt = document.getElementById('cnt');
-                    const grid = document.getElementById('grid');
+                <script>
+                    const finalists = {json.dumps(js_finalists)};
+                    const winners = {json.dumps(js_winners)};
+                    const startTime = {ts_start};
                     
-                    let showIntro = false;
-                    let txt = "";
-                    let time = 0;
-                    
-                    if(el < 5) {{ showIntro=true; txt="LES 3èmes..."; time=5-el; }}
-                    else if(el < 12) {{
-                        intro.style.display='none'; final.style.display='flex';
-                        let h=""; r3.forEach(p=>h+=card(p,3)); grid.innerHTML=h;
-                    }}
-                    else if(el < 17) {{ showIntro=true; txt="LES 2nds..."; time=17-el; }}
-                    else if(el < 25) {{
-                        intro.style.display='none'; final.style.display='flex';
-                        let h=""; r3.forEach(p=>h+=card(p,3)); r2.forEach(p=>h+=card(p,2)); grid.innerHTML=h;
-                    }}
-                    else if(el < 30) {{ showIntro=true; txt="LE VAINQUEUR..."; time=30-el; }}
-                    else {{
-                        intro.style.display='none'; final.style.display='flex';
-                        let h=""; r1.forEach(p=>h+=card(p,1)); grid.innerHTML=h;
-                    }}
-                    
-                    if(showIntro) {{
-                        final.style.display='none'; intro.style.display='block';
-                        lbl.innerText=txt; cnt.innerText=Math.ceil(time);
-                    }}
-                }}, 100);
-            </script>
-        </body></html>
-        """
-        components.html(html, height=1000)
+                    const fGrid = document.getElementById('finalists-grid');
+                    finalists.forEach(f => {{
+                        let html = `<div class="card">`;
+                        if(f.img) html += `<img src="${{f.img}}">`;
+                        else html += `<div style="font-size:50px">🏆</div>`;
+                        html += `<h3>${{f.name}}</h3><h4>${{f.score}} pts</h4></div>`;
+                        fGrid.innerHTML += html;
+                    }});
 
-    # --- PHOTOS LIVE ---
+                    const wGrid = document.getElementById('winners-grid');
+                    winners.forEach(w => {{
+                        let html = `<div class="winner-card"><div style="font-size:60px">🥇</div>`;
+                        if(w.img) html += `<img src="${{w.img}}">`;
+                        else html += `<div style="font-size:80px">🏆</div>`;
+                        html += `<h1>${{w.name}}</h1><h2>VAINQUEUR</h2><h3>${{w.score}} pts</h3></div>`;
+                        wGrid.innerHTML += html;
+                    }});
+
+                    function update() {{
+                        const now = Date.now();
+                        const elapsed = (now - startTime) / 1000;
+                        if (elapsed < 10) {{
+                            document.getElementById('screen-suspense').style.display = 'flex';
+                            document.getElementById('screen-winner').style.display = 'none';
+                            document.getElementById('timer').innerText = Math.ceil(10 - elapsed);
+                        }} else {{
+                            document.getElementById('screen-suspense').style.display = 'none';
+                            document.getElementById('screen-winner').style.display = 'flex';
+                        }}
+                    }}
+                    setInterval(update, 100);
+                    update();
+                </script>
+            </body>
+            </html>
+            """, height=850, scrolling=False)
+
+        elif cfg.get("session_ouverte"):
+            with ph.container():
+                cands = cfg.get("candidats", [])
+                imgs = cfg.get("candidats_images", {})
+                mid = (len(cands) + 1) // 2
+                left_list, right_list = cands[:mid], cands[mid:]
+                c_left, c_center, c_right = st.columns([1, 1, 1])
+                with c_left:
+                    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+                    for c in left_list:
+                        if c in imgs: html = f"<div class='cand-row'><img src='data:image/png;base64,{imgs[c]}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+                        else: html = f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
+                        st.markdown(html, unsafe_allow_html=True)
+                with c_center:
+                    st.markdown("<div style='height:12vh'></div>", unsafe_allow_html=True)
+                    if cfg.get("logo_b64"): st.markdown(f"<div style='text-align:center; width:100%; margin-bottom:20px;'><img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px;'></div>", unsafe_allow_html=True)
+                    host = st.context.headers.get('host', 'localhost')
+                    qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+                    qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+                    st.markdown(f"<div style='text-align:center; width:100%;'><img src='data:image/png;base64,{qr_b64}' style='width:240px; border-radius:10px;'></div>", unsafe_allow_html=True)
+                    st.markdown("<div class='vote-cta'>À VOS VOTES !</div>", unsafe_allow_html=True)
+                with c_right:
+                    st.markdown("<br><br><br><br>", unsafe_allow_html=True)
+                    for c in right_list:
+                        if c in imgs: html = f"<div class='cand-row'><img src='data:image/png;base64,{imgs[c]}' class='cand-img'><span class='cand-name'>{c}</span></div>"
+                        else: html = f"<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>{c}</span></div>"
+                        st.markdown(html, unsafe_allow_html=True)
+
+        else:
+            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
+            ph.markdown(f"<div class='full-screen-center'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div>", unsafe_allow_html=True)
+
     elif mode == "photos_live":
+        host = st.context.headers.get('host', 'localhost')
+        qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+        qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+        logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
-        # Correction JS syntaxe
-        js_imgs = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]])
-        html = f"""
-        <html><body style="background:black;margin:0;overflow:hidden;">
-        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:100;background:rgba(0,0,0,0.8);padding:30px;border-radius:30px;border:2px solid #E2001A;">
-            <h1 style="color:#E2001A;margin:0;font-family:Arial;">PHOTOS LIVE</h1>
-            {f'<img src="data:image/png;base64,{logo_data}" style="width:150px;margin-top:10px;">' if logo_data else ''}
-        </div>
-        <script>
-            const imgs = {js_imgs};
-            imgs.forEach(src => {{
-                let img = document.createElement('img'); img.src = src;
-                img.style.cssText = 'position:absolute;width:'+(Math.random()*100+80)+'px;border-radius:50%;border:3px solid #E2001A;';
-                let x = Math.random()*window.innerWidth, y = Math.random()*window.innerHeight, dx = (Math.random()-0.5)*2, dy = (Math.random()-0.5)*2;
-                document.body.appendChild(img);
-                setInterval(() => {{
-                    x += dx; y += dy;
-                    if(x<0||x>window.innerWidth) dx*=-1; if(y<0||y>window.innerHeight) dy*=-1;
-                    img.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
-                }}, 20);
-            }});
-        </script>
-        </body></html>
+        if not photos: photos = []
+        img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        center_html_content = f"""
+            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
+                <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
+                {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
+                <div style='background:white; padding:10px; border-radius:10px; display:inline-block;'>
+                    <img src='data:image/png;base64,{qr_b64}' style='width:150px;'>
+                </div>
+                <h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2>
+            </div>
         """
-        components.html(html, height=1000)
+        components.html(f"""<script>
+            var doc = window.parent.document;
+            var existing = doc.getElementById('live-container');
+            if(existing) existing.remove();
+            var container = doc.createElement('div');
+            container.id = 'live-container'; 
+            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
+            doc.body.appendChild(container);
+            container.innerHTML = `{center_html_content}`;
+            const imgs = {img_js}; const bubbles = [];
+            const minSize = 60; const maxSize = 160;
+            var screenW = window.innerWidth || 1920;
+            var screenH = window.innerHeight || 1080;
+            imgs.forEach((src, i) => {{
+                const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
+                const el = doc.createElement('img'); el.src = src;
+                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
+                let x = Math.random() * (screenW - bSize);
+                let y = Math.random() * (screenH - bSize);
+                let angle = Math.random() * Math.PI * 2;
+                let speed = 0.8 + Math.random() * 1.2;
+                let vx = Math.cos(angle) * speed;
+                let vy = Math.sin(angle) * speed;
+                container.appendChild(el); 
+                bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
+            }});
+            function animate() {{
+                screenW = window.innerWidth || 1920;
+                screenH = window.innerHeight || 1080;
+                bubbles.forEach(b => {{
+                    b.x += b.vx; b.y += b.vy;
+                    if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
+                    if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
+                    if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
+                    if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
+                    b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
+                }});
+                requestAnimationFrame(animate);
+            }}
+            animate();
+        </script>""", height=0)
