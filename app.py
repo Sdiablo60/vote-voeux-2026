@@ -631,10 +631,36 @@ else:
     
     st.markdown("""
     <style>
-        /* CSS SOCIAL WALL UNIQUEMENT */
-        body, .stApp { background-color: black !important; font-family: 'Arial', sans-serif; overflow: hidden !important; height: 100vh; }
-        [data-testid='stHeader'] { display: none; }
-        .block-container { padding: 0 !important; max-width: 100% !important; }
+        /* CSS SOCIAL WALL UNIQUEMENT - NO SCROLL & NO SIDEBAR */
+        
+        /* Cacher la Sidebar */
+        [data-testid="stSidebar"] { display: none !important; }
+        section[data-testid="stSidebar"] { display: none !important; }
+        [data-testid="stSidebarCollapsedControl"] { display: none !important; }
+
+        /* Cacher le Header Streamlit */
+        header, [data-testid="stHeader"] { display: none !important; }
+
+        /* Bloquer le scroll et forcer le fond noir */
+        body, html, .stApp { 
+            background-color: black !important; 
+            font-family: 'Arial', sans-serif; 
+            overflow: hidden !important; 
+            height: 100vh !important;
+            width: 100vw !important;
+            margin: 0 !important;
+        }
+
+        /* Supprimer les marges internes de Streamlit */
+        .block-container { 
+            padding-top: 0 !important; 
+            padding-bottom: 0 !important; 
+            padding-left: 0 !important; 
+            padding-right: 0 !important; 
+            max-width: 100vw !important; 
+            margin: 0 !important;
+        }
+
         .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
         .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
         .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; text-transform: uppercase; }
@@ -797,7 +823,7 @@ else:
                 else:
                     html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # --- 3. CSS (ALIGNEMENT HAUT + FIX FLASH) ---
+            # --- 3. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
             css_styles = """
             <style>
                 .vote-container {
@@ -822,9 +848,9 @@ else:
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: flex-start; /* CORRECTION : Aligne le logo/QR en haut */
+                    justify-content: flex-start; /* Aligne le logo/QR en haut */
                     height: 100%;
-                    padding-top: 10px; /* Petit ajustement pour aligner pile avec les bulles */
+                    padding-top: 10px; /* Petit ajustement */
                 }
                 .cand-row {
                     width: 90% !important;
