@@ -157,7 +157,7 @@ if PDF_AVAILABLE:
         try:
             has_logo = prep_logo(logo_data)
             pdf = PDFReport(); pdf.add_page(); pdf.set_font("Arial", size=12); pdf.set_font("Arial", 'B', 14)
-            pdf.cell(0, 10, txt=f"Resultats : {title}", ln=True, align='L')
+            pdf.cell(0, 10, txt=f"Résultats : {title}", ln=True, align='L')
             pdf.set_font("Arial", 'I', 11); pdf.cell(0, 10, txt=f"Nombre total de votants : {total_voters}", ln=True, align='L'); pdf.ln(5)
             pdf.set_fill_color(226, 0, 26); pdf.set_text_color(255); pdf.set_font("Arial", 'B', 12); pdf.set_x(35)
             pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1); pdf.cell(40, 10, "Points", 1, 1, 'C', 1); pdf.set_text_color(0); pdf.ln()
@@ -173,7 +173,7 @@ if PDF_AVAILABLE:
         try:
             has_logo = prep_logo(logo_data)
             pdf = PDFReport(); pdf.add_page(); pdf.set_font("Arial", size=10); pdf.set_font("Arial", 'B', 14)
-            pdf.cell(200, 10, txt=f"Audit Detail : {title}", ln=True, align='L'); pdf.ln(5)
+            pdf.cell(200, 10, txt=f"Audit Détail : {title}", ln=True, align='L'); pdf.ln(5)
             cols = [str(c) for c in df.columns.tolist() if "Date" not in str(c)]
             w = 190 / max(1, len(cols)); pdf.set_fill_color(50, 50, 50); pdf.set_text_color(255)
             for col in cols:
@@ -535,17 +535,21 @@ def interface_mur_vote_on(cfg, logo_data, titre_text):
     host = st.context.headers.get('host', 'localhost')
     qr = qrcode.make(f"https://{host}/?mode=vote"); buf=BytesIO(); qr.save(buf, format="PNG"); qrb64=base64.b64encode(buf.getvalue()).decode()
     parts = load_json(PARTICIPANTS_FILE, [])
-    tags_html = "".join([f"<div style='background:rgba(255,255,255,0.1);color:white;padding:8px 15px;border-radius:20px;border:1px solid #E2001A;font-size:18px;margin:5px;display:inline-block;'>{p}</div>" for p in parts[-10:]])
+    # Modification ici pour afficher plus de participants et en plus petit si besoin
+    tags_html = "".join([f"<div style='background:rgba(255,255,255,0.1);color:white;padding:8px 15px;border-radius:20px;border:1px solid #E2001A;font-size:20px;margin:5px;display:inline-block;'>{p}</div>" for p in parts[-15:]])
     
     html = f"""
     <html><body style="background:black;margin:0;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;font-family:Arial;overflow:hidden;">
         <div style="position:fixed; top:0; width:100%; text-align:center; z-index:1000; background:#E2001A; padding:15px 0;"><h1 style="color:white; font-family:Arial; font-weight:bold; font-size:50px; margin:0; text-transform:uppercase;">{titre_text}</h1></div>
-        {f'<img src="data:image/png;base64,{logo_data}" style="width:300px;margin-bottom:20px;object-fit:contain;">' if logo_data else ''}
-        <div style="background:white;padding:25px;border-radius:25px;display:inline-block;margin-bottom:20px;">
-            <img src="data:image/png;base64,{qrb64}" style="width:280px;">
+        
+        <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; width:100%; margin-top:80px;">
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:200px;margin-bottom:15px;object-fit:contain;">' if logo_data else ''}
+            <div style="background:white;padding:15px;border-radius:25px;display:inline-block;margin-bottom:15px;">
+                <img src="data:image/png;base64,{qrb64}" style="width:220px;">
+            </div>
+            <div style="color:#E2001A;font-size:50px;font-weight:bold;animation:blink 1s infinite;margin-bottom:20px;">À VOS VOTES !</div>
+            <div style="width:90%; text-align:center; display:flex; flex-wrap:wrap; justify-content:center; z-index:2000;">{tags_html}</div>
         </div>
-        <div style="color:#E2001A;font-size:50px;font-weight:bold;animation:blink 1s infinite;">À VOS VOTES !</div>
-        <div style="margin-top:30px;max-width:90%;text-align:center;">{tags_html}</div>
         <style>@keyframes blink {{ 50% {{ opacity: 0; }} }}</style>
     </body></html>
     """
