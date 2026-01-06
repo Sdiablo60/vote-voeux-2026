@@ -270,7 +270,7 @@ def inject_visual_effect(effect_name, intensity, speed):
     js_code += "</script>"
     components.html(js_code, height=0)
 
-# --- ANALYTIQUE AVANCEE ---
+# --- ANALYTIQUE ---
 def get_advanced_stats():
     details = load_json(DETAILED_VOTES_FILE, [])
     vote_counts = {}
@@ -303,7 +303,7 @@ def get_advanced_stats():
             
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V10) ---
+# --- GENERATEUR PDF AVANCÉ (V11 - OPTIMISÉ 1 PAGE) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -320,7 +320,7 @@ if PDF_AVAILABLE:
             
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
-            self.cell(50) # Décalage logo
+            self.cell(50) 
             self.cell(0, 10, f"{st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'L')
             
             self.set_font('Arial', 'I', 10)
@@ -347,29 +347,32 @@ if PDF_AVAILABLE:
         pdf.cell(63, 8, f"TOTAL VOTANTS (UNIQUES): {nb_voters}", 0, 0, 'C')
         pdf.cell(63, 8, f"TOTAL VOTES: {nb_votes}", 0, 0, 'C')
         pdf.cell(63, 8, f"TOTAL POINTS DISTRIBUÉS: {total_points}", 0, 1, 'C')
-        pdf.ln(10)
+        pdf.ln(16) # Un peu d'espace après la boite
 
     def create_pdf_results(title, df, nb_voters, total_points):
         pdf = PDFReport()
         pdf.add_page()
-        pdf.set_auto_page_break(auto=True, margin=15)
+        # On désactive le saut de page auto pour forcer le compactage si possible
+        pdf.set_auto_page_break(auto=False)
         
         # Bloc Totaux
         nb_votes_total = df['Nb Votes'].sum()
         draw_summary_box(pdf, nb_voters, nb_votes_total, total_points)
         
-        # --- 1. GRAPHIQUE BARRRES ---
+        # --- 1. GRAPHIQUE COMPACT ---
         pdf.set_font("Arial", 'B', 12)
         pdf.set_text_color(0)
-        pdf.cell(0, 8, txt="SYNTHÈSE GRAPHIQUE DES SCORES", ln=True, align='L')
-        pdf.ln(2)
+        pdf.cell(0, 8, txt="VISUALISATION ANALYTIQUE DES SCORES", ln=True, align='L')
+        pdf.ln(1)
         
         max_points = df['Points'].max() if not df.empty else 1
         page_width = pdf.w - 2 * pdf.l_margin
         label_width = 50
         max_bar_width = page_width - label_width - 25
-        bar_height = 6
-        spacing = 4
+        
+        # Dimensions Compactes
+        bar_height = 4.5  # Plus fin
+        spacing = 2       # Moins d'espace
         
         pdf.set_font("Arial", size=9)
         for i, row in df.iterrows():
@@ -385,7 +388,7 @@ if PDF_AVAILABLE:
             x_start = pdf.get_x() + 2
             y_start = pdf.get_y()
             
-            # Fond gris
+            # Fond gris (Rail)
             pdf.set_fill_color(245, 245, 245)
             pdf.rect(x_start, y_start, max_bar_width, bar_height, 'F')
             
@@ -395,24 +398,27 @@ if PDF_AVAILABLE:
             
             pdf.set_xy(x_start + max_bar_width + 4, y_start)
             pdf.cell(20, bar_height, f"{points} pts", 0, 1, 'L')
-            pdf.ln(spacing)
+            pdf.ln(bar_height + spacing)
             
-        pdf.ln(10)
+        pdf.ln(8) # Espace avant le tableau
 
-        # --- 2. TABLEAU DÉTAILLÉ ---
+        # --- 2. TABLEAU COMPACT ---
         pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 8, txt="CLASSEMENT DÉTAILLÉ", ln=True, align='L')
-        pdf.ln(2)
+        pdf.cell(0, 8, txt="MATRICE DÉTAILLÉE DES RÉSULTATS", ln=True, align='L')
+        pdf.ln(1)
         
+        # En-tête
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", 'B', 10)
-        pdf.cell(100, 8, "Candidat", 1, 0, 'C', 1)
-        pdf.cell(45, 8, "Points Total", 1, 0, 'C', 1)
-        pdf.cell(45, 8, "Nb Votes", 1, 1, 'C', 1)
+        pdf.set_font("Arial", 'B', 9) # Police plus petite
+        row_h = 6 # Ligne moins haute
+        
+        pdf.cell(100, row_h, "Candidat", 1, 0, 'C', 1)
+        pdf.cell(45, row_h, "Points Total", 1, 0, 'C', 1)
+        pdf.cell(45, row_h, "Nb Votes", 1, 1, 'C', 1)
         
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", size=10)
+        pdf.set_font("Arial", size=9)
         fill = False
         pdf.ln()
         
@@ -421,25 +427,23 @@ if PDF_AVAILABLE:
             if fill: pdf.set_fill_color(245, 245, 245)
             else: pdf.set_fill_color(255, 255, 255)
             
-            pdf.cell(100, 8, cand, 1, 0, 'L', 1)
-            pdf.cell(45, 8, str(row['Points']), 1, 0, 'C', 1)
-            pdf.cell(45, 8, str(row['Nb Votes']), 1, 1, 'C', 1)
+            pdf.cell(100, row_h, cand, 1, 0, 'L', 1)
+            pdf.cell(45, row_h, str(row['Points']), 1, 0, 'C', 1)
+            pdf.cell(45, row_h, str(row['Nb Votes']), 1, 1, 'C', 1)
             fill = not fill
+            pdf.ln()
             
         return pdf.output(dest='S').encode('latin-1')
 
     def create_pdf_distribution(title, rank_dist, nb_voters):
         pdf = PDFReport()
         pdf.add_page()
-        
-        # Bloc Totaux
         draw_summary_box(pdf, nb_voters, "N/A", "N/A")
         
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, txt="ANALYSE DE LA RÉPARTITION DES RANGS", ln=True, align='L')
         pdf.ln(5)
         
-        # En-tête
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255)
         pdf.set_font("Arial", 'B', 10)
@@ -451,8 +455,8 @@ if PDF_AVAILABLE:
         pdf.set_text_color(0)
         pdf.set_font("Arial", size=10)
         fill = False
+        pdf.ln()
         
-        # Tri par nombre de 1ère places
         sorted_dist = sorted(rank_dist.items(), key=lambda x: x[1][1], reverse=True)
         
         for cand, ranks in sorted_dist:
@@ -465,6 +469,7 @@ if PDF_AVAILABLE:
             pdf.cell(35, 8, str(ranks[2]), 1, 0, 'C', 1)
             pdf.cell(35, 8, str(ranks[3]), 1, 1, 'C', 1)
             fill = not fill
+            pdf.ln()
             
         return pdf.output(dest='S').encode('latin-1')
 
@@ -472,7 +477,6 @@ if PDF_AVAILABLE:
         pdf = PDFReport()
         pdf.add_page()
         
-        # Bloc Totaux
         draw_summary_box(pdf, nb_voters, len(df), "N/A")
         
         pdf.set_font("Arial", 'B', 12)
@@ -791,7 +795,6 @@ if est_admin:
                 raw_details = load_json(DETAILED_VOTES_FILE, [])
                 if raw_details:
                     df_audit = pd.DataFrame(raw_details)
-                    # Suppression de la date pour l'affichage
                     if 'Date' in df_audit.columns:
                         df_audit = df_audit.drop(columns=['Date'])
                         
