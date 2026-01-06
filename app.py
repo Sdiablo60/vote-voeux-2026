@@ -303,7 +303,7 @@ def get_advanced_stats():
             
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V11 - OPTIMISÉ 1 PAGE) ---
+# --- GENERATEUR PDF AVANCÉ (V12 - OPTIMISÉ 1 PAGE) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -338,28 +338,28 @@ if PDF_AVAILABLE:
     def draw_summary_box(pdf, nb_voters, nb_votes, total_points):
         pdf.set_fill_color(245, 245, 245)
         pdf.set_draw_color(200, 200, 200)
-        pdf.rect(10, pdf.get_y(), 190, 20, 'DF')
+        pdf.rect(10, pdf.get_y(), 190, 15, 'DF') # Hauteur réduite à 15
         
-        pdf.set_y(pdf.get_y() + 6)
+        pdf.set_y(pdf.get_y() + 4)
         pdf.set_font("Arial", 'B', 10)
         pdf.set_text_color(50, 50, 50)
         
         pdf.cell(63, 8, f"TOTAL VOTANTS (UNIQUES): {nb_voters}", 0, 0, 'C')
         pdf.cell(63, 8, f"TOTAL VOTES: {nb_votes}", 0, 0, 'C')
         pdf.cell(63, 8, f"TOTAL POINTS DISTRIBUÉS: {total_points}", 0, 1, 'C')
-        pdf.ln(16) # Un peu d'espace après la boite
+        pdf.ln(12) # Un peu d'espace après la boite
 
     def create_pdf_results(title, df, nb_voters, total_points):
         pdf = PDFReport()
         pdf.add_page()
-        # On désactive le saut de page auto pour forcer le compactage si possible
+        # Désactiver le saut de page auto pour tout faire tenir
         pdf.set_auto_page_break(auto=False)
         
         # Bloc Totaux
         nb_votes_total = df['Nb Votes'].sum()
         draw_summary_box(pdf, nb_voters, nb_votes_total, total_points)
         
-        # --- 1. GRAPHIQUE COMPACT ---
+        # --- 1. GRAPHIQUE ULTRA COMPACT ---
         pdf.set_font("Arial", 'B', 12)
         pdf.set_text_color(0)
         pdf.cell(0, 8, txt="VISUALISATION ANALYTIQUE DES SCORES", ln=True, align='L')
@@ -370,9 +370,9 @@ if PDF_AVAILABLE:
         label_width = 50
         max_bar_width = page_width - label_width - 25
         
-        # Dimensions Compactes
-        bar_height = 4.5  # Plus fin
-        spacing = 2       # Moins d'espace
+        # Dimensions ULTRA Compactes
+        bar_height = 3.0  # Très fin pour gagner de la place
+        spacing = 1.5     # Très serré
         
         pdf.set_font("Arial", size=9)
         for i, row in df.iterrows():
@@ -400,7 +400,7 @@ if PDF_AVAILABLE:
             pdf.cell(20, bar_height, f"{points} pts", 0, 1, 'L')
             pdf.ln(bar_height + spacing)
             
-        pdf.ln(8) # Espace avant le tableau
+        pdf.ln(6) # Espace réduit avant le tableau
 
         # --- 2. TABLEAU COMPACT ---
         pdf.set_font("Arial", 'B', 12)
@@ -410,15 +410,15 @@ if PDF_AVAILABLE:
         # En-tête
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", 'B', 9) # Police plus petite
-        row_h = 6 # Ligne moins haute
+        pdf.set_font("Arial", 'B', 9) 
+        row_h = 5 # Ligne très fine (5mm)
         
         pdf.cell(100, row_h, "Candidat", 1, 0, 'C', 1)
         pdf.cell(45, row_h, "Points Total", 1, 0, 'C', 1)
         pdf.cell(45, row_h, "Nb Votes", 1, 1, 'C', 1)
         
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", size=9)
+        pdf.set_font("Arial", size=8) # Police réduite pour le tableau
         fill = False
         pdf.ln()
         
@@ -759,14 +759,15 @@ if est_admin:
                 
                 # --- SECTION 1: RESULTATS ---
                 st.subheader("🏆 Classement Général")
-                c_chart, c_data = st.columns([1, 1])
+                c_chart, c_data = st.columns([1, 1]) # Modif: 50/50 pour agrandir tableau
                 
                 with c_chart:
+                    # Modif: Graphique statique (sans zoom/pan)
                     chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
                         x=alt.X('Points'), 
                         y=alt.Y('Candidat', sort='-x'), 
                         tooltip=['Candidat', 'Points', 'Nb Votes']
-                    ).properties(height=350) 
+                    ).properties(height=350) # Removed interactive()
                     st.altair_chart(chart, use_container_width=True)
                 
                 with c_data:
@@ -795,6 +796,7 @@ if est_admin:
                 raw_details = load_json(DETAILED_VOTES_FILE, [])
                 if raw_details:
                     df_audit = pd.DataFrame(raw_details)
+                    # Suppression de la date pour l'affichage
                     if 'Date' in df_audit.columns:
                         df_audit = df_audit.drop(columns=['Date'])
                         
