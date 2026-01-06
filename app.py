@@ -281,7 +281,7 @@ def count_votes_per_candidate():
                 counts[cand] = counts.get(cand, 0) + 1
     return counts
 
-# --- GENERATEUR PDF AVANCÉ (AVEC GRAPHIQUE) ---
+# --- GENERATEUR PDF AVANCÉ (V9) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -292,19 +292,21 @@ if PDF_AVAILABLE:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                         tmp.write(logo_data)
                         tmp_path = tmp.name
-                    self.image(tmp_path, 10, 8, 45) # Largeur augmentée à 45
+                    # Logo plus grand (45mm de large)
+                    self.image(tmp_path, 10, 8, 45) 
                     os.unlink(tmp_path) 
                 except: pass
             
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
-            self.cell(45) # Décalage pour le logo plus grand
-            self.cell(0, 10, f"Rapport: {st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'C')
+            self.cell(50) # Décalage pour le logo plus grand
+            self.cell(0, 10, f"{st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'L')
             
             self.set_font('Arial', 'I', 10)
             self.set_text_color(100, 100, 100)
-            self.cell(0, 10, f"Date d'export: {datetime.now().strftime('%Y-%m-%d %H:%M')}", 0, 1, 'R')
-            self.ln(15)
+            self.cell(50)
+            self.cell(0, 10, f"Rapport généré le: {datetime.now().strftime('%d/%m/%Y à %H:%M')}", 0, 1, 'L')
+            self.ln(20) # Marge après le header
 
         def footer(self):
             self.set_y(-15)
@@ -315,60 +317,86 @@ if PDF_AVAILABLE:
     def create_pdf_results(title, df):
         pdf = PDFReport()
         pdf.add_page()
+        pdf.set_auto_page_break(auto=True, margin=15)
         
-        # --- 1. GRAPHIQUE BARRRES (DESSINÉ DIRECTEMENT DANS LE PDF) ---
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, txt="GRAPHIQUE DES POINTS", ln=True, align='L')
-        pdf.ln(5)
+        # --- 1. GRAPHIQUE VISUEL (BAR CHART) ---
+        pdf.set_font("Arial", 'B', 12)
+        pdf.set_text_color(0)
+        pdf.cell(0, 8, txt="APERÇU GRAPHIQUE", ln=True, align='L')
+        pdf.ln(2)
         
+        # Paramètres du graphique
         max_points = df['Points'].max() if not df.empty else 1
-        bar_start_x = 50
-        max_bar_width = 130
-        line_height = 8
+        page_width = pdf.w - 2 * pdf.l_margin
+        label_width = 50
+        max_bar_width = page_width - label_width - 20 # 20 pour le texte score
+        bar_height = 6
+        spacing = 4
         
-        pdf.set_font("Arial", size=10)
+        pdf.set_font("Arial", size=9)
         for i, row in df.iterrows():
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
             points = row['Points']
             
-            # Nom
-            pdf.set_text_color(0, 0, 0)
-            pdf.cell(40, line_height, cand, 0, 0, 'R')
+            # Nom Candidat
+            pdf.set_text_color(0)
+            pdf.cell(label_width, bar_height, cand, 0, 0, 'R')
             
-            # Barre
+            # Calcul largeur barre
             if max_points > 0:
                 width = (points / max_points) * max_bar_width
             else: width = 0
             
-            pdf.set_fill_color(226, 0, 26) # Rouge
-            pdf.cell(width, line_height, "", 0, 0, 'L', 1)
+            # Fond gris clair pour la barre (rail)
+            x_start = pdf.get_x()
+            y_start = pdf.get_y()
+            pdf.set_fill_color(240, 240, 240)
+            pdf.rect(x_start, y_start, max_bar_width, bar_height, 'F')
             
-            # Label Points
-            pdf.cell(10, line_height, f" {points}", 0, 1, 'L')
+            # Barre Rouge (Score)
+            pdf.set_fill_color(226, 0, 26) 
+            if width > 0:
+                pdf.rect(x_start, y_start, width, bar_height, 'F')
             
-        pdf.ln(15)
+            # Label Score
+            pdf.set_xy(x_start + max_bar_width + 2, y_start)
+            pdf.cell(20, bar_height, f"{points} pts", 0, 1, 'L')
+            
+            # Espace entre barres
+            pdf.ln(spacing)
+            
+        pdf.ln(10) # Espace avant le tableau
 
-        # --- 2. TABLEAU ---
-        pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, txt="CLASSEMENT DÉTAILLÉ", ln=True, align='L')
-        pdf.ln(5)
+        # --- 2. TABLEAU DÉTAILLÉ ---
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 8, txt="DÉTAILS DES SCORES", ln=True, align='L')
+        pdf.ln(2)
         
+        # En-tête Tableau
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255, 255, 255)
-        pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1)
-        pdf.cell(45, 10, "Points Total", 1, 0, 'C', 1)
-        pdf.cell(45, 10, "Nb Votants", 1, 1, 'C', 1)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(100, 8, "Candidat", 1, 0, 'C', 1)
+        pdf.cell(45, 8, "Points Total", 1, 0, 'C', 1)
+        pdf.cell(45, 8, "Nb Votes", 1, 1, 'C', 1)
         
+        # Lignes Tableau
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", size=11)
-        pdf.ln()
+        pdf.set_font("Arial", size=10)
+        fill = False # Pour l'alternance des couleurs
         
         for i, row in df.iterrows():
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
-            pdf.cell(100, 10, cand, 1, 0, 'L')
-            pdf.cell(45, 10, str(row['Points']), 1, 0, 'C')
-            pdf.cell(45, 10, str(row['Nb Votes']), 1, 1, 'C')
-            pdf.ln()
+            
+            # Couleur alternée gris très clair
+            if fill: pdf.set_fill_color(245, 245, 245)
+            else: pdf.set_fill_color(255, 255, 255)
+            
+            pdf.cell(100, 8, cand, 1, 0, 'L', 1)
+            pdf.cell(45, 8, str(row['Points']), 1, 0, 'C', 1)
+            pdf.cell(45, 8, str(row['Nb Votes']), 1, 1, 'C', 1)
+            
+            fill = not fill # Inverser pour la prochaine ligne
             
         return pdf.output(dest='S').encode('latin-1')
 
@@ -393,11 +421,17 @@ if PDF_AVAILABLE:
         
         pdf.set_text_color(0)
         pdf.set_font("Arial", size=8)
+        fill = False
         for i, row in df.iterrows():
+            if fill: pdf.set_fill_color(245, 245, 245)
+            else: pdf.set_fill_color(255, 255, 255)
+            
             for col in cols:
                 txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
-                pdf.cell(col_w, 8, txt, 1, 0, 'C') # Centré
+                pdf.cell(col_w, 8, txt, 1, 0, 'C', 1) # Centré et rempli
             pdf.ln()
+            fill = not fill
+            
         return pdf.output(dest='S').encode('latin-1')
 
 # --- NAVIGATION VARS ---
@@ -686,7 +720,7 @@ if est_admin:
                 raw_details = load_json(DETAILED_VOTES_FILE, [])
                 if raw_details:
                     df_audit = pd.DataFrame(raw_details)
-                    # Suppression de la date pour l'affichage
+                    # Suppression de la date pour l'affichage et export, centrage géré par PDF/CSS
                     if 'Date' in df_audit.columns:
                         df_audit = df_audit.drop(columns=['Date'])
                         
