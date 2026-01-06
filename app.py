@@ -272,37 +272,33 @@ def inject_visual_effect(effect_name, intensity, speed):
 
 # --- ANALYTIQUE ---
 def count_votes_per_candidate():
-    # Compte combien de personnes ont voté pour chaque candidat (peu importe la position)
     details = load_json(DETAILED_VOTES_FILE, [])
     counts = {}
     for record in details:
-        # On regarde les choix 1, 2 et 3
         for k in ["Choix 1 (5pts)", "Choix 2 (3pts)", "Choix 3 (1pt)"]:
             cand = record.get(k)
             if cand:
                 counts[cand] = counts.get(cand, 0) + 1
     return counts
 
-# --- GENERATEUR PDF AVANCÉ ---
+# --- GENERATEUR PDF AVANCÉ (AVEC GRAPHIQUE) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
-            # Logo Gauche
+            # Logo Gauche (AGRANDI)
             if "logo_b64" in st.session_state.config and st.session_state.config["logo_b64"]:
                 try:
-                    # Sauvegarde temporaire du logo pour FPDF
                     logo_data = base64.b64decode(st.session_state.config["logo_b64"])
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
                         tmp.write(logo_data)
                         tmp_path = tmp.name
-                    self.image(tmp_path, 10, 8, 25)
-                    os.unlink(tmp_path) # Nettoyage
+                    self.image(tmp_path, 10, 8, 45) # Largeur augmentée à 45
+                    os.unlink(tmp_path) 
                 except: pass
             
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
-            # Decalage du titre si logo
-            self.cell(25) 
+            self.cell(45) # Décalage pour le logo plus grand
             self.cell(0, 10, f"Rapport: {st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'C')
             
             self.set_font('Arial', 'I', 10)
@@ -319,26 +315,60 @@ if PDF_AVAILABLE:
     def create_pdf_results(title, df):
         pdf = PDFReport()
         pdf.add_page()
-        pdf.set_font("Arial", size=12)
+        
+        # --- 1. GRAPHIQUE BARRRES (DESSINÉ DIRECTEMENT DANS LE PDF) ---
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, txt="CLASSEMENT FINAL & STATISTIQUES", ln=True, align='L')
+        pdf.cell(0, 10, txt="GRAPHIQUE DES POINTS", ln=True, align='L')
         pdf.ln(5)
         
-        # En-tête Tableau
-        pdf.set_fill_color(226, 0, 26)
+        max_points = df['Points'].max() if not df.empty else 1
+        bar_start_x = 50
+        max_bar_width = 130
+        line_height = 8
+        
+        pdf.set_font("Arial", size=10)
+        for i, row in df.iterrows():
+            cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
+            points = row['Points']
+            
+            # Nom
+            pdf.set_text_color(0, 0, 0)
+            pdf.cell(40, line_height, cand, 0, 0, 'R')
+            
+            # Barre
+            if max_points > 0:
+                width = (points / max_points) * max_bar_width
+            else: width = 0
+            
+            pdf.set_fill_color(226, 0, 26) # Rouge
+            pdf.cell(width, line_height, "", 0, 0, 'L', 1)
+            
+            # Label Points
+            pdf.cell(10, line_height, f" {points}", 0, 1, 'L')
+            
+        pdf.ln(15)
+
+        # --- 2. TABLEAU ---
+        pdf.set_font("Arial", 'B', 14)
+        pdf.cell(0, 10, txt="CLASSEMENT DÉTAILLÉ", ln=True, align='L')
+        pdf.ln(5)
+        
+        pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255, 255, 255)
         pdf.cell(100, 10, "Candidat", 1, 0, 'C', 1)
         pdf.cell(45, 10, "Points Total", 1, 0, 'C', 1)
-        pdf.cell(45, 10, "Nb Votants", 1, 1, 'C', 1) # Nouvelle colonne
+        pdf.cell(45, 10, "Nb Votants", 1, 1, 'C', 1)
         
         pdf.set_text_color(0, 0, 0)
         pdf.set_font("Arial", size=11)
+        pdf.ln()
         
         for i, row in df.iterrows():
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
             pdf.cell(100, 10, cand, 1, 0, 'L')
             pdf.cell(45, 10, str(row['Points']), 1, 0, 'C')
             pdf.cell(45, 10, str(row['Nb Votes']), 1, 1, 'C')
+            pdf.ln()
             
         return pdf.output(dest='S').encode('latin-1')
 
@@ -347,10 +377,10 @@ if PDF_AVAILABLE:
         pdf.add_page()
         pdf.set_font("Arial", size=10)
         pdf.set_font("Arial", 'B', 14)
-        pdf.cell(0, 10, txt="JOURNAL D'AUDIT (DÉTAILS SANS DATE)", ln=True, align='L')
+        pdf.cell(0, 10, txt="JOURNAL D'AUDIT", ln=True, align='L')
         pdf.ln(5)
         
-        cols = df.columns.tolist() # Date est deja retire avant appel
+        cols = df.columns.tolist() 
         col_w = 190 / len(cols)
         
         pdf.set_fill_color(50, 50, 50)
@@ -623,14 +653,15 @@ if est_admin:
                 
                 # --- SECTION 1: RESULTATS ---
                 st.subheader("🏆 Classement Général")
-                c_chart, c_data = st.columns([2, 1])
+                c_chart, c_data = st.columns([1, 1]) # Modif: 50/50 pour agrandir tableau
                 
                 with c_chart:
+                    # Modif: Graphique statique (sans zoom/pan)
                     chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
                         x=alt.X('Points'), 
                         y=alt.Y('Candidat', sort='-x'), 
                         tooltip=['Candidat', 'Points', 'Nb Votes']
-                    ).properties(height=350).interactive()
+                    ).properties(height=350) # Removed interactive()
                     st.altair_chart(chart, use_container_width=True)
                 
                 with c_data:
@@ -640,12 +671,10 @@ if est_admin:
                 st.markdown("##### 📥 Exporter le Rapport de Résultats")
                 c1, c2 = st.columns(2)
                 if PDF_AVAILABLE:
-                    # Bouton bleu animé
                     st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                    c1.download_button("📄 Rapport Résultats (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
+                    c1.download_button("📄 Rapport Résultats (Graphique + Tableau)", data=create_pdf_results(cfg['titre_mur'], df_totals), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
                     st.markdown('</div>', unsafe_allow_html=True)
                 
-                # Bouton bleu animé
                 st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
                 c2.download_button("📊 Données Résultats (CSV)", data=df_totals.to_csv(index=False).encode('utf-8'), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
                 st.markdown('</div>', unsafe_allow_html=True)
@@ -657,7 +686,7 @@ if est_admin:
                 raw_details = load_json(DETAILED_VOTES_FILE, [])
                 if raw_details:
                     df_audit = pd.DataFrame(raw_details)
-                    # Suppression de la date pour l'affichage et export, centrage géré par PDF/CSS
+                    # Suppression de la date pour l'affichage
                     if 'Date' in df_audit.columns:
                         df_audit = df_audit.drop(columns=['Date'])
                         
