@@ -288,7 +288,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ ---
+# --- GENERATEUR PDF AVANCÉ (V12) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -939,7 +939,7 @@ else:
         
         .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
+        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
     
