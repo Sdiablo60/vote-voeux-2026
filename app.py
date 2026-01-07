@@ -40,6 +40,20 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # --- CSS COMMUN (BOUTONS & LOGIN) ---
 st.markdown("""
 <style>
+    /* --- STOP SCROLLING ULTIME --- */
+    html, body, .stApp, [data-testid="stAppViewContainer"], .main {
+        overflow: hidden !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        position: fixed !important;
+        top: 0; left: 0;
+        touch-action: none; /* Bloque le scroll tactile */
+    }
+    /* Cacher les barres de défilement */
+    ::-webkit-scrollbar { display: none; }
+    
     /* Boutons Généraux */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
@@ -62,20 +76,6 @@ st.markdown("""
         background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
     }
     
-    /* STYLE DES BOUTONS D'EXPORT BLEUS ANIMÉS */
-    .blue-anim-btn button {
-        background-color: #2980b9 !important;
-        color: white !important;
-        border: none !important;
-        transition: all 0.3s ease !important;
-        font-weight: bold !important;
-    }
-    .blue-anim-btn button:hover {
-        transform: scale(1.05) !important;
-        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
-        background-color: #3498db !important;
-    }
-
     /* Liens externes */
     .custom-link-btn {
         display: block; text-align: center; padding: 12px; border-radius: 8px;
@@ -288,7 +288,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ ---
+# --- GENERATEUR PDF AVANCÉ (V12) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -914,14 +914,14 @@ else:
         
         /* POSITIONS CLES */
         .state-hidden { opacity: 0; transform: scale(0.5); }
-        .state-center { left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }
+        .state-center { top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.5); opacity: 1; z-index: 500; }
         .state-left { left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         
         /* ETATS FINAUX PYRAMIDE RESSERREE */
         .state-final-1 { left: 50%; top: 15%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }
-        .state-final-2 { left: 35%; top: 55%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
-        .state-final-3 { left: 65%; top: 55%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
+        .state-final-2 { left: 30%; top: 55%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
+        .state-final-3 { left: 70%; top: 55%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
 
         .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
         
@@ -1109,15 +1109,15 @@ else:
                 .podium-item {{ position: absolute; bottom: 50px; width: {int(320*scale_factor)}px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }}
                 
                 /* ETATS INTERMEDIAIRES */
-                .state-center {{ left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }}
+                .state-center {{ top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.5); opacity: 1; z-index: 500; }}
                 .state-left {{ left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 
                 /* ETATS FINAUX PYRAMIDE COMPACTE (ANTI CHEVAUCHEMENT) */
                 /* 1er en haut, 2eme et 3eme en dessous et plus petits */
-                .state-final-1 {{ left: 50%; top: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 200; }}
-                .state-final-2 {{ left: 30%; top: 55%; transform: translateX(-50%) scale(0.85); opacity: 1; z-index: 150; }}
-                .state-final-3 {{ left: 70%; top: 55%; transform: translateX(-50%) scale(0.85); opacity: 1; z-index: 150; }}
+                .state-final-1 {{ left: 50%; top: 15%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }}
+                .state-final-2 {{ left: 30%; top: 55%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
+                .state-final-3 {{ left: 70%; top: 55%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
 
                 .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
