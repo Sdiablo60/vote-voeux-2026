@@ -38,22 +38,9 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
 # --- CSS COMMUN (BOUTONS & LOGIN) ---
+# NOTE: Ici on ne met PAS de fond noir global pour ne pas impacter l'admin
 st.markdown("""
 <style>
-    /* --- STOP SCROLLING ULTIME --- */
-    html, body, .stApp, [data-testid="stAppViewContainer"], .main {
-        overflow: hidden !important;
-        height: 100vh !important;
-        width: 100vw !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        position: fixed !important;
-        top: 0; left: 0;
-        touch-action: none;
-        background-color: black !important;
-    }
-    ::-webkit-scrollbar { display: none; }
-    
     /* Boutons Généraux */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
@@ -76,6 +63,20 @@ st.markdown("""
         background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
     }
     
+    /* STYLE DES BOUTONS D'EXPORT BLEUS ANIMÉS */
+    .blue-anim-btn button {
+        background-color: #2980b9 !important;
+        color: white !important;
+        border: none !important;
+        transition: all 0.3s ease !important;
+        font-weight: bold !important;
+    }
+    .blue-anim-btn button:hover {
+        transform: scale(1.05) !important;
+        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
+        background-color: #3498db !important;
+    }
+
     /* Liens externes */
     .custom-link-btn {
         display: block; text-align: center; padding: 12px; border-radius: 8px;
@@ -182,7 +183,7 @@ def delete_archived_session(folder_name):
     path = os.path.join(ARCHIVE_DIR, folder_name)
     if os.path.exists(path): shutil.rmtree(path)
 
-# --- FONCTION DE RESET ---
+# --- FONCTION DE RESET CORRIGÉE ---
 def reset_app_data(init_mode="blank", preserve_config=False):
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
@@ -288,7 +289,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ ---
+# --- GENERATEUR PDF AVANCÉ (V12) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -764,7 +765,7 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("""
         <style>
-            .stApp {background-color:black; color:white;} 
+            .stApp {background-color:black !important; color:white;} 
             [data-testid='stHeader'] {display:none;}
             .block-container {padding: 1rem !important;}
         </style>
@@ -906,40 +907,40 @@ else:
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
         
-        /* PODIUM STYLES (FLEX ROWS) */
+        /* PODIUM STYLES (FLEX ROWS CENTRÉES) */
         .podium-container {
             display: flex;
             flex-direction: column;
-            justify-content: center; /* Vertical Center */
-            align-items: center; /* Horizontal Center */
+            justify-content: flex-end; /* Alignement bas */
+            align-items: center;
             height: 100vh;
             width: 100vw;
             background: black;
             position: fixed;
             top: 0; left: 0;
             z-index: 50;
-            padding-top: 100px; /* Clear header */
+            padding-bottom: 20px;
         }
         
+        /* Chaque rangée prend toute la largeur et centre son contenu */
         .rank-row {
             display: flex;
             flex-direction: row;
-            justify-content: center !important; /* Force center horizontally */
+            justify-content: center !important; /* CRUCIAL: Centre horizontalement */
             align-items: center;
-            width: 100% !important; /* Force full width */
+            width: 100% !important;
             transition: opacity 1s ease-in-out, transform 1s ease-in-out;
             opacity: 0; 
             transform: translateY(20px);
-            margin-bottom: 20px;
         }
         
         /* Animation classes */
         .visible { opacity: 1 !important; transform: translateY(0) !important; }
         
-        /* Row Order for Pyramid Visual */
-        #row-1 { order: 1; margin-bottom: 40px; } /* Gold on top */
-        #row-2 { order: 2; margin-bottom: 20px; } /* Silver middle */
-        #row-3 { order: 3; margin-bottom: 0; }    /* Bronze bottom */
+        /* Ordre Pyramide Visuelle */
+        #row-1 { order: 1; margin-bottom: 30px; } /* Vainqueur en haut */
+        #row-2 { order: 2; margin-bottom: 20px; } /* 2ème au milieu */
+        #row-3 { order: 3; margin-bottom: 0; }    /* 3ème en bas */
         
         /* Cards */
         .p-card { 
@@ -957,7 +958,7 @@ else:
         }
 
         /* Specific Styles */
-        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 50px rgba(255, 215, 0, 0.4); }
+        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.4); }
         .rank-2 .p-card { border-color: #C0C0C0; }
         .rank-3 .p-card { border-color: #CD7F32; }
 
@@ -1114,6 +1115,7 @@ else:
                     }}
                     layer.style.opacity = '0';
                     await wait(500); 
+                    layer.style.display = 'none';
                 }}
 
                 async function runShow() {{
