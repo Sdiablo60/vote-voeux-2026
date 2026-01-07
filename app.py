@@ -905,37 +905,70 @@ else:
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
         
-        /* PODIUM STYLES (ABSOLUTE ANIMATION) */
-        .podium-stage { position: relative; width: 100vw; height: 80vh; overflow: hidden; background: black; top: 12vh; }
+        /* PODIUM STYLES (STRUCTURE FLEXIBLE 3 LIGNES) */
+        .podium-stage { 
+            position: fixed; 
+            top: 12vh; 
+            left: 0; 
+            width: 100vw; 
+            height: 92vh;  /* Increased height to utilize full screen */
+            background: black; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: flex-end; /* En bas de page */
+            padding-bottom: 0px; /* Reduced padding */
+            overflow: hidden;
+        }
         
-        /* Classe de base pour un candidat sur le podium */
-        .podium-item { position: absolute; bottom: 50px; width: 300px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.8); z-index: 100; }
+        /* Conteneurs de rangées */
+        .rank-row {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            width: 100%;
+            gap: 20px;
+            padding-bottom: 20px; /* Add padding to rows */
+            opacity: 0; 
+            transition: all 1s ease-in-out;
+        }
         
-        /* POSITIONS CLES */
-        .state-hidden { opacity: 0; transform: scale(0.5); }
-        .state-center { left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }
-        .state-left { left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }
-        .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
-        
-        /* ETATS FINAUX PYRAMIDE RESSERREE */
-        .state-final-1 { left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }
-        .state-final-2 { left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
-        .state-final-3 { left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
+        /* Ordre d'affichage final (Pyramide) */
+        #row-1 { order: 1; margin-bottom: 30px; z-index: 20; } /* Vainqueur en haut */
+        #row-2 { order: 2; margin-bottom: 15px; z-index: 15; }
+        #row-3 { order: 3; margin-bottom: 0; z-index: 10; }
 
-        .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
+        /* Animation d'entrée : On part du centre et on s'étend */
+        .reveal-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); opacity: 0; transition: all 1s ease; }
+        .reveal-visible { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        .final-state { position: relative; top: auto; left: auto; transform: none; opacity: 1; }
+
+        /* Cartes individuelles */
+        .p-card { 
+            background: rgba(255,255,255,0.1); 
+            border-radius: 20px; 
+            padding: 20px; 
+            text-align: center; 
+            backdrop-filter: blur(10px); 
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
+            border: 2px solid rgba(255,255,255,0.2); 
+            display:flex; flex-direction:column; align-items:center; 
+            transition: all 0.5s ease;
+        }
         
-        /* Couleurs bordures */
-        .rank-1 .p-card { border-color: #FFD700; box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); background: rgba(20,20,20,0.9); }
+        /* Styles spécifiques par rang */
+        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.6); }
         .rank-2 .p-card { border-color: #C0C0C0; }
         .rank-3 .p-card { border-color: #CD7F32; }
 
-        .p-img { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }
-        .rank-1 .p-img { border-color: #FFD700; width: 160px; height: 160px; }
+        .p-img { border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 15px; }
+        .rank-1 .p-img { border-color: #FFD700; }
 
-        .p-name { font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
-        .rank-1 .p-name { color: #FFD700; font-size: 40px; }
-        .p-score { font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }
+        .p-name { font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
+        .rank-1 .p-name { color: #FFD700; }
+        .p-score { font-family: Arial; color: #ccc; margin-top: 5px; }
         
+        /* Intro Texte */
         .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
         .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
@@ -958,27 +991,44 @@ else:
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
-            
-            # --- LOGIQUE CLASSEMENT (PODIUM) ---
             if not v_data: v_data = {"Personne": 0}
+            
+            # Calcul Rangs
             sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
-            
             s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else -1
-            rank1 = [c for c, s in v_data.items() if s == s1]
-            
             s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else -1
-            rank2 = [c for c, s in v_data.items() if s == s2]
-            
             s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else -1
+            
+            rank1 = [c for c, s in v_data.items() if s == s1]
+            rank2 = [c for c, s in v_data.items() if s == s2]
             rank3 = [c for c, s in v_data.items() if s == s3]
             
+            # --- Logic to handle multiple winners per rank (Scale down if many) ---
+            total_winners = len(rank1) + len(rank2) + len(rank3)
+            scale_factor = 1.0
+            if total_winners > 4: scale_factor = 0.8
+            if total_winners > 6: scale_factor = 0.6
+            
+            # Helper to generate HTML for each rank group
             def get_podium_html(cands, score, emoji):
                 if not cands: return ""
                 html = ""
                 for c in cands:
                     img_src = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
-                    img_tag = f"<img src='{img_src}' class='p-img'>" if img_src else f"<div style='font-size:80px'>{emoji}</div>"
-                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div><br>"
+                    # Apply scale factor to image size and text
+                    img_s = int(140 * scale_factor)
+                    font_n = int(30 * scale_factor)
+                    font_s = int(24 * scale_factor)
+                    
+                    img_tag = f"<img src='{img_src}' class='p-img' style='width:{img_s}px;height:{img_s}px;'>" if img_src else f"<div style='font-size:{int(80*scale_factor)}px'>{emoji}</div>"
+                    
+                    html += f"""
+                    <div class='p-card' style='padding:{int(20*scale_factor)}px; margin-bottom:10px;'>
+                        {img_tag}
+                        <div class='p-name' style='font-size:{font_n}px;'>{c}</div>
+                        <div class='p-score' style='font-size:{font_s}px;'>{score} pts</div>
+                    </div>
+                    """
                 return html
 
             h1 = get_podium_html(rank1, s1, "🥇")
@@ -987,9 +1037,9 @@ else:
             
             # Textes Adaptatifs
             txt_intro = "NOUS ALLONS DÉCOUVRIR MAINTENANT LES FINALISTES DE CE CONCOURS"
-            txt_3 = "À LA TROISIÈME PLACE..."
-            txt_2 = "À LA DEUXIÈME PLACE..."
-            txt_1 = "ET LE GRAND VAINQUEUR EST..."
+            txt_3 = "ILS SONT PLUSIEURS À LA 3ÈME PLACE !" if len(rank3) > 1 else "À LA TROISIÈME PLACE..."
+            txt_2 = "EX-AEQUO À LA DEUXIÈME PLACE !" if len(rank2) > 1 else "À LA DEUXIÈME PLACE..."
+            txt_1 = "LES GRANDS VAINQUEURS SONT..." if len(rank1) > 1 else "ET LE GRAND VAINQUEUR EST..."
 
             # --- INJECTION JS SCÉNARIO DYNAMIQUE ---
             components.html(f"""
@@ -1003,9 +1053,9 @@ else:
             </audio>
 
             <div class="podium-stage">
-                <div id="col-3" class="podium-item rank-3">{h3}</div>
-                <div id="col-2" class="podium-item rank-2">{h2}</div>
-                <div id="col-1" class="podium-item rank-1">{h1}</div>
+                <div id="row-1" class="rank-row reveal-state">{h1}</div>
+                <div id="row-2" class="rank-row reveal-state">{h2}</div>
+                <div id="row-3" class="rank-row reveal-state">{h3}</div>
             </div>
 
             <script>
@@ -1013,9 +1063,10 @@ else:
                 const layer = document.getElementById('intro-layer');
                 const txt = document.getElementById('intro-txt');
                 const num = document.getElementById('intro-num');
-                const c1 = document.getElementById('col-1');
-                const c2 = document.getElementById('col-2');
-                const c3 = document.getElementById('col-3');
+                
+                const r1 = document.getElementById('row-1');
+                const r2 = document.getElementById('row-2');
+                const r3 = document.getElementById('row-3');
                 const audio = document.getElementById('applause-sound');
 
                 function startConfetti() {{
@@ -1037,7 +1088,11 @@ else:
                     document.body.appendChild(script);
                 }}
 
-                async function countdown(seconds, message) {{
+                async function countdown(seconds, message, is_initial=false) {{
+                    // Gestion du fond
+                    if(is_initial) layer.style.backgroundColor = 'black';
+                    else layer.style.backgroundColor = 'rgba(0,0,0,0.6)'; // Semi-transparent pour voir les gagnants
+                    
                     layer.style.display = 'flex';
                     layer.style.opacity = '1';
                     txt.innerText = message;
@@ -1051,70 +1106,42 @@ else:
                 }}
 
                 async function runShow() {{
-                    // Intro Globale
-                    await countdown(6, "{txt_intro}");
+                    // Intro
+                    await countdown(6, "{txt_intro}", true);
                     
-                    // PHASE 1: 3eme (Intro -> Centre -> Gauche)
-                    await countdown(5, "{txt_3}");
-                    c3.className = 'podium-item rank-3 state-center'; 
-                    await wait(4000); 
-                    c3.className = 'podium-item rank-3 state-left';
-                    
-                    // PHASE 2: 2eme (Intro -> Centre -> Droite)
-                    await wait(1000);
-                    await countdown(5, "{txt_2}");
-                    c2.className = 'podium-item rank-2 state-center'; 
-                    await wait(4000); 
-                    c2.className = 'podium-item rank-2 state-right';
-                    
-                    // PHASE 3: 1er (Intro -> Centre Haut)
-                    await wait(1000);
-                    await countdown(7, "{txt_1}");
-                    c1.className = 'podium-item rank-1 state-final-1'; 
-                    await wait(2000);
+                    // Rank 3
+                    if (r3.innerHTML.trim() !== "") {{
+                        await countdown(5, "{txt_3}");
+                        r3.classList.add('reveal-visible'); // Apparition centre
+                        await wait(4000); // Pause
+                        r3.classList.remove('reveal-visible');
+                        r3.classList.add('final-state'); // Glisse en bas
+                    }}
 
-                    // PHASE 4: PYRAMIDE FINALE RESSERREE & SON
-                    c2.className = 'podium-item rank-2 state-final-2';
-                    c3.className = 'podium-item rank-3 state-final-3';
+                    // Rank 2
+                    if (r2.innerHTML.trim() !== "") {{
+                        await countdown(5, "{txt_2}");
+                        r2.classList.add('reveal-visible');
+                        await wait(4000);
+                        r2.classList.remove('reveal-visible');
+                        r2.classList.add('final-state');
+                    }}
+
+                    // Rank 1
+                    await countdown(7, "{txt_1}");
+                    r1.classList.add('reveal-visible');
+                    await wait(2000);
+                    // Le 1er reste en mode "visible" (centre) puis on ajuste tout le monde
+                    r1.classList.remove('reveal-visible');
+                    r1.classList.add('final-state');
                     
                     startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
+                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{}}
                 }}
 
                 window.parent.document.body.style.backgroundColor = "black";
                 runShow();
             </script>
-            <style>
-                .podium-stage {{ position: relative; width: 100vw; height: 100vh; overflow: hidden; background: black; }}
-                .podium-item {{ position: absolute; top: 100vh; width: 300px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }}
-                
-                /* ETATS INTERMEDIAIRES */
-                .state-center {{ top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.5); opacity: 1; z-index: 500; }}
-                .state-left {{ top: 60%; left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
-                .state-right {{ top: 60%; left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
-                
-                /* ETATS FINAUX PYRAMIDE COMPACTE (ANTI CHEVAUCHEMENT) */
-                /* 1er en haut, 2eme et 3eme en dessous et plus petits */
-                .state-final-1 {{ left: 50%; top: 15%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }}
-                .state-final-2 {{ left: 30%; top: 60%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
-                .state-final-3 {{ left: 70%; top: 60%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
-
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
-                .rank-2 .p-card {{ border-color: #C0C0C0; }}
-                .rank-3 .p-card {{ border-color: #CD7F32; }}
-
-                .p-img {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }}
-                .rank-1 .p-img {{ border-color: #FFD700; width: 160px; height: 160px; }}
-
-                .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 40px; }}
-                .p-score {{ font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }}
-                
-                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
-                .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
-                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
-            </style>
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
