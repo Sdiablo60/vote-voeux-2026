@@ -182,19 +182,29 @@ def delete_archived_session(folder_name):
     path = os.path.join(ARCHIVE_DIR, folder_name)
     if os.path.exists(path): shutil.rmtree(path)
 
-def reset_app_data(init_mode="blank"):
+# --- FONCTION DE RESET CORRIGÉE ---
+def reset_app_data(init_mode="blank", preserve_config=False):
+    # 1. Supprimer les fichiers de données
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
-    if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
+    
+    # 2. Supprimer les photos
     files = glob.glob(f"{LIVE_DIR}/*")
     for f in files: os.remove(f)
-    if init_mode == "blank":
-        st.session_state.config = copy.deepcopy(blank_config)
+
+    # 3. Gérer la configuration
+    if not preserve_config:
+        if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
+        
+        if init_mode == "blank":
+            st.session_state.config = copy.deepcopy(blank_config)
+        elif init_mode == "demo":
+            st.session_state.config = copy.deepcopy(default_config)
+        
         st.session_state.config["session_id"] = str(uuid.uuid4())
         save_config()
-    elif init_mode == "demo":
-        st.session_state.config = copy.deepcopy(default_config)
-        st.session_state.config["session_id"] = str(uuid.uuid4())
+    else:
+        # On force la sauvegarde de la config actuelle pour être sûr
         save_config()
 
 # --- TRAITEMENT IMAGES ---
@@ -303,7 +313,7 @@ def get_advanced_stats():
             
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V12 - OPTIMISÉ 1 PAGE) ---
+# --- GENERATEUR PDF AVANCÉ ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -338,7 +348,7 @@ if PDF_AVAILABLE:
     def draw_summary_box(pdf, nb_voters, nb_votes, total_points):
         pdf.set_fill_color(245, 245, 245)
         pdf.set_draw_color(200, 200, 200)
-        pdf.rect(10, pdf.get_y(), 190, 15, 'DF') # Hauteur réduite à 15
+        pdf.rect(10, pdf.get_y(), 190, 15, 'DF') 
         
         pdf.set_y(pdf.get_y() + 4)
         pdf.set_font("Arial", 'B', 10)
@@ -347,7 +357,7 @@ if PDF_AVAILABLE:
         pdf.cell(63, 8, f"TOTAL VOTANTS (UNIQUES): {nb_voters}", 0, 0, 'C')
         pdf.cell(63, 8, f"TOTAL VOTES: {nb_votes}", 0, 0, 'C')
         pdf.cell(63, 8, f"TOTAL POINTS DISTRIBUÉS: {total_points}", 0, 1, 'C')
-        pdf.ln(12) # Un peu d'espace après la boite
+        pdf.ln(12) 
 
     def create_pdf_results(title, df, nb_voters, total_points):
         pdf = PDFReport()
@@ -623,7 +633,12 @@ if est_admin:
                 st.button("📸 MUR PHOTOS LIVE", use_container_width=True, type="primary" if cfg["mode_affichage"]=="photos_live" else "secondary", on_click=set_state, args=("photos_live", False, False))
                 st.divider()
                 with st.expander("🚨 ZONE DE DANGER"):
-                    if st.button("🗑️ RESET DONNÉES (Session en cours)", type="primary"): reset_app_data(full_wipe=False); st.rerun()
+                    st.write("Attention : Cela efface tous les votes et les photos, mais garde votre configuration (Candidats, Titre, Logo).")
+                    if st.button("🗑️ RESET DONNÉES (Session en cours)", type="primary"): 
+                        reset_app_data(preserve_config=True)
+                        st.success("Données remises à zéro !")
+                        time.sleep(1)
+                        st.rerun()
 
             elif menu == "⚙️ CONFIG":
                 st.title("⚙️ CONFIGURATION")
@@ -767,7 +782,7 @@ if est_admin:
                         x=alt.X('Points'), 
                         y=alt.Y('Candidat', sort='-x'), 
                         tooltip=['Candidat', 'Points', 'Nb Votes']
-                    ).properties(height=350) # Removed interactive()
+                    ).properties(height=350) 
                     st.altair_chart(chart, use_container_width=True)
                 
                 with c_data:
