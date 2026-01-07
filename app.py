@@ -952,19 +952,25 @@ else:
         .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         
         /* ETATS FINAUX PYRAMIDE RESSERREE */
-        .state-final-1 { left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.4); opacity: 1; z-index: 200; }
+        .state-final-1 { left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.4); opacity: 1; z-index: 200; }
         .state-final-2 { left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }
         .state-final-3 { left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }
 
+        /* Modifications ici : meme style pour img et div de remplacement */
         .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
         
-        /* Couleurs bordures */
-        .rank-1 .p-card { border-color: #FFD700; box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); background: rgba(20,20,20,0.9); }
+        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); }
         .rank-2 .p-card { border-color: #C0C0C0; }
         .rank-3 .p-card { border-color: #CD7F32; }
 
-        .p-img { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }
-        .rank-1 .p-img { border-color: #FFD700; width: 160px; height: 160px; }
+        /* Style commun image et coupe */
+        .p-img, .p-placeholder { 
+            width: 140px; height: 140px; border-radius: 50%; 
+            object-fit: cover; border: 4px solid white; margin-bottom: 20px;
+            display: flex; justify-content: center; align-items: center; 
+        }
+        
+        .rank-1 .p-img, .rank-1 .p-placeholder { border-color: #FFD700; width: 160px; height: 160px; }
 
         .p-name { font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
         .rank-1 .p-name { color: #FFD700; font-size: 40px; }
@@ -992,8 +998,6 @@ else:
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
-            
-            # --- LOGIQUE CLASSEMENT (PODIUM) ---
             if not v_data: v_data = {"Personne": 0}
             sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
             
@@ -1010,8 +1014,13 @@ else:
                 if not cands: return ""
                 html = ""
                 for c in cands:
-                    img_src = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
-                    img_tag = f"<img src='{img_src}' class='p-img'>" if img_src else f"<div style='font-size:80px'>{emoji}</div>"
+                    if c in c_imgs:
+                        img_src = f"data:image/png;base64,{c_imgs[c]}"
+                        img_tag = f"<img src='{img_src}' class='p-img'>"
+                    else:
+                        # CREATION D'UN PLACEHOLDER IDENTIQUE A UNE PHOTO (CERCLE + BORDURE)
+                        img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:60px;'>{emoji}</div>"
+                    
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div><br>"
                 return html
 
@@ -1119,7 +1128,7 @@ else:
                 .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 
                 /* ETATS FINAUX PYRAMIDE COMPACTE */
-                .state-final-1 {{ left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.4); opacity: 1; z-index: 200; }}
+                .state-final-1 {{ left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.4); opacity: 1; z-index: 200; }}
                 .state-final-2 {{ left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }}
                 .state-final-3 {{ left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }}
 
@@ -1128,8 +1137,13 @@ else:
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
-                .p-img {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }}
-                .rank-1 .p-img {{ border-color: #FFD700; width: 160px; height: 160px; }}
+                /* Style unifié pour photo et placeholder (coupe) */
+                .p-img, .p-placeholder {{ 
+                    width: 140px; height: 140px; border-radius: 50%; 
+                    object-fit: cover; border: 4px solid white; margin-bottom: 20px; 
+                    display:flex; justify-content:center; align-items:center;
+                }}
+                .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 160px; height: 160px; }}
 
                 .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
                 .rank-1 .p-name {{ color: #FFD700; font-size: 40px; }}
