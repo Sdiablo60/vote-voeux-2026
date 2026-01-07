@@ -1002,13 +1002,16 @@ else:
             
             /* LE ROBOT 3D (CSS PURE) */
             .bot-container {{
-                position: fixed; bottom: 5%; right: 5%; 
-                display: flex; flex-direction: column; align-items: center;
-                animation: float 4s ease-in-out infinite;
+                position: fixed; 
+                /* Animation de déplacement sur tout l'écran */
+                animation: wander 20s infinite linear;
                 z-index: 9999;
             }}
+            
             .robot {{
                 width: 120px; height: 140px; position: relative;
+                transform-origin: center center;
+                animation: float 3s ease-in-out infinite;
             }}
             .head {{
                 width: 80px; height: 50px; background: linear-gradient(135deg, #ddd, #fff);
@@ -1030,27 +1033,40 @@ else:
                 width: 10px; height: 10px; background: #E2001A; border-radius: 50%; 
                 position: absolute; top: -10px; left: -3px;
                 box-shadow: 0 0 8px #E2001A;
+                animation: glow 1s infinite alternate;
             }}
             .body {{
                 width: 100px; height: 70px; background: linear-gradient(135deg, #ccc, #eee);
                 border-radius: 20px; position: absolute; top: 55px; left: 10px;
                 box-shadow: 0 10px 20px rgba(0,0,0,0.5);
                 display: flex; justify-content: center; align-items: center;
+                font-weight: bold; font-family: monospace; font-size: 14px; color: #555;
             }}
-            .arms {{
-                width: 120px; height: 20px; background: #333; border-radius: 10px;
-                position: absolute; top: 70px; left: 0; z-index: -1;
+            .arm-left, .arm-right {{
+                width: 30px; height: 80px; background: #333; border-radius: 10px;
+                position: absolute; top: 60px;
             }}
+            .arm-left {{ left: -10px; transform-origin: top center; animation: wave 1s infinite ease-in-out; }}
+            .arm-right {{ right: -10px; }}
             
+            /* Shadow underneath */
+            .shadow {{
+                width: 80px; height: 20px; background: rgba(0,0,0,0.5); border-radius: 50%;
+                position: absolute; bottom: -20px; left: 20px; filter: blur(5px);
+                animation: shadow-scale 3s ease-in-out infinite;
+            }}
+
             /* LA BULLE BD */
             .bubble {{
-                position: relative; background: #fff; border-radius: .4em;
-                padding: 15px; font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
-                font-size: 18px; text-align: center; color: #333;
-                width: 250px; margin-bottom: 20px;
+                position: absolute; top: -100px; left: -60px;
+                background: #fff; border-radius: .4em;
+                padding: 10px; font-family: 'Comic Sans MS', sans-serif;
+                font-size: 16px; text-align: center; color: #333;
+                width: 240px;
                 border: 3px solid #333;
-                box-shadow: 5px 5px 0px #333;
+                box-shadow: 5px 5px 0px rgba(0,0,0,0.3);
                 opacity: 0; transition: opacity 0.5s;
+                pointer-events: none;
             }}
             .bubble:after {{
                 content: ''; position: absolute; bottom: 0; left: 50%; width: 0; height: 0;
@@ -1059,8 +1075,21 @@ else:
                 margin-left: -7px; margin-bottom: -15px;
             }}
 
-            @keyframes float {{ 0%, 100% {{ transform: translateY(0); }} 50% {{ transform: translateY(-15px); }} }}
-            @keyframes blink {{ 0%, 96%, 100% {{ transform: scaleY(1); }} 98% {{ transform: scaleY(0.1); }} }}
+            /* ANIMATIONS */
+            @keyframes wander {
+                0% { left: 10%; top: 10%; transform: scaleX(1); }
+                25% { left: 80%; top: 20%; transform: scaleX(1); }
+                26% { left: 80%; top: 20%; transform: scaleX(-1); } /* Flip */
+                50% { left: 70%; top: 80%; transform: scaleX(-1); }
+                51% { left: 70%; top: 80%; transform: scaleX(1); } /* Flip back */
+                75% { left: 10%; top: 70%; transform: scaleX(1); }
+                100% { left: 10%; top: 10%; transform: scaleX(1); }
+            }
+            @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+            @keyframes shadow-scale { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(0.8); opacity: 0.3; } }
+            @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
+            @keyframes wave { 0% { transform: rotate(0deg); } 50% { transform: rotate(30deg); } 100% { transform: rotate(0deg); } }
+            @keyframes glow { from { box-shadow: 0 0 5px #E2001A; } to { box-shadow: 0 0 20px #E2001A, 0 0 10px yellow; } }
         </style>
         
         <div class="center-content">
@@ -1071,46 +1100,43 @@ else:
         <div class="bot-container">
             <div class="bubble" id="bot-msg">Bonjour !</div>
             <div class="robot">
+                <div class="antenna"><div class="ball"></div></div>
                 <div class="head">
-                    <div class="antenna"><div class="ball"></div></div>
                     <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
                 </div>
-                <div class="arms"></div>
-                <div class="body" style="font-size:10px; color:#555;">2026</div>
+                <div class="body">CLAP-E</div>
+                <div class="arm-left"></div>
+                <div class="arm-right"></div>
+                <div class="shadow"></div>
             </div>
         </div>
 
         <script>
             const messages = [
-                "Bienvenue à toutes et à tous !",
-                "Installez-vous confortablement 🛋️",
+                "Salut ! Moi c'est Clap-E !",
+                "Je suis le gardien des votes 🛡️",
                 "Préparez vos smartphones 📱",
-                "Qui sera le grand gagnant ? 🏆",
-                "Ça va commencer dans un instant ⏳",
-                "N'oubliez pas de sourire pour les photos 📸",
-                "Pensez à scanner le QR Code tout à l'heure !",
-                "Ambiance garantie aujourd'hui ! 🎉"
+                "Qui va gagner le trophée ? 🏆",
+                "Ça va être un grand moment de cinéma !",
+                "N'oubliez pas les selfies ! 📸",
+                "Installez-vous, ça va commencer...",
+                "J'adore regarder vos vidéos 🎬",
+                "Ambiance de folie aujourd'hui ! 🎉"
             ];
             const bubble = document.getElementById('bot-msg');
             let idx = 0;
             
             function cycle() {{
-                // Fade out
                 bubble.style.opacity = 0;
-                
                 setTimeout(() => {{
-                    // Change text
                     bubble.innerText = messages[idx];
-                    // Fade in
                     bubble.style.opacity = 1;
                     idx = (idx + 1) % messages.length;
-                }}, 500); // Attendre la fin du fade out
+                }}, 500); 
             }}
             
-            // Premier appel immédiat
-            setTimeout(cycle, 1000);
-            // Cycle toutes les 7 secondes
-            setInterval(cycle, 7000);
+            setInterval(cycle, 7000); // Change message every 7 seconds
+            cycle();
         </script>
         """, height=900)
 
@@ -1447,7 +1473,7 @@ else:
                 requestAnimationFrame(animate);
             }}
             animate();
-        </script>""", height=900)
+        </script>""", height=0)
 
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
