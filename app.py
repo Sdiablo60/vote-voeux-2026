@@ -37,10 +37,18 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS COMMUN (BOUTONS & LOGIN) ---
-# NOTE: Ici on ne met PAS de fond noir global pour ne pas impacter l'admin
+# --- CSS COMMUN (BOUTONS & LOGIN & FOND) ---
 st.markdown("""
 <style>
+    /* 1. FOND GLOBAL (S'applique à tout le monde par défaut) */
+    .stApp {
+        background-color: #f0f2f6; /* Gris clair pour l'admin par défaut */
+    }
+    
+    /* 2. STYLE SPECIFIQUE POUR LE MODE TV/VOTE (NOIR) */
+    /* On injecte une div avec ID spécial dans les pages TV pour forcer le noir via CSS ciblé si besoin, 
+       mais ici on va gérer le fond noir directement dans les if/else du code Python pour plus de sûreté. */
+
     /* Boutons Généraux */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
@@ -49,11 +57,10 @@ st.markdown("""
     /* Login Box */
     .login-container {
         max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f0f2f6; border-radius: 20px;
+        background: #ffffff; border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
     }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
-    .stTextInput input { text-align: center; font-size: 18px; }
     
     /* Sidebar */
     section[data-testid="stSidebar"] button[kind="primary"] {
@@ -63,7 +70,7 @@ st.markdown("""
         background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
     }
     
-    /* STYLE DES BOUTONS D'EXPORT BLEUS ANIMÉS */
+    /* STYLE DES BOUTONS D'EXPORT */
     .blue-anim-btn button {
         background-color: #2980b9 !important;
         color: white !important;
@@ -76,7 +83,7 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
         background-color: #3498db !important;
     }
-
+    
     /* Liens externes */
     .custom-link-btn {
         display: block; text-align: center; padding: 12px; border-radius: 8px;
@@ -183,7 +190,7 @@ def delete_archived_session(folder_name):
     path = os.path.join(ARCHIVE_DIR, folder_name)
     if os.path.exists(path): shutil.rmtree(path)
 
-# --- FONCTION DE RESET CORRIGÉE ---
+# --- FONCTION DE RESET ---
 def reset_app_data(init_mode="blank", preserve_config=False):
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
@@ -289,7 +296,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V12) ---
+# --- GENERATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -907,67 +914,73 @@ else:
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
         
-        /* PODIUM STYLES (FLEX ROWS CENTRÉES) */
-        .podium-container {
+        /* PODIUM STYLES (FLEX ROWS INVISIBLES & CENTRÉS) */
+        .podium-wrapper {
+            position: fixed;
+            top: 12vh;
+            left: 0;
+            width: 100vw;
+            height: 88vh;
+            background: black;
             display: flex;
             flex-direction: column;
-            justify-content: flex-end; /* Alignement bas */
+            justify-content: space-between; /* Espacement vertical entre les rangs */
             align-items: center;
-            height: 100vh;
-            width: 100vw;
-            background: black;
-            position: fixed;
-            top: 0; left: 0;
-            z-index: 50;
             padding-bottom: 20px;
+            box-sizing: border-box;
+            z-index: 10;
         }
-        
-        /* Chaque rangée prend toute la largeur et centre son contenu */
+
+        /* Chaque rangée est centrée horizontalement */
         .rank-row {
             display: flex;
             flex-direction: row;
-            justify-content: center !important; /* CRUCIAL: Centre horizontalement */
+            justify-content: center; /* CENTRE HORIZONTALEMENT */
             align-items: center;
-            width: 100% !important;
-            transition: opacity 1s ease-in-out, transform 1s ease-in-out;
-            opacity: 0; 
-            transform: translateY(20px);
+            width: 100%;
+            opacity: 0; /* Caché au début */
+            transform: translateY(30px); /* Légèrement décalé vers le bas */
+            transition: all 1s ease-out; /* Animation fluide */
         }
-        
-        /* Animation classes */
-        .visible { opacity: 1 !important; transform: translateY(0) !important; }
-        
-        /* Ordre Pyramide Visuelle */
-        #row-1 { order: 1; margin-bottom: 30px; } /* Vainqueur en haut */
-        #row-2 { order: 2; margin-bottom: 20px; } /* 2ème au milieu */
-        #row-3 { order: 3; margin-bottom: 0; }    /* 3ème en bas */
-        
-        /* Cards */
+
+        /* Classe active ajoutée par JS pour afficher */
+        .visible {
+            opacity: 1 !important;
+            transform: translateY(0) !important;
+        }
+
+        /* Dimensionnement des rangées */
+        #row-1 { flex: 2; align-items: flex-end; margin-bottom: 20px; } /* Vainqueur (plus grand) */
+        #row-2 { flex: 1; align-items: center; margin-bottom: 10px; } /* 2ème */
+        #row-3 { flex: 1; align-items: flex-start; } /* 3ème */
+
+        /* Cartes individuelles */
         .p-card { 
             background: rgba(255,255,255,0.1); 
             border-radius: 20px; 
-            padding: 20px; 
-            margin: 0 10px;
+            padding: 15px; 
+            margin: 0 15px; /* Espace entre les ex-aequo */
             text-align: center; 
             backdrop-filter: blur(10px); 
             box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
             border: 3px solid rgba(255,255,255,0.2); 
             display: flex; 
             flex-direction: column; 
-            align-items: center; 
+            align-items: center;
+            min-width: 200px;
         }
 
-        /* Specific Styles */
-        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.4); }
-        .rank-2 .p-card { border-color: #C0C0C0; }
-        .rank-3 .p-card { border-color: #CD7F32; }
+        /* Styles spécifiques par rang */
+        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); transform: scale(1.1); }
+        .rank-2 .p-card { border-color: #C0C0C0; transform: scale(0.95); }
+        .rank-3 .p-card { border-color: #CD7F32; transform: scale(0.9); }
 
-        .p-img { border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 15px; }
-        .rank-1 .p-img { border-color: #FFD700; }
+        .p-img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; }
+        .rank-1 .p-img { width: 140px; height: 140px; border-color: #FFD700; }
 
-        .p-name { font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
-        .rank-1 .p-name { color: #FFD700; }
-        .p-score { font-family: Arial; color: #ccc; margin-top: 5px; }
+        .p-name { font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; font-size: 20px; }
+        .rank-1 .p-name { color: #FFD700; font-size: 30px; }
+        .p-score { font-family: Arial; color: #ccc; margin-top: 5px; font-size: 16px; }
 
         /* Intro Overlay */
         .intro-overlay { 
@@ -978,7 +991,6 @@ else:
         }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
         .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
-
     </style>
     """, unsafe_allow_html=True)
     
@@ -1010,57 +1022,112 @@ else:
             rank2 = [c for c, s in v_data.items() if s == s2]
             rank3 = [c for c, s in v_data.items() if s == s3]
             
-            # --- HTML Generator with Scaling ---
+            # --- HTML Generator ---
             def get_row_html(cands, score, emoji, rank_class):
                 if not cands: return ""
-                count = len(cands)
-                scale = 1.0
-                if count >= 3: scale = 0.8
-                if count >= 5: scale = 0.6
-                
-                # Base sizes
-                card_w = 280
-                img_s = 120
-                font_n = 24
-                
-                # Boost for Rank 1
-                if "rank-1" in rank_class:
-                    card_w = 350
-                    img_s = 160
-                    font_n = 36
-                
-                # Apply scale
-                card_w = int(card_w * scale)
-                img_s = int(img_s * scale)
-                font_n = int(font_n * scale)
-                font_s = int(18 * scale)
-
                 html = ""
                 for c in cands:
                     img_src = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
-                    img_tag = f"<img src='{img_src}' class='p-img' style='width:{img_s}px;height:{img_s}px;'>" if img_src else f"<div style='font-size:{img_s}px'>{emoji}</div>"
+                    img_tag = f"<img src='{img_src}' class='p-img'>" if img_src else f"<div style='font-size:60px'>{emoji}</div>"
                     
                     html += f"""
-                    <div class='{rank_class}'>
-                        <div class='p-card' style='width:{card_w}px;'>
-                            {img_tag}
-                            <div class='p-name' style='font-size:{font_n}px;'>{c}</div>
-                            <div class='p-score' style='font-size:{font_s}px;'>{score} pts</div>
-                        </div>
+                    <div class='p-card'>
+                        {img_tag}
+                        <div class='p-name'>{c}</div>
+                        <div class='p-score'>{score} pts</div>
                     </div>
                     """
-                return html
+                return f"<div class='rank-row {rank_class}' id='{rank_class.replace('rank','row')}'>{html}</div>"
 
-            h1 = get_row_html(rank1, s1, "🥇", "rank-1")
-            h2 = get_row_html(rank2, s2, "🥈", "rank-2")
-            h3 = get_row_html(rank3, s3, "🥉", "rank-3")
+            # Construction des blocs HTML
+            html_r1 = get_row_html(rank1, s1, "🥇", "rank-1")
+            html_r2 = get_row_html(rank2, s2, "🥈", "rank-2")
+            html_r3 = get_row_html(rank3, s3, "🥉", "rank-3")
             
-            # Texts
+            # Textes Adaptatifs
             txt_intro = "NOUS ALLONS DÉCOUVRIR MAINTENANT LES FINALISTES DE CE CONCOURS"
             txt_3 = "ILS SONT PLUSIEURS À LA 3ÈME PLACE !" if len(rank3) > 1 else "À LA TROISIÈME PLACE..."
             txt_2 = "EX-AEQUO À LA DEUXIÈME PLACE !" if len(rank2) > 1 else "À LA DEUXIÈME PLACE..."
             txt_1 = "LES GRANDS VAINQUEURS SONT..." if len(rank1) > 1 else "ET LE GRAND VAINQUEUR EST..."
 
+            # --- SCRIPT D'ANIMATION FIABLE ---
+            js_script = f"""
+            <script>
+                window.onload = function() {{
+                    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+                    const layer = document.getElementById('intro-layer');
+                    const txt = document.getElementById('intro-txt');
+                    const num = document.getElementById('intro-num');
+                    
+                    const r1 = document.getElementById('row-1');
+                    const r2 = document.getElementById('row-2');
+                    const r3 = document.getElementById('row-3');
+                    const audio = document.getElementById('applause-sound');
+
+                    function startConfetti() {{
+                        var script = document.createElement('script');
+                        script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
+                        script.onload = () => {{
+                            var duration = 15 * 1000;
+                            var animationEnd = Date.now() + duration;
+                            var defaults = {{ startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }};
+                            var interval = setInterval(function() {{
+                                var timeLeft = animationEnd - Date.now();
+                                if (timeLeft <= 0) {{ return clearInterval(interval); }}
+                                confetti(Object.assign({{}}, defaults, {{ particleCount: 50, origin: {{ x: Math.random(), y: Math.random() - 0.2 }} }}));
+                            }}, 250);
+                        }};
+                        document.body.appendChild(script);
+                    }}
+
+                    async function countdown(seconds, message, is_initial=false) {{
+                        if(is_initial) layer.style.backgroundColor = 'black';
+                        else layer.style.backgroundColor = 'rgba(0,0,0,0.8)';
+                        
+                        layer.style.opacity = '1';
+                        txt.innerText = message;
+                        for(let i=seconds; i>0; i--) {{
+                            num.innerText = i;
+                            await wait(1000);
+                        }}
+                        layer.style.opacity = '0';
+                        await wait(500); 
+                    }}
+
+                    async function runShow() {{
+                        // Intro
+                        await countdown(6, "{txt_intro}", true);
+
+                        // Reveal 3rd
+                        if (r3 && r3.innerHTML.trim() !== "") {{
+                            await countdown(4, "{txt_3}");
+                            r3.classList.add('visible');
+                            await wait(3000);
+                        }}
+
+                        // Reveal 2nd
+                        if (r2 && r2.innerHTML.trim() !== "") {{
+                            await countdown(4, "{txt_2}");
+                            r2.classList.add('visible');
+                            await wait(3000);
+                        }}
+
+                        // Reveal 1st
+                        if (r1) {{
+                            await countdown(6, "{txt_1}");
+                            r1.classList.add('visible');
+                        }}
+                        
+                        // Final Celebration
+                        startConfetti();
+                        try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio block"); }}
+                    }}
+
+                    runShow();
+                }};
+            </script>
+            """
+            
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
@@ -1071,87 +1138,50 @@ else:
                 <source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg">
             </audio>
 
-            <div class="podium-container">
-                <div id="row-1" class="rank-row">{h1}</div>
-                <div id="row-2" class="rank-row">{h2}</div>
-                <div id="row-3" class="rank-row">{h3}</div>
+            <div class="podium-wrapper">
+                {html_r1}
+                {html_r2}
+                {html_r3}
             </div>
 
-            <script>
-                const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                const layer = document.getElementById('intro-layer');
-                const txt = document.getElementById('intro-txt');
-                const num = document.getElementById('intro-num');
-                const r1 = document.getElementById('row-1');
-                const r2 = document.getElementById('row-2');
-                const r3 = document.getElementById('row-3');
-                const audio = document.getElementById('applause-sound');
-
-                function startConfetti() {{
-                    var script = document.createElement('script');
-                    script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
-                    script.onload = () => {{
-                        var duration = 15 * 1000;
-                        var animationEnd = Date.now() + duration;
-                        var defaults = {{ startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }};
-                        var interval = setInterval(function() {{
-                            var timeLeft = animationEnd - Date.now();
-                            if (timeLeft <= 0) {{ return clearInterval(interval); }}
-                            confetti(Object.assign({{}}, defaults, {{ particleCount: 50, origin: {{ x: Math.random(), y: Math.random() - 0.2 }} }}));
-                        }}, 250);
-                    }};
-                    document.body.appendChild(script);
+            {js_script}
+            
+            <style>
+                body {{ margin: 0; overflow: hidden; background: transparent; }}
+                /* CSS DU PODIUM DEJA INJECTÉ DANS LE HEAD DE LA PAGE, MAIS REDEFINI ICI POUR LE COMPOSANT */
+                .podium-wrapper {{
+                    display: flex; flex-direction: column; justify-content: center; align-items: center;
+                    width: 100vw; height: 100vh; background: black;
                 }}
-
-                async function countdown(seconds, message, is_initial=false) {{
-                    if(is_initial) layer.style.backgroundColor = 'black';
-                    else layer.style.backgroundColor = 'rgba(0,0,0,0.85)'; // Dark overlay for text
-                    
-                    layer.style.opacity = '1';
-                    txt.innerText = message;
-                    for(let i=seconds; i>0; i--) {{
-                        num.innerText = i;
-                        await wait(1000);
-                    }}
-                    layer.style.opacity = '0';
-                    await wait(500); 
-                    layer.style.display = 'none';
+                .rank-row {{
+                    display: flex; flex-direction: row; justify-content: center; align-items: center;
+                    width: 100%; opacity: 0; transform: translateY(30px); transition: all 1s ease-out;
                 }}
+                .visible {{ opacity: 1 !important; transform: translateY(0) !important; }}
+                
+                #row-1 {{ order: 1; margin-bottom: 40px; }}
+                #row-2 {{ order: 2; margin-bottom: 20px; }}
+                #row-3 {{ order: 3; margin-bottom: 0; }}
 
-                async function runShow() {{
-                    // Intro
-                    await countdown(6, "{txt_intro}", true);
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 15px; margin: 0 15px; text-align: center; border: 3px solid rgba(255,255,255,0.2); min-width: 180px; display:flex; flex-direction:column; align-items:center; }}
+                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); transform: scale(1.2); }}
+                .rank-2 .p-card {{ border-color: #C0C0C0; transform: scale(1.0); }}
+                .rank-3 .p-card {{ border-color: #CD7F32; transform: scale(0.9); }}
+                
+                .p-img {{ width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; }}
+                .rank-1 .p-img {{ width: 140px; height: 140px; border-color: #FFD700; }}
+                
+                .p-name {{ font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; font-size: 20px; }}
+                .p-score {{ font-family: Arial; color: #ccc; margin-top: 5px; font-size: 16px; }}
 
-                    // Reveal 3rd
-                    if (r3.innerHTML.trim() !== "") {{
-                        await countdown(4, "{txt_3}");
-                        r3.classList.add('visible');
-                        await wait(3000);
-                    }}
-
-                    // Reveal 2nd
-                    if (r2.innerHTML.trim() !== "") {{
-                        await countdown(4, "{txt_2}");
-                        r2.classList.add('visible');
-                        await wait(3000);
-                    }}
-
-                    // Reveal 1st
-                    await countdown(6, "{txt_1}");
-                    r1.classList.add('visible');
-                    
-                    // Final Celebration
-                    startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{}}
-                }}
-
-                window.parent.document.body.style.backgroundColor = "black";
-                runShow();
-            </script>
+                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
+                .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
+                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 120px; font-weight: 900; margin-top: 20px; }}
+            </style>
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
-             # ... (Standard Voting Code - unchanged)
+            # ... (Code existant pour session ouverte)
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
