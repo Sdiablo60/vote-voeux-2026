@@ -787,7 +787,7 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("""
         <style>
-            .stApp {background-color:black; color:white;} 
+            .stApp {background-color:black !important; color:white;} 
             [data-testid='stHeader'] {display:none;}
             .block-container {padding: 1rem !important;}
         </style>
@@ -1132,23 +1132,22 @@ else:
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
-            # --- 1. CHARGEMENT PARTICIPANTS ---
+            # --- 1. LOAD PARTICIPANTS ---
             participants = load_json(PARTICIPANTS_FILE, [])
             nb_total = len(participants)
-            last_24 = participants[-24:][::-1] # Derniers 24 inversés
             
-            # --- 2. HTML TAGS ---
-            tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
-            
-            # --- 3. AFFICHAGE COMPTEUR + TAGS ---
+            # --- 2. TAGS ---
+            if nb_total > 0:
+                last_24 = participants[-24:][::-1] 
+                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
+            else:
+                tags_html = "<span style='color:grey;'>En attente...</span>"
+
+            # --- 3. AFFICHAGE DU COMPTEUR ---
             st.markdown(f"""
-            <div style="margin-top:13vh; text-align:center; width:100%; margin-bottom:20px;">
-                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
-                    👥 {nb_total} PARTICIPANTS EN LICE
-                </div>
-                <div style="width:90%; margin:0 auto; line-height:1.5;">
-                    {tags_html}
-                </div>
+            <div style="margin-top:15vh; margin-bottom:20px; text-align:center;">
+                <h2 style='color:#E2001A; margin:0;'>👥 {nb_total} PARTICIPANTS CONNECTÉS</h2>
+                <div style="width:90%; margin:10px auto;">{tags_html}</div>
             </div>
             """, unsafe_allow_html=True)
             
@@ -1187,7 +1186,7 @@ else:
                     justify-content: space-between;
                     align-items: flex-start; /* Aligne tout en haut */
                     width: 100vw;
-                    height: 60vh;
+                    height: 85vh;
                     padding: 0 20px;
                     box-sizing: border-box;
                 }
