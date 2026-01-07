@@ -952,7 +952,7 @@ else:
         .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         
         /* ETATS FINAUX PYRAMIDE RESSERREE */
-        .state-final-1 { left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.4); opacity: 1; z-index: 200; }
+        .state-final-1 { left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.25); opacity: 1; z-index: 200; }
         .state-final-2 { left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }
         .state-final-3 { left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }
 
@@ -978,7 +978,7 @@ else:
         
         .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
+        .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
     </style>
     """, unsafe_allow_html=True)
     
@@ -992,7 +992,43 @@ else:
     
     if mode == "attente":
         logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-        ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
+        
+        # INJECTION DU BOT DE BIENVENUE DANS UN COMPOSANT HTML POUR L'ANIMATION JS
+        components.html(f"""
+        <style>
+            body {{ background-color: black; margin: 0; overflow: hidden; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }}
+            .center-content {{ text-align: center; }}
+            .welcome-title {{ color: white; font-size: 100px; margin: 30px 0 0 0; font-weight: bold; }}
+            #welcome-bot {{ position: fixed; bottom: 50px; width: 100%; text-align: center; color: #E2001A; font-size: 35px; font-weight: bold; opacity: 0; transition: opacity 1s; }}
+        </style>
+        <div class="center-content">
+            {logo_html}
+            <div class="welcome-title">BIENVENUE</div>
+        </div>
+        <div id="welcome-bot"></div>
+        <script>
+            const messages = [
+                "Bienvenue à toutes et à tous !",
+                "Installez-vous confortablement.",
+                "La cérémonie va bientôt commencer.",
+                "Préparez vos smartphones pour le vote interactif !",
+                "Qui remportera le trophée 2026 ?",
+                "Merci d'être avec nous aujourd'hui.",
+                "N'oubliez pas de sourire pour les photos !",
+                "Un moment de partage et de convivialité."
+            ];
+            const bot = document.getElementById('welcome-bot');
+            let idx = 0;
+            function cycle() {{
+                bot.innerHTML = "🤖 " + messages[idx];
+                bot.style.opacity = 1;
+                setTimeout(() => {{ bot.style.opacity = 0; }}, 4000);
+                idx = (idx + 1) % messages.length;
+            }}
+            setInterval(cycle, 5000);
+            cycle();
+        </script>
+        """, height=900)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
@@ -1018,7 +1054,6 @@ else:
                         img_src = f"data:image/png;base64,{c_imgs[c]}"
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
-                        # CREATION D'UN PLACEHOLDER IDENTIQUE A UNE PHOTO (CERCLE + BORDURE)
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:60px;'>{emoji}</div>"
                     
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div><br>"
@@ -1128,21 +1163,24 @@ else:
                 .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 
                 /* ETATS FINAUX PYRAMIDE COMPACTE */
-                .state-final-1 {{ left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.4); opacity: 1; z-index: 200; }}
+                .state-final-1 {{ left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.25); opacity: 1; z-index: 200; }}
                 .state-final-2 {{ left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }}
                 .state-final-3 {{ left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }}
 
+                /* Modifications ici : meme style pour img et div de remplacement */
                 .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
+                
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
-                /* Style unifié pour photo et placeholder (coupe) */
+                /* Style commun image et coupe */
                 .p-img, .p-placeholder {{ 
                     width: 140px; height: 140px; border-radius: 50%; 
                     object-fit: cover; border: 4px solid white; margin-bottom: 20px; 
-                    display:flex; justify-content:center; align-items:center;
+                    display: flex; justify-content: center; align-items: center; 
                 }}
+                
                 .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 160px; height: 160px; }}
 
                 .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
@@ -1325,7 +1363,7 @@ else:
                 requestAnimationFrame(animate);
             }}
             animate();
-        </script>""", height=0)
+        </script>""", height=900)
 
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
