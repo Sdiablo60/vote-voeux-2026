@@ -40,20 +40,15 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # --- CSS COMMUN (BOUTONS & LOGIN & FOND) ---
 st.markdown("""
 <style>
-    /* 1. FOND BLANC POUR L'ADMIN (Force le blanc partout sauf sur TV) */
+    /* 1. FOND GLOBAL (S'applique à tout le monde par défaut) */
     .stApp {
-        background-color: #FFFFFF !important;
+        background-color: #f0f2f6; /* Gris clair pour l'admin par défaut */
     }
     
-    /* 2. STOP SCROLLING ULTIME (Global) */
-    html, body, [data-testid="stAppViewContainer"] {
-        overflow: hidden !important; /* Bloque le scroll */
-        height: 100vh !important;
-        width: 100vw !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
+    /* 2. STYLE SPECIFIQUE POUR LE MODE TV/VOTE (NOIR) */
+    /* On injecte une div avec ID spécial dans les pages TV pour forcer le noir via CSS ciblé si besoin, 
+       mais ici on va gérer le fond noir directement dans les if/else du code Python pour plus de sûreté. */
+
     /* Boutons Généraux */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
@@ -62,13 +57,12 @@ st.markdown("""
     /* Login Box */
     .login-container {
         max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f8f9fa; border-radius: 20px;
+        background: #ffffff; border-radius: 20px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
     }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
     
     /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
     section[data-testid="stSidebar"] button[kind="primary"] {
         background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
     }
@@ -302,7 +296,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V12) ---
+# --- GENERATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -920,30 +914,29 @@ else:
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
         
-        /* PODIUM STYLES (FLEX ROWS CENTRÉES) */
+        /* PODIUM STYLES (FLEX ROWS INVISIBLES & CENTRÉS) */
         .podium-wrapper {
             position: fixed;
             top: 12vh;
             left: 0;
             width: 100vw;
-            height: 88vh; /* Prend le reste de l'écran sous le header */
+            height: 88vh;
             background: black;
             display: flex;
-            flex-direction: column; /* Empilement vertical */
-            justify-content: flex-end; /* On commence par le bas pour l'empilement visuel */
+            flex-direction: column;
+            justify-content: space-between; /* Espacement vertical entre les rangs */
             align-items: center;
-            padding-bottom: 10px; /* Marge de sécurité pour le scroll */
-            box-sizing: border-box; /* Important pour inclure le padding dans la hauteur */
+            padding-bottom: 20px;
+            box-sizing: border-box;
             z-index: 10;
-            overflow: hidden; /* Coupe tout ce qui dépasse */
         }
 
         /* Chaque rangée est centrée horizontalement */
         .rank-row {
             display: flex;
             flex-direction: row;
-            justify-content: center !important; /* CENTRE HORIZONTALEMENT */
-            align-items: flex-end; /* Alignement bas des cartes */
+            justify-content: center; /* CENTRE HORIZONTALEMENT */
+            align-items: center;
             width: 100%;
             opacity: 0; /* Caché au début */
             transform: translateY(30px); /* Légèrement décalé vers le bas */
@@ -957,16 +950,16 @@ else:
         }
 
         /* Dimensionnement des rangées */
-        #row-1 { margin-bottom: 20px; z-index: 30; } /* Vainqueur (plus grand) */
-        #row-2 { margin-bottom: 10px; z-index: 20; } /* 2ème */
-        #row-3 { margin-bottom: 0px; z-index: 10; } /* 3ème */
+        #row-1 { flex: 2; align-items: flex-end; margin-bottom: 20px; } /* Vainqueur (plus grand) */
+        #row-2 { flex: 1; align-items: center; margin-bottom: 10px; } /* 2ème */
+        #row-3 { flex: 1; align-items: flex-start; } /* 3ème */
 
         /* Cartes individuelles */
         .p-card { 
             background: rgba(255,255,255,0.1); 
             border-radius: 20px; 
-            padding: 10px; 
-            margin: 0 10px; /* Espace entre les ex-aequo */
+            padding: 15px; 
+            margin: 0 15px; /* Espace entre les ex-aequo */
             text-align: center; 
             backdrop-filter: blur(10px); 
             box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
@@ -974,19 +967,19 @@ else:
             display: flex; 
             flex-direction: column; 
             align-items: center;
-            min-width: 180px;
+            min-width: 200px;
         }
 
         /* Styles spécifiques par rang */
         .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); transform: scale(1.1); }
-        .rank-2 .p-card { border-color: #C0C0C0; transform: scale(0.9); }
-        .rank-3 .p-card { border-color: #CD7F32; transform: scale(0.85); }
+        .rank-2 .p-card { border-color: #C0C0C0; transform: scale(0.95); }
+        .rank-3 .p-card { border-color: #CD7F32; transform: scale(0.9); }
 
-        .p-img { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; }
-        .rank-1 .p-img { width: 130px; height: 130px; border-color: #FFD700; }
+        .p-img { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; }
+        .rank-1 .p-img { width: 140px; height: 140px; border-color: #FFD700; }
 
-        .p-name { font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; font-size: 18px; }
-        .rank-1 .p-name { color: #FFD700; font-size: 28px; }
+        .p-name { font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; font-size: 20px; }
+        .rank-1 .p-name { color: #FFD700; font-size: 30px; }
         .p-score { font-family: Arial; color: #ccc; margin-top: 5px; font-size: 16px; }
 
         /* Intro Overlay */
@@ -1032,24 +1025,13 @@ else:
             # --- HTML Generator ---
             def get_row_html(cands, score, emoji, rank_class):
                 if not cands: return ""
-                
-                # Check for multiple winners to adjust sizing
-                count = len(cands)
-                scale = 1.0
-                if count >= 3: scale = 0.8
-                if count >= 5: scale = 0.6
-                
-                # Inline styles for flexibility
-                width_px = int(280 * scale)
-                if "rank-1" in rank_class: width_px = int(350 * scale)
-
                 html = ""
                 for c in cands:
                     img_src = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
                     img_tag = f"<img src='{img_src}' class='p-img'>" if img_src else f"<div style='font-size:60px'>{emoji}</div>"
                     
                     html += f"""
-                    <div class='p-card' style='width:{width_px}px;'>
+                    <div class='p-card'>
                         {img_tag}
                         <div class='p-name'>{c}</div>
                         <div class='p-score'>{score} pts</div>
@@ -1163,10 +1145,43 @@ else:
             </div>
 
             {js_script}
+            
+            <style>
+                body {{ margin: 0; overflow: hidden; background: transparent; }}
+                /* CSS DU PODIUM DEJA INJECTÉ DANS LE HEAD DE LA PAGE, MAIS REDEFINI ICI POUR LE COMPOSANT */
+                .podium-wrapper {{
+                    display: flex; flex-direction: column; justify-content: center; align-items: center;
+                    width: 100vw; height: 100vh; background: black;
+                }}
+                .rank-row {{
+                    display: flex; flex-direction: row; justify-content: center; align-items: center;
+                    width: 100%; opacity: 0; transform: translateY(30px); transition: all 1s ease-out;
+                }}
+                .visible {{ opacity: 1 !important; transform: translateY(0) !important; }}
+                
+                #row-1 {{ order: 1; margin-bottom: 40px; }}
+                #row-2 {{ order: 2; margin-bottom: 20px; }}
+                #row-3 {{ order: 3; margin-bottom: 0; }}
+
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 15px; margin: 0 15px; text-align: center; border: 3px solid rgba(255,255,255,0.2); min-width: 180px; display:flex; flex-direction:column; align-items:center; }}
+                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); transform: scale(1.2); }}
+                .rank-2 .p-card {{ border-color: #C0C0C0; transform: scale(1.0); }}
+                .rank-3 .p-card {{ border-color: #CD7F32; transform: scale(0.9); }}
+                
+                .p-img {{ width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; }}
+                .rank-1 .p-img {{ width: 140px; height: 140px; border-color: #FFD700; }}
+                
+                .p-name {{ font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; font-size: 20px; }}
+                .p-score {{ font-family: Arial; color: #ccc; margin-top: 5px; font-size: 16px; }}
+
+                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
+                .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
+                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 120px; font-weight: 900; margin-top: 20px; }}
+            </style>
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
-             # ... (Standard Voting Code - unchanged)
+            # ... (Code existant pour session ouverte)
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
