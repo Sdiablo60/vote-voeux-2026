@@ -50,6 +50,7 @@ st.markdown("""
         position: fixed !important;
         top: 0; left: 0;
         touch-action: none;
+        background-color: black !important;
     }
     ::-webkit-scrollbar { display: none; }
     
@@ -181,7 +182,7 @@ def delete_archived_session(folder_name):
     path = os.path.join(ARCHIVE_DIR, folder_name)
     if os.path.exists(path): shutil.rmtree(path)
 
-# --- FONCTION DE RESET CORRIGÉE ---
+# --- FONCTION DE RESET ---
 def reset_app_data(init_mode="blank", preserve_config=False):
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
@@ -287,7 +288,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V12) ---
+# --- GENERATEUR PDF AVANCÉ ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -909,34 +910,36 @@ else:
         .podium-container {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            justify-content: center; /* Vertical Center */
+            align-items: center; /* Horizontal Center */
             height: 100vh;
             width: 100vw;
             background: black;
             position: fixed;
             top: 0; left: 0;
             z-index: 50;
+            padding-top: 100px; /* Clear header */
         }
         
         .rank-row {
             display: flex;
             flex-direction: row;
-            justify-content: center;
+            justify-content: center !important; /* Force center horizontally */
             align-items: center;
-            width: 100%;
+            width: 100% !important; /* Force full width */
             transition: opacity 1s ease-in-out, transform 1s ease-in-out;
-            opacity: 0; /* Hidden initially */
+            opacity: 0; 
             transform: translateY(20px);
+            margin-bottom: 20px;
         }
         
         /* Animation classes */
         .visible { opacity: 1 !important; transform: translateY(0) !important; }
         
-        /* Spacing for rows */
-        #row-1 { margin-bottom: 20px; } /* Gold on top */
-        #row-2 { margin-bottom: 20px; } /* Silver middle */
-        #row-3 { margin-bottom: 0; }    /* Bronze bottom */
+        /* Row Order for Pyramid Visual */
+        #row-1 { order: 1; margin-bottom: 40px; } /* Gold on top */
+        #row-2 { order: 2; margin-bottom: 20px; } /* Silver middle */
+        #row-3 { order: 3; margin-bottom: 0; }    /* Bronze bottom */
         
         /* Cards */
         .p-card { 
