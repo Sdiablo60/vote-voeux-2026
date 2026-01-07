@@ -288,7 +288,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ ---
+# --- GENERATEUR PDF AVANCÉ (V12) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -919,9 +919,9 @@ else:
         .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         
         /* ETATS FINAUX PYRAMIDE RESSERREE */
-        .state-final-1 { left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }
-        .state-final-2 { left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
-        .state-final-3 { left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
+        .state-final-1 { left: 50%; top: 15%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }
+        .state-final-2 { left: 35%; top: 55%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
+        .state-final-3 { left: 65%; top: 55%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
 
         .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
         
@@ -939,7 +939,7 @@ else:
         
         .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
+        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -1046,22 +1046,25 @@ else:
                 }}
 
                 async function runShow() {{
+                    // Intro Globale
+                    await countdown(6, "NOUS ALLONS DÉCOUVRIR MAINTENANT LES FINALISTES DE CE CONCOURS");
+                    
                     // PHASE 1: 3eme (Intro -> Centre -> Gauche)
-                    await countdown(5, "ET POUR LA MÉDAILLE DE BRONZE...");
+                    await countdown(5, "À LA TROISIÈME PLACE...");
                     c3.className = 'podium-item rank-3 state-center'; 
                     await wait(4000); 
                     c3.className = 'podium-item rank-3 state-left';
                     
                     // PHASE 2: 2eme (Intro -> Centre -> Droite)
                     await wait(1000);
-                    await countdown(5, "LA MÉDAILLE D'ARGENT REVIENT À...");
+                    await countdown(5, "À LA DEUXIÈME PLACE...");
                     c2.className = 'podium-item rank-2 state-center'; 
                     await wait(4000); 
                     c2.className = 'podium-item rank-2 state-right';
                     
                     // PHASE 3: 1er (Intro -> Centre Haut)
                     await wait(1000);
-                    await countdown(7, "ET LE GRAND VAINQUEUR EST...");
+                    await countdown(5, "ET LE GRAND VAINQUEUR EST...");
                     c1.className = 'podium-item rank-1 state-final-1'; 
                     await wait(2000);
 
@@ -1076,36 +1079,6 @@ else:
                 window.parent.document.body.style.backgroundColor = "black";
                 runShow();
             </script>
-            <style>
-                .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
-                .podium-item {{ position: absolute; bottom: 50px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }}
-                
-                /* ETATS INTERMEDIAIRES */
-                .state-center {{ left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }}
-                .state-left {{ left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
-                .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
-                
-                /* ETATS FINAUX PYRAMIDE COMPACTE */
-                .state-final-1 {{ left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }}
-                .state-final-2 {{ left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
-                .state-final-3 {{ left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
-
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
-                .rank-2 .p-card {{ border-color: #C0C0C0; }}
-                .rank-3 .p-card {{ border-color: #CD7F32; }}
-
-                .p-img {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }}
-                .rank-1 .p-img {{ border-color: #FFD700; width: 160px; height: 160px; }}
-
-                .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 40px; }}
-                .p-score {{ font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }}
-                
-                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
-                .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
-                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
-            </style>
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
