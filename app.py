@@ -184,27 +184,19 @@ def delete_archived_session(folder_name):
 
 # --- FONCTION DE RESET CORRIGÉE ---
 def reset_app_data(init_mode="blank", preserve_config=False):
-    # 1. Supprimer les fichiers de données
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
-    
-    # 2. Supprimer les photos
     files = glob.glob(f"{LIVE_DIR}/*")
     for f in files: os.remove(f)
-
-    # 3. Gérer la configuration
     if not preserve_config:
         if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
-        
         if init_mode == "blank":
             st.session_state.config = copy.deepcopy(blank_config)
         elif init_mode == "demo":
             st.session_state.config = copy.deepcopy(default_config)
-        
         st.session_state.config["session_id"] = str(uuid.uuid4())
         save_config()
     else:
-        # On force la sauvegarde de la config actuelle pour être sûr
         save_config()
 
 # --- TRAITEMENT IMAGES ---
@@ -284,40 +276,22 @@ def inject_visual_effect(effect_name, intensity, speed):
 def get_advanced_stats():
     details = load_json(DETAILED_VOTES_FILE, [])
     vote_counts = {}
-    rank_dist = {} # {Candidat: {1: count, 2: count, 3: count}}
+    rank_dist = {}
     unique_voters = set()
-    
     for record in details:
         unique_voters.add(record.get('Utilisateur'))
-        
-        # Choix 1
-        c1 = record.get("Choix 1 (5pts)")
-        if c1:
-            vote_counts[c1] = vote_counts.get(c1, 0) + 1
-            if c1 not in rank_dist: rank_dist[c1] = {1:0, 2:0, 3:0}
-            rank_dist[c1][1] += 1
-            
-        # Choix 2
-        c2 = record.get("Choix 2 (3pts)")
-        if c2:
-            vote_counts[c2] = vote_counts.get(c2, 0) + 1
-            if c2 not in rank_dist: rank_dist[c2] = {1:0, 2:0, 3:0}
-            rank_dist[c2][2] += 1
-            
-        # Choix 3
-        c3 = record.get("Choix 3 (1pt)")
-        if c3:
-            vote_counts[c3] = vote_counts.get(c3, 0) + 1
-            if c3 not in rank_dist: rank_dist[c3] = {1:0, 2:0, 3:0}
-            rank_dist[c3][3] += 1
-            
+        for idx, k in enumerate(["Choix 1 (5pts)", "Choix 2 (3pts)", "Choix 3 (1pt)"]):
+            cand = record.get(k)
+            if cand:
+                vote_counts[cand] = vote_counts.get(cand, 0) + 1
+                if cand not in rank_dist: rank_dist[cand] = {1:0, 2:0, 3:0}
+                rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ ---
+# --- GENERATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
-            # Logo Gauche (AGRANDI 45mm)
             if "logo_b64" in st.session_state.config and st.session_state.config["logo_b64"]:
                 try:
                     logo_data = base64.b64decode(st.session_state.config["logo_b64"])
@@ -327,18 +301,15 @@ if PDF_AVAILABLE:
                     self.image(tmp_path, 10, 8, 45) 
                     os.unlink(tmp_path) 
                 except: pass
-            
             self.set_font('Arial', 'B', 15)
             self.set_text_color(226, 0, 26)
             self.cell(50) 
             self.cell(0, 10, f"{st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'L')
-            
             self.set_font('Arial', 'I', 10)
             self.set_text_color(100, 100, 100)
             self.cell(50)
             self.cell(0, 10, f"Rapport généré le: {datetime.now().strftime('%d/%m/%Y à %H:%M')}", 0, 1, 'L')
             self.ln(20)
-
         def footer(self):
             self.set_y(-15)
             self.set_font('Arial', 'I', 8)
@@ -349,11 +320,9 @@ if PDF_AVAILABLE:
         pdf.set_fill_color(245, 245, 245)
         pdf.set_draw_color(200, 200, 200)
         pdf.rect(10, pdf.get_y(), 190, 15, 'DF') 
-        
         pdf.set_y(pdf.get_y() + 4)
         pdf.set_font("Arial", 'B', 10)
         pdf.set_text_color(50, 50, 50)
-        
         pdf.cell(63, 8, f"TOTAL VOTANTS (UNIQUES): {nb_voters}", 0, 0, 'C')
         pdf.cell(63, 8, f"TOTAL VOTES: {nb_votes}", 0, 0, 'C')
         pdf.cell(63, 8, f"TOTAL POINTS DISTRIBUÉS: {total_points}", 0, 1, 'C')
@@ -362,98 +331,69 @@ if PDF_AVAILABLE:
     def create_pdf_results(title, df, nb_voters, total_points):
         pdf = PDFReport()
         pdf.add_page()
-        # Désactiver le saut de page auto pour tout faire tenir
         pdf.set_auto_page_break(auto=False)
-        
-        # Bloc Totaux
         nb_votes_total = df['Nb Votes'].sum()
         draw_summary_box(pdf, nb_voters, nb_votes_total, total_points)
-        
-        # --- 1. GRAPHIQUE ULTRA COMPACT ---
         pdf.set_font("Arial", 'B', 12)
         pdf.set_text_color(0)
         pdf.cell(0, 8, txt="VISUALISATION ANALYTIQUE DES SCORES", ln=True, align='L')
         pdf.ln(1)
-        
         max_points = df['Points'].max() if not df.empty else 1
         page_width = pdf.w - 2 * pdf.l_margin
         label_width = 50
         max_bar_width = page_width - label_width - 25
-        
-        # Dimensions ULTRA Compactes
-        bar_height = 3.0  # Très fin pour gagner de la place
-        spacing = 1.5     # Très serré
-        
+        bar_height = 3.0
+        spacing = 1.5
         pdf.set_font("Arial", size=9)
         for i, row in df.iterrows():
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
             points = row['Points']
-            
             pdf.set_text_color(0)
             pdf.cell(label_width, bar_height, cand, 0, 0, 'R')
-            
             if max_points > 0: width = (points / max_points) * max_bar_width
             else: width = 0
-            
             x_start = pdf.get_x() + 2
             y_start = pdf.get_y()
-            
-            # Fond gris (Rail)
             pdf.set_fill_color(245, 245, 245)
             pdf.rect(x_start, y_start, max_bar_width, bar_height, 'F')
-            
-            # Barre Rouge
             pdf.set_fill_color(226, 0, 26) 
             if width > 0: pdf.rect(x_start, y_start, width, bar_height, 'F')
-            
             pdf.set_xy(x_start + max_bar_width + 4, y_start)
             pdf.cell(20, bar_height, f"{points} pts", 0, 1, 'L')
             pdf.ln(bar_height + spacing)
-            
-        pdf.ln(6) # Espace réduit avant le tableau
-
-        # --- 2. TABLEAU COMPACT ---
+        pdf.ln(6) 
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 8, txt="MATRICE DÉTAILLÉE DES RÉSULTATS", ln=True, align='L')
         pdf.ln(1)
-        
-        # En-tête
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255, 255, 255)
         pdf.set_font("Arial", 'B', 9) 
-        row_h = 5 # Ligne très fine (5mm)
-        
+        row_h = 5 
         pdf.cell(100, row_h, "Candidat", 1, 0, 'C', 1)
         pdf.cell(45, row_h, "Points Total", 1, 0, 'C', 1)
         pdf.cell(45, row_h, "Nb Votes", 1, 1, 'C', 1)
-        
         pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", size=8) # Police réduite pour le tableau
+        pdf.set_font("Arial", size=8)
         fill = False
         pdf.ln()
-        
         for i, row in df.iterrows():
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
             if fill: pdf.set_fill_color(245, 245, 245)
             else: pdf.set_fill_color(255, 255, 255)
-            
             pdf.cell(100, row_h, cand, 1, 0, 'L', 1)
             pdf.cell(45, row_h, str(row['Points']), 1, 0, 'C', 1)
             pdf.cell(45, row_h, str(row['Nb Votes']), 1, 1, 'C', 1)
             fill = not fill
             pdf.ln()
-            
         return pdf.output(dest='S').encode('latin-1')
 
     def create_pdf_distribution(title, rank_dist, nb_voters):
         pdf = PDFReport()
         pdf.add_page()
         draw_summary_box(pdf, nb_voters, "N/A", "N/A")
-        
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, txt="ANALYSE DE LA RÉPARTITION DES RANGS", ln=True, align='L')
         pdf.ln(5)
-        
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255)
         pdf.set_font("Arial", 'B', 10)
@@ -461,41 +401,32 @@ if PDF_AVAILABLE:
         pdf.cell(35, 8, "1ere Place (Or)", 1, 0, 'C', 1)
         pdf.cell(35, 8, "2eme Place (Arg)", 1, 0, 'C', 1)
         pdf.cell(35, 8, "3eme Place (Brz)", 1, 1, 'C', 1)
-        
         pdf.set_text_color(0)
         pdf.set_font("Arial", size=10)
         fill = False
         pdf.ln()
-        
         sorted_dist = sorted(rank_dist.items(), key=lambda x: x[1][1], reverse=True)
-        
         for cand, ranks in sorted_dist:
             cand_txt = str(cand).encode('latin-1', 'replace').decode('latin-1')
             if fill: pdf.set_fill_color(245, 245, 245)
             else: pdf.set_fill_color(255, 255, 255)
-            
             pdf.cell(80, 8, cand_txt, 1, 0, 'L', 1)
             pdf.cell(35, 8, str(ranks[1]), 1, 0, 'C', 1)
             pdf.cell(35, 8, str(ranks[2]), 1, 0, 'C', 1)
             pdf.cell(35, 8, str(ranks[3]), 1, 1, 'C', 1)
             fill = not fill
             pdf.ln()
-            
         return pdf.output(dest='S').encode('latin-1')
 
     def create_pdf_audit(title, df, nb_voters):
         pdf = PDFReport()
         pdf.add_page()
-        
         draw_summary_box(pdf, nb_voters, len(df), "N/A")
-        
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(0, 10, txt="JOURNAL D'AUDIT COMPLET", ln=True, align='L')
         pdf.ln(5)
-        
         cols = df.columns.tolist() 
         col_w = 190 / len(cols)
-        
         pdf.set_fill_color(50, 50, 50)
         pdf.set_text_color(255)
         pdf.set_font("Arial", 'B', 9)
@@ -503,14 +434,12 @@ if PDF_AVAILABLE:
             c_txt = str(col).encode('latin-1', 'replace').decode('latin-1')
             pdf.cell(col_w, 8, c_txt, 1, 0, 'C', 1)
         pdf.ln()
-        
         pdf.set_text_color(0)
         pdf.set_font("Arial", size=8)
         fill = False
         for i, row in df.iterrows():
             if fill: pdf.set_fill_color(245, 245, 245)
             else: pdf.set_fill_color(255, 255, 255)
-            
             for col in cols:
                 txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
                 pdf.cell(col_w, 8, txt, 1, 0, 'C', 1)
@@ -774,10 +703,9 @@ if est_admin:
                 
                 # --- SECTION 1: RESULTATS ---
                 st.subheader("🏆 Classement Général")
-                c_chart, c_data = st.columns([1, 1]) # Modif: 50/50 pour agrandir tableau
+                c_chart, c_data = st.columns([1, 1]) 
                 
                 with c_chart:
-                    # Modif: Graphique statique (sans zoom/pan)
                     chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
                         x=alt.X('Points'), 
                         y=alt.Y('Candidat', sort='-x'), 
@@ -811,7 +739,6 @@ if est_admin:
                 raw_details = load_json(DETAILED_VOTES_FILE, [])
                 if raw_details:
                     df_audit = pd.DataFrame(raw_details)
-                    # Suppression de la date pour l'affichage
                     if 'Date' in df_audit.columns:
                         df_audit = df_audit.drop(columns=['Date'])
                         
@@ -978,6 +905,30 @@ else:
         .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
+        
+        /* PODIUM STYLES */
+        .step-container { display: flex; align-items: flex-end; justify-content: center; gap: 20px; height: 80vh; padding-top: 100px; width: 100%; position: relative; z-index: 100; }
+        .podium-item { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: transform 0.5s; }
+        .rank-2 { height: 55%; order: 1; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }
+        .rank-1 { height: 75%; order: 2; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; margin-bottom: 40px; z-index: 200; }
+        .rank-3 { height: 40%; order: 3; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }
+        
+        .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; width: 280px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.2); }
+        .rank-1 .p-card { width: 350px; border: 4px solid #FFD700; box-shadow: 0 0 50px rgba(255, 215, 0, 0.4); background: rgba(255, 215, 0, 0.1); }
+        .rank-2 .p-card { border: 4px solid #C0C0C0; }
+        .rank-3 .p-card { border: 4px solid #CD7F32; }
+        
+        .p-img { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 15px; }
+        .rank-1 .p-img { width: 180px; height: 180px; border: 6px solid #FFD700; }
+        
+        .p-name { font-size: 28px; font-weight: bold; color: white; margin: 0; }
+        .rank-1 .p-name { font-size: 40px; color: #FFD700; text-transform: uppercase; }
+        
+        .p-score { font-size: 20px; color: #ccc; margin-top: 5px; }
+        
+        .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+        .intro-text { color: white; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+        .intro-count { color: #E2001A; font-size: 150px; font-weight: 900; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -996,114 +947,160 @@ else:
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
-            if not v_data: v_data = {"Personne": 0}
             c_imgs = cfg.get("candidats_images", {})
-            sorted_scores = sorted(list(set(v_data.values())), reverse=True)
-            top_3_scores = sorted_scores[:3]
-            finalists = [k for k, v in v_data.items() if v in top_3_scores]
-            max_score = sorted_scores[0] if sorted_scores else 0
-            winners = [k for k, v in v_data.items() if v == max_score]
             
-            js_finalists = []
-            for name in finalists:
-                img = None
-                for c, i in c_imgs.items():
-                    if c.strip() == name.strip(): img = i; break
-                js_finalists.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
+            # --- LOGIQUE CLASSEMENT (PODIUM) ---
+            # 1. Calcul des scores
+            if not v_data: v_data = {"Personne": 0}
             
-            js_winners = []
-            for name in winners:
-                img = None
-                for c, i in c_imgs.items():
-                    if c.strip() == name.strip(): img = i; break
-                js_winners.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
+            # 2. Trier les scores uniques décroissants pour déterminer les rangs (Or, Argent, Bronze)
+            sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
+            
+            # 3. Attribuer les rangs
+            # Rank 1 (Gold)
+            s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else -1
+            rank1 = [c for c, s in v_data.items() if s == s1]
+            
+            # Rank 2 (Silver)
+            s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else -1
+            rank2 = [c for c, s in v_data.items() if s == s2]
+            
+            # Rank 3 (Bronze)
+            s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else -1
+            rank3 = [c for c, s in v_data.items() if s == s3]
+            
+            def get_podium_html(cands, score, emoji):
+                if not cands: return ""
+                html = ""
+                for c in cands:
+                    img_src = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
+                    img_tag = f"<img src='{img_src}' class='p-img'>" if img_src else f"<div style='font-size:80px'>{emoji}</div>"
+                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div><br>"
+                return html
 
-            ts_start = cfg.get("timestamp_podium", 0) * 1000
-            logo_data = cfg.get("logo_b64", "")
+            h1 = get_podium_html(rank1, s1, "🥇")
+            h2 = get_podium_html(rank2, s2, "🥈")
+            h3 = get_podium_html(rank3, s3, "🥉")
             
-            # --- PODIUM HTML (BIG & NO SCROLL) ---
+            # --- INJECTION JS SCÉNARIO ---
             components.html(f"""
-            <html>
-            <head>
-            <style>
-                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }}
-                .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; }}
+            <div id="intro-layer" class="intro-overlay">
+                <div id="intro-txt" class="intro-text"></div>
+                <div id="intro-num" class="intro-count"></div>
+            </div>
+
+            <div class="step-container">
+                <div id="col-2" class="podium-item rank-2">{h2}</div>
+                <div id="col-1" class="podium-item rank-1">{h1}</div>
+                <div id="col-3" class="podium-item rank-3">{h3}</div>
+            </div>
+
+            <script>
+                // Fonction d'attente
+                const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
                 
-                .logo-img {{ width: 300px; margin-bottom: 20px; object-fit: contain; display: block; }}
-                
-                .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 20px 0; }}
-                .title {{ color:white; font-size:50px; font-weight:bold; margin-bottom:20px; }}
-                
-                /* GRILLE FINALISTES & VAINQUEURS */
-                .grid {{ 
-                    display: flex; justify-content: center; align-items: flex-end; 
-                    gap: 30px; width: 95%; flex-wrap: wrap;
+                // Elements
+                const layer = document.getElementById('intro-layer');
+                const txt = document.getElementById('intro-txt');
+                const num = document.getElementById('intro-num');
+                const c1 = document.getElementById('col-1');
+                const c2 = document.getElementById('col-2');
+                const c3 = document.getElementById('col-3');
+
+                // Effet Confettis (Simple JS Canvas injection)
+                function startConfetti() {{
+                    var script = document.createElement('script');
+                    script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
+                    script.onload = () => {{
+                        var duration = 15 * 1000;
+                        var animationEnd = Date.now() + duration;
+                        var defaults = {{ startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }};
+                        var random = (min, max) => Math.random() * (max - min) + min;
+                        var interval = setInterval(function() {{
+                            var timeLeft = animationEnd - Date.now();
+                            if (timeLeft <= 0) {{ return clearInterval(interval); }}
+                            var particleCount = 50 * (timeLeft / duration);
+                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.1, 0.3), y: Math.random() - 0.2 }} }}));
+                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.7, 0.9), y: Math.random() - 0.2 }} }}));
+                        }}, 250);
+                    }};
+                    document.body.appendChild(script);
                 }}
-                
-                .card {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; text-align: center; color: white; }}
-                .card img {{ width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; }}
-                .card h3 {{ font-size: 20px; margin: 10px 0; }}
-                
-                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 350px; text-align: center; box-shadow: 0 0 60px #FFD700; margin: 0 auto; }}
-                .winner-card img {{ width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 6px solid white; margin-bottom: 20px; }}
-                .winner-card h1 {{ font-size: 35px; margin: 10px 0; color: white; }}
-                .winner-card h2 {{ font-size: 28px; color: #FFD700; }}
-            </style>
-            </head>
-            <body>
-                <div id="screen-suspense" class="wrapper" style="display:none;">
-                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
-                    <div class="title">LES FINALISTES...</div>
-                    <div id="timer" class="countdown">10</div>
-                    <div class="grid" id="finalists-grid"></div>
-                </div>
-                
-                <div id="screen-winner" class="wrapper" style="display:none;">
-                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
-                    <div class="grid" id="winners-grid"></div>
-                </div>
 
-                <script>
-                    const finalists = {json.dumps(js_finalists)};
-                    const winners = {json.dumps(js_winners)};
-                    const startTime = {ts_start};
-                    
-                    const fGrid = document.getElementById('finalists-grid');
-                    finalists.forEach(f => {{
-                        let html = `<div class="card">`;
-                        if(f.img) html += `<img src="${{f.img}}">`;
-                        else html += `<div style="font-size:50px">🏆</div>`;
-                        html += `<h3>${{f.name}}</h3><h4>${{f.score}} pts</h4></div>`;
-                        fGrid.innerHTML += html;
-                    }});
-
-                    const wGrid = document.getElementById('winners-grid');
-                    winners.forEach(w => {{
-                        let html = `<div class="winner-card"><div style="font-size:60px">🥇</div>`;
-                        if(w.img) html += `<img src="${{w.img}}">`;
-                        else html += `<div style="font-size:80px">🏆</div>`;
-                        html += `<h1>${{w.name}}</h1><h2>VAINQUEUR</h2><h3>${{w.score}} pts</h3></div>`;
-                        wGrid.innerHTML += html;
-                    }});
-
-                    function update() {{
-                        const now = Date.now();
-                        const elapsed = (now - startTime) / 1000;
-                        if (elapsed < 10) {{
-                            document.getElementById('screen-suspense').style.display = 'flex';
-                            document.getElementById('screen-winner').style.display = 'none';
-                            document.getElementById('timer').innerText = Math.ceil(10 - elapsed);
-                        }} else {{
-                            document.getElementById('screen-suspense').style.display = 'none';
-                            document.getElementById('screen-winner').style.display = 'flex';
-                        }}
+                // Fonction Compte a rebours
+                async function countdown(seconds, message) {{
+                    layer.style.display = 'flex';
+                    layer.style.opacity = '1';
+                    txt.innerText = message;
+                    for(let i=seconds; i>0; i--) {{
+                        num.innerText = i;
+                        await wait(1000);
                     }}
-                    setInterval(update, 100);
-                    update();
-                </script>
-            </body>
-            </html>
-            """, height=850, scrolling=False)
+                    layer.style.opacity = '0';
+                    await wait(500); // Fade out transition
+                    layer.style.display = 'none';
+                }}
+
+                async function runShow() {{
+                    // Si deja joué, on ne refait pas tout (simple check session storage optionnel, ici on joue direct)
+                    
+                    // PHASE 1: Intro 3eme
+                    await countdown(10, "LE SUSPENSE EST À SON COMBLE...");
+                    c3.style.opacity = '1';
+                    c3.style.transform = 'translateY(0)';
+                    
+                    // PHASE 2: Pause Appreciation
+                    await wait(5000);
+                    
+                    // PHASE 3: Intro 2eme
+                    await countdown(3, "ET EN SECONDE POSITION...");
+                    c2.style.opacity = '1';
+                    c2.style.transform = 'translateY(0)';
+                    
+                    // PHASE 4: Pause
+                    await wait(5000);
+                    
+                    // PHASE 5: Intro 1er
+                    await countdown(5, "LE GRAND VAINQUEUR EST...");
+                    c1.style.opacity = '1';
+                    c1.style.transform = 'translateY(0)';
+                    
+                    // Final
+                    startConfetti();
+                }}
+
+                // Lancement
+                window.parent.document.body.style.backgroundColor = "black"; // Force black on parent
+                runShow();
+
+            </script>
+            <style>
+                /* Import styles inside component to ensure they apply */
+                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; }}
+                .intro-text {{ color: white; font-family: Arial; font-size: 60px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
+                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 180px; font-weight: 900; margin-top: 20px; }}
+                
+                .step-container {{ display: flex; align-items: flex-end; justify-content: center; gap: 40px; height: 85vh; width: 100vw; background: black; }}
+                .podium-item {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 50px; }}
+                
+                .rank-2 {{ height: 60%; order: 1; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }}
+                .rank-1 {{ height: 85%; order: 2; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }}
+                .rank-3 {{ height: 45%; order: 3; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }}
+
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 300px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); display:flex; flex-direction:column; align-items:center; margin-top:20px; }}
+                
+                .rank-1 .p-card {{ width: 400px; border: 6px solid #FFD700; box-shadow: 0 0 80px rgba(255, 215, 0, 0.3); background: rgba(20,20,20,0.8); }}
+                .rank-2 .p-card {{ border: 4px solid #C0C0C0; }}
+                .rank-3 .p-card {{ border: 4px solid #CD7F32; }}
+
+                .p-img {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }}
+                .rank-1 .p-img {{ width: 220px; height: 220px; border: 8px solid #FFD700; }}
+
+                .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; }}
+                .rank-1 .p-name {{ font-size: 50px; color: #FFD700; text-transform: uppercase; }}
+                .p-score {{ font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }}
+            </style>
+            """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
             # --- 1. PREPARATION DES DONNEES ---
