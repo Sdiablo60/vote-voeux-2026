@@ -288,7 +288,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V12) ---
+# --- GENERATEUR PDF AVANCÉ ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -918,13 +918,15 @@ else:
         .state-left { left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         
-        /* VAINQUEUR (PLUS HAUT) */
-        .state-final-1 { left: 50%; bottom: 150px; transform: translateX(-50%) scale(1.2); opacity: 1; z-index: 200; }
+        /* ETATS FINAUX PYRAMIDE RESSERREE */
+        .state-final-1 { left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }
+        .state-final-2 { left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
+        .state-final-3 { left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
 
         .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
         
         /* Couleurs bordures */
-        .rank-1 .p-card { border-color: #FFD700; box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); }
+        .rank-1 .p-card { border-color: #FFD700; box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); background: rgba(20,20,20,0.9); }
         .rank-2 .p-card { border-color: #C0C0C0; }
         .rank-3 .p-card { border-color: #CD7F32; }
 
@@ -937,7 +939,7 @@ else:
         
         .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
+        .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
     </style>
     """, unsafe_allow_html=True)
     
@@ -990,6 +992,10 @@ else:
                 <div id="intro-txt" class="intro-text"></div>
                 <div id="intro-num" class="intro-count"></div>
             </div>
+            
+            <audio id="applause-sound" preload="auto">
+                <source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg">
+            </audio>
 
             <div class="podium-stage">
                 <div id="col-3" class="podium-item rank-3">{h3}</div>
@@ -1005,6 +1011,7 @@ else:
                 const c1 = document.getElementById('col-1');
                 const c2 = document.getElementById('col-2');
                 const c3 = document.getElementById('col-3');
+                const audio = document.getElementById('applause-sound');
 
                 function startConfetti() {{
                     var script = document.createElement('script');
@@ -1039,23 +1046,31 @@ else:
                 }}
 
                 async function runShow() {{
-                    // PHASE 1: 3eme (Apparition Centre -> Glisse Gauche)
-                    await countdown(10, "LE SUSPENSE EST À SON COMBLE...");
-                    c3.className = 'podium-item rank-3 state-center'; // Apparition Centre
-                    await wait(4000); // Temps applaudir
-                    c3.className = 'podium-item rank-3 state-left';   // Glisse Gauche
+                    // PHASE 1: 3eme (Intro -> Centre -> Gauche)
+                    await countdown(5, "ET POUR LA MÉDAILLE DE BRONZE...");
+                    c3.className = 'podium-item rank-3 state-center'; 
+                    await wait(4000); 
+                    c3.className = 'podium-item rank-3 state-left';
                     
-                    // PHASE 2: 2eme (Apparition Centre -> Glisse Droite)
-                    await countdown(3, "ET EN SECONDE POSITION...");
-                    c2.className = 'podium-item rank-2 state-center'; // Apparition Centre
-                    await wait(4000); // Temps applaudir
-                    c2.className = 'podium-item rank-2 state-right';  // Glisse Droite
+                    // PHASE 2: 2eme (Intro -> Centre -> Droite)
+                    await wait(1000);
+                    await countdown(5, "LA MÉDAILLE D'ARGENT REVIENT À...");
+                    c2.className = 'podium-item rank-2 state-center'; 
+                    await wait(4000); 
+                    c2.className = 'podium-item rank-2 state-right';
                     
-                    // PHASE 3: 1er (Apparition Centre Haut)
-                    await countdown(5, "LE GRAND VAINQUEUR EST...");
-                    c1.className = 'podium-item rank-1 state-final-1'; // Apparition Haut
+                    // PHASE 3: 1er (Intro -> Centre Haut)
+                    await wait(1000);
+                    await countdown(7, "ET LE GRAND VAINQUEUR EST...");
+                    c1.className = 'podium-item rank-1 state-final-1'; 
+                    await wait(2000);
+
+                    // PHASE 4: PYRAMIDE FINALE RESSERREE & SON
+                    c2.className = 'podium-item rank-2 state-final-2';
+                    c3.className = 'podium-item rank-3 state-final-3';
                     
                     startConfetti();
+                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
                 }}
 
                 window.parent.document.body.style.backgroundColor = "black";
@@ -1065,10 +1080,15 @@ else:
                 .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
                 .podium-item {{ position: absolute; bottom: 50px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }}
                 
+                /* ETATS INTERMEDIAIRES */
                 .state-center {{ left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }}
                 .state-left {{ left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
-                .state-final-1 {{ left: 50%; bottom: 180px; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }}
+                
+                /* ETATS FINAUX PYRAMIDE COMPACTE */
+                .state-final-1 {{ left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }}
+                .state-final-2 {{ left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
+                .state-final-3 {{ left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
 
                 .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
@@ -1082,7 +1102,7 @@ else:
                 .rank-1 .p-name {{ color: #FFD700; font-size: 40px; }}
                 .p-score {{ font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }}
                 
-                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; }}
+                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
                 .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
                 .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
             </style>
