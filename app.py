@@ -37,115 +37,62 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS COMMUN (BOUTONS & LOGIN & FOND BLANC) ---
+# --- CSS COMMUN ---
 st.markdown("""
 <style>
-    /* 1. FOND GLOBAL BLANC (Appliqué par défaut partout, sauf si écrasé plus tard) */
-    .stApp {
-        background-color: #FFFFFF !important;
-    }
+    /* FOND GLOBAL BLANC PAR DEFAUT */
+    .stApp { background-color: #FFFFFF !important; }
     
-    /* 2. STOP SCROLLING ULTIME (Global) */
+    /* STOP SCROLLING */
     html, body, [data-testid="stAppViewContainer"] {
-        overflow: hidden !important;
-        height: 100vh !important;
-        width: 100vw !important;
-        margin: 0 !important;
-        padding: 0 !important;
+        overflow: hidden !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important;
     }
-    
-    /* Cacher scrollbars */
     ::-webkit-scrollbar { display: none; }
     
-    /* Boutons Généraux */
+    /* BOUTONS */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
     
-    /* Login Box */
-    .login-container {
-        max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f8f9fa; border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
-    }
+    /* LOGIN */
+    .login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: #f8f9fa; border-radius: 20px; text-align: center; border: 1px solid #ddd; }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
     .stTextInput input { text-align: center; font-size: 18px; }
     
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background-color: #f0f2f6 !important; /* Gris très clair pour la sidebar */
-    }
-    section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
-    }
-    section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
-    }
+    /* SIDEBAR */
+    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
+    section[data-testid="stSidebar"] button[kind="primary"] { background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px; }
+    section[data-testid="stSidebar"] button[kind="secondary"] { background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important; }
     
-    /* STYLE DES BOUTONS D'EXPORT BLEUS ANIMÉS */
-    .blue-anim-btn button {
-        background-color: #2980b9 !important;
-        color: white !important;
-        border: none !important;
-        transition: all 0.3s ease !important;
-        font-weight: bold !important;
-    }
-    .blue-anim-btn button:hover {
-        transform: scale(1.05) !important;
-        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
-        background-color: #3498db !important;
-    }
-
-    /* Liens externes */
-    .custom-link-btn {
-        display: block; text-align: center; padding: 12px; border-radius: 8px;
-        text-decoration: none !important; font-weight: bold; margin-bottom: 10px;
-        color: white !important; transition: transform 0.2s;
-    }
+    /* LIENS */
+    .custom-link-btn { display: block; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none !important; font-weight: bold; margin-bottom: 10px; color: white !important; transition: transform 0.2s; }
     .custom-link-btn:hover { transform: scale(1.02); }
     .btn-red { background-color: #E2001A; }
     .btn-blue { background-color: #2980b9; }
 
-    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin) */
+    /* HEADER SOCIAL (Caché admin) */
     .social-header { display: none; }
+    
+    /* BOUTONS DOWNLOAD */
+    .blue-anim-btn button { background-color: #2980b9 !important; color: white !important; border: none !important; transition: all 0.3s ease !important; font-weight: bold !important; }
+    .blue-anim-btn button:hover { transform: scale(1.05) !important; box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important; background-color: #3498db !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONFIGURATION VIERGE ---
+# --- CONFIG DEFAUT ---
 blank_config = {
-    "mode_affichage": "attente", 
-    "titre_mur": "TITRE À DÉFINIR", 
-    "session_ouverte": False, 
-    "reveal_resultats": False,
-    "timestamp_podium": 0,
-    "logo_b64": None, 
-    "candidats": [], 
-    "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1],
-    "effect_intensity": 25, 
-    "effect_speed": 15, 
-    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": ""
+    "mode_affichage": "attente", "titre_mur": "TITRE À DÉFINIR", "session_ouverte": False, "reveal_resultats": False, "timestamp_podium": 0, "logo_b64": None, 
+    "candidats": [], "candidats_images": {}, "points_ponderation": [5, 3, 1], "effect_intensity": 25, "effect_speed": 15, 
+    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"}, "session_id": ""
 }
-
-# --- CONFIGURATION DEMO ---
 default_config = {
-    "mode_affichage": "attente", 
-    "titre_mur": "CONCOURS VIDÉO 2026", 
-    "session_ouverte": False, 
-    "reveal_resultats": False,
-    "timestamp_podium": 0,
-    "logo_b64": None,
-    "candidats": ["BU PAX", "BU FRET", "BU B2B", "RH", "IT", "DPMI", "FINANCES", "AO", "QSSE", "DIRECTION"],
-    "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1],
-    "effect_intensity": 25, 
-    "effect_speed": 15, 
-    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": str(uuid.uuid4())
+    "mode_affichage": "attente", "titre_mur": "CONCOURS VIDÉO 2026", "session_ouverte": False, "reveal_resultats": False, "timestamp_podium": 0, "logo_b64": None,
+    "candidats": ["BU PAX", "BU FRET", "BU B2B", "RH", "IT", "DPMI", "FINANCES", "AO", "QSSE", "DIRECTION"], "candidats_images": {}, 
+    "points_ponderation": [5, 3, 1], "effect_intensity": 25, "effect_speed": 15, 
+    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"}, "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS ---
+# --- FONCTIONS UTILES ---
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list): return [clean_for_json(v) for v in data]
@@ -172,14 +119,26 @@ def save_json(file, data):
 def save_config():
     save_json(CONFIG_FILE, st.session_state.config)
 
-# --- GESTION SESSIONS ---
-def sanitize_filename(name):
-    return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
+def reset_app_data(init_mode="blank", preserve_config=False):
+    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
+        if os.path.exists(f): os.remove(f)
+    files = glob.glob(f"{LIVE_DIR}/*")
+    for f in files: os.remove(f)
+    
+    if not preserve_config:
+        if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
+        if init_mode == "blank": st.session_state.config = copy.deepcopy(blank_config)
+        elif init_mode == "demo": st.session_state.config = copy.deepcopy(default_config)
+    
+    # CORRECTION CRITIQUE : ON GENERE TOUJOURS UN NOUVEL ID SESSION
+    # Cela force les téléphones à oublier le vote précédent
+    st.session_state.config["session_id"] = str(uuid.uuid4())
+    save_config()
 
 def archive_current_session():
     current_cfg = load_json(CONFIG_FILE, default_config)
     titre = current_cfg.get("titre_mur", "Session")
-    safe_titre = sanitize_filename(titre)
+    safe_titre = re.sub(r'[\\/*?:"<>|]', "", titre).replace(" ", "_")
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     folder_name = f"{timestamp}_{safe_titre}"
     archive_path = os.path.join(ARCHIVE_DIR, folder_name)
@@ -205,24 +164,7 @@ def delete_archived_session(folder_name):
     path = os.path.join(ARCHIVE_DIR, folder_name)
     if os.path.exists(path): shutil.rmtree(path)
 
-# --- FONCTION DE RESET CORRIGÉE ---
-def reset_app_data(init_mode="blank", preserve_config=False):
-    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
-        if os.path.exists(f): os.remove(f)
-    files = glob.glob(f"{LIVE_DIR}/*")
-    for f in files: os.remove(f)
-    if not preserve_config:
-        if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
-        if init_mode == "blank":
-            st.session_state.config = copy.deepcopy(blank_config)
-        elif init_mode == "demo":
-            st.session_state.config = copy.deepcopy(default_config)
-        st.session_state.config["session_id"] = str(uuid.uuid4())
-        save_config()
-    else:
-        save_config()
-
-# --- TRAITEMENT IMAGES ---
+# --- IMAGES ---
 def process_logo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -242,11 +184,6 @@ def process_participant_image(uploaded_file):
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
-def reset_vote_callback():
-    st.session_state.vote_success = False
-    if "widget_choix" in st.session_state: st.session_state.widget_choix = []
-    if "widget_choix_force" in st.session_state: st.session_state.widget_choix_force = []
-
 # --- ACTIONS ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
@@ -255,47 +192,12 @@ def set_state(mode, open_s, reveal):
     if reveal: st.session_state.config["timestamp_podium"] = time.time()
     save_config()
 
-def get_file_info(filepath):
-    try:
-        ts = os.path.getmtime(filepath)
-        return datetime.fromtimestamp(ts).strftime("%H:%M:%S")
-    except: return "?"
+def reset_vote_callback():
+    st.session_state.vote_success = False
+    if "widget_choix" in st.session_state: st.session_state.widget_choix = []
+    if "widget_choix_force" in st.session_state: st.session_state.widget_choix_force = []
 
-def inject_visual_effect(effect_name, intensity, speed):
-    if effect_name == "Aucun" or effect_name == "🎉 Confettis":
-        components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
-        return
-    duration = max(3, 25 - (speed * 0.4)) 
-    interval = int(5000 / (intensity + 1))
-    js_code = f"""
-    <script>
-        var doc = window.parent.document;
-        var layer = doc.getElementById('effect-layer');
-        if(!layer) {{
-            layer = doc.createElement('div');
-            layer.id = 'effect-layer';
-            layer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:0;overflow:hidden;';
-            doc.body.appendChild(layer);
-        }}
-        function createBalloon() {{
-            var e = doc.createElement('div'); e.innerHTML = '🎈';
-            e.style.cssText = 'position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*40+30)+'px;transition:bottom {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.bottom = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
-        function createSnow() {{
-            var e = doc.createElement('div'); e.innerHTML = '❄';
-            e.style.cssText = 'position:absolute;top:-50px;left:'+Math.random()*100+'vw;color:white;font-size:'+(Math.random()*20+10)+'px;transition:top {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.top = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
-    """
-    if effect_name == "🎈 Ballons": js_code += f"if(!window.balloonInterval) window.balloonInterval = setInterval(createBalloon, {interval});"
-    elif effect_name == "❄️ Neige": js_code += f"if(!window.snowInterval) window.snowInterval = setInterval(createSnow, {interval});"
-    js_code += "</script>"
-    components.html(js_code, height=0)
-
-# --- ANALYTIQUE ---
+# --- STATS ---
 def get_advanced_stats():
     details = load_json(DETAILED_VOTES_FILE, [])
     vote_counts = {}
@@ -311,7 +213,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V12) ---
+# --- PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -470,7 +372,7 @@ if PDF_AVAILABLE:
             fill = not fill
         return pdf.output(dest='S').encode('latin-1')
 
-# --- NAVIGATION VARS ---
+# --- NAVIGATION ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 is_blocked = st.query_params.get("blocked") == "true"
@@ -484,7 +386,6 @@ if "config" not in st.session_state:
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
-    
     if "auth" not in st.session_state: st.session_state["auth"] = False
     
     if not st.session_state["auth"]:
@@ -1136,34 +1037,37 @@ else:
             participants = load_json(PARTICIPANTS_FILE, [])
             nb_total = len(participants)
             
-            # --- 2. TAGS ---
-            if nb_total > 0:
-                last_24 = participants[-24:][::-1] 
-                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
+            # FIX: Handle empty participants list to avoid HTML error
+            if nb_total == 0:
+                tags_html = "<span style='color:#666; font-style:italic;'>En attente des premiers participants...</span>"
             else:
-                tags_html = "<span style='color:grey;'>En attente...</span>"
+                last_participants = participants[-24:][::-1] # Last 24, reversed (newest first)
+                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_participants])
 
-            # --- 3. AFFICHAGE DU COMPTEUR ---
+            # --- 2. DISPLAY HEADER (COUNTER + TAGS) ---
+            # Increased margin-top to 18vh to push it down from title
             st.markdown(f"""
-            <div style="margin-top:15vh; margin-bottom:20px; text-align:center;">
-                <h2 style='color:#E2001A; margin:0;'>👥 {nb_total} PARTICIPANTS CONNECTÉS</h2>
-                <div style="width:90%; margin:10px auto;">{tags_html}</div>
+            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:20px;">
+                <div style="color:#E2001A; font-size:26px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
+                    👥 {nb_total} PARTICIPANTS EN LICE
+                </div>
+                <div style="width:90%; margin:0 auto; line-height:1.5;">
+                    {tags_html}
+                </div>
             </div>
             """, unsafe_allow_html=True)
-            
-            # --- 4. PREPARATION DES DONNEES ---
+
+            # --- 3. STANDARD COLUMNS DISPLAY ---
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
-            left_list, right_list = cands[:mid], cands[mid:]
             
-            # Génération du QR Code et Logo
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
 
-            # --- 5. CONSTRUCTION DES LISTES (HTML STRING) ---
+            # --- CONSTRUCTION DES LISTES (HTML STRING) ---
             html_left = ""
             for c in left_list:
                 if c in imgs:
@@ -1178,7 +1082,7 @@ else:
                 else:
                     html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # --- 6. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
+            # --- CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
             css_styles = """
             <style>
                 .vote-container {
@@ -1215,7 +1119,7 @@ else:
             </style>
             """
 
-            # --- 7. ASSEMBLAGE ---
+            # --- ASSEMBLAGE ---
             full_html = css_styles
             full_html += '<div class="vote-container">'
             full_html += '<div class="col-participants">' + html_left + '</div>'
@@ -1232,7 +1136,7 @@ else:
             full_html += '<div class="col-participants">' + html_right + '</div>'
             full_html += '</div>'
 
-            # --- 8. AFFICHAGE ---
+            # --- AFFICHAGE ---
             ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
