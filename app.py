@@ -287,7 +287,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF ---
+# --- GENERATEUR PDF AVANCÉ (V12) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
