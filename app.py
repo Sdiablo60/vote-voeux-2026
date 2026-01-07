@@ -11,6 +11,17 @@ import copy
 import re
 import tempfile
 
+# =========================================================
+# 1. CONFIGURATION & VARIABLES GLOBALES (CRITIQUE : EN PREMIER)
+# =========================================================
+st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
+
+# --- RECUPERATION DES PARAMETRES URL (PLACÉ ICI POUR ÉVITER LE NAME ERROR) ---
+est_admin = st.query_params.get("admin") == "true"
+est_utilisateur = st.query_params.get("mode") == "vote"
+is_blocked = st.query_params.get("blocked") == "true"
+is_test_admin = st.query_params.get("test_admin") == "true"
+
 # TENTATIVE D'IMPORT DE FPDF
 try:
     from fpdf import FPDF
@@ -20,9 +31,6 @@ except ImportError:
 
 # SECURITE PIL
 Image.MAX_IMAGE_PIXELS = None 
-
-# --- CONFIGURATION ---
-st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
 # Dossiers & Fichiers
 LIVE_DIR = "galerie_live_users"
@@ -37,13 +45,14 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS COMMUN (BOUTONS & LOGIN & FOND BLANC PAR DEFAUT) ---
+# =========================================================
+# 2. CSS COMMUN (DESIGN & FONDS)
+# =========================================================
 st.markdown("""
 <style>
-    /* 1. FOND GLOBAL BLANC (Appliqué par défaut partout) */
+    /* 1. FOND GLOBAL BLANC PAR DÉFAUT (Pour l'Admin) */
     .stApp {
-        background-color: #FFFFFF;
-        color: black;
+        background-color: #FFFFFF !important;
     }
     
     /* 2. STOP SCROLLING ULTIME (Global) */
@@ -94,8 +103,26 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
         background-color: #3498db !important;
     }
+    
+    /* LIENS STYLÉS EN BOUTONS (Sidebar Admin) */
+    .custom-link-btn {
+        display: block !important; 
+        text-align: center !important; 
+        padding: 12px !important; 
+        border-radius: 8px !important;
+        text-decoration: none !important; 
+        font-weight: bold !important; 
+        margin-bottom: 10px !important;
+        color: white !important; 
+        transition: transform 0.2s !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+    .custom-link-btn:hover { transform: scale(1.02); }
+    .btn-red { background-color: #E2001A !important; }
+    .btn-blue { background-color: #2980b9 !important; }
 
-    /* Header Social (Caché pour l'admin) */
+    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin) */
     .social-header { display: none; }
 </style>
 """, unsafe_allow_html=True)
@@ -134,7 +161,9 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# --- FONCTIONS UTILES ---
+# =========================================================
+# 3. FONCTIONS UTILITAIRES
+# =========================================================
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list): return [clean_for_json(v) for v in data]
@@ -171,7 +200,7 @@ def reset_app_data(init_mode="blank", preserve_config=False):
         if init_mode == "blank": st.session_state.config = copy.deepcopy(blank_config)
         elif init_mode == "demo": st.session_state.config = copy.deepcopy(default_config)
     
-    # GENERATION NOUVEL ID POUR FLUSH LES TELEPHONES
+    # GENERATION NOUVEL ID SESSION POUR FORCER RESET TELEPHONES
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
@@ -204,7 +233,7 @@ def delete_archived_session(folder_name):
     path = os.path.join(ARCHIVE_DIR, folder_name)
     if os.path.exists(path): shutil.rmtree(path)
 
-# --- IMAGES ---
+# --- TRAITEMENT IMAGES ---
 def process_logo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
@@ -225,12 +254,11 @@ def process_participant_image(uploaded_file):
     except: return None
 
 # --- ACTIONS & VISUAL ---
-# C'est ICI qu'on définit la fonction pour éviter le NameError
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun" or effect_name == "🎉 Confettis":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
         return
-    # Note: On garde la structure pour compatibilité, mais l'effet est souvent géré par JS local
+    # Note: On garde la structure pour compatibilité
     pass 
 
 def set_state(mode, open_s, reveal):
@@ -261,7 +289,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- PDF ---
+# --- PDF GENERATOR ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -420,10 +448,6 @@ if PDF_AVAILABLE:
             fill = not fill
         return pdf.output(dest='S').encode('latin-1')
 
-# --- NAVIGATION VARS ---
-est_admin = st.query_params.get("admin") == "true"
-est_utilisateur = st.query_params.get("mode") == "vote"
-
 # --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
@@ -432,7 +456,6 @@ if "config" not in st.session_state:
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
-    
     if "auth" not in st.session_state: st.session_state["auth"] = False
     
     if not st.session_state["auth"]:
@@ -447,7 +470,6 @@ if est_admin:
                     st.rerun()
                 else: st.error("Code incorrect")
             st.markdown('</div>', unsafe_allow_html=True)
-            
     else:
         if "session_active" not in st.session_state or not st.session_state["session_active"]:
             st.title("🗂️ GESTIONNAIRE DE SESSIONS")
@@ -495,15 +517,20 @@ if est_admin:
                 if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
                 st.header("MENU")
                 if "admin_menu" not in st.session_state: st.session_state.admin_menu = "🔴 PILOTAGE LIVE"
-                menu_options = ["🔴 PILOTAGE LIVE", "⚙️ CONFIG", "📸 MÉDIATHÈQUE", "📊 DATA"]
-                for m in menu_options:
-                    if st.session_state.admin_menu == m:
-                        st.button(m, key=f"nav_{m}", type="primary", use_container_width=True)
-                    else:
-                        if st.button(m, key=f"nav_{m}", type="secondary", use_container_width=True):
-                            st.session_state.admin_menu = m; st.rerun()
+                
+                # NAVIGATION AVEC BOUTONS
+                if st.button("🔴 PILOTAGE LIVE", type="primary" if st.session_state.admin_menu == "🔴 PILOTAGE LIVE" else "secondary"): 
+                    st.session_state.admin_menu = "🔴 PILOTAGE LIVE"; st.rerun()
+                if st.button("⚙️ CONFIG", type="primary" if st.session_state.admin_menu == "⚙️ CONFIG" else "secondary"): 
+                    st.session_state.admin_menu = "⚙️ CONFIG"; st.rerun()
+                if st.button("📸 MÉDIATHÈQUE", type="primary" if st.session_state.admin_menu == "📸 MÉDIATHÈQUE" else "secondary"): 
+                    st.session_state.admin_menu = "📸 MÉDIATHÈQUE"; st.rerun()
+                if st.button("📊 DATA", type="primary" if st.session_state.admin_menu == "📊 DATA" else "secondary"): 
+                    st.session_state.admin_menu = "📊 DATA"; st.rerun()
+                
                 menu = st.session_state.admin_menu
                 st.divider()
+                # LIENS AVEC CLASSE CSS POUR STYLE BOUTON
                 st.markdown("""
                     <a href="/" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>
                     <a href="/?mode=vote&test_admin=true" target="_blank" class="custom-link-btn btn-blue">📱 TESTER MOBILE (ILLIMITÉ)</a>
@@ -735,7 +762,7 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("""
         <style>
-            .stApp {background-color:black !important; color:white;} 
+            .stApp {background-color:black; color:white;} 
             [data-testid='stHeader'] {display:none;}
             .block-container {padding: 1rem !important;}
         </style>
@@ -1084,21 +1111,21 @@ else:
             participants = load_json(PARTICIPANTS_FILE, [])
             nb_total = len(participants)
             
-            # FIX: Gérer le cas où la liste est vide pour éviter le bug </div>
-            if nb_total > 0:
-                last_24 = participants[-24:][::-1] # Derniers 24 inversés
-                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
+            # FIX: Handle empty participants list to avoid HTML error
+            if nb_total == 0:
+                tags_html = "<span style='color:#666; font-style:italic;'>En attente des premiers participants...</span>"
             else:
-                tags_html = "<span style='color:grey; font-style:italic; font-size:16px;'>En attente des premiers participants...</span>"
-            
-            # --- 2. AFFICHAGE COMPTEUR + TAGS ---
-            # Ajout d'une marge supérieure plus importante (18vh) pour décoller du titre
+                last_participants = participants[-24:][::-1] # Last 24, reversed (newest first)
+                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_participants])
+
+            # --- 2. DISPLAY HEADER (COUNTER + TAGS) ---
+            # Adjusted margin-top to 18vh to push it down from title
             st.markdown(f"""
-            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:30px;">
-                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:15px; text-transform:uppercase;">
+            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:20px;">
+                <div style="color:#E2001A; font-size:26px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
                     👥 {nb_total} PARTICIPANTS EN LICE
                 </div>
-                <div style="width:90%; margin:0 auto; line-height:1.6;">
+                <div style="width:90%; margin:0 auto; line-height:1.5;">
                     {tags_html}
                 </div>
             </div>
@@ -1139,8 +1166,7 @@ else:
                     justify-content: space-between;
                     align-items: flex-start; /* Aligne tout en haut */
                     width: 100vw;
-                    /* Hauteur ajustée pour laisser la place aux tags au-dessus */
-                    height: 55vh; 
+                    height: 85vh;
                     padding: 0 20px;
                     box-sizing: border-box;
                 }
@@ -1228,3 +1254,6 @@ else:
             }}
             animate();
         </script>""", height=0)
+
+    else:
+        st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
