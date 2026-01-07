@@ -205,7 +205,7 @@ def delete_archived_session(folder_name):
     path = os.path.join(ARCHIVE_DIR, folder_name)
     if os.path.exists(path): shutil.rmtree(path)
 
-# --- FONCTION DE RESET CORRIGÉE ---
+# --- FONCTION DE RESET CORRIGÉE (AVEC NOUVEAU SESSION_ID) ---
 def reset_app_data(init_mode="blank", preserve_config=False):
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
@@ -220,6 +220,8 @@ def reset_app_data(init_mode="blank", preserve_config=False):
         st.session_state.config["session_id"] = str(uuid.uuid4())
         save_config()
     else:
+        # MEME EN PRESERVANT LA CONFIG, ON CHANGE L'ID POUR FORCER LE RESET TELEPHONE
+        st.session_state.config["session_id"] = str(uuid.uuid4())
         save_config()
 
 # --- TRAITEMENT IMAGES ---
@@ -311,7 +313,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V12) ---
+# --- GENERATEUR PDF AVANCÉ ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -787,9 +789,10 @@ elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("""
         <style>
-            .stApp {background-color:black; color:white;} 
+            .stApp {background-color:black !important; color:white !important;} 
             [data-testid='stHeader'] {display:none;}
             .block-container {padding: 1rem !important;}
+            h1, h2, h3, p, div, span, label { color: white !important; }
         </style>
     """, unsafe_allow_html=True)
     curr_sess = cfg.get("session_id", "init")
@@ -1132,39 +1135,48 @@ else:
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
-            # --- 1. CHARGEMENT PARTICIPANTS ---
-            participants = load_json(PARTICIPANTS_FILE, [])
-            nb_total = len(participants)
-            last_24 = participants[-24:][::-1] # Derniers 24 inversés
+            # =========================================================================
+            # MODIFICATIONS DEMANDEES POUR LE MUR VOTE ON
+            # =========================================================================
             
-            # --- 2. HTML TAGS ---
-            tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
+            # 1. Recuperation des participants
+            participants_list = load_json(PARTICIPANTS_FILE, [])
+            nb_participants = len(participants_list)
             
-            # --- 3. AFFICHAGE COMPTEUR + TAGS ---
+            # 2. Gestion de l'affichage des 24 derniers (tags)
+            tags_html = ""
+            if nb_participants > 0:
+                last_24 = participants_list[-24:][::-1] # Les derniers arrivés en premier
+                for p in last_24:
+                    tags_html += f"<span style='display:inline-block; padding:8px 15px; margin:5px; background:rgba(255,255,255,0.15); border:1px solid #E2001A; border-radius:20px; color:white; font-weight:bold;'>{p}</span>"
+            else:
+                tags_html = "<span style='color:#888; font-style:italic;'>En attente de connexions...</span>"
+            
+            # 3. Affichage du Compteur et des Tags (Juste sous le titre)
+            # On utilise un conteneur avec margin-top ajusté pour ne pas coller au titre (15vh)
             st.markdown(f"""
-            <div style="margin-top:13vh; text-align:center; width:100%; margin-bottom:20px;">
-                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
-                    👥 {nb_total} PARTICIPANTS EN LICE
-                </div>
-                <div style="width:90%; margin:0 auto; line-height:1.5;">
+            <div style="margin-top:15vh; margin-bottom:20px; text-align:center; width:100%;">
+                <h2 style="color:#E2001A; font-size:40px; margin-bottom:15px; text-transform:uppercase; text-shadow:0 0 10px black;">
+                    👥 {nb_participants} PARTICIPANTS EN LIGNE
+                </h2>
+                <div style="width:90%; margin:0 auto; line-height:1.8;">
                     {tags_html}
                 </div>
             </div>
             """, unsafe_allow_html=True)
             
-            # --- 4. PREPARATION DES DONNEES ---
+            # 4. Affichage des Colonnes (Candidats) en dessous
+            # On réduit la hauteur disponible pour les colonnes pour éviter le scroll (height: 55vh)
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            # Génération du QR Code et Logo
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
 
-            # --- 5. CONSTRUCTION DES LISTES (HTML STRING) ---
             html_left = ""
             for c in left_list:
                 if c in imgs:
@@ -1179,15 +1191,14 @@ else:
                 else:
                     html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # --- 6. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
             css_styles = """
             <style>
                 .vote-container {
                     display: flex;
                     justify-content: space-between;
-                    align-items: flex-start; /* Aligne tout en haut */
+                    align-items: flex-start; 
                     width: 100vw;
-                    height: 60vh;
+                    height: 55vh; /* Hauteur reduite pour laisser place aux tags */
                     padding: 0 20px;
                     box-sizing: border-box;
                 }
@@ -1196,16 +1207,16 @@ else:
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: flex-start; /* Aligne les participants en haut */
+                    justify-content: flex-start; 
                 }
                 .col-center {
                     flex: 0 0 400px;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    justify-content: flex-start; /* Aligne le logo/QR en haut */
+                    justify-content: flex-start; 
                     height: 100%;
-                    padding-top: 10px; /* Petit ajustement */
+                    padding-top: 10px; 
                 }
                 .cand-row {
                     width: 90% !important;
@@ -1216,12 +1227,10 @@ else:
             </style>
             """
 
-            # --- 7. ASSEMBLAGE ---
             full_html = css_styles
             full_html += '<div class="vote-container">'
             full_html += '<div class="col-participants">' + html_left + '</div>'
             
-            # Colonne Centrale (Logo + QR)
             full_html += '<div class="col-center">'
             full_html += logo_html
             full_html += "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>"
@@ -1233,8 +1242,9 @@ else:
             full_html += '<div class="col-participants">' + html_right + '</div>'
             full_html += '</div>'
 
-            # --- 8. AFFICHAGE ---
             ph.markdown(full_html, unsafe_allow_html=True)
+            # =========================================================================
+
 
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
@@ -1246,54 +1256,30 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
-        if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        center_html_content = f"""
-            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
-                <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
-                {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
-                <div style='background:white; padding:10px; border-radius:10px; display:inline-block;'>
-                    <img src='data:image/png;base64,{qr_b64}' style='width:150px;'>
-                </div>
-                <h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2>
-            </div>
-        """
-        components.html(f"""<script>
-            var doc = window.parent.document;
-            var existing = doc.getElementById('live-container');
-            if(existing) existing.remove();
-            var container = doc.createElement('div');
-            container.id = 'live-container'; 
-            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
-            doc.body.appendChild(container);
-            container.innerHTML = `{center_html_content}`;
+        
+        components.html(f"""
+        <style>body {{ background: black; overflow: hidden; }}</style>
+        <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
+            <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; font-family:Arial;'>MUR PHOTOS LIVE</h1>
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
+            <div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div>
+        </div>
+        <script>
             const imgs = {img_js}; const bubbles = [];
-            const minSize = 60; const maxSize = 160;
-            var screenW = window.innerWidth || 1920;
-            var screenH = window.innerHeight || 1080;
-            imgs.forEach((src, i) => {{
-                const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-                const el = doc.createElement('img'); el.src = src;
-                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
-                let x = Math.random() * (screenW - bSize);
-                let y = Math.random() * (screenH - bSize);
-                let angle = Math.random() * Math.PI * 2;
-                let speed = 0.8 + Math.random() * 1.2;
-                let vx = Math.cos(angle) * speed;
-                let vy = Math.sin(angle) * speed;
-                container.appendChild(el); 
-                bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
+            imgs.forEach(src => {{
+                const el = document.createElement('img'); el.src = src;
+                const size = Math.random() * 100 + 60;
+                el.style.cssText = `position:absolute; width:${{size}}px; height:${{size}}px; border-radius:50%; border:4px solid #E2001A; object-fit:cover;`;
+                document.body.appendChild(el);
+                bubbles.push({{el, x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2}});
             }});
             function animate() {{
-                screenW = window.innerWidth || 1920;
-                screenH = window.innerHeight || 1080;
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
-                    if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
-                    if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
-                    if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
-                    if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
-                    b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
+                    if(b.x < 0 || b.x > window.innerWidth) b.vx *= -1;
+                    if(b.y < 0 || b.y > window.innerHeight) b.vy *= -1;
+                    b.el.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
                 requestAnimationFrame(animate);
             }}
