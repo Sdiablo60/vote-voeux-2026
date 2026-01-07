@@ -37,59 +37,101 @@ DETAILED_VOTES_FILE = "detailed_votes.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# --- CSS COMMUN ---
+# --- CSS COMMUN (BOUTONS & LOGIN & FOND BLANC PAR DEFAUT) ---
 st.markdown("""
 <style>
-    /* FOND GLOBAL BLANC PAR DEFAUT */
-    .stApp { background-color: #FFFFFF !important; }
-    
-    /* STOP SCROLLING */
-    html, body, [data-testid="stAppViewContainer"] {
-        overflow: hidden !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important;
+    /* 1. FOND GLOBAL BLANC (Appliqué par défaut partout) */
+    .stApp {
+        background-color: #FFFFFF;
+        color: black;
     }
+    
+    /* 2. STOP SCROLLING ULTIME (Global) */
+    html, body, [data-testid="stAppViewContainer"] {
+        overflow: hidden !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
+    /* Cacher scrollbars */
     ::-webkit-scrollbar { display: none; }
     
-    /* BOUTONS */
+    /* Boutons Généraux */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
     
-    /* LOGIN */
-    .login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: #f8f9fa; border-radius: 20px; text-align: center; border: 1px solid #ddd; }
+    /* Login Box */
+    .login-container {
+        max-width: 400px; margin: 100px auto; padding: 40px;
+        background: #f8f9fa; border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
+    }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
     .stTextInput input { text-align: center; font-size: 18px; }
     
-    /* SIDEBAR */
+    /* Sidebar */
     section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
-    section[data-testid="stSidebar"] button[kind="primary"] { background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px; }
-    section[data-testid="stSidebar"] button[kind="secondary"] { background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important; }
+    section[data-testid="stSidebar"] button[kind="primary"] {
+        background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
+    }
+    section[data-testid="stSidebar"] button[kind="secondary"] {
+        background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
+    }
     
-    /* LIENS */
-    .custom-link-btn { display: block; text-align: center; padding: 12px; border-radius: 8px; text-decoration: none !important; font-weight: bold; margin-bottom: 10px; color: white !important; transition: transform 0.2s; }
-    .custom-link-btn:hover { transform: scale(1.02); }
-    .btn-red { background-color: #E2001A; }
-    .btn-blue { background-color: #2980b9; }
+    /* STYLE DES BOUTONS D'EXPORT */
+    .blue-anim-btn button {
+        background-color: #2980b9 !important;
+        color: white !important;
+        border: none !important;
+        transition: all 0.3s ease !important;
+        font-weight: bold !important;
+    }
+    .blue-anim-btn button:hover {
+        transform: scale(1.05) !important;
+        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
+        background-color: #3498db !important;
+    }
 
-    /* HEADER SOCIAL (Caché admin) */
+    /* Header Social (Caché pour l'admin) */
     .social-header { display: none; }
-    
-    /* BOUTONS DOWNLOAD */
-    .blue-anim-btn button { background-color: #2980b9 !important; color: white !important; border: none !important; transition: all 0.3s ease !important; font-weight: bold !important; }
-    .blue-anim-btn button:hover { transform: scale(1.05) !important; box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important; background-color: #3498db !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONFIG DEFAUT ---
+# --- CONFIGURATION VIERGE ---
 blank_config = {
-    "mode_affichage": "attente", "titre_mur": "TITRE À DÉFINIR", "session_ouverte": False, "reveal_resultats": False, "timestamp_podium": 0, "logo_b64": None, 
-    "candidats": [], "candidats_images": {}, "points_ponderation": [5, 3, 1], "effect_intensity": 25, "effect_speed": 15, 
-    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"}, "session_id": ""
+    "mode_affichage": "attente", 
+    "titre_mur": "TITRE À DÉFINIR", 
+    "session_ouverte": False, 
+    "reveal_resultats": False,
+    "timestamp_podium": 0,
+    "logo_b64": None, 
+    "candidats": [], 
+    "candidats_images": {}, 
+    "points_ponderation": [5, 3, 1],
+    "effect_intensity": 25, 
+    "effect_speed": 15, 
+    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
+    "session_id": ""
 }
+
+# --- CONFIGURATION DEMO ---
 default_config = {
-    "mode_affichage": "attente", "titre_mur": "CONCOURS VIDÉO 2026", "session_ouverte": False, "reveal_resultats": False, "timestamp_podium": 0, "logo_b64": None,
-    "candidats": ["BU PAX", "BU FRET", "BU B2B", "RH", "IT", "DPMI", "FINANCES", "AO", "QSSE", "DIRECTION"], "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1], "effect_intensity": 25, "effect_speed": 15, 
-    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"}, "session_id": str(uuid.uuid4())
+    "mode_affichage": "attente", 
+    "titre_mur": "CONCOURS VIDÉO 2026", 
+    "session_ouverte": False, 
+    "reveal_resultats": False,
+    "timestamp_podium": 0,
+    "logo_b64": None,
+    "candidats": ["BU PAX", "BU FRET", "BU B2B", "RH", "IT", "DPMI", "FINANCES", "AO", "QSSE", "DIRECTION"],
+    "candidats_images": {}, 
+    "points_ponderation": [5, 3, 1],
+    "effect_intensity": 25, 
+    "effect_speed": 15, 
+    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
+    "session_id": str(uuid.uuid4())
 }
 
 # --- FONCTIONS UTILES ---
@@ -124,14 +166,12 @@ def reset_app_data(init_mode="blank", preserve_config=False):
         if os.path.exists(f): os.remove(f)
     files = glob.glob(f"{LIVE_DIR}/*")
     for f in files: os.remove(f)
-    
     if not preserve_config:
         if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
         if init_mode == "blank": st.session_state.config = copy.deepcopy(blank_config)
         elif init_mode == "demo": st.session_state.config = copy.deepcopy(default_config)
     
-    # CORRECTION CRITIQUE : ON GENERE TOUJOURS UN NOUVEL ID SESSION
-    # Cela force les téléphones à oublier le vote précédent
+    # GENERATION NOUVEL ID POUR FLUSH LES TELEPHONES
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
@@ -184,7 +224,15 @@ def process_participant_image(uploaded_file):
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
-# --- ACTIONS ---
+# --- ACTIONS & VISUAL ---
+# C'est ICI qu'on définit la fonction pour éviter le NameError
+def inject_visual_effect(effect_name, intensity, speed):
+    if effect_name == "Aucun" or effect_name == "🎉 Confettis":
+        components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
+        return
+    # Note: On garde la structure pour compatibilité, mais l'effet est souvent géré par JS local
+    pass 
+
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
@@ -372,11 +420,9 @@ if PDF_AVAILABLE:
             fill = not fill
         return pdf.output(dest='S').encode('latin-1')
 
-# --- NAVIGATION ---
+# --- NAVIGATION VARS ---
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
-is_blocked = st.query_params.get("blocked") == "true"
-is_test_admin = st.query_params.get("test_admin") == "true"
 
 # --- INIT SESSION ---
 if "config" not in st.session_state:
@@ -386,6 +432,7 @@ if "config" not in st.session_state:
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
+    
     if "auth" not in st.session_state: st.session_state["auth"] = False
     
     if not st.session_state["auth"]:
@@ -1037,37 +1084,39 @@ else:
             participants = load_json(PARTICIPANTS_FILE, [])
             nb_total = len(participants)
             
-            # FIX: Handle empty participants list to avoid HTML error
-            if nb_total == 0:
-                tags_html = "<span style='color:#666; font-style:italic;'>En attente des premiers participants...</span>"
+            # FIX: Gérer le cas où la liste est vide pour éviter le bug </div>
+            if nb_total > 0:
+                last_24 = participants[-24:][::-1] # Derniers 24 inversés
+                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
             else:
-                last_participants = participants[-24:][::-1] # Last 24, reversed (newest first)
-                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_participants])
-
-            # --- 2. DISPLAY HEADER (COUNTER + TAGS) ---
-            # Increased margin-top to 18vh to push it down from title
+                tags_html = "<span style='color:grey; font-style:italic; font-size:16px;'>En attente des premiers participants...</span>"
+            
+            # --- 2. AFFICHAGE COMPTEUR + TAGS ---
+            # Ajout d'une marge supérieure plus importante (18vh) pour décoller du titre
             st.markdown(f"""
-            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:20px;">
-                <div style="color:#E2001A; font-size:26px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
+            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:30px;">
+                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:15px; text-transform:uppercase;">
                     👥 {nb_total} PARTICIPANTS EN LICE
                 </div>
-                <div style="width:90%; margin:0 auto; line-height:1.5;">
+                <div style="width:90%; margin:0 auto; line-height:1.6;">
                     {tags_html}
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
-            # --- 3. STANDARD COLUMNS DISPLAY ---
+            
+            # --- 3. PREPARATION DES DONNEES ---
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
+            left_list, right_list = cands[:mid], cands[mid:]
             
+            # Génération du QR Code et Logo
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
 
-            # --- CONSTRUCTION DES LISTES (HTML STRING) ---
+            # --- 4. CONSTRUCTION DES LISTES (HTML STRING) ---
             html_left = ""
             for c in left_list:
                 if c in imgs:
@@ -1082,7 +1131,7 @@ else:
                 else:
                     html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # --- CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
+            # --- 5. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
             css_styles = """
             <style>
                 .vote-container {
@@ -1090,7 +1139,8 @@ else:
                     justify-content: space-between;
                     align-items: flex-start; /* Aligne tout en haut */
                     width: 100vw;
-                    height: 85vh;
+                    /* Hauteur ajustée pour laisser la place aux tags au-dessus */
+                    height: 55vh; 
                     padding: 0 20px;
                     box-sizing: border-box;
                 }
@@ -1119,7 +1169,7 @@ else:
             </style>
             """
 
-            # --- ASSEMBLAGE ---
+            # --- 6. ASSEMBLAGE ---
             full_html = css_styles
             full_html += '<div class="vote-container">'
             full_html += '<div class="col-participants">' + html_left + '</div>'
@@ -1136,7 +1186,7 @@ else:
             full_html += '<div class="col-participants">' + html_right + '</div>'
             full_html += '</div>'
 
-            # --- AFFICHAGE ---
+            # --- 7. AFFICHAGE ---
             ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
@@ -1149,54 +1199,30 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
-        if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        center_html_content = f"""
-            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
-                <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
-                {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
-                <div style='background:white; padding:10px; border-radius:10px; display:inline-block;'>
-                    <img src='data:image/png;base64,{qr_b64}' style='width:150px;'>
-                </div>
-                <h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2>
-            </div>
-        """
-        components.html(f"""<script>
-            var doc = window.parent.document;
-            var existing = doc.getElementById('live-container');
-            if(existing) existing.remove();
-            var container = doc.createElement('div');
-            container.id = 'live-container'; 
-            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
-            doc.body.appendChild(container);
-            container.innerHTML = `{center_html_content}`;
+        
+        components.html(f"""
+        <style>body {{ background: black; overflow: hidden; }}</style>
+        <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
+            <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; font-family:Arial;'>MUR PHOTOS LIVE</h1>
+            {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
+            <div style='background:white; padding:10px; border-radius:10px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:150px;'></div>
+        </div>
+        <script>
             const imgs = {img_js}; const bubbles = [];
-            const minSize = 60; const maxSize = 160;
-            var screenW = window.innerWidth || 1920;
-            var screenH = window.innerHeight || 1080;
-            imgs.forEach((src, i) => {{
-                const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-                const el = doc.createElement('img'); el.src = src;
-                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
-                let x = Math.random() * (screenW - bSize);
-                let y = Math.random() * (screenH - bSize);
-                let angle = Math.random() * Math.PI * 2;
-                let speed = 0.8 + Math.random() * 1.2;
-                let vx = Math.cos(angle) * speed;
-                let vy = Math.sin(angle) * speed;
-                container.appendChild(el); 
-                bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
+            imgs.forEach(src => {{
+                const el = document.createElement('img'); el.src = src;
+                const size = Math.random() * 100 + 60;
+                el.style.cssText = `position:absolute; width:${{size}}px; height:${{size}}px; border-radius:50%; border:4px solid #E2001A; object-fit:cover;`;
+                document.body.appendChild(el);
+                bubbles.push({{el, x: Math.random()*window.innerWidth, y: Math.random()*window.innerHeight, vx: (Math.random()-0.5)*2, vy: (Math.random()-0.5)*2}});
             }});
             function animate() {{
-                screenW = window.innerWidth || 1920;
-                screenH = window.innerHeight || 1080;
                 bubbles.forEach(b => {{
                     b.x += b.vx; b.y += b.vy;
-                    if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
-                    if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
-                    if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
-                    if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
-                    b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
+                    if(b.x < 0 || b.x > window.innerWidth) b.vx *= -1;
+                    if(b.y < 0 || b.y > window.innerHeight) b.vy *= -1;
+                    b.el.style.transform = `translate(${{b.x}}px, ${{b.y}}px)`;
                 }});
                 requestAnimationFrame(animate);
             }}
