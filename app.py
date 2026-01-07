@@ -288,7 +288,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ ---
+# --- GENERATEUR PDF AVANCÉ (V12) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -906,199 +906,37 @@ else:
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
         
-        /* PODIUM STYLES (STRUCTURE FLEXIBLE 3 LIGNES) */
-        .podium-stage { 
-            position: fixed; 
-            top: 12vh; 
-            left: 0; 
-            width: 100vw; 
-            height: 88vh; 
-            background: black; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: flex-end; /* En bas de page */
-            padding-bottom: 50px;
-            overflow: hidden;
-        }
+        /* PODIUM STYLES (ABSOLUTE ANIMATION) */
+        .podium-stage { position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }
+        .podium-item { position: absolute; bottom: 50px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }
         
-        /* Conteneurs de rangées */
-        .rank-row {
-            display: flex;
-            justify-content: center;
-            align-items: flex-end;
-            width: 100%;
-            gap: 20px;
-            margin-bottom: 20px;
-            opacity: 0; 
-            transition: all 1s ease-in-out;
-        }
+        /* ETATS INTERMEDIAIRES */
+        .state-center { left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }
+        .state-left { left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }
+        .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         
-        /* Ordre d'affichage final (Pyramide) */
-        #row-1 { order: 1; margin-bottom: 30px; z-index: 20; } /* Vainqueur en haut */
-        #row-2 { order: 2; margin-bottom: 15px; z-index: 15; }
-        #row-3 { order: 3; margin-bottom: 0; z-index: 10; }
+        /* ETATS FINAUX PYRAMIDE COMPACTE */
+        .state-final-1 { left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }
+        .state-final-2 { left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
+        .state-final-3 { left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
 
-        /* Animation d'entrée : On part du centre et on s'étend */
-        .reveal-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); opacity: 0; transition: all 1s ease; }
-        .reveal-visible { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        .final-state { position: relative; top: auto; left: auto; transform: none; opacity: 1; }
-
-        /* Cartes individuelles */
-        .p-card { 
-            background: rgba(255,255,255,0.1); 
-            border-radius: 20px; 
-            padding: 20px; 
-            text-align: center; 
-            backdrop-filter: blur(10px); 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
-            border: 2px solid rgba(255,255,255,0.2); 
-            display:flex; flex-direction:column; align-items:center; 
-            transition: all 0.5s ease;
-        }
-        
-        /* Styles spécifiques par rang */
-        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.6); }
+        .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
+        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); }
         .rank-2 .p-card { border-color: #C0C0C0; }
         .rank-3 .p-card { border-color: #CD7F32; }
 
-        .p-img { border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 15px; }
-        .rank-1 .p-img { border-color: #FFD700; }
+        .p-img { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }
+        .rank-1 .p-img { border-color: #FFD700; width: 160px; height: 160px; }
 
-        .p-name { font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
-        .rank-1 .p-name { color: #FFD700; }
-        .p-score { font-family: Arial; color: #ccc; margin-top: 5px; }
+        .p-name { font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
+        .rank-1 .p-name { color: #FFD700; font-size: 40px; }
+        .p-score { font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }
         
-        /* Intro Texte */
         .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
         .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
     </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
-    mode = cfg.get("mode_affichage")
-    effects = cfg.get("screen_effects", {})
-    effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
-    inject_visual_effect(effect_name, 25, 15)
-
-    ph = st.empty()
-    
-    if mode == "attente":
-        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-        ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
-
-    elif mode == "votes":
-        if cfg.get("reveal_resultats"):
-            v_data = load_json(VOTES_FILE, {})
-            if not v_data: v_data = {"Personne": 0}
-            c_imgs = cfg.get("candidats_images", {})
-            sorted_scores = sorted(list(set(v_data.values())), reverse=True)
-            top_3_scores = sorted_scores[:3]
-            finalists = [k for k, v in v_data.items() if v in top_3_scores]
-            max_score = sorted_scores[0] if sorted_scores else 0
-            winners = [k for k, v in v_data.items() if v == max_score]
-            
-            js_finalists = []
-            for name in finalists:
-                img = None
-                for c, i in c_imgs.items():
-                    if c.strip() == name.strip(): img = i; break
-                js_finalists.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
-            
-            js_winners = []
-            for name in winners:
-                img = None
-                for c, i in c_imgs.items():
-                    if c.strip() == name.strip(): img = i; break
-                js_winners.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
-
-            ts_start = cfg.get("timestamp_podium", 0) * 1000
-            logo_data = cfg.get("logo_b64", "")
-            
-            # --- PODIUM HTML (BIG & NO SCROLL) ---
-            components.html(f"""
-            <html>
-            <head>
-            <style>
-                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }}
-                .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; }}
-                
-                .logo-img {{ width: 300px; margin-bottom: 20px; object-fit: contain; display: block; }}
-                
-                .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 20px 0; }}
-                .title {{ color:white; font-size:50px; font-weight:bold; margin-bottom:20px; }}
-                
-                /* GRILLE FINALISTES & VAINQUEURS */
-                .grid {{ 
-                    display: flex; justify-content: center; align-items: flex-end; 
-                    gap: 30px; width: 95%; flex-wrap: wrap;
-                }}
-                
-                .card {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; text-align: center; color: white; }}
-                .card img {{ width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; }}
-                .card h3 {{ font-size: 20px; margin: 10px 0; }}
-                
-                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 350px; text-align: center; box-shadow: 0 0 60px #FFD700; margin: 0 auto; }}
-                .winner-card img {{ width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 6px solid white; margin-bottom: 20px; }}
-                .winner-card h1 {{ font-size: 35px; margin: 10px 0; color: white; }}
-                .winner-card h2 {{ font-size: 28px; color: #FFD700; }}
-            </style>
-            </head>
-            <body>
-                <div id="screen-suspense" class="wrapper" style="display:none;">
-                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
-                    <div class="title">LES FINALISTES...</div>
-                    <div id="timer" class="countdown">10</div>
-                    <div class="grid" id="finalists-grid"></div>
-                </div>
-                
-                <div id="screen-winner" class="wrapper" style="display:none;">
-                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
-                    <div class="grid" id="winners-grid"></div>
-                </div>
-
-                <script>
-                    const finalists = {json.dumps(js_finalists)};
-                    const winners = {json.dumps(js_winners)};
-                    const startTime = {ts_start};
-                    
-                    const fGrid = document.getElementById('finalists-grid');
-                    finalists.forEach(f => {{
-                        let html = `<div class="card">`;
-                        if(f.img) html += `<img src="${{f.img}}">`;
-                        else html += `<div style="font-size:50px">🏆</div>`;
-                        html += `<h3>${{f.name}}</h3><h4>${{f.score}} pts</h4></div>`;
-                        fGrid.innerHTML += html;
-                    }});
-
-                    const wGrid = document.getElementById('winners-grid');
-                    winners.forEach(w => {{
-                        let html = `<div class="winner-card"><div style="font-size:60px">🥇</div>`;
-                        if(w.img) html += `<img src="${{w.img}}">`;
-                        else html += `<div style="font-size:80px">🏆</div>`;
-                        html += `<h1>${{w.name}}</h1><h2>VAINQUEUR</h2><h3>${{w.score}} pts</h3></div>`;
-                        wGrid.innerHTML += html;
-                    }});
-
-                    function update() {{
-                        const now = Date.now();
-                        const elapsed = (now - startTime) / 1000;
-                        if (elapsed < 10) {{
-                            document.getElementById('screen-suspense').style.display = 'flex';
-                            document.getElementById('screen-winner').style.display = 'none';
-                            document.getElementById('timer').innerText = Math.ceil(10 - elapsed);
-                        }} else {{
-                            document.getElementById('screen-suspense').style.display = 'none';
-                            document.getElementById('screen-winner').style.display = 'flex';
-                        }}
-                    }}
-                    setInterval(update, 100);
-                    update();
-                </script>
-            </body>
-            </html>
-            """, height=850, scrolling=False)
+    """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
             # --- 1. PREPARATION DES DONNEES ---
