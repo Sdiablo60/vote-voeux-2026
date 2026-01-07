@@ -293,7 +293,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- PDF GENERATOR ---
+# --- GENERATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -636,7 +636,7 @@ if est_admin:
                 
                 c1, c2 = st.columns(2)
                 
-                # --- SÉLECTEUR DE MODE D'AFFICHAGE ---
+                # --- SÉLECTEUR DE VUE ---
                 c_mode, c_vide = st.columns([2, 2])
                 with c_mode:
                     mode_view = st.radio("Style d'affichage :", ["🖼️ Vignettes (Icônes)", "📄 Liste (Noms)"], horizontal=True, label_visibility="collapsed")
@@ -664,23 +664,26 @@ if est_admin:
                 else:
                     st.write("**Sélectionnez les photos :**")
                     
-                    # LOGIQUE D'AFFICHAGE SELON LE MODE CHOISI
                     if mode_view == "🖼️ Vignettes (Icônes)":
-                        cols = st.columns(8) # 8 Colonnes pour faire petit
+                        cols = st.columns(8) # 8 colonnes pour faire petit
                     else:
-                        cols = st.columns(5) # 5 Colonnes pour la liste
+                        cols = st.columns(5) # 5 colonnes pour la liste
                     
                     new_selection = []
+                    
                     for i, f in enumerate(files):
                         col = cols[i % len(cols)]
                         with col:
-                            filename = os.path.basename(f)
+                            # NOMMAGE "photo_Live01.jpg" POUR L'AFFICHAGE LISTE
+                            ext = os.path.splitext(f)[1]
+                            display_name = f"photo_Live{i+1:02d}{ext}"
+                            
                             if mode_view == "🖼️ Vignettes (Icônes)":
                                 st.image(f, use_container_width=True)
-                                if st.checkbox("Sel.", key=f"chk_{filename}"): new_selection.append(f)
+                                if st.checkbox("Sel.", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
                             else:
-                                st.markdown(f"<div style='font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;'>📷 {filename}</div>", unsafe_allow_html=True)
-                                if st.checkbox("Sélectionner", key=f"chk_list_{filename}"): new_selection.append(f)
+                                st.markdown(f"<div style='font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:monospace;'>📷 {display_name}</div>", unsafe_allow_html=True)
+                                if st.checkbox("Sel.", key=f"chk_list_{os.path.basename(f)}"): new_selection.append(f)
                                 st.markdown("---")
                     
                     st.write("---")
@@ -1139,26 +1142,31 @@ else:
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
-            # --- 1. CHARGEMENT PARTICIPANTS ---
+            # --- 1. LOAD PARTICIPANTS ---
             participants = load_json(PARTICIPANTS_FILE, [])
             nb_total = len(participants)
             
-            # --- 2. TAGS ---
+            # FIX: Gérer le cas où la liste est vide pour éviter le bug </div>
             if nb_total > 0:
-                last_24 = participants[-24:][::-1] 
+                last_24 = participants[-24:][::-1] # Derniers 24 inversés
                 tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
             else:
-                tags_html = "<span style='color:grey;'>En attente...</span>"
-
-            # --- 3. AFFICHAGE COMPTEUR + TAGS ---
+                tags_html = "<span style='color:grey; font-style:italic; font-size:16px;'>En attente des premiers participants...</span>"
+            
+            # --- 2. AFFICHAGE COMPTEUR + TAGS ---
+            # Ajout d'une marge supérieure plus importante (18vh) pour décoller du titre
             st.markdown(f"""
-            <div style="margin-top:15vh; margin-bottom:20px; text-align:center;">
-                <h2 style='color:#E2001A; margin:0;'>👥 {nb_total} PARTICIPANTS EN LIGNE</h2>
-                <div style="width:90%; margin:10px auto;">{tags_html}</div>
+            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:30px;">
+                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:15px; text-transform:uppercase;">
+                    👥 {nb_total} PARTICIPANTS EN LIGNE
+                </div>
+                <div style="width:90%; margin:0 auto; line-height:1.6;">
+                    {tags_html}
+                </div>
             </div>
             """, unsafe_allow_html=True)
             
-            # --- 4. PREPARATION DES DONNEES ---
+            # --- 3. PREPARATION DES DONNEES ---
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
@@ -1170,7 +1178,7 @@ else:
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
 
-            # --- 5. CONSTRUCTION DES LISTES (HTML STRING) ---
+            # --- 4. CONSTRUCTION DES LISTES (HTML STRING) ---
             html_left = ""
             for c in left_list:
                 if c in imgs:
@@ -1185,7 +1193,7 @@ else:
                 else:
                     html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # --- 6. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
+            # --- 5. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
             css_styles = """
             <style>
                 .vote-container {
@@ -1222,7 +1230,7 @@ else:
             </style>
             """
 
-            # --- 7. ASSEMBLAGE ---
+            # --- 6. ASSEMBLAGE ---
             full_html = css_styles
             full_html += '<div class="vote-container">'
             full_html += '<div class="col-participants">' + html_left + '</div>'
@@ -1239,7 +1247,7 @@ else:
             full_html += '<div class="col-participants">' + html_right + '</div>'
             full_html += '</div>'
 
-            # --- 8. AFFICHAGE ---
+            # --- 7. AFFICHAGE ---
             ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
