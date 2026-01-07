@@ -683,7 +683,7 @@ if est_admin:
                                 if st.checkbox("Sel.", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
                             else:
                                 st.markdown(f"<div style='font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; font-family:monospace;'>📷 {display_name}</div>", unsafe_allow_html=True)
-                                if st.checkbox("Sélectionner", key=f"chk_list_{os.path.basename(f)}"): new_selection.append(f)
+                                if st.checkbox("Sel.", key=f"chk_list_{os.path.basename(f)}"): new_selection.append(f)
                                 st.markdown("---")
                     
                     st.write("---")
@@ -952,9 +952,9 @@ else:
         .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         
         /* ETATS FINAUX PYRAMIDE RESSERREE */
-        .state-final-1 { left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }
-        .state-final-2 { left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
-        .state-final-3 { left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
+        .state-final-1 { left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.4); opacity: 1; z-index: 200; }
+        .state-final-2 { left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }
+        .state-final-3 { left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }
 
         .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
         
@@ -1152,26 +1152,27 @@ else:
                 tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
             else:
                 tags_html = "<span style='color:grey; font-style:italic;'>En attente des premiers participants...</span>"
-
-            # --- 2. DISPLAY HEADER (COUNTER + TAGS) ---
-            # Adjusted margin-top to 18vh to push it down from title
+            
+            # --- 2. AFFICHAGE COMPTEUR + TAGS ---
+            # Ajout d'une marge supérieure plus importante (18vh) pour décoller du titre
             st.markdown(f"""
-            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:20px;">
-                <div style="color:#E2001A; font-size:26px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
+            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:30px;">
+                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:15px; text-transform:uppercase;">
                     👥 {nb_total} PARTICIPANTS EN LIGNE
                 </div>
-                <div style="width:90%; margin:0 auto; line-height:1.5;">
+                <div style="width:90%; margin:0 auto; line-height:1.6;">
                     {tags_html}
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
-            # --- 3. STANDARD COLUMNS DISPLAY ---
+            
+            # --- 3. PREPARATION DES DONNEES ---
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
+            # Génération du QR Code et Logo
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
