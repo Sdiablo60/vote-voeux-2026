@@ -28,7 +28,7 @@ Image.MAX_IMAGE_PIXELS = None
 # CONFIGURATION PAGE
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
-# RECUPERATION PARAMETRES URL (En tout premier pour éviter NameError)
+# RECUPERATION PARAMETRES URL
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 is_blocked = st.query_params.get("blocked") == "true"
@@ -166,7 +166,7 @@ default_config = {
 }
 
 # =========================================================
-# 4. FONCTIONS UTILITAIRES (JSON, FICHIERS, IMAGES)
+# 4. FONCTIONS UTILITAIRES
 # =========================================================
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
@@ -204,7 +204,6 @@ def reset_app_data(init_mode="blank", preserve_config=False):
         if init_mode == "blank": st.session_state.config = copy.deepcopy(blank_config)
         elif init_mode == "demo": st.session_state.config = copy.deepcopy(default_config)
     
-    # GENERATION NOUVEL ID SESSION POUR FORCER RESET TELEPHONES
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
@@ -261,38 +260,10 @@ def process_participant_image(uploaded_file):
 
 # --- ACTIONS & VISUAL ---
 def inject_visual_effect(effect_name, intensity, speed):
-    if effect_name == "Aucun" or effect_name == "🎉 Confettis":
+    if effect_name == "Aucun":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
         return
-    duration = max(3, 25 - (speed * 0.4)) 
-    interval = int(5000 / (intensity + 1))
-    js_code = f"""
-    <script>
-        var doc = window.parent.document;
-        var layer = doc.getElementById('effect-layer');
-        if(!layer) {{
-            layer = doc.createElement('div');
-            layer.id = 'effect-layer';
-            layer.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;pointer-events:none;z-index:0;overflow:hidden;';
-            doc.body.appendChild(layer);
-        }}
-        function createBalloon() {{
-            var e = doc.createElement('div'); e.innerHTML = '🎈';
-            e.style.cssText = 'position:absolute;bottom:-100px;left:'+Math.random()*100+'vw;font-size:'+(Math.random()*40+30)+'px;transition:bottom {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.bottom = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
-        function createSnow() {{
-            var e = doc.createElement('div'); e.innerHTML = '❄';
-            e.style.cssText = 'position:absolute;top:-50px;left:'+Math.random()*100+'vw;color:white;font-size:'+(Math.random()*20+10)+'px;transition:top {duration}s linear;';
-            layer.appendChild(e);
-            setTimeout(() => {{ e.style.top = '110vh'; }}, 50); setTimeout(() => {{ e.remove(); }}, {duration * 1000});
-        }}
-    """
-    if effect_name == "🎈 Ballons": js_code += f"if(!window.balloonInterval) window.balloonInterval = setInterval(createBalloon, {interval});"
-    elif effect_name == "❄️ Neige": js_code += f"if(!window.snowInterval) window.snowInterval = setInterval(createSnow, {interval});"
-    js_code += "</script>"
-    components.html(js_code, height=0)
+    pass 
 
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
@@ -322,7 +293,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF ---
+# --- PDF GENERATOR ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -665,19 +636,21 @@ if est_admin:
                 
                 c1, c2 = st.columns(2)
                 
+                # --- SÉLECTEUR DE MODE D'AFFICHAGE ---
+                c_mode, c_vide = st.columns([2, 2])
+                with c_mode:
+                    mode_view = st.radio("Style d'affichage :", ["🖼️ Vignettes (Icônes)", "📄 Liste (Noms)"], horizontal=True, label_visibility="collapsed")
+                
                 with c1:
                     if files:
                         zip_buffer_all = BytesIO()
                         with zipfile.ZipFile(zip_buffer_all, "w") as zf:
-                            # ----------------------------------------------------
-                            # CORRECTION: RENOMMAGE DES FICHIERS POUR L'EXPORT ZIP
-                            # ----------------------------------------------------
+                            # RENOMMAGE DES FICHIERS POUR L'EXPORT ZIP
                             export_date = datetime.now().strftime("%Y-%m-%d")
                             for idx, file_path in enumerate(files):
                                 ext = os.path.splitext(file_path)[1]
                                 new_name = f"photo_Live{idx+1:02d}_{export_date}{ext}"
                                 zf.write(file_path, arcname=new_name)
-                            # ----------------------------------------------------
                             
                         st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
                         st.download_button("📥 TÉLÉCHARGER TOUTE LA GALERIE (ZIP)", data=zip_buffer_all.getvalue(), file_name=f"galerie_complete_{int(time.time())}.zip", mime="application/zip", use_container_width=True)
@@ -690,12 +663,25 @@ if est_admin:
                 if not files: st.info("Aucune photo.")
                 else:
                     st.write("**Sélectionnez les photos :**")
-                    cols = st.columns(5)
+                    
+                    # LOGIQUE D'AFFICHAGE SELON LE MODE CHOISI
+                    if mode_view == "🖼️ Vignettes (Icônes)":
+                        cols = st.columns(8) # 8 Colonnes pour faire petit
+                    else:
+                        cols = st.columns(5) # 5 Colonnes pour la liste
+                    
                     new_selection = []
                     for i, f in enumerate(files):
-                        with cols[i % 5]:
-                            st.image(f, use_container_width=True)
-                            if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
+                        col = cols[i % len(cols)]
+                        with col:
+                            filename = os.path.basename(f)
+                            if mode_view == "🖼️ Vignettes (Icônes)":
+                                st.image(f, use_container_width=True)
+                                if st.checkbox("Sel.", key=f"chk_{filename}"): new_selection.append(f)
+                            else:
+                                st.markdown(f"<div style='font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;'>📷 {filename}</div>", unsafe_allow_html=True)
+                                if st.checkbox("Sélectionner", key=f"chk_list_{filename}"): new_selection.append(f)
+                                st.markdown("---")
                     
                     st.write("---")
                     
@@ -704,7 +690,10 @@ if est_admin:
                             zip_buffer_sel = BytesIO()
                             with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
                                 for idx, file_path in enumerate(new_selection): 
-                                    zf.write(file_path, arcname=os.path.basename(file_path))
+                                    ext = os.path.splitext(file_path)[1]
+                                    export_date = datetime.now().strftime("%Y-%m-%d")
+                                    new_name = f"selection_Live{idx+1:02d}_{export_date}{ext}"
+                                    zf.write(file_path, arcname=new_name)
                             st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
                             st.download_button(f"📥 TÉLÉCHARGER SÉLECTION ({len(new_selection)})", data=zip_buffer_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True)
                             st.markdown('</div>', unsafe_allow_html=True)
@@ -759,7 +748,6 @@ if est_admin:
                 st.markdown("##### 📥 Exporter le Rapport de Résultats")
                 c1, c2, c3 = st.columns(3)
                 if PDF_AVAILABLE:
-                    # CORRECTION: UTILISATION DE LA BONNE VARIABLE nb_unique_voters (et non nb_voters qui n'existe pas ici)
                     st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
                     c1.download_button("📄 Rés. + Graphique (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals, nb_unique_voters, total_points_session), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
                     st.markdown('</div>', unsafe_allow_html=True)
@@ -802,16 +790,12 @@ if est_admin:
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    # INJECTION CSS SPECIFIQUE MOBILE POUR FORCER LE NOIR ET LE TEXTE BLANC
     st.markdown("""
         <style>
-            /* Force le fond noir sur mobile */
-            .stApp { background-color: black !important; color: white !important; }
-            /* Force tous les textes en blanc */
-            h1, h2, h3, h4, h5, h6, p, div, span, label, .stMarkdown { color: white !important; }
-            /* Cache le header Streamlit */
-            [data-testid='stHeader'] { display:none; }
-            .block-container { padding: 1rem !important; }
+            .stApp {background-color:black !important; color:white !important;} 
+            [data-testid='stHeader'] {display:none;}
+            .block-container {padding: 1rem !important;}
+            h1, h2, h3, p, div, span, label { color: white !important; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -1155,46 +1139,38 @@ else:
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
-            # =========================================================================
-            # AJOUT DU BLOC COMPTEUR ET TAGS (PARTICIPANTS EN LIGNE)
-            # =========================================================================
-            participants_list = load_json(PARTICIPANTS_FILE, [])
-            nb_participants = len(participants_list)
+            # --- 1. CHARGEMENT PARTICIPANTS ---
+            participants = load_json(PARTICIPANTS_FILE, [])
+            nb_total = len(participants)
             
-            # Gestion de la liste vide pour éviter les erreurs HTML
-            tags_html = ""
-            if nb_participants > 0:
-                # On prend les 24 derniers arrivés (inversé)
-                last_24 = participants_list[-24:][::-1] 
-                for p in last_24:
-                    tags_html += f"<span style='display:inline-block; padding:8px 15px; margin:5px; background:rgba(255,255,255,0.15); border:1px solid #E2001A; border-radius:20px; color:white; font-weight:bold; font-size:14px;'>{p}</span>"
+            # --- 2. TAGS ---
+            if nb_total > 0:
+                last_24 = participants[-24:][::-1] 
+                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
             else:
-                tags_html = "<span style='color:#888; font-style:italic;'>En attente de connexions...</span>"
+                tags_html = "<span style='color:grey;'>En attente...</span>"
 
-            # AFFICHAGE DU HEADER AVEC COMPTEUR ET TAGS
-            # Marge haute ajustée à 15vh pour laisser la place au titre
+            # --- 3. AFFICHAGE COMPTEUR + TAGS ---
             st.markdown(f"""
-            <div style="margin-top:15vh; margin-bottom:20px; text-align:center; width:100%;">
-                <h2 style="color:#E2001A; font-size:40px; margin-bottom:15px; text-transform:uppercase; text-shadow:0 0 10px black;">
-                    👥 {nb_participants} PARTICIPANTS EN LIGNE
-                </h2>
-                <div style="width:90%; margin:0 auto; line-height:1.8;">
-                    {tags_html}
-                </div>
+            <div style="margin-top:15vh; margin-bottom:20px; text-align:center;">
+                <h2 style='color:#E2001A; margin:0;'>👥 {nb_total} PARTICIPANTS EN LIGNE</h2>
+                <div style="width:90%; margin:10px auto;">{tags_html}</div>
             </div>
             """, unsafe_allow_html=True)
-            # =========================================================================
-
+            
+            # --- 4. PREPARATION DES DONNEES ---
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
+            # Génération du QR Code et Logo
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
 
+            # --- 5. CONSTRUCTION DES LISTES (HTML STRING) ---
             html_left = ""
             for c in left_list:
                 if c in imgs:
@@ -1209,13 +1185,13 @@ else:
                 else:
                     html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # CSS AVEC HAUTEUR AJUSTÉE POUR LES COLONNES (55vh pour éviter le scroll)
+            # --- 6. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
             css_styles = """
             <style>
                 .vote-container {
                     display: flex;
                     justify-content: space-between;
-                    align-items: flex-start; 
+                    align-items: flex-start; /* Aligne tout en haut */
                     width: 100vw;
                     height: 55vh; 
                     padding: 0 20px;
@@ -1246,10 +1222,12 @@ else:
             </style>
             """
 
+            # --- 7. ASSEMBLAGE ---
             full_html = css_styles
             full_html += '<div class="vote-container">'
             full_html += '<div class="col-participants">' + html_left + '</div>'
             
+            # Colonne Centrale (Logo + QR)
             full_html += '<div class="col-center">'
             full_html += logo_html
             full_html += "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>"
@@ -1261,6 +1239,7 @@ else:
             full_html += '<div class="col-participants">' + html_right + '</div>'
             full_html += '</div>'
 
+            # --- 8. AFFICHAGE ---
             ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
@@ -1273,7 +1252,6 @@ else:
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
-        if not photos: photos = []
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
@@ -1326,3 +1304,6 @@ else:
             }}
             animate();
         </script>""", height=0)
+
+    else:
+        st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
