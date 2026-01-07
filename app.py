@@ -288,7 +288,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF ---
+# --- GENERATEUR PDF AVANCÉ (V12) ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -906,29 +906,38 @@ else:
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
         
-        /* PODIUM STYLES */
-        .step-container { display: flex; align-items: flex-end; justify-content: center; gap: 20px; height: 80vh; padding-top: 100px; width: 100%; position: relative; z-index: 100; }
-        .podium-item { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; transition: transform 0.5s; }
-        .rank-2 { height: 55%; order: 1; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }
-        .rank-1 { height: 75%; order: 2; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; margin-bottom: 40px; z-index: 200; }
-        .rank-3 { height: 40%; order: 3; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }
+        /* PODIUM STYLES (ABSOLUTE ANIMATION) */
+        .podium-stage { position: relative; width: 100vw; height: 80vh; overflow: hidden; background: black; top: 12vh; }
         
-        .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; width: 280px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 2px solid rgba(255,255,255,0.2); }
-        .rank-1 .p-card { width: 350px; border: 4px solid #FFD700; box-shadow: 0 0 50px rgba(255, 215, 0, 0.4); background: rgba(255, 215, 0, 0.1); }
-        .rank-2 .p-card { border: 4px solid #C0C0C0; }
-        .rank-3 .p-card { border: 4px solid #CD7F32; }
+        /* Classe de base pour un candidat sur le podium */
+        .podium-item { position: absolute; bottom: 50px; width: 300px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.8); z-index: 100; }
         
-        .p-img { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 15px; }
-        .rank-1 .p-img { width: 180px; height: 180px; border: 6px solid #FFD700; }
+        /* POSITIONS CLES */
+        .state-hidden { opacity: 0; transform: scale(0.5); }
+        .state-center { left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }
+        .state-left { left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }
+        .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
         
-        .p-name { font-size: 28px; font-weight: bold; color: white; margin: 0; }
-        .rank-1 .p-name { font-size: 40px; color: #FFD700; text-transform: uppercase; }
+        /* VAINQUEUR (PLUS HAUT) */
+        .state-final-1 { left: 50%; bottom: 150px; transform: translateX(-50%) scale(1.2); opacity: 1; z-index: 200; }
+
+        .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
         
-        .p-score { font-size: 20px; color: #ccc; margin-top: 5px; }
+        /* Couleurs bordures */
+        .rank-1 .p-card { border-color: #FFD700; box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); }
+        .rank-2 .p-card { border-color: #C0C0C0; }
+        .rank-3 .p-card { border-color: #CD7F32; }
+
+        .p-img { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }
+        .rank-1 .p-img { border-color: #FFD700; width: 160px; height: 160px; }
+
+        .p-name { font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
+        .rank-1 .p-name { color: #FFD700; font-size: 40px; }
+        .p-score { font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }
         
-        .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
-        .intro-text { color: white; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .intro-count { color: #E2001A; font-size: 150px; font-weight: 900; margin-top: 20px; }
+        .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
+        .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -950,22 +959,15 @@ else:
             c_imgs = cfg.get("candidats_images", {})
             
             # --- LOGIQUE CLASSEMENT (PODIUM) ---
-            # 1. Calcul des scores
             if not v_data: v_data = {"Personne": 0}
-            
-            # 2. Trier les scores uniques décroissants pour déterminer les rangs (Or, Argent, Bronze)
             sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
             
-            # 3. Attribuer les rangs
-            # Rank 1 (Gold)
             s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else -1
             rank1 = [c for c, s in v_data.items() if s == s1]
             
-            # Rank 2 (Silver)
             s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else -1
             rank2 = [c for c, s in v_data.items() if s == s2]
             
-            # Rank 3 (Bronze)
             s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else -1
             rank3 = [c for c, s in v_data.items() if s == s3]
             
@@ -982,24 +984,21 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
-            # --- INJECTION JS SCÉNARIO ---
+            # --- INJECTION JS SCÉNARIO DYNAMIQUE ---
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
                 <div id="intro-num" class="intro-count"></div>
             </div>
 
-            <div class="step-container">
+            <div class="podium-stage">
+                <div id="col-3" class="podium-item rank-3">{h3}</div>
                 <div id="col-2" class="podium-item rank-2">{h2}</div>
                 <div id="col-1" class="podium-item rank-1">{h1}</div>
-                <div id="col-3" class="podium-item rank-3">{h3}</div>
             </div>
 
             <script>
-                // Fonction d'attente
                 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                
-                // Elements
                 const layer = document.getElementById('intro-layer');
                 const txt = document.getElementById('intro-txt');
                 const num = document.getElementById('intro-num');
@@ -1007,7 +1006,6 @@ else:
                 const c2 = document.getElementById('col-2');
                 const c3 = document.getElementById('col-3');
 
-                // Effet Confettis (Simple JS Canvas injection)
                 function startConfetti() {{
                     var script = document.createElement('script');
                     script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
@@ -1027,7 +1025,6 @@ else:
                     document.body.appendChild(script);
                 }}
 
-                // Fonction Compte a rebours
                 async function countdown(seconds, message) {{
                     layer.style.display = 'flex';
                     layer.style.opacity = '1';
@@ -1037,68 +1034,57 @@ else:
                         await wait(1000);
                     }}
                     layer.style.opacity = '0';
-                    await wait(500); // Fade out transition
+                    await wait(500); 
                     layer.style.display = 'none';
                 }}
 
                 async function runShow() {{
-                    // Si deja joué, on ne refait pas tout (simple check session storage optionnel, ici on joue direct)
-                    
-                    // PHASE 1: Intro 3eme
+                    // PHASE 1: 3eme (Apparition Centre -> Glisse Gauche)
                     await countdown(10, "LE SUSPENSE EST À SON COMBLE...");
-                    c3.style.opacity = '1';
-                    c3.style.transform = 'translateY(0)';
+                    c3.className = 'podium-item rank-3 state-center'; // Apparition Centre
+                    await wait(4000); // Temps applaudir
+                    c3.className = 'podium-item rank-3 state-left';   // Glisse Gauche
                     
-                    // PHASE 2: Pause Appreciation
-                    await wait(5000);
-                    
-                    // PHASE 3: Intro 2eme
+                    // PHASE 2: 2eme (Apparition Centre -> Glisse Droite)
                     await countdown(3, "ET EN SECONDE POSITION...");
-                    c2.style.opacity = '1';
-                    c2.style.transform = 'translateY(0)';
+                    c2.className = 'podium-item rank-2 state-center'; // Apparition Centre
+                    await wait(4000); // Temps applaudir
+                    c2.className = 'podium-item rank-2 state-right';  // Glisse Droite
                     
-                    // PHASE 4: Pause
-                    await wait(5000);
-                    
-                    // PHASE 5: Intro 1er
+                    // PHASE 3: 1er (Apparition Centre Haut)
                     await countdown(5, "LE GRAND VAINQUEUR EST...");
-                    c1.style.opacity = '1';
-                    c1.style.transform = 'translateY(0)';
+                    c1.className = 'podium-item rank-1 state-final-1'; // Apparition Haut
                     
-                    // Final
                     startConfetti();
                 }}
 
-                // Lancement
-                window.parent.document.body.style.backgroundColor = "black"; // Force black on parent
+                window.parent.document.body.style.backgroundColor = "black";
                 runShow();
-
             </script>
             <style>
-                /* Import styles inside component to ensure they apply */
-                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; }}
-                .intro-text {{ color: white; font-family: Arial; font-size: 60px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
-                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 180px; font-weight: 900; margin-top: 20px; }}
+                .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
+                .podium-item {{ position: absolute; bottom: 50px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }}
                 
-                .step-container {{ display: flex; align-items: flex-end; justify-content: center; gap: 40px; height: 85vh; width: 100vw; background: black; }}
-                .podium-item {{ display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 50px; }}
-                
-                .rank-2 {{ height: 60%; order: 1; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }}
-                .rank-1 {{ height: 85%; order: 2; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }}
-                .rank-3 {{ height: 45%; order: 3; opacity: 0; transform: translateY(100px); transition: all 1s ease-out; }}
+                .state-center {{ left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }}
+                .state-left {{ left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
+                .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
+                .state-final-1 {{ left: 50%; bottom: 180px; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }}
 
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 300px; text-align: center; backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.5); display:flex; flex-direction:column; align-items:center; margin-top:20px; }}
-                
-                .rank-1 .p-card {{ width: 400px; border: 6px solid #FFD700; box-shadow: 0 0 80px rgba(255, 215, 0, 0.3); background: rgba(20,20,20,0.8); }}
-                .rank-2 .p-card {{ border: 4px solid #C0C0C0; }}
-                .rank-3 .p-card {{ border: 4px solid #CD7F32; }}
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
+                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
+                .rank-2 .p-card {{ border-color: #C0C0C0; }}
+                .rank-3 .p-card {{ border-color: #CD7F32; }}
 
                 .p-img {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }}
-                .rank-1 .p-img {{ width: 220px; height: 220px; border: 8px solid #FFD700; }}
+                .rank-1 .p-img {{ border-color: #FFD700; width: 160px; height: 160px; }}
 
-                .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; }}
-                .rank-1 .p-name {{ font-size: 50px; color: #FFD700; text-transform: uppercase; }}
+                .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 40px; }}
                 .p-score {{ font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }}
+                
+                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; }}
+                .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
+                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
             </style>
             """, height=900, scrolling=False)
 
