@@ -288,7 +288,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF ---
+# --- GENERATEUR PDF AVANCÉ ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -991,156 +991,114 @@ else:
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
-            c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
+            c_imgs = cfg.get("candidats_images", {})
+            sorted_scores = sorted(list(set(v_data.values())), reverse=True)
+            top_3_scores = sorted_scores[:3]
+            finalists = [k for k, v in v_data.items() if v in top_3_scores]
+            max_score = sorted_scores[0] if sorted_scores else 0
+            winners = [k for k, v in v_data.items() if v == max_score]
             
-            # Calcul Rangs
-            sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
-            s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else -1
-            s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else -1
-            s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else -1
+            js_finalists = []
+            for name in finalists:
+                img = None
+                for c, i in c_imgs.items():
+                    if c.strip() == name.strip(): img = i; break
+                js_finalists.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
             
-            rank1 = [c for c, s in v_data.items() if s == s1]
-            rank2 = [c for c, s in v_data.items() if s == s2]
-            rank3 = [c for c, s in v_data.items() if s == s3]
-            
-            # --- Génération HTML Dynamique avec Scale ---
-            def get_row_html(cands, score, emoji, rank_class):
-                if not cands: return ""
-                count = len(cands)
-                # Logique de redimensionnement si beaucoup de gagnants
-                scale = 1.0
-                if count >= 3: scale = 0.8
-                if count >= 5: scale = 0.6
-                
-                # Styles inline pour ajuster la taille
-                card_w = int(280 * scale)
-                img_s = int(120 * scale)
-                font_n = int(24 * scale)
-                font_s = int(18 * scale)
-                if "rank-1" in rank_class: 
-                    card_w = int(350 * scale)
-                    img_s = int(160 * scale)
-                    font_n = int(36 * scale)
-                
-                html = ""
-                for c in cands:
-                    img_src = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
-                    img_tag = f"<img src='{img_src}' class='p-img' style='width:{img_s}px;height:{img_s}px;'>" if img_src else f"<div style='font-size:{img_s}px'>{emoji}</div>"
-                    html += f"""
-                    <div class='{rank_class}' style='margin:0 10px;'>
-                        <div class='p-card' style='width:{card_w}px;'>
-                            {img_tag}
-                            <div class='p-name' style='font-size:{font_n}px;'>{c}</div>
-                            <div class='p-score' style='font-size:{font_s}px;'>{score} pts</div>
-                        </div>
-                    </div>
-                    """
-                return html
+            js_winners = []
+            for name in winners:
+                img = None
+                for c, i in c_imgs.items():
+                    if c.strip() == name.strip(): img = i; break
+                js_winners.append({'name': name, 'score': v_data[name], 'img': f"data:image/jpeg;base64,{img}" if img else ""})
 
-            h1 = get_row_html(rank1, s1, "🥇", "rank-1")
-            h2 = get_row_html(rank2, s2, "🥈", "rank-2")
-            h3 = get_row_html(rank3, s3, "🥉", "rank-3")
+            ts_start = cfg.get("timestamp_podium", 0) * 1000
+            logo_data = cfg.get("logo_b64", "")
             
-            # Textes Suspense Adaptatifs
-            txt_3 = "ILS SONT PLUSIEURS À LA 3ÈME PLACE !" if len(rank3) > 1 else "POUR LA MÉDAILLE DE BRONZE..."
-            txt_2 = "INCROYABLE, EX-AEQUO EN 2ÈME PLACE !" if len(rank2) > 1 else "LA MÉDAILLE D'ARGENT REVIENT À..."
-            txt_1 = "ET LES GRANDS VAINQUEURS SONT..." if len(rank1) > 1 else "ET LE GRAND VAINQUEUR EST..."
-
+            # --- PODIUM HTML (BIG & NO SCROLL) ---
             components.html(f"""
-            <div id="intro-layer" class="intro-overlay">
-                <div id="intro-txt" class="intro-text"></div>
-                <div id="intro-num" class="intro-count"></div>
-            </div>
-            
-            <audio id="applause-sound" preload="auto">
-                <source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg">
-            </audio>
-
-            <div class="podium-stage">
-                <div id="row-1" class="rank-row reveal-state">{h1}</div>
-                <div id="row-2" class="rank-row reveal-state">{h2}</div>
-                <div id="row-3" class="rank-row reveal-state">{h3}</div>
-            </div>
-
-            <script>
-                const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                const layer = document.getElementById('intro-layer');
-                const txt = document.getElementById('intro-txt');
-                const num = document.getElementById('intro-num');
+            <html>
+            <head>
+            <style>
+                body {{ background: transparent; font-family: Arial; overflow: hidden; margin:0; width:100vw; height:100vh; display:flex; justify-content:center; align-items:center; }}
+                .wrapper {{ text-align: center; width: 100%; display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; }}
                 
-                const r1 = document.getElementById('row-1');
-                const r2 = document.getElementById('row-2');
-                const r3 = document.getElementById('row-3');
-                const audio = document.getElementById('applause-sound');
-
-                function startConfetti() {{
-                    var script = document.createElement('script');
-                    script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
-                    script.onload = () => {{
-                        var duration = 15 * 1000;
-                        var animationEnd = Date.now() + duration;
-                        var defaults = {{ startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }};
-                        var interval = setInterval(function() {{
-                            var timeLeft = animationEnd - Date.now();
-                            if (timeLeft <= 0) {{ return clearInterval(interval); }}
-                            confetti(Object.assign({{}}, defaults, {{ particleCount: 50, origin: {{ x: Math.random(), y: Math.random() - 0.2 }} }}));
-                        }}, 250);
-                    }};
-                    document.body.appendChild(script);
+                .logo-img {{ width: 300px; margin-bottom: 20px; object-fit: contain; display: block; }}
+                
+                .countdown {{ font-size: 150px; color: #E2001A; font-weight: bold; text-shadow: 0 0 20px black; margin: 20px 0; }}
+                .title {{ color:white; font-size:50px; font-weight:bold; margin-bottom:20px; }}
+                
+                /* GRILLE FINALISTES & VAINQUEURS */
+                .grid {{ 
+                    display: flex; justify-content: center; align-items: flex-end; 
+                    gap: 30px; width: 95%; flex-wrap: wrap;
                 }}
+                
+                .card {{ background: rgba(255,255,255,0.1); padding: 20px; border-radius: 20px; width: 200px; text-align: center; color: white; }}
+                .card img {{ width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid white; }}
+                .card h3 {{ font-size: 20px; margin: 10px 0; }}
+                
+                .winner-card {{ background: rgba(20,20,20,0.95); border: 6px solid #FFD700; padding: 40px; border-radius: 40px; width: 350px; text-align: center; box-shadow: 0 0 60px #FFD700; margin: 0 auto; }}
+                .winner-card img {{ width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 6px solid white; margin-bottom: 20px; }}
+                .winner-card h1 {{ font-size: 35px; margin: 10px 0; color: white; }}
+                .winner-card h2 {{ font-size: 28px; color: #FFD700; }}
+            </style>
+            </head>
+            <body>
+                <div id="screen-suspense" class="wrapper" style="display:none;">
+                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
+                    <div class="title">LES FINALISTES...</div>
+                    <div id="timer" class="countdown">10</div>
+                    <div class="grid" id="finalists-grid"></div>
+                </div>
+                
+                <div id="screen-winner" class="wrapper" style="display:none;">
+                    {f'<img src="data:image/png;base64,{logo_data}" class="logo-img">' if logo_data else ''}
+                    <div class="grid" id="winners-grid"></div>
+                </div>
 
-                async function countdown(seconds, message) {{
-                    layer.style.display = 'flex';
-                    layer.style.opacity = '1';
-                    txt.innerText = message;
-                    for(let i=seconds; i>0; i--) {{
-                        num.innerText = i;
-                        await wait(1000);
-                    }}
-                    layer.style.opacity = '0';
-                    await wait(500); 
-                    layer.style.display = 'none';
-                }}
-
-                async function runShow() {{
-                    // Intro
-                    await countdown(5, "ET VOICI LES FINALISTES...");
+                <script>
+                    const finalists = {json.dumps(js_finalists)};
+                    const winners = {json.dumps(js_winners)};
+                    const startTime = {ts_start};
                     
-                    // Rank 3
-                    if (r3.innerHTML.trim() !== "") {{
-                        await countdown(5, "{txt_3}");
-                        r3.classList.add('reveal-visible'); // Apparition centre
-                        await wait(4000); // Pause
-                        r3.classList.remove('reveal-visible');
-                        r3.classList.add('final-state'); // Glisse en bas
+                    const fGrid = document.getElementById('finalists-grid');
+                    finalists.forEach(f => {{
+                        let html = `<div class="card">`;
+                        if(f.img) html += `<img src="${{f.img}}">`;
+                        else html += `<div style="font-size:50px">🏆</div>`;
+                        html += `<h3>${{f.name}}</h3><h4>${{f.score}} pts</h4></div>`;
+                        fGrid.innerHTML += html;
+                    }});
+
+                    const wGrid = document.getElementById('winners-grid');
+                    winners.forEach(w => {{
+                        let html = `<div class="winner-card"><div style="font-size:60px">🥇</div>`;
+                        if(w.img) html += `<img src="${{w.img}}">`;
+                        else html += `<div style="font-size:80px">🏆</div>`;
+                        html += `<h1>${{w.name}}</h1><h2>VAINQUEUR</h2><h3>${{w.score}} pts</h3></div>`;
+                        wGrid.innerHTML += html;
+                    }});
+
+                    function update() {{
+                        const now = Date.now();
+                        const elapsed = (now - startTime) / 1000;
+                        if (elapsed < 10) {{
+                            document.getElementById('screen-suspense').style.display = 'flex';
+                            document.getElementById('screen-winner').style.display = 'none';
+                            document.getElementById('timer').innerText = Math.ceil(10 - elapsed);
+                        }} else {{
+                            document.getElementById('screen-suspense').style.display = 'none';
+                            document.getElementById('screen-winner').style.display = 'flex';
+                        }}
                     }}
-
-                    // Rank 2
-                    if (r2.innerHTML.trim() !== "") {{
-                        await countdown(5, "{txt_2}");
-                        r2.classList.add('reveal-visible');
-                        await wait(4000);
-                        r2.classList.remove('reveal-visible');
-                        r2.classList.add('final-state');
-                    }}
-
-                    // Rank 1
-                    await countdown(7, "{txt_1}");
-                    r1.classList.add('reveal-visible');
-                    await wait(2000);
-                    // Le 1er reste en mode "visible" (centre) puis on ajuste tout le monde
-                    r1.classList.remove('reveal-visible');
-                    r1.classList.add('final-state');
-                    
-                    startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{}}
-                }}
-
-                window.parent.document.body.style.backgroundColor = "black";
-                runShow();
-            </script>
-            """, height=900, scrolling=False)
+                    setInterval(update, 100);
+                    update();
+                </script>
+            </body>
+            </html>
+            """, height=850, scrolling=False)
 
         elif cfg.get("session_ouverte"):
             # --- 1. PREPARATION DES DONNEES ---
