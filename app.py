@@ -287,7 +287,7 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF AVANCÉ (V12) ---
+# --- GENERATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -905,59 +905,56 @@ else:
         .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
         .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
         
-        /* PODIUM STYLES (STRUCTURE FLEXIBLE 3 LIGNES) */
-        .podium-stage { 
-            position: fixed; 
-            top: 12vh; 
-            left: 0; 
-            width: 100vw; 
-            height: 92vh;  /* Increased height to utilize full screen */
-            background: black; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: flex-end; /* En bas de page */
-            padding-bottom: 0px; /* Reduced padding */
-            overflow: hidden;
+        /* PODIUM STYLES (FLEX ROWS) */
+        .podium-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100vw;
+            background: black;
+            position: fixed;
+            top: 0; left: 0;
+            z-index: 50;
         }
         
-        /* Conteneurs de rangées */
         .rank-row {
             display: flex;
+            flex-direction: row;
             justify-content: center;
-            align-items: flex-end;
+            align-items: center;
             width: 100%;
-            gap: 20px;
-            padding-bottom: 20px; /* Add padding to rows */
-            opacity: 0; 
-            transition: all 1s ease-in-out;
+            transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+            opacity: 0; /* Hidden initially */
+            transform: translateY(20px);
         }
         
-        /* Ordre d'affichage final (Pyramide) */
-        #row-1 { order: 1; margin-bottom: 30px; z-index: 20; } /* Vainqueur en haut */
-        #row-2 { order: 2; margin-bottom: 15px; z-index: 15; }
-        #row-3 { order: 3; margin-bottom: 0; z-index: 10; }
-
-        /* Animation d'entrée : On part du centre et on s'étend */
-        .reveal-state { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.5); opacity: 0; transition: all 1s ease; }
-        .reveal-visible { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        .final-state { position: relative; top: auto; left: auto; transform: none; opacity: 1; }
-
-        /* Cartes individuelles */
+        /* Animation classes */
+        .visible { opacity: 1 !important; transform: translateY(0) !important; }
+        
+        /* Spacing for rows */
+        #row-1 { margin-bottom: 20px; } /* Gold on top */
+        #row-2 { margin-bottom: 20px; } /* Silver middle */
+        #row-3 { margin-bottom: 0; }    /* Bronze bottom */
+        
+        /* Cards */
         .p-card { 
             background: rgba(255,255,255,0.1); 
             border-radius: 20px; 
             padding: 20px; 
+            margin: 0 10px;
             text-align: center; 
             backdrop-filter: blur(10px); 
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8); 
-            border: 2px solid rgba(255,255,255,0.2); 
-            display:flex; flex-direction:column; align-items:center; 
-            transition: all 0.5s ease;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            border: 3px solid rgba(255,255,255,0.2); 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
         }
-        
-        /* Styles spécifiques par rang */
-        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 60px rgba(255, 215, 0, 0.6); }
+
+        /* Specific Styles */
+        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 50px rgba(255, 215, 0, 0.4); }
         .rank-2 .p-card { border-color: #C0C0C0; }
         .rank-3 .p-card { border-color: #CD7F32; }
 
@@ -967,11 +964,17 @@ else:
         .p-name { font-family: Arial; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
         .rank-1 .p-name { color: #FFD700; }
         .p-score { font-family: Arial; color: #ccc; margin-top: 5px; }
-        
-        /* Intro Texte */
-        .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
+
+        /* Intro Overlay */
+        .intro-overlay { 
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; 
+            background: black; z-index: 9999; 
+            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            text-align: center; transition: opacity 0.5s; pointer-events: none; 
+        }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
         .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
+
     </style>
     """, unsafe_allow_html=True)
     
@@ -993,7 +996,7 @@ else:
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
             
-            # Calcul Rangs
+            # --- Logic: Sorting ---
             sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
             s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else -1
             s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else -1
@@ -1003,45 +1006,57 @@ else:
             rank2 = [c for c, s in v_data.items() if s == s2]
             rank3 = [c for c, s in v_data.items() if s == s3]
             
-            # --- Logic to handle multiple winners per rank (Scale down if many) ---
-            total_winners = len(rank1) + len(rank2) + len(rank3)
-            scale_factor = 1.0
-            if total_winners > 4: scale_factor = 0.8
-            if total_winners > 6: scale_factor = 0.6
-            
-            # Helper to generate HTML for each rank group
-            def get_podium_html(cands, score, emoji):
+            # --- HTML Generator with Scaling ---
+            def get_row_html(cands, score, emoji, rank_class):
                 if not cands: return ""
+                count = len(cands)
+                scale = 1.0
+                if count >= 3: scale = 0.8
+                if count >= 5: scale = 0.6
+                
+                # Base sizes
+                card_w = 280
+                img_s = 120
+                font_n = 24
+                
+                # Boost for Rank 1
+                if "rank-1" in rank_class:
+                    card_w = 350
+                    img_s = 160
+                    font_n = 36
+                
+                # Apply scale
+                card_w = int(card_w * scale)
+                img_s = int(img_s * scale)
+                font_n = int(font_n * scale)
+                font_s = int(18 * scale)
+
                 html = ""
                 for c in cands:
                     img_src = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
-                    # Apply scale factor to image size and text
-                    img_s = int(140 * scale_factor)
-                    font_n = int(30 * scale_factor)
-                    font_s = int(24 * scale_factor)
-                    
-                    img_tag = f"<img src='{img_src}' class='p-img' style='width:{img_s}px;height:{img_s}px;'>" if img_src else f"<div style='font-size:{int(80*scale_factor)}px'>{emoji}</div>"
+                    img_tag = f"<img src='{img_src}' class='p-img' style='width:{img_s}px;height:{img_s}px;'>" if img_src else f"<div style='font-size:{img_s}px'>{emoji}</div>"
                     
                     html += f"""
-                    <div class='p-card' style='padding:{int(20*scale_factor)}px; margin-bottom:10px;'>
-                        {img_tag}
-                        <div class='p-name' style='font-size:{font_n}px;'>{c}</div>
-                        <div class='p-score' style='font-size:{font_s}px;'>{score} pts</div>
+                    <div class='{rank_class}'>
+                        <div class='p-card' style='width:{card_w}px;'>
+                            {img_tag}
+                            <div class='p-name' style='font-size:{font_n}px;'>{c}</div>
+                            <div class='p-score' style='font-size:{font_s}px;'>{score} pts</div>
+                        </div>
                     </div>
                     """
                 return html
 
-            h1 = get_podium_html(rank1, s1, "🥇")
-            h2 = get_podium_html(rank2, s2, "🥈")
-            h3 = get_podium_html(rank3, s3, "🥉")
+            h1 = get_row_html(rank1, s1, "🥇", "rank-1")
+            h2 = get_row_html(rank2, s2, "🥈", "rank-2")
+            h3 = get_row_html(rank3, s3, "🥉", "rank-3")
             
-            # Textes Adaptatifs
+            # Texts
             txt_intro = "NOUS ALLONS DÉCOUVRIR MAINTENANT LES FINALISTES DE CE CONCOURS"
             txt_3 = "ILS SONT PLUSIEURS À LA 3ÈME PLACE !" if len(rank3) > 1 else "À LA TROISIÈME PLACE..."
             txt_2 = "EX-AEQUO À LA DEUXIÈME PLACE !" if len(rank2) > 1 else "À LA DEUXIÈME PLACE..."
             txt_1 = "LES GRANDS VAINQUEURS SONT..." if len(rank1) > 1 else "ET LE GRAND VAINQUEUR EST..."
 
-            # --- INJECTION JS SCÉNARIO DYNAMIQUE ---
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
@@ -1052,10 +1067,10 @@ else:
                 <source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg">
             </audio>
 
-            <div class="podium-stage">
-                <div id="row-1" class="rank-row reveal-state">{h1}</div>
-                <div id="row-2" class="rank-row reveal-state">{h2}</div>
-                <div id="row-3" class="rank-row reveal-state">{h3}</div>
+            <div class="podium-container">
+                <div id="row-1" class="rank-row">{h1}</div>
+                <div id="row-2" class="rank-row">{h2}</div>
+                <div id="row-3" class="rank-row">{h3}</div>
             </div>
 
             <script>
@@ -1063,7 +1078,6 @@ else:
                 const layer = document.getElementById('intro-layer');
                 const txt = document.getElementById('intro-txt');
                 const num = document.getElementById('intro-num');
-                
                 const r1 = document.getElementById('row-1');
                 const r2 = document.getElementById('row-2');
                 const r3 = document.getElementById('row-3');
@@ -1076,24 +1090,19 @@ else:
                         var duration = 15 * 1000;
                         var animationEnd = Date.now() + duration;
                         var defaults = {{ startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }};
-                        var random = (min, max) => Math.random() * (max - min) + min;
                         var interval = setInterval(function() {{
                             var timeLeft = animationEnd - Date.now();
                             if (timeLeft <= 0) {{ return clearInterval(interval); }}
-                            var particleCount = 50 * (timeLeft / duration);
-                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.1, 0.3), y: Math.random() - 0.2 }} }}));
-                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.7, 0.9), y: Math.random() - 0.2 }} }}));
+                            confetti(Object.assign({{}}, defaults, {{ particleCount: 50, origin: {{ x: Math.random(), y: Math.random() - 0.2 }} }}));
                         }}, 250);
                     }};
                     document.body.appendChild(script);
                 }}
 
                 async function countdown(seconds, message, is_initial=false) {{
-                    // Gestion du fond
                     if(is_initial) layer.style.backgroundColor = 'black';
-                    else layer.style.backgroundColor = 'rgba(0,0,0,0.6)'; // Semi-transparent pour voir les gagnants
+                    else layer.style.backgroundColor = 'rgba(0,0,0,0.85)'; // Dark overlay for text
                     
-                    layer.style.display = 'flex';
                     layer.style.opacity = '1';
                     txt.innerText = message;
                     for(let i=seconds; i>0; i--) {{
@@ -1102,39 +1111,31 @@ else:
                     }}
                     layer.style.opacity = '0';
                     await wait(500); 
-                    layer.style.display = 'none';
                 }}
 
                 async function runShow() {{
                     // Intro
                     await countdown(6, "{txt_intro}", true);
-                    
-                    // Rank 3
+
+                    // Reveal 3rd
                     if (r3.innerHTML.trim() !== "") {{
-                        await countdown(5, "{txt_3}");
-                        r3.classList.add('reveal-visible'); // Apparition centre
-                        await wait(4000); // Pause
-                        r3.classList.remove('reveal-visible');
-                        r3.classList.add('final-state'); // Glisse en bas
+                        await countdown(4, "{txt_3}");
+                        r3.classList.add('visible');
+                        await wait(3000);
                     }}
 
-                    // Rank 2
+                    // Reveal 2nd
                     if (r2.innerHTML.trim() !== "") {{
-                        await countdown(5, "{txt_2}");
-                        r2.classList.add('reveal-visible');
-                        await wait(4000);
-                        r2.classList.remove('reveal-visible');
-                        r2.classList.add('final-state');
+                        await countdown(4, "{txt_2}");
+                        r2.classList.add('visible');
+                        await wait(3000);
                     }}
 
-                    // Rank 1
-                    await countdown(7, "{txt_1}");
-                    r1.classList.add('reveal-visible');
-                    await wait(2000);
-                    // Le 1er reste en mode "visible" (centre) puis on ajuste tout le monde
-                    r1.classList.remove('reveal-visible');
-                    r1.classList.add('final-state');
+                    // Reveal 1st
+                    await countdown(6, "{txt_1}");
+                    r1.classList.add('visible');
                     
+                    // Final Celebration
                     startConfetti();
                     try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{}}
                 }}
@@ -1145,89 +1146,35 @@ else:
             """, height=900, scrolling=False)
 
         elif cfg.get("session_ouverte"):
-            # --- 1. PREPARATION DES DONNEES ---
+             # ... (Standard Voting Code - unchanged)
             cands = cfg.get("candidats", [])
             imgs = cfg.get("candidats_images", {})
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
-            
-            # Génération du QR Code et Logo
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
             logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
-
-            # --- 2. CONSTRUCTION DES LISTES (HTML STRING) ---
             html_left = ""
             for c in left_list:
-                if c in imgs:
-                    html_left += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
-                else:
-                    html_left += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
-
+                if c in imgs: html_left += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
+                else: html_left += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
             html_right = ""
             for c in right_list:
-                if c in imgs:
-                    html_right += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
-                else:
-                    html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
-
-            # --- 3. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
+                if c in imgs: html_right += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
+                else: html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
             css_styles = """
             <style>
-                .vote-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start; /* Aligne tout en haut */
-                    width: 100vw;
-                    height: 85vh;
-                    margin-top: 13vh; /* Remonté légèrement */
-                    padding: 0 20px;
-                    box-sizing: border-box;
-                }
-                .col-participants {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: flex-start; /* Aligne les participants en haut */
-                }
-                .col-center {
-                    flex: 0 0 400px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: flex-start; /* Aligne le logo/QR en haut */
-                    height: 100%;
-                    padding-top: 10px; /* Petit ajustement */
-                }
-                .cand-row {
-                    width: 90% !important;
-                    max-width: 400px !important;
-                    background: rgba(255,255,255,0.1);
-                    backdrop-filter: blur(5px);
-                }
+                .vote-container { display: flex; justify-content: space-between; align-items: flex-start; width: 100vw; height: 85vh; margin-top: 13vh; padding: 0 20px; box-sizing: border-box; }
+                .col-participants { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
+                .col-center { flex: 0 0 400px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; height: 100%; padding-top: 10px; }
+                .cand-row { width: 90% !important; max-width: 400px !important; background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); }
             </style>
             """
-
-            # --- 4. ASSEMBLAGE ---
             full_html = css_styles
-            full_html += '<div class="vote-container">'
-            full_html += '<div class="col-participants">' + html_left + '</div>'
-            
-            # Colonne Centrale (Logo + QR)
-            full_html += '<div class="col-center">'
-            full_html += logo_html
-            full_html += "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>"
-            full_html += "<img src='data:image/png;base64," + qr_b64 + "' style='width: 250px; display:block;'>"
-            full_html += "</div>"
-            full_html += "<div class='vote-cta' style='margin-top: 30px;'>À VOS VOTES !</div>"
-            full_html += '</div>'
-            
-            full_html += '<div class="col-participants">' + html_right + '</div>'
-            full_html += '</div>'
-
-            # --- 5. AFFICHAGE ---
+            full_html += '<div class="vote-container"><div class="col-participants">' + html_left + '</div>'
+            full_html += '<div class="col-center">' + logo_html + "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'><img src='data:image/png;base64," + qr_b64 + "' style='width: 250px; display:block;'></div><div class='vote-cta' style='margin-top: 30px;'>À VOS VOTES !</div></div>"
+            full_html += '<div class="col-participants">' + html_right + '</div></div>'
             ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
@@ -1235,6 +1182,7 @@ else:
             ph.markdown(f"<div class='full-screen-center'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
+        # ... (Photos live code - unchanged)
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
