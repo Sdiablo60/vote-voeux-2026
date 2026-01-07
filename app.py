@@ -11,17 +11,6 @@ import copy
 import re
 import tempfile
 
-# =========================================================
-# 1. CONFIGURATION & VARIABLES GLOBALES (CRITIQUE : EN PREMIER)
-# =========================================================
-st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
-
-# --- RECUPERATION DES PARAMETRES URL (PLACÉ ICI POUR ÉVITER LE NAME ERROR) ---
-est_admin = st.query_params.get("admin") == "true"
-est_utilisateur = st.query_params.get("mode") == "vote"
-is_blocked = st.query_params.get("blocked") == "true"
-is_test_admin = st.query_params.get("test_admin") == "true"
-
 # TENTATIVE D'IMPORT DE FPDF
 try:
     from fpdf import FPDF
@@ -31,6 +20,9 @@ except ImportError:
 
 # SECURITE PIL
 Image.MAX_IMAGE_PIXELS = None 
+
+# --- CONFIGURATION ---
+st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
 # Dossiers & Fichiers
 LIVE_DIR = "galerie_live_users"
@@ -46,13 +38,19 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
 # =========================================================
-# 2. CSS COMMUN (DESIGN & FONDS)
+# RECUPERATION PARAMETRES URL (CRITIQUE : EN HAUT)
 # =========================================================
+est_admin = st.query_params.get("admin") == "true"
+est_utilisateur = st.query_params.get("mode") == "vote"
+is_blocked = st.query_params.get("blocked") == "true"
+is_test_admin = st.query_params.get("test_admin") == "true"
+
+# --- CSS COMMUN (BOUTONS & LOGIN & FOND BLANC PAR DEFAUT) ---
 st.markdown("""
 <style>
-    /* 1. FOND GLOBAL BLANC PAR DÉFAUT (Pour l'Admin) */
+    /* 1. FOND GLOBAL BLANC (Appliqué par défaut pour l'Admin) */
     .stApp {
-        background-color: #FFFFFF !important;
+        background-color: #FFFFFF;
     }
     
     /* 2. STOP SCROLLING ULTIME (Global) */
@@ -103,24 +101,16 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
         background-color: #3498db !important;
     }
-    
-    /* LIENS STYLÉS EN BOUTONS (Sidebar Admin) */
+
+    /* Liens externes */
     .custom-link-btn {
-        display: block !important; 
-        text-align: center !important; 
-        padding: 12px !important; 
-        border-radius: 8px !important;
-        text-decoration: none !important; 
-        font-weight: bold !important; 
-        margin-bottom: 10px !important;
-        color: white !important; 
-        transition: transform 0.2s !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
+        display: block; text-align: center; padding: 12px; border-radius: 8px;
+        text-decoration: none !important; font-weight: bold; margin-bottom: 10px;
+        color: white !important; transition: transform 0.2s;
     }
     .custom-link-btn:hover { transform: scale(1.02); }
-    .btn-red { background-color: #E2001A !important; }
-    .btn-blue { background-color: #2980b9 !important; }
+    .btn-red { background-color: #E2001A; }
+    .btn-blue { background-color: #2980b9; }
 
     /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin) */
     .social-header { display: none; }
@@ -161,9 +151,7 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# =========================================================
-# 3. FONCTIONS UTILITAIRES
-# =========================================================
+# --- FONCTIONS ---
 def clean_for_json(data):
     if isinstance(data, dict): return {k: clean_for_json(v) for k, v in data.items()}
     elif isinstance(data, list): return [clean_for_json(v) for v in data]
@@ -199,8 +187,8 @@ def reset_app_data(init_mode="blank", preserve_config=False):
         if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
         if init_mode == "blank": st.session_state.config = copy.deepcopy(blank_config)
         elif init_mode == "demo": st.session_state.config = copy.deepcopy(default_config)
-    
-    # GENERATION NOUVEL ID SESSION POUR FORCER RESET TELEPHONES
+        
+    # GENERATION NOUVEL ID POUR FLUSH LES TELEPHONES
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
@@ -253,14 +241,7 @@ def process_participant_image(uploaded_file):
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
-# --- ACTIONS & VISUAL ---
-def inject_visual_effect(effect_name, intensity, speed):
-    if effect_name == "Aucun" or effect_name == "🎉 Confettis":
-        components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
-        return
-    # Note: On garde la structure pour compatibilité
-    pass 
-
+# --- ACTIONS ---
 def set_state(mode, open_s, reveal):
     st.session_state.config["mode_affichage"] = mode
     st.session_state.config["session_ouverte"] = open_s
@@ -272,6 +253,13 @@ def reset_vote_callback():
     st.session_state.vote_success = False
     if "widget_choix" in st.session_state: st.session_state.widget_choix = []
     if "widget_choix_force" in st.session_state: st.session_state.widget_choix_force = []
+
+# FONCTION D'INJECTION (DOIT ETRE DEFINIE POUR EVITER NAME ERROR)
+def inject_visual_effect(effect_name, intensity, speed):
+    if effect_name == "Aucun":
+        components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
+        return
+    pass 
 
 # --- STATS ---
 def get_advanced_stats():
@@ -471,302 +459,99 @@ if est_admin:
                 else: st.error("Code incorrect")
             st.markdown('</div>', unsafe_allow_html=True)
     else:
-        if "session_active" not in st.session_state or not st.session_state["session_active"]:
-            st.title("🗂️ GESTIONNAIRE DE SESSIONS")
-            st.info("Avant d'accéder au pilotage, choisissez une session.")
-            current_title = st.session_state.config.get("titre_mur", "Session Inconnue")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("### 🚀 Continuer")
-                if st.button(f"OUVRIR : {current_title}", type="primary", use_container_width=True):
-                    st.session_state["session_active"] = True
-                    st.rerun()
-            with c2:
-                st.markdown("### ✨ Créer")
-                if st.button("CRÉER UNE NOUVELLE SESSION VIERGE", type="primary", use_container_width=True):
-                    archive_current_session()
-                    reset_app_data(init_mode="blank")
-                    st.session_state["session_active"] = True
-                    st.success("Nouvelle session vierge prête !")
-                    time.sleep(1)
-                    st.rerun()
+        cfg = st.session_state.config
+        with st.sidebar:
+            if st.button("⬅️ CHANGER DE SESSION"): st.session_state["session_active"] = False; st.rerun()
             st.divider()
-            st.markdown("### 📚 Historique / Archives")
-            archives = sorted([d for d in os.listdir(ARCHIVE_DIR) if os.path.isdir(os.path.join(ARCHIVE_DIR, d))], reverse=True)
-            if not archives: st.caption("Aucune archive trouvée.")
-            else:
-                for arc in archives:
-                    with st.expander(f"📁 {arc}"):
-                        c_res, c_del = st.columns([3, 1])
-                        if c_res.button(f"Restaurer {arc}", key=f"res_{arc}"):
-                            archive_current_session()
-                            restore_session_from_archive(arc)
-                            st.session_state.config = load_json(CONFIG_FILE, default_config)
-                            st.session_state["session_active"] = True
-                            st.success("Session restaurée !")
-                            time.sleep(1); st.rerun()
-                        confirm = c_del.checkbox("Confirmer", key=f"chk_{arc}")
-                        if c_del.button("🗑️", key=f"del_{arc}", disabled=not confirm):
-                            delete_archived_session(arc); st.rerun()
-        else:
-            cfg = st.session_state.config
-            with st.sidebar:
-                if st.button("⬅️ CHANGER DE SESSION"):
-                    st.session_state["session_active"] = False; st.rerun()
-                st.divider()
-                if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
-                st.header("MENU")
-                if "admin_menu" not in st.session_state: st.session_state.admin_menu = "🔴 PILOTAGE LIVE"
-                
-                # NAVIGATION AVEC BOUTONS
-                if st.button("🔴 PILOTAGE LIVE", type="primary" if st.session_state.admin_menu == "🔴 PILOTAGE LIVE" else "secondary"): 
-                    st.session_state.admin_menu = "🔴 PILOTAGE LIVE"; st.rerun()
-                if st.button("⚙️ CONFIG", type="primary" if st.session_state.admin_menu == "⚙️ CONFIG" else "secondary"): 
-                    st.session_state.admin_menu = "⚙️ CONFIG"; st.rerun()
-                if st.button("📸 MÉDIATHÈQUE", type="primary" if st.session_state.admin_menu == "📸 MÉDIATHÈQUE" else "secondary"): 
-                    st.session_state.admin_menu = "📸 MÉDIATHÈQUE"; st.rerun()
-                if st.button("📊 DATA", type="primary" if st.session_state.admin_menu == "📊 DATA" else "secondary"): 
-                    st.session_state.admin_menu = "📊 DATA"; st.rerun()
-                
-                menu = st.session_state.admin_menu
-                st.divider()
-                # LIENS AVEC CLASSE CSS POUR STYLE BOUTON
-                st.markdown("""
-                    <a href="/" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>
-                    <a href="/?mode=vote&test_admin=true" target="_blank" class="custom-link-btn btn-blue">📱 TESTER MOBILE (ILLIMITÉ)</a>
-                """, unsafe_allow_html=True)
-                if st.button("🔓 DÉCONNEXION"): 
-                    st.session_state["auth"] = False
-                    st.session_state["session_active"] = False
-                    st.rerun()
+            if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
+            st.header("MENU")
+            if "admin_menu" not in st.session_state: st.session_state.admin_menu = "🔴 PILOTAGE LIVE"
+            if st.button("🔴 PILOTAGE LIVE", type="primary" if st.session_state.admin_menu == "🔴 PILOTAGE LIVE" else "secondary"): 
+                st.session_state.admin_menu = "🔴 PILOTAGE LIVE"; st.rerun()
+            if st.button("⚙️ CONFIG", type="primary" if st.session_state.admin_menu == "⚙️ CONFIG" else "secondary"): 
+                st.session_state.admin_menu = "⚙️ CONFIG"; st.rerun()
+            if st.button("📸 MÉDIATHÈQUE", type="primary" if st.session_state.admin_menu == "📸 MÉDIATHÈQUE" else "secondary"): 
+                st.session_state.admin_menu = "📸 MÉDIATHÈQUE"; st.rerun()
+            if st.button("📊 DATA", type="primary" if st.session_state.admin_menu == "📊 DATA" else "secondary"): 
+                st.session_state.admin_menu = "📊 DATA"; st.rerun()
+            
+            st.divider()
+            st.markdown(f'<a href="/" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
+            if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.rerun()
 
-            if menu == "🔴 PILOTAGE LIVE":
-                st.title("🔴 PILOTAGE LIVE")
-                st.subheader("Séquenceur")
-                etat = "Inconnu"
-                if cfg["mode_affichage"] == "attente": etat = "ACCUEIL"
-                elif cfg["mode_affichage"] == "votes":
-                    if cfg["reveal_resultats"]: etat = "PODIUM"
-                    elif cfg["session_ouverte"]: etat = "VOTES OUVERTS"
-                    else: etat = "VOTES FERMÉS"
-                elif cfg["mode_affichage"] == "photos_live": etat = "PHOTOS LIVE"
-                st.info(f"État actuel : **{etat}**")
-                c1, c2, c3, c4 = st.columns(4)
-                c1.button("🏠 ACCUEIL", use_container_width=True, type="primary" if cfg["mode_affichage"]=="attente" else "secondary", on_click=set_state, args=("attente", False, False))
-                c2.button("🗳️ VOTES ON", use_container_width=True, type="primary" if (cfg["mode_affichage"]=="votes" and cfg["session_ouverte"]) else "secondary", on_click=set_state, args=("votes", True, False))
-                c3.button("🔒 VOTES OFF", use_container_width=True, type="primary" if (cfg["mode_affichage"]=="votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]) else "secondary", on_click=set_state, args=("votes", False, False))
-                c4.button("🏆 PODIUM", use_container_width=True, type="primary" if cfg["reveal_resultats"] else "secondary", on_click=set_state, args=("votes", False, True))
-                st.markdown("---")
-                st.button("📸 MUR PHOTOS LIVE", use_container_width=True, type="primary" if cfg["mode_affichage"]=="photos_live" else "secondary", on_click=set_state, args=("photos_live", False, False))
-                st.divider()
-                with st.expander("🚨 ZONE DE DANGER"):
-                    st.write("Attention : Cela efface tous les votes et les photos, mais garde votre configuration (Candidats, Titre, Logo).")
-                    if st.button("🗑️ RESET DONNÉES (Session en cours)", type="primary"): 
-                        reset_app_data(preserve_config=True)
-                        st.success("Données remises à zéro !")
-                        time.sleep(1)
-                        st.rerun()
+        menu = st.session_state.admin_menu
 
-            elif menu == "⚙️ CONFIG":
-                st.title("⚙️ CONFIGURATION")
-                t1, t2 = st.tabs(["Général", "Candidats & Images"])
-                with t1:
-                    if cfg["titre_mur"] == "TITRE À DÉFINIR": st.error("⚠️ Veuillez définir un titre")
-                    new_t = st.text_input("Titre", value=cfg["titre_mur"])
-                    if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
-                    upl = st.file_uploader("Logo (PNG Transparent)", type=["png", "jpg"])
-                    if upl: 
-                        processed_logo = process_logo(upl)
-                        if processed_logo:
-                            st.session_state.config["logo_b64"] = processed_logo
-                            save_config(); st.rerun()
-                with t2:
-                    st.subheader(f"Liste des participants ({len(cfg['candidats'])}/15)")
-                    if not cfg["candidats"]: st.error("⚠️ La liste est vide ! Ajoutez des participants pour commencer.")
-                    if len(cfg['candidats']) < 15:
-                        c_add, c_btn = st.columns([4, 1])
-                        new_cand = c_add.text_input("Nouveau participant", key="new_cand_input")
-                        if c_btn.button("➕ Ajouter") and new_cand:
-                            if new_cand.strip() not in cfg['candidats']:
-                                cfg['candidats'].append(new_cand.strip())
-                                save_config(); st.rerun()
-                            else: st.error("Existe déjà !")
-                    else: st.warning("Maximum atteint.")
-                    st.divider()
-                    candidates_to_remove = []
-                    for i, cand in enumerate(cfg['candidats']):
-                        c1, c2, c3 = st.columns([0.5, 3, 2])
-                        with c1:
-                            if cand in cfg.get("candidats_images", {}): st.image(BytesIO(base64.b64decode(cfg["candidats_images"][cand])), width=40)
-                            else: st.write("🚫")
-                        with c2:
-                            new_name = st.text_input(f"Participant {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
-                            if new_name != cand and new_name:
-                                cfg['candidats'][i] = new_name
-                                if cand in cfg.get("candidats_images", {}): cfg["candidats_images"][new_name] = cfg["candidats_images"].pop(cand)
-                                save_config(); st.rerun()
-                        with c3:
-                            col_up, col_del = st.columns([3, 1])
-                            up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
-                            if up_img: 
-                                if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
-                                processed = process_participant_image(up_img)
-                                if processed:
-                                    current_img = st.session_state.config["candidats_images"].get(cand)
-                                    if processed != current_img:
-                                        st.session_state.config["candidats_images"][cand] = processed
-                                        save_config(); st.toast(f"✅ Image {cand} sauvegardée"); time.sleep(0.5); st.rerun()
-                            if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
-                    if candidates_to_remove:
-                        for c in candidates_to_remove:
-                            cfg['candidats'].remove(c)
-                            if c in cfg.get("candidats_images", {}): del cfg["candidats_images"][c]
-                        save_config(); st.rerun()
+        if menu == "🔴 PILOTAGE LIVE":
+            st.title("🔴 PILOTAGE LIVE")
+            st.info(f"État actuel : {cfg['mode_affichage']}")
+            c1, c2, c3, c4 = st.columns(4)
+            c1.button("🏠 ACCUEIL", on_click=set_state, args=("attente", False, False))
+            c2.button("🗳️ VOTES ON", on_click=set_state, args=("votes", True, False))
+            c3.button("🔒 VOTES OFF", on_click=set_state, args=("votes", False, False))
+            c4.button("🏆 PODIUM", on_click=set_state, args=("votes", False, True))
+            st.markdown("---")
+            st.button("📸 PHOTOS LIVE", on_click=set_state, args=("photos_live", False, False))
+            with st.expander("🚨 ZONE DE DANGER"):
+                if st.button("🗑️ RESET DONNÉES", type="primary"): 
+                    reset_app_data(preserve_config=True)
+                    st.success("Reset OK"); time.sleep(1); st.rerun()
 
-            elif menu == "📸 MÉDIATHÈQUE":
-                st.title("📸 MÉDIATHÈQUE")
-                files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
-                
-                # --- ACTIONS GLOBALES ---
-                st.markdown("### 📤 Actions Export")
-                
-                c1, c2 = st.columns(2)
-                
-                with c1:
-                    if files:
-                        zip_buffer_all = BytesIO()
-                        with zipfile.ZipFile(zip_buffer_all, "w") as zf:
-                            for idx, file_path in enumerate(files):
-                                zf.write(file_path, arcname=os.path.basename(file_path))
-                        st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                        st.download_button("📥 TÉLÉCHARGER TOUTE LA GALERIE (ZIP)", data=zip_buffer_all.getvalue(), file_name=f"galerie_complete_{int(time.time())}.zip", mime="application/zip", use_container_width=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
-                    else:
-                        st.button("📥 TÉLÉCHARGER TOUT (VIDE)", disabled=True, use_container_width=True)
+        elif menu == "⚙️ CONFIG":
+            st.title("⚙️ CONFIGURATION")
+            t1, t2 = st.tabs(["Général", "Candidats"])
+            with t1:
+                new_t = st.text_input("Titre", value=cfg["titre_mur"])
+                if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
+                upl = st.file_uploader("Logo", type=["png", "jpg"])
+                if upl:
+                    p = process_logo(upl)
+                    if p: st.session_state.config["logo_b64"] = p; save_config(); st.rerun()
+            with t2:
+                c_add, c_btn = st.columns([4, 1])
+                new_c = c_add.text_input("Nouveau")
+                if c_btn.button("➕") and new_c: cfg['candidats'].append(new_c); save_config(); st.rerun()
+                for c in cfg['candidats']:
+                    c1, c2 = st.columns([4,1])
+                    c1.write(c)
+                    if c2.button("🗑️", key=c): cfg['candidats'].remove(c); save_config(); st.rerun()
+        
+        elif menu == "📸 MÉDIATHÈQUE":
+            st.title("📸 MÉDIATHÈQUE")
+            files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
+            if files:
+                zip_buffer = BytesIO()
+                with zipfile.ZipFile(zip_buffer, "w") as zf:
+                    for f in files: zf.write(f, arcname=os.path.basename(f))
+                st.download_button("📥 TOUT TÉLÉCHARGER", data=zip_buffer.getvalue(), file_name="galerie.zip", mime="application/zip")
+            st.image([f for f in files[:20]], width=100) # Preview simple
+            if st.button("🗑️ TOUT SUPPRIMER", type="primary"):
+                for f in files: os.remove(f)
+                st.rerun()
 
-                st.divider()
-                
-                if not files: st.info("Aucune photo.")
-                else:
-                    st.write("**Sélectionnez les photos :**")
-                    cols = st.columns(5)
-                    new_selection = []
-                    for i, f in enumerate(files):
-                        with cols[i % 5]:
-                            st.image(f, use_container_width=True)
-                            if st.checkbox(f"Sel. {i+1}", key=f"chk_{os.path.basename(f)}"): new_selection.append(f)
-                    
-                    st.write("---")
-                    
-                    with c2:
-                        if new_selection:
-                            zip_buffer_sel = BytesIO()
-                            with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
-                                for idx, file_path in enumerate(new_selection): 
-                                    zf.write(file_path, arcname=os.path.basename(file_path))
-                            st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                            st.download_button(f"📥 TÉLÉCHARGER SÉLECTION ({len(new_selection)})", data=zip_buffer_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True)
-                            st.markdown('</div>', unsafe_allow_html=True)
-                        else:
-                            st.button("📥 TÉLÉCHARGER SÉLECTION (0)", disabled=True, use_container_width=True)
-
-                st.markdown("<br><br><br>", unsafe_allow_html=True)
-                
-                with st.expander("🚨 ZONE DE DANGER (SUPPRESSION TOTALE)"):
-                    st.write("Attention, cette action est irréversible.")
-                    if st.button("🗑️ TOUT SUPPRIMER DÉFINITIVEMENT", type="primary", use_container_width=True):
-                        files = glob.glob(f"{LIVE_DIR}/*")
-                        for f in files: os.remove(f)
-                        st.success("Suppression OK"); time.sleep(1); st.rerun()
-
-            elif menu == "📊 DATA":
-                st.title("📊 DONNÉES & RÉSULTATS")
-                
-                # --- CALCULS DONNEES ---
-                votes = load_json(VOTES_FILE, {})
-                vote_counts, nb_unique_voters, rank_dist = get_advanced_stats()
-                
-                all_cands_data = []
-                total_points_session = 0
-                for c in cfg["candidats"]:
-                    p = votes.get(c, 0)
-                    total_points_session += p
-                    all_cands_data.append({
-                        "Candidat": c,
-                        "Points": p,
-                        "Nb Votes": vote_counts.get(c, 0)
-                    })
-                
-                df_totals = pd.DataFrame(all_cands_data).sort_values(by='Points', ascending=False)
-                
-                # --- SECTION 1: RESULTATS ---
-                st.subheader("🏆 Classement Général")
-                c_chart, c_data = st.columns([1, 1]) 
-                
-                with c_chart:
-                    chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
-                        x=alt.X('Points'), 
-                        y=alt.Y('Candidat', sort='-x'), 
-                        tooltip=['Candidat', 'Points', 'Nb Votes']
-                    ).properties(height=350) 
-                    st.altair_chart(chart, use_container_width=True)
-                
-                with c_data:
-                    st.dataframe(df_totals, height=350, use_container_width=True, hide_index=True)
-                
-                # Exports Résultats
-                st.markdown("##### 📥 Exporter le Rapport de Résultats")
-                c1, c2, c3 = st.columns(3)
-                if PDF_AVAILABLE:
-                    st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                    c1.download_button("📄 Rés. + Graphique (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals, nb_unique_voters, total_points_session), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                    c2.download_button("📄 Analyse Répartition (PDF)", data=create_pdf_distribution(cfg['titre_mur'], rank_dist, nb_unique_voters), file_name=f"Repartition_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                
-                st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                c3.download_button("📊 Données Résultats (CSV)", data=df_totals.to_csv(index=False).encode('utf-8'), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-                st.divider()
-
-                # --- SECTION 2: AUDIT ---
-                st.subheader("📝 Journal d'Audit (Détails des votes)")
-                raw_details = load_json(DETAILED_VOTES_FILE, [])
-                if raw_details:
-                    df_audit = pd.DataFrame(raw_details)
-                    if 'Date' in df_audit.columns:
-                        df_audit = df_audit.drop(columns=['Date'])
-                        
-                    st.dataframe(df_audit, use_container_width=True, height=400)
-                    
-                    st.markdown("##### 📥 Exporter l'Audit")
-                    c4, c5 = st.columns(2)
-                    if PDF_AVAILABLE:
-                        st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                        c4.download_button("📄 Audit Détaillé (PDF)", data=create_pdf_audit(cfg['titre_mur'], df_audit, nb_unique_voters), file_name=f"Audit_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                    c5.download_button("📊 Audit Détaillé (CSV)", data=df_audit.to_csv(index=False).encode('utf-8'), file_name=f"Audit_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                else:
-                    st.info("Aucun vote enregistré pour le moment.")
+        elif menu == "📊 DATA":
+            st.title("📊 DONNÉES")
+            votes = load_json(VOTES_FILE, {})
+            vote_counts, nb_voters, rank_dist = get_advanced_stats()
+            data = [{"Candidat": c, "Points": votes.get(c, 0), "Votes": vote_counts.get(c, 0)} for c in cfg["candidats"]]
+            df = pd.DataFrame(data).sort_values("Points", ascending=False)
+            st.dataframe(df, hide_index=True, use_container_width=True)
+            if PDF_AVAILABLE:
+                st.download_button("📄 RAPPORT PDF", data=create_pdf_results(cfg['titre_mur'], df, nb_voters, df['Points'].sum()), file_name="rapport.pdf")
 
 # =========================================================
-# 2. APPLICATION MOBILE
+# 2. APPLICATION MOBILE (Vote)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     st.markdown("""
         <style>
-            .stApp {background-color:black; color:white;} 
+            .stApp {background-color:black !important; color:white !important;} 
             [data-testid='stHeader'] {display:none;}
             .block-container {padding: 1rem !important;}
+            h1, h2, h3, p, div, span, label { color: white !important; }
         </style>
     """, unsafe_allow_html=True)
+    
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
@@ -782,7 +567,7 @@ elif est_utilisateur:
             components.html(f"""<script>
                 var sS = "{curr_sess}";
                 var lS = localStorage.getItem('VOTE_SID_2026');
-                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
+                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); }}
                 if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
             </script>""", height=0)
         else:
@@ -813,7 +598,7 @@ elif est_utilisateur:
                 st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
         
         elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
-            st.write(f"Bonjour **{st.session_state.user_pseudo}**")
+            st.write(f"Bonjour {st.session_state.user_pseudo}")
             if not st.session_state.rules_accepted:
                 st.info("⚠️ **RÈGLES DU VOTE**")
                 st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
@@ -851,373 +636,208 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (Podium & Affichage)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
-    refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
-    st_autorefresh(interval=refresh_rate, key="wall_refresh")
-    
-    st.markdown("""
-    <style>
-        /* CSS SOCIAL WALL UNIQUEMENT - NO SCROLL & NO SIDEBAR */
-        
-        /* Cacher la scrollbar sur Chrome/Safari */
-        ::-webkit-scrollbar { display: none; }
-
-        /* Cacher la Sidebar de manière brute */
-        [data-testid="stSidebar"], section[data-testid="stSidebar"] { display: none !important; width: 0 !important; }
-        [data-testid="stSidebarCollapsedControl"] { display: none !important; }
-
-        /* Cacher le Header Streamlit */
-        header, [data-testid="stHeader"] { display: none !important; height: 0 !important; }
-        [data-testid="stToolbar"] { display: none !important; }
-        [data-testid="stDecoration"] { display: none !important; }
-
-        /* Bloquer le scroll et forcer le fond noir sur TOUTES les couches */
-        html, body, .stApp, [data-testid="stAppViewContainer"] { 
-            background-color: black !important; 
-            font-family: 'Arial', sans-serif; 
-            overflow: hidden !important; 
-            height: 100vh !important;
-            width: 100vw !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            position: fixed !important; /* Verrouillage ultime */
-            top: 0 !important;
-            left: 0 !important;
-        }
-
-        /* Supprimer les marges internes de Streamlit */
-        .block-container { 
-            padding: 0 !important; 
-            max-width: 100vw !important; 
-            margin: 0 !important;
-        }
-
-        .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
-        .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
-        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; text-transform: uppercase; }
-        .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
-        .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
-        .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
-        .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
-        
-        /* PODIUM STYLES (ABSOLUTE ANIMATION) */
-        .podium-stage { position: relative; width: 100vw; height: 80vh; overflow: hidden; background: black; top: 12vh; }
-        
-        /* Classe de base pour un candidat sur le podium */
-        .podium-item { position: absolute; bottom: 50px; width: 300px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.8); z-index: 100; }
-        
-        /* POSITIONS CLES */
-        .state-hidden { opacity: 0; transform: scale(0.5); }
-        .state-center { left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }
-        .state-left { left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }
-        .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
-        
-        /* ETATS FINAUX PYRAMIDE RESSERREE */
-        .state-final-1 { left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }
-        .state-final-2 { left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
-        .state-final-3 { left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }
-
-        .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
-        
-        /* Couleurs bordures */
-        .rank-1 .p-card { border-color: #FFD700; box-shadow: 0 0 60px rgba(255, 215, 0, 0.5); background: rgba(20,20,20,0.9); }
-        .rank-2 .p-card { border-color: #C0C0C0; }
-        .rank-3 .p-card { border-color: #CD7F32; }
-
-        .p-img { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }
-        .rank-1 .p-img { border-color: #FFD700; width: 160px; height: 160px; }
-
-        .p-name { font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
-        .rank-1 .p-name { color: #FFD700; font-size: 40px; }
-        .p-score { font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }
-        
-        .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
-        .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
-    </style>
-    """, unsafe_allow_html=True)
+    st_autorefresh(interval=4000, key="wall_refresh")
     
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
-    mode = cfg.get("mode_affichage")
-    effects = cfg.get("screen_effects", {})
-    effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
-    inject_visual_effect(effect_name, 25, 15)
-
-    ph = st.empty()
     
+    mode = cfg.get("mode_affichage")
+    
+    # ------------------ ACCUEIL ------------------
     if mode == "attente":
-        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-        ph.markdown(f"<div class='full-screen-center'>{logo_html}<h1 style='color:white; font-size:100px; margin:0; font-weight:bold;'>BIENVENUE</h1></div>", unsafe_allow_html=True)
+        st.markdown("""<style>.stApp {background-color:black !important;}</style>""", unsafe_allow_html=True)
+        logo = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:400px;">' if cfg.get("logo_b64") else ""
+        st.markdown(f"""
+        <div style="height:88vh; margin-top:12vh; display:flex; flex-direction:column; justify-content:center; align-items:center; background:black;">
+            {logo}
+            <h1 style="color:white; font-size:80px; margin-top:30px;">BIENVENUE</h1>
+        </div>
+        """, unsafe_allow_html=True)
 
-    elif mode == "votes":
-        if cfg.get("reveal_resultats"):
-            v_data = load_json(VOTES_FILE, {})
-            c_imgs = cfg.get("candidats_images", {})
-            
-            # --- LOGIQUE CLASSEMENT (PODIUM) ---
-            if not v_data: v_data = {"Personne": 0}
-            sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
-            
-            s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else -1
-            rank1 = [c for c, s in v_data.items() if s == s1]
-            
-            s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else -1
-            rank2 = [c for c, s in v_data.items() if s == s2]
-            
-            s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else -1
-            rank3 = [c for c, s in v_data.items() if s == s3]
-            
-            def get_podium_html(cands, score, emoji):
-                if not cands: return ""
-                html = ""
-                for c in cands:
-                    img_src = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
-                    img_tag = f"<img src='{img_src}' class='p-img'>" if img_src else f"<div style='font-size:80px'>{emoji}</div>"
-                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div><br>"
-                return html
+    # ------------------ PODIUM (VERSION 32 - COMPOSANT ISOLE) ------------------
+    elif mode == "votes" and cfg.get("reveal_resultats"):
+        st.markdown("""<style>.stApp {background-color:black !important;}</style>""", unsafe_allow_html=True)
+        v_data = load_json(VOTES_FILE, {})
+        c_imgs = cfg.get("candidats_images", {})
+        if not v_data: v_data = {"Personne": 0}
+        
+        scores = sorted(list(set(v_data.values())), reverse=True)
+        s1 = scores[0] if len(scores) > 0 else -1
+        s2 = scores[1] if len(scores) > 1 else -1
+        s3 = scores[2] if len(scores) > 2 else -1
+        
+        rank1 = [c for c, s in v_data.items() if s == s1]
+        rank2 = [c for c, s in v_data.items() if s == s2]
+        rank3 = [c for c, s in v_data.items() if s == s3]
 
-            h1 = get_podium_html(rank1, s1, "🥇")
-            h2 = get_podium_html(rank2, s2, "🥈")
-            h3 = get_podium_html(rank3, s3, "🥉")
-            
-            # --- INJECTION JS SCÉNARIO DYNAMIQUE ---
-            components.html(f"""
-            <div id="intro-layer" class="intro-overlay">
-                <div id="intro-txt" class="intro-text"></div>
-                <div id="intro-num" class="intro-count"></div>
+        txt_intro = "NOUS ALLONS DÉCOUVRIR MAINTENANT LES FINALISTES DE CE CONCOURS"
+        txt_3 = "ILS SONT PLUSIEURS À LA 3ÈME PLACE !" if len(rank3) > 1 else "À LA TROISIÈME PLACE..."
+        txt_2 = "EX-AEQUO À LA DEUXIÈME PLACE !" if len(rank2) > 1 else "À LA DEUXIÈME PLACE..."
+        txt_1 = "LES GRANDS VAINQUEURS SONT..." if len(rank1) > 1 else "ET LE GRAND VAINQUEUR EST..."
+
+        def get_html_cards(cands, score, medal):
+            html = ""
+            for c in cands:
+                img = f"data:image/png;base64,{c_imgs[c]}" if c in c_imgs else ""
+                img_tag = f"<img src='{img}' class='p-img'>" if img else f"<div style='font-size:50px'>{medal}</div>"
+                html += f"""<div class="p-card">{img_tag}<div class="p-name">{c}</div><div class="p-score">{score} pts</div></div>"""
+            return html
+
+        h1 = get_html_cards(rank1, s1, "🥇")
+        h2 = get_html_cards(rank2, s2, "🥈")
+        h3 = get_html_cards(rank3, s3, "🥉")
+
+        components.html(f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <style>
+            body {{ margin: 0; padding: 0; overflow: hidden; background-color: black; font-family: Arial, sans-serif; }}
+            .podium-container {{
+                display: flex; flex-direction: column; width: 100vw; height: 100vh;
+                justify-content: flex-end; align-items: center;
+                padding-bottom: 20px; box-sizing: border-box; padding-top: 12vh;
+            }}
+            .rank-row {{
+                display: flex; flex-direction: row; justify-content: center; align-items: flex-end;
+                width: 100%; opacity: 0; transform: translateY(30px); transition: opacity 1s ease, transform 1s ease;
+            }}
+            .visible {{ opacity: 1 !important; transform: translateY(0) !important; }}
+            #row-1 {{ order: 1; margin-bottom: 40px; z-index: 10; }} 
+            #row-2 {{ order: 2; margin-bottom: 20px; z-index: 5; }}  
+            #row-3 {{ order: 3; margin-bottom: 0px; z-index: 1; }}   
+            .p-card {{
+                background: rgba(255,255,255,0.1); border-radius: 15px; padding: 15px; margin: 0 10px;
+                text-align: center; border: 2px solid rgba(255,255,255,0.2); color: white; min-width: 180px;
+                display: flex; flex-direction: column; align-items: center;
+            }}
+            #row-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); box-shadow: 0 0 50px rgba(255, 215, 0, 0.4); transform: scale(1.2); }}
+            #row-2 .p-card {{ border-color: #C0C0C0; transform: scale(1.0); }}
+            #row-3 .p-card {{ border-color: #CD7F32; transform: scale(0.9); }}
+            .p-img {{ width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid white; margin-bottom: 10px; }}
+            #row-1 .p-img {{ width: 120px; height: 120px; border-color: #FFD700; }}
+            .p-name {{ font-weight: bold; font-size: 18px; text-transform: uppercase; margin-bottom: 5px; }}
+            #row-1 .p-name {{ font-size: 26px; color: #FFD700; }}
+            .p-score {{ font-size: 14px; color: #ddd; }}
+            .overlay {{
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center;
+                z-index: 9999; transition: opacity 0.5s;
+            }}
+            .txt-msg {{ color: white; font-size: 40px; font-weight: bold; text-align: center; text-transform: uppercase; margin: 20px; }}
+            .txt-num {{ color: #E2001A; font-size: 120px; font-weight: 900; }}
+        </style>
+        </head>
+        <body>
+            <div id="overlay" class="overlay"><div id="msg" class="txt-msg"></div><div id="num" class="txt-num"></div></div>
+            <audio id="sound" src="https://www.soundjay.com/human/sounds/applause-01.mp3"></audio>
+            <div class="podium-container">
+                <div id="row-1" class="rank-row">{h1}</div>
+                <div id="row-2" class="rank-row">{h2}</div>
+                <div id="row-3" class="rank-row">{h3}</div>
             </div>
-            
-            <audio id="applause-sound" preload="auto">
-                <source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg">
-            </audio>
-
-            <div class="podium-stage">
-                <div id="col-3" class="podium-item rank-3">{h3}</div>
-                <div id="col-2" class="podium-item rank-2">{h2}</div>
-                <div id="col-1" class="podium-item rank-1">{h1}</div>
-            </div>
-
             <script>
-                const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                const layer = document.getElementById('intro-layer');
-                const txt = document.getElementById('intro-txt');
-                const num = document.getElementById('intro-num');
-                const c1 = document.getElementById('col-1');
-                const c2 = document.getElementById('col-2');
-                const c3 = document.getElementById('col-3');
-                const audio = document.getElementById('applause-sound');
-
-                function startConfetti() {{
-                    var script = document.createElement('script');
-                    script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
-                    script.onload = () => {{
-                        var duration = 15 * 1000;
-                        var animationEnd = Date.now() + duration;
-                        var defaults = {{ startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }};
-                        var random = (min, max) => Math.random() * (max - min) + min;
-                        var interval = setInterval(function() {{
-                            var timeLeft = animationEnd - Date.now();
-                            if (timeLeft <= 0) {{ return clearInterval(interval); }}
-                            var particleCount = 50 * (timeLeft / duration);
-                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.1, 0.3), y: Math.random() - 0.2 }} }}));
-                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.7, 0.9), y: Math.random() - 0.2 }} }}));
-                        }}, 250);
-                    }};
-                    document.body.appendChild(script);
+                const wait = (ms) => new Promise(r => setTimeout(r, ms));
+                const ov = document.getElementById('overlay');
+                const msg = document.getElementById('msg');
+                const num = document.getElementById('num');
+                const r1 = document.getElementById('row-1');
+                const r2 = document.getElementById('row-2');
+                const r3 = document.getElementById('row-3');
+                
+                async function count(sec, text, dark=false) {{
+                    ov.style.backgroundColor = dark ? 'black' : 'rgba(0,0,0,0.7)';
+                    ov.style.display = 'flex'; ov.style.opacity = '1'; msg.innerText = text;
+                    for(let i=sec; i>0; i--) {{ num.innerText = i; await wait(1000); }}
+                    ov.style.opacity = '0'; await wait(500); ov.style.display = 'none';
                 }}
-
-                async function countdown(seconds, message) {{
-                    layer.style.display = 'flex';
-                    layer.style.opacity = '1';
-                    txt.innerText = message;
-                    for(let i=seconds; i>0; i--) {{
-                        num.innerText = i;
-                        await wait(1000);
+                async function start() {{
+                    await count(5, "{txt_intro}", true);
+                    if(r3.innerHTML.trim() !== "") {{ await count(4, "{txt_3}"); r3.classList.add('visible'); await wait(2000); }}
+                    if(r2.innerHTML.trim() !== "") {{ await count(4, "{txt_2}"); r2.classList.add('visible'); await wait(2000); }}
+                    if(r1.innerHTML.trim() !== "") {{ await count(6, "{txt_1}"); r1.classList.add('visible'); 
+                        var script = document.createElement('script');
+                        script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
+                        script.onload = () => {{ setInterval(() => confetti({{particleCount: 50, spread: 100, origin: {{y:0.6}}}}), 500); }};
+                        document.body.appendChild(script);
+                        try {{ document.getElementById('sound').play(); }} catch(e){{}}
                     }}
-                    layer.style.opacity = '0';
-                    await wait(500); 
-                    layer.style.display = 'none';
                 }}
-
-                async function runShow() {{
-                    // PHASE 1: 3eme (Intro -> Centre -> Gauche)
-                    await countdown(5, "ET POUR LA MÉDAILLE DE BRONZE...");
-                    c3.className = 'podium-item rank-3 state-center'; 
-                    await wait(4000); 
-                    c3.className = 'podium-item rank-3 state-left';
-                    
-                    // PHASE 2: 2eme (Intro -> Centre -> Droite)
-                    await wait(1000);
-                    await countdown(5, "LA MÉDAILLE D'ARGENT REVIENT À...");
-                    c2.className = 'podium-item rank-2 state-center'; 
-                    await wait(4000); 
-                    c2.className = 'podium-item rank-2 state-right';
-                    
-                    // PHASE 3: 1er (Intro -> Centre Haut)
-                    await wait(1000);
-                    await countdown(7, "ET LE GRAND VAINQUEUR EST...");
-                    c1.className = 'podium-item rank-1 state-final-1'; 
-                    await wait(2000);
-
-                    // PHASE 4: PYRAMIDE FINALE RESSERREE & SON
-                    c2.className = 'podium-item rank-2 state-final-2';
-                    c3.className = 'podium-item rank-3 state-final-3';
-                    
-                    startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
-                }}
-
-                window.parent.document.body.style.backgroundColor = "black";
-                runShow();
+                window.onload = start;
             </script>
-            <style>
-                .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
-                .podium-item {{ position: absolute; bottom: 50px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }}
-                
-                /* ETATS INTERMEDIAIRES */
-                .state-center {{ left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }}
-                .state-left {{ left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
-                .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
-                
-                /* ETATS FINAUX PYRAMIDE COMPACTE */
-                .state-final-1 {{ left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.3); opacity: 1; z-index: 200; }}
-                .state-final-2 {{ left: 35%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
-                .state-final-3 {{ left: 65%; bottom: 5%; transform: translateX(-50%) scale(0.9); opacity: 1; z-index: 150; }}
+        </body>
+        </html>
+        """, height=900, scrolling=False)
 
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
-                .rank-2 .p-card {{ border-color: #C0C0C0; }}
-                .rank-3 .p-card {{ border-color: #CD7F32; }}
-
-                .p-img {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 20px; }}
-                .rank-1 .p-img {{ border-color: #FFD700; width: 160px; height: 160px; }}
-
-                .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 40px; }}
-                .p-score {{ font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }}
-                
-                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
-                .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
-                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
-            </style>
-            """, height=900, scrolling=False)
-
-        elif cfg.get("session_ouverte"):
-            # --- 1. LOAD PARTICIPANTS ---
-            participants = load_json(PARTICIPANTS_FILE, [])
-            nb_total = len(participants)
-            
-            # FIX: Handle empty participants list to avoid HTML error
-            if nb_total == 0:
-                tags_html = "<span style='color:#666; font-style:italic;'>En attente des premiers participants...</span>"
-            else:
-                last_participants = participants[-24:][::-1] # Last 24, reversed (newest first)
-                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_participants])
-
-            # --- 2. DISPLAY HEADER (COUNTER + TAGS) ---
-            # Adjusted margin-top to 18vh to push it down from title
-            st.markdown(f"""
-            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:20px;">
-                <div style="color:#E2001A; font-size:26px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
-                    👥 {nb_total} PARTICIPANTS EN LICE
-                </div>
-                <div style="width:90%; margin:0 auto; line-height:1.5;">
-                    {tags_html}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # --- 3. PREPARATION DES DONNEES ---
-            cands = cfg.get("candidats", [])
-            imgs = cfg.get("candidats_images", {})
-            mid = (len(cands) + 1) // 2
-            left_list, right_list = cands[:mid], cands[mid:]
-            
-            # Génération du QR Code et Logo
-            host = st.context.headers.get('host', 'localhost')
-            qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-            qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
-
-            # --- 4. CONSTRUCTION DES LISTES (HTML STRING) ---
-            html_left = ""
-            for c in left_list:
-                if c in imgs:
-                    html_left += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
-                else:
-                    html_left += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
-
-            html_right = ""
-            for c in right_list:
-                if c in imgs:
-                    html_right += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
-                else:
-                    html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
-
-            # --- 5. CSS (ALIGNEMENT HAUT + FIX FLASH + NO SIDEBAR/SCROLL) ---
-            css_styles = """
-            <style>
-                .vote-container {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start; /* Aligne tout en haut */
-                    width: 100vw;
-                    height: 85vh;
-                    padding: 0 20px;
-                    box-sizing: border-box;
-                }
-                .col-participants {
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: flex-start; /* Aligne les participants en haut */
-                }
-                .col-center {
-                    flex: 0 0 400px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: flex-start; /* Aligne le logo/QR en haut */
-                    height: 100%;
-                    padding-top: 10px; /* Petit ajustement */
-                }
-                .cand-row {
-                    width: 90% !important;
-                    max-width: 400px !important;
-                    background: rgba(255,255,255,0.1);
-                    backdrop-filter: blur(5px);
-                }
-            </style>
-            """
-
-            # --- 6. ASSEMBLAGE ---
-            full_html = css_styles
-            full_html += '<div class="vote-container">'
-            full_html += '<div class="col-participants">' + html_left + '</div>'
-            
-            # Colonne Centrale (Logo + QR)
-            full_html += '<div class="col-center">'
-            full_html += logo_html
-            full_html += "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>"
-            full_html += "<img src='data:image/png;base64," + qr_b64 + "' style='width: 250px; display:block;'>"
-            full_html += "</div>"
-            full_html += "<div class='vote-cta' style='margin-top: 30px;'>À VOS VOTES !</div>"
-            full_html += '</div>'
-            
-            full_html += '<div class="col-participants">' + html_right + '</div>'
-            full_html += '</div>'
-
-            # --- 7. AFFICHAGE ---
-            ph.markdown(full_html, unsafe_allow_html=True)
-
+    # ------------------ MODE VOTE OUVERT (AVEC COMPTEUR + TAGS) ------------------
+    elif mode == "votes" and cfg["session_ouverte"]:
+        st.markdown("""<style>.stApp {background-color:black !important;}</style>""", unsafe_allow_html=True)
+        
+        # 1. LOAD PARTICIPANTS
+        participants = load_json(PARTICIPANTS_FILE, [])
+        nb_total = len(participants)
+        
+        # FIX: Handle empty participants list
+        if nb_total == 0:
+            tags_html = "<span style='color:#666; font-style:italic;'>En attente des premiers participants...</span>"
         else:
-            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-            ph.markdown(f"<div class='full-screen-center'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div>", unsafe_allow_html=True)
+            last_participants = participants[-24:][::-1] # Last 24, reversed (newest first)
+            tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_participants])
+
+        # 3. DISPLAY HEADER (COUNTER + TAGS)
+        st.markdown(f"""
+        <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:20px;">
+            <div style="color:#E2001A; font-size:26px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
+                👥 {nb_total} PARTICIPANTS EN LICE
+            </div>
+            <div style="width:90%; margin:0 auto; line-height:1.5;">
+                {tags_html}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 4. STANDARD COLUMNS DISPLAY
+        cands = cfg.get("candidats", [])
+        imgs = cfg.get("candidats_images", {})
+        mid = (len(cands) + 1) // 2
+        host = st.context.headers.get('host', 'localhost')
+        qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+        qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+        logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
+        
+        def make_col_html(clist):
+            h = ""
+            for c in clist:
+                im = f"<img src='data:image/png;base64,{imgs[c]}' class='cand-img'>" if c in imgs else "<div class='cand-img' style='background:black;'>🏆</div>"
+                h += f"<div class='cand-row'>{im}<span class='cand-name'>{c}</span></div>"
+            return h
+
+        css = """<style>
+            .vote-container { display: flex; justify-content: space-between; align-items: flex-start; width: 100vw; height: 55vh; padding: 0 20px; box-sizing: border-box; }
+            .col-participants { flex: 1; display: flex; flex-direction: column; align-items: center; }
+            .col-center { flex: 0 0 400px; display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+            .cand-row { width: 90%; max-width: 400px; background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); margin-bottom:10px; padding:8px 15px; border-radius:50px; display:flex; align-items:center; }
+            .cand-img { width:55px; height:55px; border-radius:50%; object-fit:cover; border:3px solid #E2001A; margin-right:15px; }
+            .cand-name { color:white; font-size:20px; font-weight:600; }
+        </style>"""
+        
+        full_html = css + f"""
+        <div class='vote-container'>
+            <div class='col-participants'>{make_col_html(cands[:mid])}</div>
+            <div class='col-center'>{logo_html}
+                <div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>
+                    <img src='data:image/png;base64,{qr_b64}' style='width: 250px; display:block;'>
+                </div>
+                <div class='vote-cta'>À VOS VOTES !</div>
+            </div>
+            <div class='col-participants'>{make_col_html(cands[mid:])}</div>
+        </div>
+        """
+        st.markdown(full_html, unsafe_allow_html=True)
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
@@ -1253,7 +873,7 @@ else:
                 requestAnimationFrame(animate);
             }}
             animate();
-        </script>""", height=0)
+        </script>""", height=900)
 
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
