@@ -966,7 +966,7 @@ else:
         /* Style commun image et coupe */
         .p-img, .p-placeholder { 
             width: 140px; height: 140px; border-radius: 50%; 
-            object-fit: cover; border: 4px solid white; margin-bottom: 20px;
+            object-fit: cover; border: 4px solid white; margin-bottom: 20px; 
             display: flex; justify-content: center; align-items: center; 
         }
         
@@ -978,7 +978,7 @@ else:
         
         .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
         .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
+        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -999,34 +999,118 @@ else:
             body {{ background-color: black; margin: 0; overflow: hidden; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }}
             .center-content {{ text-align: center; }}
             .welcome-title {{ color: white; font-size: 100px; margin: 30px 0 0 0; font-weight: bold; }}
-            #welcome-bot {{ position: fixed; bottom: 50px; width: 100%; text-align: center; color: #E2001A; font-size: 35px; font-weight: bold; opacity: 0; transition: opacity 1s; }}
+            
+            /* LE ROBOT 3D (CSS PURE) */
+            .bot-container {{
+                position: fixed; bottom: 5%; right: 5%; 
+                display: flex; flex-direction: column; align-items: center;
+                animation: float 4s ease-in-out infinite;
+                z-index: 9999;
+            }}
+            .robot {{
+                width: 120px; height: 140px; position: relative;
+            }}
+            .head {{
+                width: 80px; height: 50px; background: linear-gradient(135deg, #ddd, #fff);
+                border-radius: 15px; position: absolute; top: 0; left: 20px;
+                box-shadow: 0 5px 15px rgba(0,0,0,0.5), inset 0 -3px 5px rgba(0,0,0,0.2);
+                z-index: 2;
+            }}
+            .eyes {{
+                display: flex; justify-content: space-around; margin-top: 15px;
+            }}
+            .eye {{
+                width: 12px; height: 12px; background: #E2001A; border-radius: 50%;
+                animation: blink 4s infinite; box-shadow: 0 0 5px #E2001A;
+            }}
+            .antenna {{
+                width: 4px; height: 15px; background: #888; position: absolute; top: -15px; left: 38px;
+            }}
+            .ball {{
+                width: 10px; height: 10px; background: #E2001A; border-radius: 50%; 
+                position: absolute; top: -10px; left: -3px;
+                box-shadow: 0 0 8px #E2001A;
+            }}
+            .body {{
+                width: 100px; height: 70px; background: linear-gradient(135deg, #ccc, #eee);
+                border-radius: 20px; position: absolute; top: 55px; left: 10px;
+                box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+                display: flex; justify-content: center; align-items: center;
+            }}
+            .arms {{
+                width: 120px; height: 20px; background: #333; border-radius: 10px;
+                position: absolute; top: 70px; left: 0; z-index: -1;
+            }}
+            
+            /* LA BULLE BD */
+            .bubble {{
+                position: relative; background: #fff; border-radius: .4em;
+                padding: 15px; font-family: 'Comic Sans MS', 'Chalkboard SE', sans-serif;
+                font-size: 18px; text-align: center; color: #333;
+                width: 250px; margin-bottom: 20px;
+                border: 3px solid #333;
+                box-shadow: 5px 5px 0px #333;
+                opacity: 0; transition: opacity 0.5s;
+            }}
+            .bubble:after {{
+                content: ''; position: absolute; bottom: 0; left: 50%; width: 0; height: 0;
+                border: 15px solid transparent; border-top-color: #333;
+                border-bottom: 0; border-left: 0;
+                margin-left: -7px; margin-bottom: -15px;
+            }}
+
+            @keyframes float {{ 0%, 100% {{ transform: translateY(0); }} 50% {{ transform: translateY(-15px); }} }}
+            @keyframes blink {{ 0%, 96%, 100% {{ transform: scaleY(1); }} 98% {{ transform: scaleY(0.1); }} }}
         </style>
+        
         <div class="center-content">
             {logo_html}
             <div class="welcome-title">BIENVENUE</div>
         </div>
-        <div id="welcome-bot"></div>
+
+        <div class="bot-container">
+            <div class="bubble" id="bot-msg">Bonjour !</div>
+            <div class="robot">
+                <div class="head">
+                    <div class="antenna"><div class="ball"></div></div>
+                    <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
+                </div>
+                <div class="arms"></div>
+                <div class="body" style="font-size:10px; color:#555;">2026</div>
+            </div>
+        </div>
+
         <script>
             const messages = [
                 "Bienvenue à toutes et à tous !",
-                "Installez-vous confortablement.",
-                "La cérémonie va bientôt commencer.",
-                "Préparez vos smartphones pour le vote interactif !",
-                "Qui remportera le trophée 2026 ?",
-                "Merci d'être avec nous aujourd'hui.",
-                "N'oubliez pas de sourire pour les photos !",
-                "Un moment de partage et de convivialité."
+                "Installez-vous confortablement 🛋️",
+                "Préparez vos smartphones 📱",
+                "Qui sera le grand gagnant ? 🏆",
+                "Ça va commencer dans un instant ⏳",
+                "N'oubliez pas de sourire pour les photos 📸",
+                "Pensez à scanner le QR Code tout à l'heure !",
+                "Ambiance garantie aujourd'hui ! 🎉"
             ];
-            const bot = document.getElementById('welcome-bot');
+            const bubble = document.getElementById('bot-msg');
             let idx = 0;
+            
             function cycle() {{
-                bot.innerHTML = "🤖 " + messages[idx];
-                bot.style.opacity = 1;
-                setTimeout(() => {{ bot.style.opacity = 0; }}, 4000);
-                idx = (idx + 1) % messages.length;
+                // Fade out
+                bubble.style.opacity = 0;
+                
+                setTimeout(() => {{
+                    // Change text
+                    bubble.innerText = messages[idx];
+                    // Fade in
+                    bubble.style.opacity = 1;
+                    idx = (idx + 1) % messages.length;
+                }}, 500); // Attendre la fin du fade out
             }}
-            setInterval(cycle, 5000);
-            cycle();
+            
+            // Premier appel immédiat
+            setTimeout(cycle, 1000);
+            // Cycle toutes les 7 secondes
+            setInterval(cycle, 7000);
         </script>
         """, height=900)
 
