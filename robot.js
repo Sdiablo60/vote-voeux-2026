@@ -16,7 +16,9 @@ const messages = [
     "Il fait chaud sous les spots, non ? 💡",
     "J'espère qu'il y a des petits fours... 🍪",
     "Vous me voyez bien ? 👀",
-    "C'est parti pour le show ! 🚀"
+    "C'est parti pour le show ! 🚀",
+    "Bip bop... J'adore ce que je vois ! 🤖",
+    "N'hésitez pas à faire des selfies avec moi (de loin) ! 🤳"
 ];
 
 // --- MESSAGES AVANT TÉLÉPORTATION ---
@@ -73,41 +75,61 @@ function initRobot(container) {
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
 
-    // --- ROBOT ---
+    // --- ROBOT SETUP ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
     
     // Matériaux
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blueMat = new THREE.MeshStandardMaterial({ color: 0x3388ff, roughness: 0.2 });
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 }); // Gris très foncé pour le visage
+    // Le glowMat sert maintenant pour le blanc des yeux
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xe0ffff }); 
+    const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 }); // Noir pur pour pupilles
 
-    // Tête
+    // Tête & Visage
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 32), whiteMat);
     const face = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), darkMat);
     face.position.set(0, 0, 0.68);
     head.add(face);
 
-    // Yeux (plus doux, ovales)
-    const eyeGeo = new THREE.CapsuleGeometry(0.1, 0.15, 4, 8); 
-    const leftEye = new THREE.Mesh(eyeGeo, glowMat);
-    leftEye.rotation.z = Math.PI / 2; // Ovale horizontal
-    leftEye.position.set(-0.25, 0.15, 0.70);
-    
-    const rightEye = new THREE.Mesh(eyeGeo, glowMat);
-    rightEye.rotation.z = Math.PI / 2;
-    rightEye.position.set(0.25, 0.15, 0.70);
-    
-    head.add(leftEye); head.add(rightEye);
+    // --- NOUVEAUX YEUX (Globes + Pupilles mobiles) ---
+    const eyeScale = 0.18;
+    // Géométrie du globe oculaire (sphère aplatie)
+    const eyeBallGeo = new THREE.SphereGeometry(eyeScale, 16, 16);
+    eyeBallGeo.scale(1.2, 1, 0.4); // Aplati
 
-    // --- LE SOURIRE (NOUVEAU) ---
-    // Un demi-cercle (Torus) pour faire la bouche
-    const smileGeo = new THREE.TorusGeometry(0.2, 0.03, 16, 32, Math.PI); 
-    const smile = new THREE.Mesh(smileGeo, glowMat);
-    smile.position.set(0, -0.15, 0.70); // Sous les yeux
-    smile.rotation.z = Math.PI; // Tourner pour faire un U (sourire)
-    head.add(smile);
+    // Géométrie de la pupille
+    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.4, 12, 12);
+    pupilGeo.scale(1, 1, 0.5);
+
+    // Fonction pour créer un œil complet
+    function createEye() {
+        const eyeGroup = new THREE.Group();
+        const ball = new THREE.Mesh(eyeBallGeo, glowMat);
+        const pupil = new THREE.Mesh(pupilGeo, pupilMat);
+        pupil.position.z = eyeScale * 0.35; // Légèrement devant le globe
+        eyeGroup.add(ball);
+        eyeGroup.add(pupil);
+        return eyeGroup;
+    }
+
+    const leftEyeGrp = createEye();
+    leftEyeGrp.position.set(-0.25, 0.15, 0.68);
+    
+    const rightEyeGrp = createEye();
+    rightEyeGrp.position.set(0.25, 0.15, 0.68);
+    
+    head.add(leftEyeGrp);
+    head.add(rightEyeGrp);
+
+    // --- NOUVELLE BOUCHE ANIMÉE ---
+    // Une simple pastille aplatie qui va changer d'échelle
+    const mouthGeo = new THREE.SphereGeometry(0.1, 16, 8);
+    mouthGeo.scale(1.5, 0.2, 0.1); // Forme de trait au repos
+    const robotMouth = new THREE.Mesh(mouthGeo, glowMat);
+    robotMouth.position.set(0, -0.2, 0.70);
+    head.add(robotMouth);
 
     // Corps
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 0.9, 32), whiteMat);
@@ -133,8 +155,7 @@ function initRobot(container) {
     robotGroup.add(rightArm);
     scene.add(robotGroup);
 
-    // --- PARTICULES (FUMÉE) ---
-    // On augmente la quantité pour l'effet téléportation
+    // --- PARTICULES ---
     const particleCount = 150; 
     const particlesGeo = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
@@ -145,34 +166,64 @@ function initRobot(container) {
     scene.add(particleSystem);
     let particleData = Array(particleCount).fill().map(() => ({ velocity: new THREE.Vector3(), active: false }));
 
-    // --- VARIABLES DE NAVIGATION ---
+    // --- VARIABLES ---
     let time = 0;
     let targetPosition = new THREE.Vector3(3.5, 0, 0); 
     robotGroup.position.copy(targetPosition);
     
-    // États: intro, moving, speaking, inspecting, teleport_pre, disappear, reappear, teleport_post
     let robotState = 'intro'; 
     let introIndex = 0;
     let nextEventTime = 0;
-    
-    let lastMsgIndex = -1;
     let bubbleTimeout = null;
 
-    // --- FONCTION LISSAGE ---
+    // Variables pour l'animation des yeux
+    let eyeTargetX = 0;
+    let eyeTargetY = 0;
+    let nextEyeMoveTime = 0;
+
+    // FONCTION LISSAGE
     function smoothRotate(object, axis, targetValue, speed) {
         object.rotation[axis] += (targetValue - object.rotation[axis]) * speed;
     }
 
-    // --- ANIMATION ---
+    // --- ANIMATION LOOP ---
     function animate() {
         requestAnimationFrame(animate);
         time += 0.015; 
 
-        // Z-INDEX
+        // Z-INDEX DYNAMIQUE
         if (robotGroup.position.z > 2) container.style.zIndex = "15";
         else container.style.zIndex = "1";
 
-        // --- PHASE 1 : INTRO ---
+        // --- ANIMATION DES YEUX (Autonome) ---
+        // Change de cible de regard aléatoirement
+        if (time > nextEyeMoveTime) {
+            eyeTargetY = (Math.random() - 0.5) * 0.5; // Haut/Bas
+            eyeTargetX = (Math.random() - 0.5) * 0.5; // Gauche/Droite
+            nextEyeMoveTime = time + 1 + Math.random() * 3; // Prochain mouvement dans 1-4s
+        }
+        // Applique le mouvement fluide aux deux yeux
+        smoothRotate(leftEyeGrp, 'x', eyeTargetY, 0.1);
+        smoothRotate(leftEyeGrp, 'y', eyeTargetX, 0.1);
+        smoothRotate(rightEyeGrp, 'x', eyeTargetY, 0.1);
+        smoothRotate(rightEyeGrp, 'y', eyeTargetX, 0.1);
+
+
+        // --- ANIMATION DE LA BOUCHE (Si il parle) ---
+        if (robotState === 'speaking') {
+            // Oscillation rapide de l'échelle Y pour simuler la parole
+            // Base 0.2, variation +/- 0.15, vitesse rapide (time*30)
+            const talkScale = 0.2 + Math.abs(Math.sin(time * 30)) * 0.25;
+            robotMouth.scale.set(1.5, talkScale, 0.1);
+        } else {
+            // Retour à la position neutre (trait)
+            robotMouth.scale.lerp(new THREE.Vector3(1.5, 0.2, 0.1), 0.2);
+        }
+
+
+        // --- LOGIQUE DES ÉTATS ---
+
+        // PHASE 1 : INTRO
         if (robotState === 'intro') {
             if (introIndex < introScript.length) {
                 const step = introScript[introIndex];
@@ -185,7 +236,6 @@ function initRobot(container) {
                 pickNewTarget();
                 nextEventTime = time + 5;
             }
-
             // Mouvements Intro
             if (time < 5.0) robotGroup.rotation.y = Math.sin(time) * 0.3;
             else if (time >= 5.0 && time < 8.5) { 
@@ -203,7 +253,7 @@ function initRobot(container) {
             }
         } 
         
-        // --- PHASE 2 : PATROUILLE ---
+        // PHASE 2 : PATROUILLE
         else if (robotState === 'moving') {
             robotGroup.position.lerp(targetPosition, 0.008);
             
@@ -220,13 +270,13 @@ function initRobot(container) {
 
             if (time > nextEventTime) {
                 const rand = Math.random();
-                if (rand < 0.20) startTeleportSequence(); // 20% Téléport
-                else if (rand < 0.40) startInspection();  // 20% Inspection
-                else startSpeaking();                     // 60% Parole standard
+                if (rand < 0.25) startTeleportSequence(); 
+                else if (rand < 0.50) startInspection();
+                else startSpeaking();
             }
         } 
         
-        // --- PHASE 3 : PARLE (Freinage Doux) ---
+        // PHASE 3 : PARLE (Freinage Doux)
         else if (robotState === 'speaking') {
             robotGroup.position.lerp(targetPosition, 0.001); 
             robotGroup.position.y += Math.sin(time * 3) * 0.001;
@@ -235,7 +285,7 @@ function initRobot(container) {
             rightArm.rotation.z = Math.cos(time * 4) * 0.4 + 0.4; 
         }
 
-        // --- PHASE 4 : INSPECTION ---
+        // PHASE 4 : INSPECTION
         else if (robotState === 'inspecting') {
             const inspectPos = new THREE.Vector3(Math.sin(time)*2, 0, 4.5);
             robotGroup.position.lerp(inspectPos, 0.02);
@@ -247,53 +297,40 @@ function initRobot(container) {
             }
         }
 
-        // --- PHASE 5 : SEQUENCE TELEPORTATION ---
-        
-        // 5a. Annonce ("Attention...")
+        // PHASE 5 : SEQUENCE TELEPORTATION
         else if (robotState === 'teleport_pre') {
-            robotGroup.position.y += Math.sin(time * 10) * 0.005; // Tremble d'excitation
+            robotGroup.position.y += Math.sin(time * 15) * 0.008; // Tremblement plus fort
             smoothRotate(robotGroup, 'y', 0, 0.1);
+            // La bouche s'ouvre en grand "O" de surprise
+            robotMouth.scale.lerp(new THREE.Vector3(1.0, 0.8, 0.1), 0.1);
+            
             if (time > nextEventTime) {
-                // Déclenchement disparition
                 hideBubble();
-                triggerSmoke(robotGroup.position.x, robotGroup.position.y); // FUMÉE DÉPART
+                triggerSmoke(robotGroup.position.x, robotGroup.position.y);
                 robotState = 'disappear';
             }
         }
-
-        // 5b. Disparition (Rapide)
         else if (robotState === 'disappear') {
-            robotGroup.scale.multiplyScalar(0.85); // Rétrécit vite
-            robotGroup.rotation.y += 0.8; // Toupie
-            
+            robotGroup.scale.multiplyScalar(0.85);
+            robotGroup.rotation.y += 0.8;
             if (robotGroup.scale.x < 0.01) {
-                // Changement de position
                 pickNewTarget();
                 robotGroup.position.copy(targetPosition);
-                
-                // Préparation réapparition
-                triggerSmoke(targetPosition.x, targetPosition.y); // FUMÉE ARRIVÉE
+                triggerSmoke(targetPosition.x, targetPosition.y);
                 robotState = 'reappear';
             }
         }
-
-        // 5c. Réapparition
         else if (robotState === 'reappear') {
-            robotGroup.scale.multiplyScalar(1.2); // Grandit
+            robotGroup.scale.multiplyScalar(1.2);
             if (robotGroup.scale.x >= 0.45) {
                 robotGroup.scale.set(0.45, 0.45, 0.45);
                 robotGroup.rotation.set(0,0,0);
-                
-                // Message "Coucou"
                 const msg = postTeleportMessages[Math.floor(Math.random() * postTeleportMessages.length)];
                 showBubble(msg, 3000);
-                
                 robotState = 'teleport_post';
-                nextEventTime = time + 3; // Reste 3s pour qu'on le voie
+                nextEventTime = time + 3;
             }
         }
-
-        // 5d. Pause après téléportation
         else if (robotState === 'teleport_post') {
             if (time > nextEventTime) {
                 hideBubble();
@@ -319,32 +356,33 @@ function initRobot(container) {
 
     function startSpeaking() {
         robotState = 'speaking';
-        let newIndex;
-        do { newIndex = Math.floor(Math.random() * messages.length); } while (newIndex === lastMsgIndex);
-        lastMsgIndex = newIndex;
-
-        showBubble(messages[newIndex], 5000); 
-        nextEventTime = time + 8 + Math.random() * 10; 
+        // On fige la cible sur la position actuelle pour le freinage
+        targetPosition.copy(robotGroup.position);
+        
+        const msg = messages[Math.floor(Math.random() * messages.length)];
+        showBubble(msg, 6000); 
+        nextEventTime = time + 10 + Math.random() * 15; 
         
         setTimeout(() => {
             if (robotState === 'speaking') {
                 hideBubble();
                 robotState = 'moving';
+                pickNewTarget(); // Relance le mouvement
             }
-        }, 5000);
+        }, 6000);
     }
 
     function startInspection() {
         robotState = 'inspecting';
         showBubble("Je viens voir de plus près... 🧐", 3000);
-        nextEventTime = time + 5; 
+        nextEventTime = time + 6; 
     }
 
     function startTeleportSequence() {
         robotState = 'teleport_pre';
         const msg = preTeleportMessages[Math.floor(Math.random() * preTeleportMessages.length)];
         showBubble(msg, 2500);
-        nextEventTime = time + 2.5; // Temps de lecture avant disparition
+        nextEventTime = time + 2.5;
     }
 
     function showBubble(text, duration) {
@@ -366,7 +404,7 @@ function initRobot(container) {
         headPos.project(camera);
         const x = (headPos.x * .5 + .5) * width;
         const y = (headPos.y * -.5 + .5) * height;
-        let finalX = Math.max(120, Math.min(width - 120, x));
+        let finalX = Math.max(140, Math.min(width - 140, x));
         let finalY = Math.max(50, y - 80);
         bubble.style.left = finalX + 'px';
         bubble.style.top = finalY + 'px';
@@ -375,16 +413,13 @@ function initRobot(container) {
 
     function triggerSmoke(x, y) {
         const posAttr = particleSystem.geometry.attributes.position;
-        // On active toutes les particules pour une grosse explosion
         for(let i=0; i<particleCount; i++) {
-            if (!particleData[i].active || true) { // Force activation
+            if (!particleData[i].active || true) { 
                 particleData[i].active = true;
-                // Nuage autour du point
                 posAttr.setXYZ(i, x + (Math.random()-0.5)*1.5, y + (Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5);
-                // Vitesse explosive
                 particleData[i].velocity.set(
                     (Math.random()-0.5)*0.1, 
-                    (Math.random()-0.5)*0.1 + 0.05, // Tendance à monter
+                    (Math.random()-0.5)*0.1 + 0.05,
                     (Math.random()-0.5)*0.1
                 );
             }
@@ -401,8 +436,7 @@ function initRobot(container) {
                     posAttr.getY(i) + particleData[i].velocity.y, 
                     posAttr.getZ(i) + particleData[i].velocity.z
                 );
-                particleData[i].velocity.y += 0.002; // Monte doucement
-                // Disparaît si trop haut ou timer (simulé par hauteur ici)
+                particleData[i].velocity.y += 0.002;
                 if (posAttr.getY(i) > 5) { 
                     particleData[i].active = false; 
                     posAttr.setXYZ(i, 999,999,999); 
