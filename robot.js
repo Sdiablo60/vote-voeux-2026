@@ -71,103 +71,101 @@ function initRobot(container) {
     const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
-    // Lumière bleue douce pour l'ambiance écran
-    const screenLight = new THREE.PointLight(0x00ffff, 0.5, 2);
-    screenLight.position.set(0, 0, 1.5);
+    // Lumière d'ambiance bleue pour faire briller le visage
+    const screenLight = new THREE.PointLight(0x00ffff, 0.4, 4);
+    screenLight.position.set(0, 0, 2);
     scene.add(screenLight);
 
-    // --- ROBOT CONSTRUCTION ---
+    // --- CONSTRUCTION DU ROBOT ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
     
     // MATERIAUX
-    // Coque blanche brillante (plastique)
     const whiteShellMat = new THREE.MeshStandardMaterial({ 
         color: 0xffffff, 
-        roughness: 0.1, 
+        roughness: 0.2, 
         metalness: 0.1 
     });
-    // Ecran noir brillant (verre)
+    // Noir très profond pour l'écran
     const blackScreenMat = new THREE.MeshStandardMaterial({ 
-        color: 0x050505, 
-        roughness: 0.0, 
-        metalness: 0.8 
+        color: 0x000000, 
+        roughness: 0.2, 
+        metalness: 0.5 
     });
-    // Glow Bleu (Yeux/Bouche)
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
-    // Détails gris
-    const greyMat = new THREE.MeshStandardMaterial({ color: 0xcccccc });
+    // Bleu Néon Lumineux pour le visage
+    const neonBlueMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
+    const greyMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
 
-    // 1. TÊTE (Forme "Squircle" arrondie)
-    // On utilise une sphère qu'on déforme pour faire un cube arrondi
-    const headGeo = new THREE.SphereGeometry(0.8, 64, 64); 
+    // 1. TÊTE (Coque Blanche Ovale)
+    // On utilise une sphère déformée pour faire un ovale large (style TV)
+    const headGeo = new THREE.SphereGeometry(0.85, 64, 64); 
     const head = new THREE.Mesh(headGeo, whiteShellMat);
-    head.scale.set(1.2, 0.85, 0.85); // Élargie et un peu aplatie
+    head.scale.set(1.4, 1.0, 0.9); // Large et un peu aplatie
     
-    // 2. ÉCRAN NOIR (Visage)
-    // Une sphère un peu plus petite qui ressort devant
-    const faceGeo = new THREE.SphereGeometry(0.7, 64, 64);
+    // 2. ÉCRAN NOIR UNIFIÉ (Le Visage)
+    // Une sphère légèrement plus petite, écrasée en profondeur, placée devant
+    const faceGeo = new THREE.SphereGeometry(0.78, 64, 64);
     const face = new THREE.Mesh(faceGeo, blackScreenMat);
-    face.scale.set(1.05, 0.8, 0.5); // Aplatie en profondeur
-    face.position.set(0, 0, 0.42); // Poussée vers l'avant
+    face.scale.set(1.25, 0.85, 0.6); // Épouse la forme de la tête
+    face.position.set(0, 0, 0.38); // Avancée pour couvrir tout le devant (pas de nez blanc !)
     head.add(face);
 
-    // 3. YEUX (Arches Joyeuses ^ ^)
-    // On utilise un Torus coupé pour faire l'arche
-    const eyeGeo = new THREE.TorusGeometry(0.12, 0.03, 8, 32, Math.PI); 
+    // 3. YEUX JOYEUX (Arches ^ ^)
+    // On utilise des "Torus" (anneaux) coupés en deux
+    const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 32, Math.PI); // Math.PI = demi-cercle
     
-    const leftEye = new THREE.Mesh(eyeGeo, glowMat);
-    leftEye.position.set(-0.25, 0.1, 0.82); // Devant l'écran noir
-    leftEye.rotation.z = 0; // Arche vers le haut (content)
+    const leftEye = new THREE.Mesh(eyeGeo, neonBlueMat);
+    leftEye.position.set(-0.35, 0.15, 0.85); // Posé sur l'écran noir
+    leftEye.rotation.z = 0; // Arche vers le haut
     head.add(leftEye);
 
-    const rightEye = new THREE.Mesh(eyeGeo, glowMat);
-    rightEye.position.set(0.25, 0.1, 0.82);
+    const rightEye = new THREE.Mesh(eyeGeo, neonBlueMat);
+    rightEye.position.set(0.35, 0.15, 0.85);
     rightEye.rotation.z = 0;
     head.add(rightEye);
 
-    // 4. BOUCHE (Sourire u)
-    const mouthGeo = new THREE.TorusGeometry(0.08, 0.03, 8, 32, Math.PI);
-    const mouth = new THREE.Mesh(mouthGeo, glowMat);
-    mouth.position.set(0, -0.15, 0.80);
+    // 4. BOUCHE SOURIANTE (u)
+    const mouthGeo = new THREE.TorusGeometry(0.1, 0.035, 8, 32, Math.PI);
+    const mouth = new THREE.Mesh(mouthGeo, neonBlueMat);
+    mouth.position.set(0, -0.15, 0.82);
     mouth.rotation.z = Math.PI; // Inversé pour faire un U
     head.add(mouth);
 
-    // 5. OREILLES (Disques sur les cotés)
+    // 5. OREILLES (Disques style casque audio)
     const earGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32);
-    earGeo.rotateZ(Math.PI / 2);
+    earGeo.rotateZ(Math.PI / 2); // Orienter vers le côté
     
     const leftEar = new THREE.Mesh(earGeo, whiteShellMat);
-    leftEar.position.set(-0.95, 0, 0);
+    leftEar.position.set(-1.1, 0, 0); // Sur le côté de la tête large
     head.add(leftEar);
     
     const rightEar = new THREE.Mesh(earGeo, whiteShellMat);
-    rightEar.position.set(0.95, 0, 0);
+    rightEar.position.set(1.1, 0, 0);
     head.add(rightEar);
 
     // 6. CORPS (Œuf)
     const bodyGeo = new THREE.SphereGeometry(0.65, 32, 32);
     const body = new THREE.Mesh(bodyGeo, whiteShellMat);
-    body.scale.set(0.9, 1.1, 0.8); // Forme d'oeuf
-    body.position.set(0, -1.0, 0); // Sous la tête
+    body.scale.set(0.95, 1.1, 0.8); // Forme d'oeuf
+    body.position.set(0, -1.1, 0); // Sous la tête
     
-    // Détail Gris (Ventre/Ceinture)
-    const beltGeo = new THREE.TorusGeometry(0.6, 0.02, 16, 64);
+    // Détail Gris (Ceinture)
+    const beltGeo = new THREE.TorusGeometry(0.62, 0.03, 16, 64);
     const belt = new THREE.Mesh(beltGeo, greyMat);
     belt.rotation.x = Math.PI / 2;
-    belt.position.set(0, -0.1, 0);
+    belt.position.set(0, 0, 0);
     body.add(belt);
 
     // 7. BRAS (Simples et mignons)
-    const armGeo = new THREE.CapsuleGeometry(0.12, 0.6, 4, 16);
+    const armGeo = new THREE.CapsuleGeometry(0.13, 0.5, 4, 16);
     
     const leftArm = new THREE.Mesh(armGeo, whiteShellMat);
-    leftArm.position.set(-0.75, -0.8, 0);
-    leftArm.rotation.z = 0.2; // Légèrement écarté
+    leftArm.position.set(-0.8, -0.8, 0);
+    leftArm.rotation.z = 0.15; // Légèrement écarté
     
     const rightArm = new THREE.Mesh(armGeo, whiteShellMat);
-    rightArm.position.set(0.75, -0.8, 0);
-    rightArm.rotation.z = -0.2;
+    rightArm.position.set(0.8, -0.8, 0);
+    rightArm.rotation.z = -0.15;
 
     robotGroup.add(head);
     robotGroup.add(body);
@@ -206,7 +204,7 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015; 
 
-        // Gestion Z-Index (Passe devant/derrière)
+        // Gestion Z-Index (Passe devant/derrière le texte)
         if (robotGroup.position.z > 2) container.style.zIndex = "15";
         else container.style.zIndex = "1";
 
@@ -273,9 +271,11 @@ function initRobot(container) {
             robotGroup.position.lerp(targetPosition, 0.001); 
             smoothRotate(robotGroup, 'y', 0, 0.05); // Regarde face
             smoothRotate(robotGroup, 'z', 0, 0.05);
-            // Animation de la bouche (le Torus vibre un peu en échelle)
+            
+            // Animation de la bouche (le sourire vibre)
             const talkScale = 1 + Math.sin(time * 20) * 0.2;
             mouth.scale.set(1, talkScale, 1);
+            
             // Bras qui s'ouvre
             rightArm.rotation.z = Math.cos(time * 4) * 0.4 + 0.4; 
         }
