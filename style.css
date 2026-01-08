@@ -1,10 +1,83 @@
+/* style.css */
+body {
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: Arial, sans-serif;
+}
+
 #robot-container {
     width: 100%;
-    height: 500px;
-    margin: 0 auto;
-    background-color: transparent; /* IMPORTANT : Fond transparent */
-    border-radius: 15px;
-    overflow: hidden;
-    position: relative;
-    z-index: 10;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+}
+
+/* Le Titre Bienvenue (Centré par dessus le robot) */
+#welcome-text {
+    position: absolute;
+    top: 15%; /* Position verticale */
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-size: 80px;
+    font-weight: bold;
+    text-transform: uppercase;
+    z-index: 0; /* Derrière le robot */
+    text-shadow: 0 0 20px rgba(226, 0, 26, 0.8); /* Lueur rouge légère */
+}
+
+/* La Bulle de Dialogue (Style BD) */
+.bubble {
+    position: absolute;
+    background: #fff;
+    border-radius: 20px;
+    padding: 15px 25px;
+    font-family: 'Comic Sans MS', 'Arial', sans-serif;
+    font-size: 18px;
+    text-align: center;
+    color: #333;
+    width: 200px;
+    border: 3px solid #333;
+    box-shadow: 5px 5px 0px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.5s, transform 0.3s;
+    pointer-events: none;
+    z-index: 100; /* Devant tout */
+    /* Centré par défaut, sera bougé par le JS */
+    left: 50%;
+    top: 30%;
+    transform: translateX(-50%);
+}
+
+/* La petite flèche de la bulle */
+.bubble:after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 50%;
+    border-width: 10px 10px 0;
+    border-style: solid;
+    border-color: #fff transparent;
+    display: block;
+    width: 0;
+    margin-left: -10px;
+}
+.bubble:before {
+    content: '';
+    position: absolute;
+    bottom: -14px;
+    left: 50%;
+    border-width: 12px 12px 0;
+    border-style: solid;
+    border-color: #333 transparent;
+    display: block;
+    width: 0;
+    margin-left: -12px;
 }
