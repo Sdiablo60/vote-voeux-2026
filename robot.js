@@ -5,12 +5,13 @@ const bubble = document.getElementById('robot-bubble');
 
 const messages = [
     "Salut l'équipe ! 👋",
+    "Je suis Clap-E, votre assistant ! 🤖",
     "Bienvenue aux Vœux 2026 ! ✨",
-    "Je fais une petite pause... ☕",
+    "Je fais ma petite ronde... 🔦",
     "Qui va gagner le trophée ? 🏆",
-    "J'adore vos sourires 📸",
+    "On attend vos photos ! 📸",
     "N'oubliez pas de voter !",
-    "Quelle belle soirée ! 🎉"
+    "Quelle ambiance ! 🎉"
 ];
 
 if (container) {
@@ -104,28 +105,30 @@ function initRobot(container) {
     let restDuration = 0;
     let restTimerCurrent = 0;
 
-    // Fonction pour choisir une destination n'importe où (sauf au centre exact)
+    // Position de départ forcée (Visible, à droite du texte)
+    robotGroup.position.set(2.5, 0, 0); 
+    
+    // Première cible aléatoire
+    pickNewTarget();
+
     function pickNewTarget(forceSide = null) {
         const aspect = width / height;
-        const vH = 7; // Hauteur visible approx
+        const vH = 7; 
         const vW = vH * aspect;
         
         let valid = false;
         let x, y;
         
-        // Si on force un côté (pour le repos à droite par exemple)
         if (forceSide === 'right') {
-            x = (Math.random() * (vW * 0.4 - 1.5)) + 1.5; // Entre 1.5 et bord droit
+            x = (Math.random() * (vW * 0.4 - 1.5)) + 1.5; 
             y = (Math.random() - 0.5) * vH * 0.8;
             valid = true;
         } else {
-            // Sinon, aléatoire total
             while (!valid) {
                 x = (Math.random() - 0.5) * vW * 0.9; 
                 y = (Math.random() - 0.5) * vH * 0.8;
-                
-                // Si on tombe pile au centre (zone du texte), on refuse
-                if (Math.abs(x) < 2.0 && Math.abs(y) < 1.0) {
+                // Zone interdite au centre (Texte)
+                if (Math.abs(x) < 2.5 && Math.abs(y) < 1.2) {
                     valid = false;
                 } else {
                     valid = true;
@@ -135,50 +138,49 @@ function initRobot(container) {
         targetPosition.set(x, y, 0);
     }
 
-    pickNewTarget(); // Premier départ
-
     // --- ANIMATION ---
     let time = 0;
     let teleportTimer = 0;
     let bubbleTimer = 0;
     let msgIndex = 0;
-    let robotState = 'moving'; // moving, resting, speaking, disappear, reappear
-
-    setTimeout(() => { if(robotState !== 'disappear') startSpeaking(); }, 2000);
+    
+    // DÉMARRAGE IMMÉDIAT EN MODE "PAROLE"
+    // Pour qu'on le voie et qu'on sache pourquoi il est là
+    let robotState = 'speaking'; 
+    showBubble(); // Affiche la bulle tout de suite
+    
+    // On le laisse parler 4 secondes au début avant de bouger
+    setTimeout(() => {
+        hideBubble();
+        robotState = 'moving';
+    }, 4000);
 
     function animate() {
         requestAnimationFrame(animate);
-        time += 0.02; // Temps global ralenti
+        time += 0.02;
         
-        // --- GESTION DES ETATS ---
-
-        // 1. EN MOUVEMENT (Vers la cible)
+        // --- ETAT 1 : EN MOUVEMENT ---
         if (robotState === 'moving') {
             teleportTimer += 0.01;
             bubbleTimer += 0.01;
 
-            // Mouvement TRES FLUIDE (Lerp factor faible = 0.005)
-            // Cela crée l'effet de glissement sans à-coups
+            // Mouvement très fluide
             robotGroup.position.lerp(targetPosition, 0.005);
             
-            // Orientation douce vers la cible
+            // Orientation
             const diffX = targetPosition.x - robotGroup.position.x;
-            const diffY = targetPosition.y - robotGroup.position.y;
-            
-            robotGroup.rotation.y += (diffX * 0.1 - robotGroup.rotation.y) * 0.02; // Tourne la tête lentement
-            robotGroup.rotation.z = -diffX * 0.05; // Penche un peu
+            robotGroup.rotation.y += (diffX * 0.1 - robotGroup.rotation.y) * 0.02;
+            robotGroup.rotation.z = -diffX * 0.05;
 
-            // Flottement sinusoïdal (effet vague)
+            // Flottement
             robotGroup.position.y += Math.sin(time * 2) * 0.002;
 
             // Bras
             rightArm.rotation.x = Math.sin(time * 3) * 0.2;
             leftArm.rotation.x = -Math.sin(time * 3) * 0.2;
 
-            // Vérifier si arrivé (distance < 0.8 pour ne pas attendre d'être pile dessus)
+            // Arrivée à destination ?
             if (robotGroup.position.distanceTo(targetPosition) < 0.8) {
-                // Arrivé ! On décide quoi faire.
-                // 40% de chance de se reposer, sinon on repart ailleurs
                 if (Math.random() < 0.4) {
                     startResting();
                 } else {
@@ -187,55 +189,49 @@ function initRobot(container) {
             }
 
             // Déclencheurs
-            if (bubbleTimer > 10) startSpeaking();
-            if (teleportTimer > 25) startTeleport(); // Téléportation rare
+            if (bubbleTimer > 8) startSpeaking();
+            if (teleportTimer > 25) startTeleport(); 
         }
 
-        // 2. EN REPOS (Se pose sur le côté)
+        // --- ETAT 2 : EN REPOS ---
         else if (robotState === 'resting') {
             restTimerCurrent += 0.01;
-            
-            // Flottement stationnaire "zen"
             robotGroup.position.y += Math.sin(time * 1.5) * 0.001;
-            robotGroup.rotation.y *= 0.95; // Revient de face
-            robotGroup.rotation.z *= 0.95; // Se redresse
-
-            // Bras ballants doucement
+            robotGroup.rotation.y *= 0.95; 
+            robotGroup.rotation.z *= 0.95; 
             rightArm.rotation.z = Math.sin(time * 2) * 0.05;
             leftArm.rotation.z = -Math.sin(time * 2) * 0.05;
 
-            // Fin du repos ?
             if (restTimerCurrent > restDuration) {
-                pickNewTarget(); // Repart vers une nouvelle destination
+                pickNewTarget();
                 robotState = 'moving';
             }
         }
 
-        // 3. PARLE (Immobile temporaire)
+        // --- ETAT 3 : PARLE (Immobile) ---
         else if (robotState === 'speaking') {
             robotGroup.position.y += Math.sin(time * 4) * 0.002;
-            rightArm.rotation.z = Math.cos(time * 8) * 0.5 + 0.5; // Coucou
+            // Il se tourne vers nous pour parler
+            robotGroup.rotation.y *= 0.9;
+            robotGroup.rotation.z *= 0.9;
+            rightArm.rotation.z = Math.cos(time * 8) * 0.5 + 0.5; 
         }
 
-        // 4. DISPARITION
+        // --- ETAT 4 : DISPARITION ---
         else if (robotState === 'disappear') {
             robotGroup.scale.multiplyScalar(0.92);
             robotGroup.rotation.y += 0.4;
             
             if (robotGroup.scale.x < 0.05) {
-                // Nouvelle position au hasard
                 pickNewTarget();
-                // On le place directement là-bas pour l'apparition
                 robotGroup.position.copy(targetPosition);
-                // Effet de fumée à l'arrivée
                 triggerSmoke(targetPosition.x, targetPosition.y);
-                
                 robotGroup.rotation.set(0,0,0);
                 robotState = 'reappear';
             }
         } 
         
-        // 5. REAPPARITION
+        // --- ETAT 5 : REAPPARITION ---
         else if (robotState === 'reappear') {
             robotGroup.scale.multiplyScalar(1.1);
             if (robotGroup.scale.x >= 0.45) {
@@ -251,32 +247,21 @@ function initRobot(container) {
     }
 
     function startResting() {
-        // On choisit une cible "Repos" (souvent à droite)
-        if (Math.random() > 0.3) {
-            // 70% de chance d'aller se poser à droite
-            pickNewTarget('right');
-        } else {
-            // Sinon on reste là où on est
-        }
-        
-        // On lui donne une durée de repos (entre 3 et 6 secondes)
+        if (Math.random() > 0.3) pickNewTarget('right');
         restDuration = 3 + Math.random() * 3;
         restTimerCurrent = 0;
         robotState = 'resting';
     }
 
     function startSpeaking() {
-        // Si on est en train de disparaître, on annule
         if (robotState === 'disappear' || robotState === 'reappear') return;
-
-        let previousState = robotState;
         robotState = 'speaking';
         bubbleTimer = 0;
         showBubble();
         
+        // Reste 6 secondes pour lire
         setTimeout(() => {
             hideBubble();
-            // On reprend l'état d'avant (Moving ou Resting)
             if (robotState === 'speaking') {
                 robotState = 'moving'; 
             }
@@ -310,7 +295,6 @@ function initRobot(container) {
         const x = (headPos.x * .5 + .5) * width;
         const y = (headPos.y * -.5 + .5) * height;
 
-        // Limites pour que la bulle reste à l'écran
         let finalX = Math.max(120, Math.min(width - 120, x));
         let finalY = Math.max(60, y - 100);
 
