@@ -1,0 +1,13 @@
+/* style.css */
+
+/* La boîte qui contient le robot */
+#robot-container {
+    width: 100%;           /* Prend toute la largeur disponible */
+    height: 400px;         /* Hauteur fixe (très important) */
+    margin: 20px auto;     /* Centré */
+    background-color: #aaccff; /* Fond bleu en attendant le chargement */
+    border-radius: 15px;   /* Coins arrondis */
+    overflow: hidden;      /* Empêche le robot de dépasser */
+    position: relative;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1); /* Jolie ombre */
+}
