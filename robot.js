@@ -188,4 +188,75 @@ function initRobot(container) {
         msgIndex = (msgIndex + 1) % messages.length;
         
         // RESTE AFFICHÉ 5 SECONDES (au lieu de 3)
-        setTimeout(() => { bubble.style.opacity = 0; }, 50
+        setTimeout(() => { bubble.style.opacity = 0; }, 5000);
+    }
+
+    function hideBubble() {
+        if(bubble) bubble.style.opacity = 0;
+    }
+
+    function updateBubblePosition() {
+        if(!bubble || bubble.style.opacity == 0) return;
+        
+        // Calcul pour coller la bulle au dessus de la tête
+        const headPos = new THREE.Vector3(robotGroup.position.x, robotGroup.position.y + 0.9, robotGroup.position.z);
+        headPos.project(camera);
+        
+        const x = (headPos.x * .5 + .5) * width;
+        const y = (headPos.y * -.5 + .5) * height;
+
+        // Si le robot est trop à droite, on décale la bulle vers la gauche
+        if (x > width - 150) {
+             bubble.style.left = (x - 100) + 'px';
+        } else {
+             bubble.style.left = x + 'px';
+        }
+        
+        bubble.style.top = (y - 120) + 'px'; 
+    }
+
+    function triggerSmoke(x, y) {
+        const posAttr = particleSystem.geometry.attributes.position;
+        for(let i=0; i<particleCount; i++) {
+            if (!particleData[i].active) {
+                particleData[i].active = true;
+                posAttr.setXYZ(i, x + (Math.random()-0.5)*0.5, y + (Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5);
+                particleData[i].velocity.set(
+                    (Math.random()-0.5)*0.1, 
+                    (Math.random()-0.5)*0.1, 
+                    (Math.random()-0.5)*0.1
+                );
+            }
+        }
+        posAttr.needsUpdate = true;
+    }
+
+    function updateSmoke() {
+        const posAttr = particleSystem.geometry.attributes.position;
+        for(let i=0; i<particleCount; i++) {
+            if (particleData[i].active) {
+                posAttr.setXYZ(i, 
+                    posAttr.getX(i) + particleData[i].velocity.x, 
+                    posAttr.getY(i) + particleData[i].velocity.y, 
+                    posAttr.getZ(i) + particleData[i].velocity.z
+                );
+                particleData[i].velocity.y += 0.005;
+                if (posAttr.getY(i) > 3) { 
+                    particleData[i].active = false; 
+                    posAttr.setXYZ(i, 999,999,999); 
+                }
+            }
+        }
+        posAttr.needsUpdate = true;
+    }
+
+    window.addEventListener('resize', () => {
+        width = container.clientWidth || window.innerWidth;
+        height = container.clientHeight || window.innerHeight;
+        renderer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+    });
+
+    animate();
+}
