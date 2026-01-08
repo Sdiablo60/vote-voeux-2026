@@ -86,8 +86,8 @@ function initRobot(container) {
     
     // Matériaux
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
-    const coloredMat = new THREE.MeshStandardMaterial({ color: 0x3388ff, roughness: 0.2 }); // Change de couleur
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0xe0ffff }); // Blanc des yeux
+    const coloredMat = new THREE.MeshStandardMaterial({ color: 0x3388ff, roughness: 0.2 }); 
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xe0ffff }); 
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
@@ -97,7 +97,7 @@ function initRobot(container) {
     face.position.set(0, 0, 0.68);
     head.add(face);
 
-    // YEUX (Globes + Pupilles mobiles)
+    // YEUX (Légèrement baissés)
     const eyeScale = 0.12; 
     const eyeBallGeo = new THREE.SphereGeometry(eyeScale, 16, 16);
     eyeBallGeo.scale(1.2, 1, 0.4); 
@@ -114,36 +114,35 @@ function initRobot(container) {
         return eyeGroup;
     }
     const leftEyeGrp = createEye();
-    leftEyeGrp.position.set(-0.20, 0.15, 0.68);
+    leftEyeGrp.position.set(-0.20, 0.12, 0.68); // Y passé de 0.15 à 0.12
     const rightEyeGrp = createEye();
-    rightEyeGrp.position.set(0.20, 0.15, 0.68);
+    rightEyeGrp.position.set(0.20, 0.12, 0.68); // Y passé de 0.15 à 0.12
     head.add(leftEyeGrp);
     head.add(rightEyeGrp);
 
-    // --- NOUVELLE ANTENNE ---
-    const antennaPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3), whiteMat);
-    antennaPole.position.set(0, 0.7, 0);
+    // --- NOUVELLE ANTENNE (Beaucoup plus grande) ---
+    // Tige plus épaisse (0.04) et plus haute (0.6)
+    const antennaPole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6), whiteMat);
+    antennaPole.position.set(0, 1.0, 0); // Positionnée plus haut
     head.add(antennaPole);
-    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.05), coloredMat); // Bout coloré
-    antennaTip.position.set(0, 0.85, 0);
+    // Bout plus gros (0.08)
+    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.08), coloredMat);
+    antennaTip.position.set(0, 1.35, 0); // Au sommet de la nouvelle tige
     head.add(antennaTip);
 
-    // --- ONDES RADIO (Invisibles au départ) ---
+    // --- ONDES RADIO ---
     const waveGroup = new THREE.Group();
-    waveGroup.position.set(0, 0.85, 0);
+    waveGroup.position.set(0, 1.35, 0); // Partent du nouveau sommet
     head.add(waveGroup);
-    // Matériau transparent pour les ondes
     const waveMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0, side: THREE.DoubleSide });
     const waves = [];
     for(let i=0; i<3; i++) {
-        // Anneaux plats
-        const wave = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 8, 32), waveMat.clone());
-        wave.rotation.x = Math.PI / 2; // À plat
+        const wave = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 8, 32), waveMat.clone());
+        wave.rotation.x = Math.PI / 2; 
         wave.scale.set(0,0,0);
         waves.push(wave);
         waveGroup.add(wave);
     }
-
 
     // Corps & Bras
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 0.9, 32), whiteMat);
@@ -151,7 +150,7 @@ function initRobot(container) {
     function createArm(x) {
         const g = new THREE.Group();
         g.position.set(x, -0.7, 0);
-        const s = new THREE.Mesh(new THREE.SphereGeometry(0.2), coloredMat); // Épaule colorée
+        const s = new THREE.Mesh(new THREE.SphereGeometry(0.2), coloredMat); 
         g.add(s);
         const a = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.5), whiteMat);
         a.position.y = -0.3;
@@ -192,7 +191,7 @@ function initRobot(container) {
     let colorTimer = 0;
     let isReceivingTransmission = false;
     let transmissionTimer = 0;
-    let nextTransmissionTime = 25; // Premier signal vers 25s
+    let nextTransmissionTime = 25;
 
     function smoothRotate(object, axis, targetValue, speed) {
         object.rotation[axis] += (targetValue - object.rotation[axis]) * speed;
@@ -209,7 +208,7 @@ function initRobot(container) {
             colorIndex = (colorIndex + 1) % colorPalette.length;
             colorTimer = 0;
         }
-        coloredMat.color.lerp(colorPalette[colorIndex], 0.005); // Transition très lente
+        coloredMat.color.lerp(colorPalette[colorIndex], 0.005); 
 
         // 2. Z-INDEX DYNAMIQUE
         if (robotGroup.position.z > 2) container.style.zIndex = "15";
@@ -226,15 +225,13 @@ function initRobot(container) {
         smoothRotate(rightEyeGrp, 'x', eyeTargetY, 0.1);
         smoothRotate(rightEyeGrp, 'y', eyeTargetX, 0.1);
 
-        // 4. GESTION ONDES RADIO (Transmission)
+        // 4. GESTION ONDES RADIO
         if (time > nextTransmissionTime && !isReceivingTransmission && robotState === 'moving') {
             isReceivingTransmission = true;
             transmissionTimer = 0;
-            // Init des ondes
             waves.forEach((w, i) => {
                 w.scale.set(0.01, 0.01, 0.01);
                 w.material.opacity = 1;
-                // Décalage de départ pour l'effet d'expansion
                 w.userData.startTime = transmissionTimer + i * 0.3;
             });
         }
@@ -245,19 +242,17 @@ function initRobot(container) {
             waves.forEach(w => {
                 if(transmissionTimer >= w.userData.startTime) {
                      const localTime = transmissionTimer - w.userData.startTime;
-                     // Agrandissement
-                     const scale = 0.1 + localTime * 2.5;
+                     const scale = 0.1 + localTime * 3.0; // Ondes plus grandes
                      w.scale.set(scale, scale, scale);
-                     // Disparition
-                     w.material.opacity = Math.max(0, 1 - localTime * 1.2);
+                     w.material.opacity = Math.max(0, 1 - localTime * 1.0);
                      if(w.material.opacity > 0) allWavesDone = false;
                 } else {
                      allWavesDone = false; 
                 }
             });
-            if (allWavesDone && transmissionTimer > 1.5) {
+            if (allWavesDone && transmissionTimer > 2.0) {
                 isReceivingTransmission = false;
-                nextTransmissionTime = time + 20 + Math.random() * 30; // Prochaine dans 20-50s
+                nextTransmissionTime = time + 20 + Math.random() * 30; 
             }
         }
 
