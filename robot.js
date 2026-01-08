@@ -3,7 +3,7 @@ import * as THREE from 'three';
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// --- MESSAGES (Plus de variété) ---
+// --- MESSAGES ---
 const messages = [
     "Salut l'équipe ! 👋",
     "Tout le monde est bien installé ? 💺",
@@ -91,42 +91,65 @@ function initRobot(container) {
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
-    // Tête (Blanche)
+    // TÊTE
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 32), whiteMat);
     
-    // --- CORRECTION DU VISAGE (MASQUE COURBÉ) ---
-    // On utilise une portion de sphère légèrement plus grande (0.71) pour recouvrir le blanc
-    // Cela évite que le blanc ne traverse le noir (le fameux "nez")
+    // Visage (Masque courbé pour éviter le "nez")
     const faceGeo = new THREE.SphereGeometry(0.71, 32, 32, 0, Math.PI * 2, 0, 0.65);
     const face = new THREE.Mesh(faceGeo, darkMat);
-    face.rotation.x = -Math.PI / 2; // On oriente le masque vers l'avant (Z)
+    face.rotation.x = -Math.PI / 2; 
     head.add(face);
 
-    // --- YEUX (Taille réduite : 0.12) ---
+    // --- HABILLAGE (POUR EVITER L'EFFET CHAUVE) ---
+    
+    // 1. Oreilles / Casque (Cylindres sur les côtés)
+    const earGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.1, 32);
+    earGeo.rotateZ(Math.PI / 2); // Orienter vers le côté
+    
+    const leftEar = new THREE.Mesh(earGeo, coloredMat);
+    leftEar.position.set(-0.68, 0, 0); // Collé sur le côté gauche
+    head.add(leftEar);
+
+    const rightEar = new THREE.Mesh(earGeo, coloredMat);
+    rightEar.position.set(0.68, 0, 0); // Collé sur le côté droit
+    head.add(rightEar);
+
+    // 2. Bande centrale (Petite crête technologique sur le dessus)
+    // Une bande fine qui traverse le haut du crâne
+    const crestGeo = new THREE.TorusGeometry(0.71, 0.05, 4, 32, Math.PI); 
+    const crest = new THREE.Mesh(crestGeo, coloredMat);
+    crest.rotation.y = Math.PI / 2; // Dans l'axe avant-arrière
+    crest.position.set(0, 0, 0);
+    head.add(crest);
+
+
+    // --- YEUX PLUS MIGNONS (Pupilles plus grosses) ---
     const eyeScale = 0.12; 
     const eyeBallGeo = new THREE.SphereGeometry(eyeScale, 16, 16);
-    eyeBallGeo.scale(1.2, 1, 0.6); // Un peu aplatis
-    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.5, 12, 12);
+    eyeBallGeo.scale(1.2, 1, 0.6); 
+    
+    // Pupille agrandie (x0.7 au lieu de x0.4) pour faire moins "regard fixe effrayant"
+    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.7, 12, 12);
     pupilGeo.scale(1, 1, 0.5);
 
     function createEye() {
         const eyeGroup = new THREE.Group();
         const ball = new THREE.Mesh(eyeBallGeo, glowMat);
         const pupil = new THREE.Mesh(pupilGeo, pupilMat);
-        pupil.position.z = eyeScale * 0.5; // Pupille ressortante
+        pupil.position.z = eyeScale * 0.55; 
         eyeGroup.add(ball);
         eyeGroup.add(pupil);
         return eyeGroup;
     }
     const leftEyeGrp = createEye();
-    leftEyeGrp.position.set(-0.20, 0.10, 0.68); // Position ajustée
+    leftEyeGrp.position.set(-0.20, 0.10, 0.68); 
     const rightEyeGrp = createEye();
     rightEyeGrp.position.set(0.20, 0.10, 0.68);
     
     head.add(leftEyeGrp);
     head.add(rightEyeGrp);
 
-    // --- ANTENNE (Grande) ---
+    // --- ANTENNE (Sur le dessus, sortant de la crête) ---
     const antennaPole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6), whiteMat);
     antennaPole.position.set(0, 1.0, 0); 
     head.add(antennaPole);
