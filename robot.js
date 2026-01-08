@@ -3,50 +3,39 @@ import * as THREE from 'three';
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// --- STOCK DE MESSAGES GÉNÉRAUX (30 phrases) ---
+// --- 1. NOUVEAUX MESSAGES (Blagues & Sympathie) ---
 const messages = [
+    // Interactions
     "Salut l'équipe ! 👋",
-    "Tout le monde est bien installé ? 💺",
-    "Je vérifie les objectifs... 🧐",
-    "Qui a le plus beau sourire ce soir ? 📸",
-    "Silence... Moteur... Ça tourne ! 🎬",
+    "Vous êtes rayonnants ce soir ! ✨",
+    "Qui veut du popcorn ? 🍿",
+    "Je scanne la salle... que des stars ! 🤩",
     "N'oubliez pas de voter pour votre favori ! 🗳️",
+    "Silence... Moteur... Ça tourne ! 🎬",
+    
+    // Blagues / Humour Robot
+    "Toc Toc ! Qui est là ? ... Sarah Connor ! 🤖",
+    "J'ai un bug... Je n'arrive pas à m'arrêter de sourire ! 😄",
+    "Vous savez pourquoi je n'ai pas froid ? J'ai un antivirus ! 🦠",
+    "C'est l'histoire d'un pixel qui dit à un autre... 'T'as mauvaise mine !' 😂",
+    "Mon film préféré ? 'WALL-E', évidemment ! ❤️",
+    "Je ne suis pas tactile, j'ai peur des courts-circuits ! ⚡",
+    "Il paraît que la 3D, c'est la vie... littéralement pour moi ! 🧊",
+    
+    // Ambiance
     "Quelle ambiance de folie ! 🎉",
-    "Je suis Clap-E, votre assistant préféré ! 🤖",
-    "Il fait chaud sous les projecteurs, non ? 💡",
-    "J'espère qu'il y a des petits fours... 🍪",
-    "Psst... Vous me voyez bien ? 👀",
-    "C'est parti pour le show ! 🚀",
-    "Wow, cette vidéo était incroyable ! 🎞️",
-    "Un petit coucou aux organisateurs ! 👋",
-    "Je scane la salle... Vous êtes magnifiques ! ✨",
-    "Vous avez pensé à charger vos téléphones ? 🔋",
-    "Moi aussi je voudrais participer au concours ! 🥺",
-    "Ça manque un peu de robots dans ces vidéos... 🤖",
-    "Allez, on fait du bruit pour les candidats ! 👏",
-    "Je crois que j'ai vu un chat passer... 🐱",
-    "Ma batterie est à 100%, prêt à faire la fête ! ⚡",
-    "Le niveau est très haut cette année ! 📈",
-    "N'hésitez pas à vous rapprocher de l'écran ! 📺",
-    "J'adore regarder vos réactions ! 😄",
-    "C'est quand la pause ? J'ai besoin d'huile... 🛢️",
-    "Attention, je vous observe... (gentiment) 👁️",
-    "Qui veut un autographe numérique ? ✍️",
-    "La régie, tout va bien ? 👍",
-    "On se croirait à Cannes ! 🌴",
-    "Prêts pour le verdict final ? 🏆"
+    "Ça va être serré pour le trophée ! 🏆",
+    "J'espère qu'il y a une prise pour me recharger au buffet... 🔌",
+    "Prêts pour le grand spectacle ? 🚀"
 ];
 
-// --- MESSAGES SPÉCIFIQUES POUR L'INSPECTION (QUAND IL S'APPROCHE) ---
+// Messages pour l'inspection (quand il vient voir de près)
 const inspectionMessages = [
-    "Je viens voir de plus près... 🧐",
-    "Tiens, c'est quoi ce détail ? 🔍",
-    "Inspection technique des pixels... ⚙️",
-    "Vous me voyez mieux comme ça ? 👀",
-    "Hé ! Salut toi ! 👋",
-    "Je vérifie si vous êtes attentifs ! 🤓",
-    "Zoom avant ! 🔭",
-    "Pas de triche dans le public hein ? 👮"
+    "Je viens vérifier si vous souriez ! 📸",
+    "Hé ! Je te vois toi au fond ! 👀",
+    "Inspection technique... tout est OK ! ✅",
+    "Je voulais juste vous faire un coucou de près ! 👋",
+    "Wow, quelle résolution vos visages ! 4K ? 8K ? 📺"
 ];
 
 // --- SCÉNARIO D'INTRO ---
@@ -56,7 +45,7 @@ const introScript = [
     { time: 8.5, text: "TOC ! TOC ! OUVREZ ! ✊", action: "knock" },
     { time: 12.0, text: "WOUAH ! 😱 Vous êtes nombreux !", action: "recoil" },
     { time: 16.0, text: "Bienvenue au Concours Vidéo 2026 ! ✨", action: "present" },
-    { time: 20.0, text: "Installez-vous, ça va bientôt commencer ! ⏳", action: "wait" }
+    { time: 20.0, text: "Installez-vous, le show va commencer ! ⏳", action: "wait" }
 ];
 
 if (container) {
@@ -140,11 +129,15 @@ function initRobot(container) {
     let introIndex = 0;
     let nextEventTime = 0;
     
-    // Historique pour éviter les répétitions
     let lastMsgIndex = -1;
     let lastInspectMsgIndex = -1;
-    
     let bubbleTimeout = null;
+
+    // --- FONCTION DE LISSAGE (Smooth Stop) ---
+    // Cette fonction sert à faire tourner le robot doucement vers une valeur cible
+    function smoothRotate(object, axis, targetValue, speed) {
+        object.rotation[axis] += (targetValue - object.rotation[axis]) * speed;
+    }
 
     // --- ANIMATION ---
     function animate() {
@@ -166,36 +159,44 @@ function initRobot(container) {
                     showBubble(step.text, 5000);
                     introIndex++;
                 }
-            } else if (time > 24) { // Fin de l'intro prolongée
+            } else if (time > 24) { 
                 robotState = 'moving';
                 pickNewTarget();
                 nextEventTime = time + 5;
             }
 
             // Mouvements Intro
-            if (time < 5.0) { // Regarde
+            if (time < 5.0) { 
                 robotGroup.rotation.y = Math.sin(time) * 0.3;
             }
-            else if (time >= 5.0 && time < 8.5) { // Approche
+            else if (time >= 5.0 && time < 8.5) { 
                 robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.02);
-                robotGroup.rotation.y *= 0.95; 
+                smoothRotate(robotGroup, 'y', 0, 0.05); // Regarde droit
             } 
-            else if (time >= 8.5 && time < 12.0) { // Toc Toc
+            else if (time >= 8.5 && time < 12.0) { 
                 robotGroup.position.z = 5 + Math.sin(time * 20) * 0.02; 
                 rightArm.rotation.x = -Math.PI/2 + Math.sin(time * 15) * 0.3; 
             } 
-            else if (time >= 12.0 && time < 24) { // Recul et attente
+            else if (time >= 12.0 && time < 24) { 
                 robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03);
                 rightArm.rotation.x *= 0.9;
-                robotGroup.rotation.y = -0.2; 
+                smoothRotate(robotGroup, 'y', -0.2, 0.05);
             }
         } 
         
         // --- PHASE 2 : PATROUILLE ---
         else if (robotState === 'moving') {
+            // Mouvement très fluide vers la cible
             robotGroup.position.lerp(targetPosition, 0.008);
-            robotGroup.rotation.y += (targetPosition.x - robotGroup.position.x) * 0.05 - robotGroup.rotation.y * 0.05;
-            robotGroup.rotation.z = -(targetPosition.x - robotGroup.position.x) * 0.02;
+            
+            // Orientation douce vers le mouvement
+            const targetRotY = (targetPosition.x - robotGroup.position.x) * 0.05;
+            const targetRotZ = -(targetPosition.x - robotGroup.position.x) * 0.02;
+            
+            smoothRotate(robotGroup, 'y', targetRotY, 0.05);
+            smoothRotate(robotGroup, 'z', targetRotZ, 0.05);
+            
+            // Respiration
             robotGroup.position.y += Math.sin(time * 1.5) * 0.001;
             
             leftArm.rotation.x = Math.sin(time * 2) * 0.1;
@@ -207,7 +208,7 @@ function initRobot(container) {
 
             if (time > nextEventTime) {
                 const rand = Math.random();
-                if (rand < 0.35) { // Augmenté à 35% de chance d'inspection
+                if (rand < 0.30) { 
                     startInspection(); 
                 } else {
                     startSpeaking();   
@@ -215,10 +216,21 @@ function initRobot(container) {
             }
         } 
         
-        // --- PHASE 3 : PARLE ---
+        // --- PHASE 3 : PARLE (Freinage Doux) ---
         else if (robotState === 'speaking') {
+            // 1. Freinage progressif de la position
+            // Au lieu de figer X et Y, on continue de lerper TRÈS lentement vers la cible actuelle
+            // ce qui crée un arrêt en douceur
+            robotGroup.position.lerp(targetPosition, 0.001); // Facteur très faible
+            
+            // 2. Respiration continue (ne pas figer la vie)
             robotGroup.position.y += Math.sin(time * 3) * 0.001;
-            robotGroup.rotation.lerp(new THREE.Vector3(0,0,0), 0.05); 
+            
+            // 3. Rotation douce vers le public (0,0,0)
+            smoothRotate(robotGroup, 'y', 0, 0.05);
+            smoothRotate(robotGroup, 'z', 0, 0.05);
+            
+            // 4. Gestuelle
             rightArm.rotation.z = Math.cos(time * 4) * 0.4 + 0.4; 
         }
 
@@ -226,7 +238,7 @@ function initRobot(container) {
         else if (robotState === 'inspecting') {
             const inspectPos = new THREE.Vector3(Math.sin(time)*2, 0, 4.5);
             robotGroup.position.lerp(inspectPos, 0.02);
-            robotGroup.rotation.y = Math.sin(time) * 0.2; 
+            smoothRotate(robotGroup, 'y', Math.sin(time) * 0.2, 0.05);
             
             if (time > nextEventTime) {
                 robotState = 'moving';
@@ -253,9 +265,15 @@ function initRobot(container) {
     }
 
     function startSpeaking() {
+        // Sauvegarde de l'état pour savoir quoi faire après
+        if(robotState === 'intro') return;
+
         robotState = 'speaking';
         
-        // Choix aléatoire sans répétition immédiate
+        // On met à jour la "cible" à la position actuelle pour que le "lerp" du freinage
+        // se fasse sur place et pas vers l'ancienne destination lointaine
+        targetPosition.copy(robotGroup.position);
+
         let newIndex;
         do {
             newIndex = Math.floor(Math.random() * messages.length);
@@ -270,6 +288,8 @@ function initRobot(container) {
             if (robotState === 'speaking') {
                 hideBubble();
                 robotState = 'moving';
+                // On doit redonner une cible lointaine pour qu'il reparte
+                pickNewTarget();
             }
         }, 6000);
     }
@@ -277,7 +297,6 @@ function initRobot(container) {
     function startInspection() {
         robotState = 'inspecting';
         
-        // Choix aléatoire message inspection sans répétition
         let newIndex;
         do {
             newIndex = Math.floor(Math.random() * inspectionMessages.length);
@@ -290,19 +309,11 @@ function initRobot(container) {
 
     function showBubble(text, duration) {
         if(!bubble) return;
-        
-        if (bubbleTimeout) {
-            clearTimeout(bubbleTimeout);
-            bubbleTimeout = null;
-        }
-
+        if (bubbleTimeout) { clearTimeout(bubbleTimeout); bubbleTimeout = null; }
         bubble.innerText = text;
         bubble.style.opacity = 1;
-        
         if(duration) {
-             bubbleTimeout = setTimeout(() => { 
-                 hideBubble(); 
-             }, duration);
+             bubbleTimeout = setTimeout(() => { hideBubble(); }, duration);
         }
     }
 
@@ -312,17 +323,13 @@ function initRobot(container) {
 
     function updateBubblePosition() {
         if(!bubble || bubble.style.opacity == 0) return;
-        
         const headPos = robotGroup.position.clone();
         headPos.y += 0.8; 
         headPos.project(camera);
-        
         const x = (headPos.x * .5 + .5) * width;
         const y = (headPos.y * -.5 + .5) * height;
-
-        let finalX = Math.max(120, Math.min(width - 120, x));
+        let finalX = Math.max(140, Math.min(width - 140, x));
         let finalY = Math.max(50, y - 80);
-
         bubble.style.left = finalX + 'px';
         bubble.style.top = finalY + 'px';
         bubble.style.transform = 'translate(-50%, 0)';
@@ -336,5 +343,7 @@ function initRobot(container) {
         camera.updateProjectionMatrix();
     });
 
+    // Initialise le timer
+    nextEventTime = 20; 
     animate();
 }
