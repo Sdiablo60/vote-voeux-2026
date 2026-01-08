@@ -275,4 +275,23 @@ function initRobot(container) {
                     posAttr.getY(i) + particleData[i].velocity.y, 
                     posAttr.getZ(i) + particleData[i].velocity.z
                 );
-                particleData[i].velocity.y += 0.
+                particleData[i].velocity.y += 0.005;
+                if (posAttr.getY(i) > 5) { 
+                    particleData[i].active = false; 
+                    posAttr.setXYZ(i, 999,999,999); 
+                }
+            }
+        }
+        posAttr.needsUpdate = true;
+    }
+
+    window.addEventListener('resize', () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        renderer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+    });
+
+    animate();
+}
