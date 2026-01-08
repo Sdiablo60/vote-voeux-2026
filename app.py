@@ -991,66 +991,49 @@ else:
     ph = st.empty()
     
     if mode == "attente":
-        # AFFICHER LE LOGO (S'il existe)
-        if cfg.get("logo_b64"):
-            st.markdown(
-                f"""<div style="display:flex; justify-content:center; margin-top:50px; margin-bottom:20px;">
-                    <img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px;">
-                </div>""", 
-                unsafe_allow_html=True
-            )
-
-        # TITRE DE BIENVENUE
-        st.markdown("""
-            <div style="text-align:center; color:white; font-family:Arial; font-size:60px; font-weight:bold; margin-bottom:30px; text-transform:uppercase;">
-                Bienvenue
-            </div>
-        """, unsafe_allow_html=True)
-
-        # --- INTEGRATION DU ROBOT 3D ---
-        # On lit les fichiers que tu as créés sur GitHub
+        # On ne met plus le logo/titre en markdown Streamlit car on l'intègre au HTML pour mieux centrer
+        
+        # Lecture des fichiers
         try:
-            with open("style.css", "r", encoding="utf-8") as f:
-                css_content = f.read()
-            with open("robot.js", "r", encoding="utf-8") as f:
-                js_content = f.read()
+            with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
+            with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
         except FileNotFoundError:
-            st.error("⚠️ Fichiers robot.js ou style.css introuvables à la racine.")
-            css_content = ""
-            js_content = ""
+            css_content = ""; js_content = "console.error('Fichiers manquants');"
 
-        # On construit le HTML complet
+        # Affichage du Logo (si présent) encodé
+        logo_img_tag = ""
+        if cfg.get("logo_b64"):
+            logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:250px; margin-bottom:20px;">'
+
         html_code = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <style>
-                /* On force le fond transparent pour l'iframe */
-                body {{ background-color: transparent; margin: 0; overflow: hidden; }}
-                /* Injection de ton CSS */
                 {css_content}
             </style>
         </head>
         <body>
+            <div id="welcome-text">
+                {logo_img_tag}<br>
+                BIENVENUE
+            </div>
+
+            <div id="robot-bubble" class="bubble">...</div>
+
             <div id="robot-container"></div>
 
             <script type="importmap">
-            {{
-                "imports": {{
-                    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
-                }}
-            }}
+            {{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}
             </script>
-
             <script type="module">
                 {js_content}
             </script>
         </body>
         </html>
         """
-
-        # On affiche le tout dans un composant HTML Streamlit
-        components.html(html_code, height=500, scrolling=False)
+        # On utilise une hauteur de 900px pour prendre tout l'écran dans l'iframe
+        components.html(html_code, height=900, scrolling=False)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
