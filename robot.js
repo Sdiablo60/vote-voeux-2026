@@ -54,6 +54,16 @@ function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
     
+    // --- 1. CORRECTION CLIGNOTEMENT (CSS) ---
+    // On force le conteneur à flotter au-dessus de tout, sans interaction souris
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.zIndex = '9999'; // Très haut pour être sûr
+    container.style.pointerEvents = 'none'; // Permet de cliquer sur le site à travers le robot
+    
     // SCENE
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
@@ -71,11 +81,11 @@ function initRobot(container) {
     const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
-    const screenLight = new THREE.PointLight(0x00ffff, 0.4, 4);
+    const screenLight = new THREE.PointLight(0x00ffff, 0.5, 4);
     screenLight.position.set(0, 0, 2);
     scene.add(screenLight);
 
-    // --- CONSTRUCTION DU ROBOT ---
+    // --- ROBOT ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
     
@@ -84,7 +94,7 @@ function initRobot(container) {
         color: 0xffffff, roughness: 0.2, metalness: 0.1 
     });
     const blackScreenMat = new THREE.MeshStandardMaterial({ 
-        color: 0x000000, roughness: 0.1, metalness: 0.6 
+        color: 0x000000, roughness: 0.1, metalness: 0.5 
     });
     const neonBlueMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
     const greyMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
@@ -92,33 +102,36 @@ function initRobot(container) {
     // 1. TÊTE (Coque Blanche)
     const headGeo = new THREE.SphereGeometry(0.85, 64, 64); 
     const head = new THREE.Mesh(headGeo, whiteShellMat);
-    head.scale.set(1.4, 1.0, 0.8); 
+    head.scale.set(1.4, 1.0, 0.75); 
     
     // 2. ÉCRAN NOIR (Visage)
     const faceGeo = new THREE.SphereGeometry(0.78, 64, 64);
     const face = new THREE.Mesh(faceGeo, blackScreenMat);
     face.scale.set(1.25, 0.85, 0.6); 
-    // FIX Z-FIGHTING: On avance un peu plus la face (0.48 -> 0.50)
-    face.position.set(0, 0, 0.50); 
+    face.position.set(0, 0, 0.55); // Bien en avant du blanc
     head.add(face);
 
-    // 3. YEUX
+    // --- 2. CORRECTION BOUCHE & YEUX ---
+    // On les pousse beaucoup plus loin en Z (1.05) pour qu'ils sortent bien du noir
+
+    // YEUX
     const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 32, Math.PI); 
+    
     const leftEye = new THREE.Mesh(eyeGeo, neonBlueMat);
-    leftEye.position.set(-0.35, 0.15, 0.90); 
+    leftEye.position.set(-0.35, 0.15, 1.05); // Z augmenté
     leftEye.rotation.z = 0; 
     head.add(leftEye);
 
     const rightEye = new THREE.Mesh(eyeGeo, neonBlueMat);
-    rightEye.position.set(0.35, 0.15, 0.90);
+    rightEye.position.set(0.35, 0.15, 1.05); // Z augmenté
     rightEye.rotation.z = 0;
     head.add(rightEye);
 
-    // 4. BOUCHE
+    // BOUCHE
     const mouthGeo = new THREE.TorusGeometry(0.1, 0.035, 8, 32, Math.PI);
     const mouth = new THREE.Mesh(mouthGeo, neonBlueMat);
-    mouth.position.set(0, -0.15, 0.88);
-    mouth.rotation.z = Math.PI;
+    mouth.position.set(0, -0.15, 1.05); // Z augmenté (elle ne disparaîtra plus)
+    mouth.rotation.z = Math.PI; 
     head.add(mouth);
 
     // 5. OREILLES
@@ -186,14 +199,7 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015; 
 
-        // FIX CLIGNOTEMENT : Gestion Z-Index avec HYSTERESIS (Zone Tampon)
-        // On ne change pas pile à 2.0 pour éviter le scintillement
-        if (robotGroup.position.z > 2.5) {
-            container.style.zIndex = "15"; // Passe devant
-        } else if (robotGroup.position.z < 1.5) {
-            container.style.zIndex = "1"; // Reste derrière
-        }
-        // Entre 1.5 et 2.5, on ne touche à rien (stabilité)
+        // NOTE: On ne touche plus au z-index ici. Le CSS d'intro s'en charge.
 
         // Flottement
         robotGroup.position.y += Math.sin(time * 2) * 0.002;
