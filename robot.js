@@ -71,8 +71,8 @@ function initRobot(container) {
     const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
-    // Lumière d'ambiance bleue pour faire briller le visage
-    const screenLight = new THREE.PointLight(0x00ffff, 0.4, 4);
+    // Lumière bleue pour faire briller le visage
+    const screenLight = new THREE.PointLight(0x00ffff, 0.5, 4);
     screenLight.position.set(0, 0, 2);
     scene.add(screenLight);
 
@@ -86,57 +86,55 @@ function initRobot(container) {
         roughness: 0.2, 
         metalness: 0.1 
     });
-    // Noir très profond pour l'écran
     const blackScreenMat = new THREE.MeshStandardMaterial({ 
         color: 0x000000, 
-        roughness: 0.2, 
-        metalness: 0.5 
+        roughness: 0.1, 
+        metalness: 0.6 
     });
-    // Bleu Néon Lumineux pour le visage
     const neonBlueMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
     const greyMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
 
-    // 1. TÊTE (Coque Blanche Ovale)
-    // On utilise une sphère déformée pour faire un ovale large (style TV)
+    // 1. TÊTE (Coque Blanche)
+    // On l'aplatit légèrement en Z (0.8) pour éviter qu'elle ne traverse l'écran
     const headGeo = new THREE.SphereGeometry(0.85, 64, 64); 
     const head = new THREE.Mesh(headGeo, whiteShellMat);
-    head.scale.set(1.4, 1.0, 0.9); // Large et un peu aplatie
+    head.scale.set(1.4, 1.0, 0.8); 
     
-    // 2. ÉCRAN NOIR UNIFIÉ (Le Visage)
-    // Une sphère légèrement plus petite, écrasée en profondeur, placée devant
+    // 2. ÉCRAN NOIR (Visage)
+    // On le place bien en avant (z=0.48) pour masquer totalement le blanc
     const faceGeo = new THREE.SphereGeometry(0.78, 64, 64);
     const face = new THREE.Mesh(faceGeo, blackScreenMat);
-    face.scale.set(1.25, 0.85, 0.6); // Épouse la forme de la tête
-    face.position.set(0, 0, 0.38); // Avancée pour couvrir tout le devant (pas de nez blanc !)
+    face.scale.set(1.25, 0.85, 0.6); 
+    face.position.set(0, 0, 0.48); // CORRECTION ICI : Avancé pour supprimer le nez
     head.add(face);
 
-    // 3. YEUX JOYEUX (Arches ^ ^)
-    // On utilise des "Torus" (anneaux) coupés en deux
-    const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 32, Math.PI); // Math.PI = demi-cercle
+    // 3. YEUX (Arches ^ ^)
+    // Torus coupé (Math.PI)
+    const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 32, Math.PI); 
     
     const leftEye = new THREE.Mesh(eyeGeo, neonBlueMat);
-    leftEye.position.set(-0.35, 0.15, 0.85); // Posé sur l'écran noir
-    leftEye.rotation.z = 0; // Arche vers le haut
+    leftEye.position.set(-0.35, 0.15, 0.90); // Position Z ajustée pour flotter sur l'écran
+    leftEye.rotation.z = 0; 
     head.add(leftEye);
 
     const rightEye = new THREE.Mesh(eyeGeo, neonBlueMat);
-    rightEye.position.set(0.35, 0.15, 0.85);
+    rightEye.position.set(0.35, 0.15, 0.90);
     rightEye.rotation.z = 0;
     head.add(rightEye);
 
-    // 4. BOUCHE SOURIANTE (u)
+    // 4. BOUCHE (Sourire u)
     const mouthGeo = new THREE.TorusGeometry(0.1, 0.035, 8, 32, Math.PI);
     const mouth = new THREE.Mesh(mouthGeo, neonBlueMat);
-    mouth.position.set(0, -0.15, 0.82);
+    mouth.position.set(0, -0.15, 0.88);
     mouth.rotation.z = Math.PI; // Inversé pour faire un U
     head.add(mouth);
 
-    // 5. OREILLES (Disques style casque audio)
+    // 5. OREILLES (Style casque)
     const earGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32);
-    earGeo.rotateZ(Math.PI / 2); // Orienter vers le côté
+    earGeo.rotateZ(Math.PI / 2); 
     
     const leftEar = new THREE.Mesh(earGeo, whiteShellMat);
-    leftEar.position.set(-1.1, 0, 0); // Sur le côté de la tête large
+    leftEar.position.set(-1.1, 0, 0); 
     head.add(leftEar);
     
     const rightEar = new THREE.Mesh(earGeo, whiteShellMat);
@@ -146,22 +144,21 @@ function initRobot(container) {
     // 6. CORPS (Œuf)
     const bodyGeo = new THREE.SphereGeometry(0.65, 32, 32);
     const body = new THREE.Mesh(bodyGeo, whiteShellMat);
-    body.scale.set(0.95, 1.1, 0.8); // Forme d'oeuf
-    body.position.set(0, -1.1, 0); // Sous la tête
+    body.scale.set(0.95, 1.1, 0.8);
+    body.position.set(0, -1.1, 0); 
     
-    // Détail Gris (Ceinture)
+    // Ceinture
     const beltGeo = new THREE.TorusGeometry(0.62, 0.03, 16, 64);
     const belt = new THREE.Mesh(beltGeo, greyMat);
     belt.rotation.x = Math.PI / 2;
-    belt.position.set(0, 0, 0);
     body.add(belt);
 
-    // 7. BRAS (Simples et mignons)
+    // 7. BRAS
     const armGeo = new THREE.CapsuleGeometry(0.13, 0.5, 4, 16);
     
     const leftArm = new THREE.Mesh(armGeo, whiteShellMat);
     leftArm.position.set(-0.8, -0.8, 0);
-    leftArm.rotation.z = 0.15; // Légèrement écarté
+    leftArm.rotation.z = 0.15; 
     
     const rightArm = new THREE.Mesh(armGeo, whiteShellMat);
     rightArm.position.set(0.8, -0.8, 0);
@@ -173,7 +170,7 @@ function initRobot(container) {
     robotGroup.add(rightArm);
     scene.add(robotGroup);
 
-    // --- PARTICULES (Fumée Téléportation) ---
+    // --- PARTICULES ---
     const particleCount = 200; 
     const particlesGeo = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
@@ -194,25 +191,24 @@ function initRobot(container) {
     let bubbleTimeout = null;
     let lastMsgIndex = -1;
 
-    // Fonction de lissage
+    // Lissage
     function smoothRotate(object, axis, targetValue, speed) {
         object.rotation[axis] += (targetValue - object.rotation[axis]) * speed;
     }
 
-    // --- ANIMATION LOOP ---
+    // --- ANIMATION ---
     function animate() {
         requestAnimationFrame(animate);
         time += 0.015; 
 
-        // Gestion Z-Index (Passe devant/derrière le texte)
+        // Z-Index
         if (robotGroup.position.z > 2) container.style.zIndex = "15";
         else container.style.zIndex = "1";
 
-        // Animation de flottement global
-        const floatY = Math.sin(time * 2) * 0.002;
-        robotGroup.position.y += floatY;
+        // Flottement
+        robotGroup.position.y += Math.sin(time * 2) * 0.002;
 
-        // ETATS DU ROBOT
+        // ETATS
         if (robotState === 'intro') {
             if (introIndex < introScript.length) {
                 const step = introScript[introIndex];
@@ -232,12 +228,10 @@ function initRobot(container) {
                 smoothRotate(robotGroup, 'y', 0, 0.05);
             } 
             else if (time >= 8.5 && time < 12.0) { 
-                // Toc Toc (Le bras bouge)
                 robotGroup.position.z = 5 + Math.sin(time * 20) * 0.02; 
                 rightArm.rotation.x = -Math.PI/2 + Math.sin(time * 15) * 0.3; 
             } 
             else if (time >= 12.0 && time < 24) { 
-                // Recul
                 robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03);
                 rightArm.rotation.x *= 0.9;
                 smoothRotate(robotGroup, 'y', -0.2, 0.05);
@@ -247,13 +241,11 @@ function initRobot(container) {
         else if (robotState === 'moving') {
             robotGroup.position.lerp(targetPosition, 0.008);
             
-            // Le robot penche légèrement vers sa destination
             const targetRotY = (targetPosition.x - robotGroup.position.x) * 0.05;
             const targetRotZ = -(targetPosition.x - robotGroup.position.x) * 0.03;
             smoothRotate(robotGroup, 'y', targetRotY, 0.05);
             smoothRotate(robotGroup, 'z', targetRotZ, 0.05);
             
-            // Animation des bras (marche/vol)
             leftArm.rotation.x = Math.sin(time * 3) * 0.15;
             rightArm.rotation.x = -Math.sin(time * 3) * 0.15;
 
@@ -269,14 +261,11 @@ function initRobot(container) {
         
         else if (robotState === 'speaking') {
             robotGroup.position.lerp(targetPosition, 0.001); 
-            smoothRotate(robotGroup, 'y', 0, 0.05); // Regarde face
+            smoothRotate(robotGroup, 'y', 0, 0.05); 
             smoothRotate(robotGroup, 'z', 0, 0.05);
             
-            // Animation de la bouche (le sourire vibre)
             const talkScale = 1 + Math.sin(time * 20) * 0.2;
             mouth.scale.set(1, talkScale, 1);
-            
-            // Bras qui s'ouvre
             rightArm.rotation.z = Math.cos(time * 4) * 0.4 + 0.4; 
         }
 
@@ -292,7 +281,7 @@ function initRobot(container) {
         }
 
         else if (robotState === 'teleport_pre') {
-            robotGroup.position.y += Math.sin(time * 15) * 0.01; // Tremble
+            robotGroup.position.y += Math.sin(time * 15) * 0.01; 
             smoothRotate(robotGroup, 'y', 0, 0.1);
             if (time > nextEventTime) {
                 hideBubble();
@@ -329,7 +318,6 @@ function initRobot(container) {
             }
         }
 
-        // Reset bouche si ne parle pas
         if(robotState !== 'speaking') {
              mouth.scale.set(1, 1, 1);
         }
