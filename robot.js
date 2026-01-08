@@ -3,7 +3,7 @@ import * as THREE from 'three';
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// --- MESSAGES VARIÉS ---
+// --- STOCK DE MESSAGES GÉNÉRAUX (30 phrases) ---
 const messages = [
     "Salut l'équipe ! 👋",
     "Tout le monde est bien installé ? 💺",
@@ -19,7 +19,34 @@ const messages = [
     "C'est parti pour le show ! 🚀",
     "Wow, cette vidéo était incroyable ! 🎞️",
     "Un petit coucou aux organisateurs ! 👋",
-    "Je scane la salle... Vous êtes magnifiques ! ✨"
+    "Je scane la salle... Vous êtes magnifiques ! ✨",
+    "Vous avez pensé à charger vos téléphones ? 🔋",
+    "Moi aussi je voudrais participer au concours ! 🥺",
+    "Ça manque un peu de robots dans ces vidéos... 🤖",
+    "Allez, on fait du bruit pour les candidats ! 👏",
+    "Je crois que j'ai vu un chat passer... 🐱",
+    "Ma batterie est à 100%, prêt à faire la fête ! ⚡",
+    "Le niveau est très haut cette année ! 📈",
+    "N'hésitez pas à vous rapprocher de l'écran ! 📺",
+    "J'adore regarder vos réactions ! 😄",
+    "C'est quand la pause ? J'ai besoin d'huile... 🛢️",
+    "Attention, je vous observe... (gentiment) 👁️",
+    "Qui veut un autographe numérique ? ✍️",
+    "La régie, tout va bien ? 👍",
+    "On se croirait à Cannes ! 🌴",
+    "Prêts pour le verdict final ? 🏆"
+];
+
+// --- MESSAGES SPÉCIFIQUES POUR L'INSPECTION (QUAND IL S'APPROCHE) ---
+const inspectionMessages = [
+    "Je viens voir de plus près... 🧐",
+    "Tiens, c'est quoi ce détail ? 🔍",
+    "Inspection technique des pixels... ⚙️",
+    "Vous me voyez mieux comme ça ? 👀",
+    "Hé ! Salut toi ! 👋",
+    "Je vérifie si vous êtes attentifs ! 🤓",
+    "Zoom avant ! 🔭",
+    "Pas de triche dans le public hein ? 👮"
 ];
 
 // --- SCÉNARIO D'INTRO ---
@@ -28,7 +55,8 @@ const introScript = [
     { time: 5.0, text: "Y'a quelqu'un dans cet écran ? 🤔", action: "approach" },
     { time: 8.5, text: "TOC ! TOC ! OUVREZ ! ✊", action: "knock" },
     { time: 12.0, text: "WOUAH ! 😱 Vous êtes nombreux !", action: "recoil" },
-    { time: 16.0, text: "Bienvenue au Concours Vidéo 2026 ! ✨", action: "present" }
+    { time: 16.0, text: "Bienvenue au Concours Vidéo 2026 ! ✨", action: "present" },
+    { time: 20.0, text: "Installez-vous, ça va bientôt commencer ! ⏳", action: "wait" }
 ];
 
 if (container) {
@@ -105,16 +133,17 @@ function initRobot(container) {
 
     // --- VARIABLES DE NAVIGATION ---
     let time = 0;
-    let targetPosition = new THREE.Vector3(3.5, 0, 0); // Départ à droite
+    let targetPosition = new THREE.Vector3(3.5, 0, 0); 
     robotGroup.position.copy(targetPosition);
     
     let robotState = 'intro'; 
     let introIndex = 0;
     let nextEventTime = 0;
-    let lastMsgIndex = -1;
     
-    // --- VARIABLE GLOBALE POUR LE TIMER DE LA BULLE ---
-    // (C'est ce qui corrige le problème de disparition)
+    // Historique pour éviter les répétitions
+    let lastMsgIndex = -1;
+    let lastInspectMsgIndex = -1;
+    
     let bubbleTimeout = null;
 
     // --- ANIMATION ---
@@ -134,12 +163,10 @@ function initRobot(container) {
             if (introIndex < introScript.length) {
                 const step = introScript[introIndex];
                 if (time >= step.time) {
-                    // On force l'affichage pour 5 secondes minimum
                     showBubble(step.text, 5000);
-                    
                     introIndex++;
                 }
-            } else if (time > 20) {
+            } else if (time > 24) { // Fin de l'intro prolongée
                 robotState = 'moving';
                 pickNewTarget();
                 nextEventTime = time + 5;
@@ -157,7 +184,7 @@ function initRobot(container) {
                 robotGroup.position.z = 5 + Math.sin(time * 20) * 0.02; 
                 rightArm.rotation.x = -Math.PI/2 + Math.sin(time * 15) * 0.3; 
             } 
-            else if (time >= 12.0 && time < 20) { // Recul
+            else if (time >= 12.0 && time < 24) { // Recul et attente
                 robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03);
                 rightArm.rotation.x *= 0.9;
                 robotGroup.rotation.y = -0.2; 
@@ -180,7 +207,7 @@ function initRobot(container) {
 
             if (time > nextEventTime) {
                 const rand = Math.random();
-                if (rand < 0.3) {
+                if (rand < 0.35) { // Augmenté à 35% de chance d'inspection
                     startInspection(); 
                 } else {
                     startSpeaking();   
@@ -228,13 +255,14 @@ function initRobot(container) {
     function startSpeaking() {
         robotState = 'speaking';
         
+        // Choix aléatoire sans répétition immédiate
         let newIndex;
         do {
             newIndex = Math.floor(Math.random() * messages.length);
         } while (newIndex === lastMsgIndex);
         lastMsgIndex = newIndex;
 
-        showBubble(messages[newIndex], 6000); // 6 secondes pour lire
+        showBubble(messages[newIndex], 6000); 
         
         nextEventTime = time + 10 + Math.random() * 15; 
         
@@ -248,25 +276,29 @@ function initRobot(container) {
 
     function startInspection() {
         robotState = 'inspecting';
-        showBubble("Je viens voir de plus près... 🧐", 4000);
+        
+        // Choix aléatoire message inspection sans répétition
+        let newIndex;
+        do {
+            newIndex = Math.floor(Math.random() * inspectionMessages.length);
+        } while (newIndex === lastInspectMsgIndex);
+        lastInspectMsgIndex = newIndex;
+
+        showBubble(inspectionMessages[newIndex], 4000);
         nextEventTime = time + 6; 
     }
 
-    // --- FONCTION D'AFFICHAGE CORRIGÉE ---
     function showBubble(text, duration) {
         if(!bubble) return;
         
-        // 1. Annuler tout effacement prévu précédemment
         if (bubbleTimeout) {
             clearTimeout(bubbleTimeout);
             bubbleTimeout = null;
         }
 
-        // 2. Afficher le nouveau texte
         bubble.innerText = text;
         bubble.style.opacity = 1;
         
-        // 3. Programmer l'effacement seulement si une durée est donnée
         if(duration) {
              bubbleTimeout = setTimeout(() => { 
                  hideBubble(); 
