@@ -3,7 +3,7 @@ import * as THREE from 'three';
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// --- MESSAGES ---
+// --- MESSAGES (Plus de variété) ---
 const messages = [
     "Salut l'équipe ! 👋",
     "Tout le monde est bien installé ? 💺",
@@ -91,48 +91,52 @@ function initRobot(container) {
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
-    // Tête
+    // Tête (Blanche)
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 32), whiteMat);
-    const face = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), darkMat);
-    face.position.set(0, 0, 0.68);
+    
+    // --- CORRECTION DU VISAGE (MASQUE COURBÉ) ---
+    // On utilise une portion de sphère légèrement plus grande (0.71) pour recouvrir le blanc
+    // Cela évite que le blanc ne traverse le noir (le fameux "nez")
+    const faceGeo = new THREE.SphereGeometry(0.71, 32, 32, 0, Math.PI * 2, 0, 0.65);
+    const face = new THREE.Mesh(faceGeo, darkMat);
+    face.rotation.x = -Math.PI / 2; // On oriente le masque vers l'avant (Z)
     head.add(face);
 
-    // YEUX (Légèrement baissés)
+    // --- YEUX (Taille réduite : 0.12) ---
     const eyeScale = 0.12; 
     const eyeBallGeo = new THREE.SphereGeometry(eyeScale, 16, 16);
-    eyeBallGeo.scale(1.2, 1, 0.4); 
-    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.4, 12, 12);
+    eyeBallGeo.scale(1.2, 1, 0.6); // Un peu aplatis
+    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.5, 12, 12);
     pupilGeo.scale(1, 1, 0.5);
 
     function createEye() {
         const eyeGroup = new THREE.Group();
         const ball = new THREE.Mesh(eyeBallGeo, glowMat);
         const pupil = new THREE.Mesh(pupilGeo, pupilMat);
-        pupil.position.z = eyeScale * 0.35; 
+        pupil.position.z = eyeScale * 0.5; // Pupille ressortante
         eyeGroup.add(ball);
         eyeGroup.add(pupil);
         return eyeGroup;
     }
     const leftEyeGrp = createEye();
-    leftEyeGrp.position.set(-0.20, 0.12, 0.68); // Y passé de 0.15 à 0.12
+    leftEyeGrp.position.set(-0.20, 0.10, 0.68); // Position ajustée
     const rightEyeGrp = createEye();
-    rightEyeGrp.position.set(0.20, 0.12, 0.68); // Y passé de 0.15 à 0.12
+    rightEyeGrp.position.set(0.20, 0.10, 0.68);
+    
     head.add(leftEyeGrp);
     head.add(rightEyeGrp);
 
-    // --- NOUVELLE ANTENNE (Beaucoup plus grande) ---
-    // Tige plus épaisse (0.04) et plus haute (0.6)
+    // --- ANTENNE (Grande) ---
     const antennaPole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6), whiteMat);
-    antennaPole.position.set(0, 1.0, 0); // Positionnée plus haut
+    antennaPole.position.set(0, 1.0, 0); 
     head.add(antennaPole);
-    // Bout plus gros (0.08)
     const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.08), coloredMat);
-    antennaTip.position.set(0, 1.35, 0); // Au sommet de la nouvelle tige
+    antennaTip.position.set(0, 1.35, 0); 
     head.add(antennaTip);
 
     // --- ONDES RADIO ---
     const waveGroup = new THREE.Group();
-    waveGroup.position.set(0, 1.35, 0); // Partent du nouveau sommet
+    waveGroup.position.set(0, 1.35, 0);
     head.add(waveGroup);
     const waveMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0, side: THREE.DoubleSide });
     const waves = [];
@@ -242,7 +246,7 @@ function initRobot(container) {
             waves.forEach(w => {
                 if(transmissionTimer >= w.userData.startTime) {
                      const localTime = transmissionTimer - w.userData.startTime;
-                     const scale = 0.1 + localTime * 3.0; // Ondes plus grandes
+                     const scale = 0.1 + localTime * 3.0; 
                      w.scale.set(scale, scale, scale);
                      w.material.opacity = Math.max(0, 1 - localTime * 1.0);
                      if(w.material.opacity > 0) allWavesDone = false;
@@ -255,7 +259,6 @@ function initRobot(container) {
                 nextTransmissionTime = time + 20 + Math.random() * 30; 
             }
         }
-
 
         // --- ETATS DU ROBOT ---
 
