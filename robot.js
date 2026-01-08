@@ -94,44 +94,32 @@ function initRobot(container) {
     // TÊTE
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 32), whiteMat);
     
-    // Visage (Masque courbé pour éviter le "nez")
+    // Visage (Masque courbé)
     const faceGeo = new THREE.SphereGeometry(0.71, 32, 32, 0, Math.PI * 2, 0, 0.65);
     const face = new THREE.Mesh(faceGeo, darkMat);
     face.rotation.x = -Math.PI / 2; 
     head.add(face);
 
-    // --- HABILLAGE (POUR EVITER L'EFFET CHAUVE) ---
-    
-    // 1. Oreilles / Casque (Cylindres sur les côtés)
+    // Habillage (Oreilles/Crête)
     const earGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.1, 32);
-    earGeo.rotateZ(Math.PI / 2); // Orienter vers le côté
-    
+    earGeo.rotateZ(Math.PI / 2);
     const leftEar = new THREE.Mesh(earGeo, coloredMat);
-    leftEar.position.set(-0.68, 0, 0); // Collé sur le côté gauche
+    leftEar.position.set(-0.68, 0, 0);
     head.add(leftEar);
-
     const rightEar = new THREE.Mesh(earGeo, coloredMat);
-    rightEar.position.set(0.68, 0, 0); // Collé sur le côté droit
+    rightEar.position.set(0.68, 0, 0);
     head.add(rightEar);
-
-    // 2. Bande centrale (Petite crête technologique sur le dessus)
-    // Une bande fine qui traverse le haut du crâne
     const crestGeo = new THREE.TorusGeometry(0.71, 0.05, 4, 32, Math.PI); 
     const crest = new THREE.Mesh(crestGeo, coloredMat);
-    crest.rotation.y = Math.PI / 2; // Dans l'axe avant-arrière
-    crest.position.set(0, 0, 0);
+    crest.rotation.y = Math.PI / 2;
     head.add(crest);
 
-
-    // --- YEUX PLUS MIGNONS (Pupilles plus grosses) ---
+    // --- YEUX ---
     const eyeScale = 0.12; 
     const eyeBallGeo = new THREE.SphereGeometry(eyeScale, 16, 16);
     eyeBallGeo.scale(1.2, 1, 0.6); 
-    
-    // Pupille agrandie (x0.7 au lieu de x0.4) pour faire moins "regard fixe effrayant"
-    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.7, 12, 12);
+    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.5, 12, 12);
     pupilGeo.scale(1, 1, 0.5);
-
     function createEye() {
         const eyeGroup = new THREE.Group();
         const ball = new THREE.Mesh(eyeBallGeo, glowMat);
@@ -145,19 +133,37 @@ function initRobot(container) {
     leftEyeGrp.position.set(-0.20, 0.10, 0.68); 
     const rightEyeGrp = createEye();
     rightEyeGrp.position.set(0.20, 0.10, 0.68);
-    
     head.add(leftEyeGrp);
     head.add(rightEyeGrp);
 
-    // --- ANTENNE (Sur le dessus, sortant de la crête) ---
+    // --- NOUVEAUX ÉLÉMENTS : SOURCILS ET BOUCHE ---
+
+    // Sourcils (Rectangles fins foncés)
+    const browGeo = new THREE.BoxGeometry(0.25, 0.04, 0.02);
+    const leftBrow = new THREE.Mesh(browGeo, darkMat);
+    leftBrow.position.set(-0.20, 0.28, 0.66);
+    leftBrow.rotation.z = 0.15; // Légère inclinaison
+    head.add(leftBrow);
+
+    const rightBrow = new THREE.Mesh(browGeo, darkMat);
+    rightBrow.position.set(0.20, 0.28, 0.66);
+    rightBrow.rotation.z = -0.15;
+    head.add(rightBrow);
+
+    // Bouche de Robot (Plaque rectangulaire colorée)
+    const mouthGeo = new THREE.BoxGeometry(0.3, 0.08, 0.02);
+    const robotMouth = new THREE.Mesh(mouthGeo, coloredMat);
+    robotMouth.position.set(0, -0.25, 0.68); // En bas du visage
+    head.add(robotMouth);
+
+
+    // --- ANTENNE & ONDES ---
     const antennaPole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.6), whiteMat);
     antennaPole.position.set(0, 1.0, 0); 
     head.add(antennaPole);
     const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.08), coloredMat);
     antennaTip.position.set(0, 1.35, 0); 
     head.add(antennaTip);
-
-    // --- ONDES RADIO ---
     const waveGroup = new THREE.Group();
     waveGroup.position.set(0, 1.35, 0);
     head.add(waveGroup);
