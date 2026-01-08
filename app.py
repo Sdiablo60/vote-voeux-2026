@@ -973,12 +973,12 @@ else:
         .rank-1 .p-img, .rank-1 .p-placeholder { border-color: #FFD700; width: 160px; height: 160px; }
 
         .p-name { font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
-        .rank-1 .p-name {{ color: #FFD700; font-size: 40px; }}
-        .p-score {{ font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }}
+        .rank-1 .p-name { color: #FFD700; font-size: 40px; }
+        .p-score { font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }
         
-        .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
-        .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
-        .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
+        .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
+        .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
     </style>
     """, unsafe_allow_html=True)
     
@@ -991,182 +991,66 @@ else:
     ph = st.empty()
     
     if mode == "attente":
-        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:450px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-        
-        # INJECTION DU BOT DE BIENVENUE DANS UN COMPOSANT HTML POUR L'ANIMATION JS
-        # Correction : Les accolades CSS sont doublées {{ }}
-        components.html(f"""
-        <style>
-            body {{ background-color: black; margin: 0; overflow: hidden; font-family: Arial, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }}
-            .center-content {{ text-align: center; }}
-            .welcome-title {{ color: white; font-size: 100px; margin: 30px 0 0 0; font-weight: bold; }}
-            
-            /* LE ROBOT 3D (CSS PURE) */
-            .bot-container {{
-                position: fixed; 
-                animation: wander 45s infinite ease-in-out;
-                z-index: 9999;
-                /* On ne met pas de flip ici pour ne pas inverser le texte */
-            }}
-            
-            /* C'est cet élément qui va se retourner (flip) */
-            .robot-visual {{
-                width: 120px; height: 140px; position: relative;
-                transform-origin: center center;
-                animation: float 3s ease-in-out infinite, look-direction 45s infinite steps(1);
-            }}
-            
-            .head {{
-                width: 80px; height: 50px; background: linear-gradient(135deg, #e0e0e0, #ffffff);
-                border-radius: 15px; position: absolute; top: 0; left: 20px;
-                box-shadow: 0 5px 15px rgba(0,0,0,0.5), inset 0 -3px 5px rgba(0,0,0,0.2);
-                z-index: 2; border: 1px solid #999;
-            }}
-            .face-screen {{
-                width: 60px; height: 30px; background: #222; border-radius: 10px;
-                position: absolute; top: 10px; left: 10px;
-                box-shadow: inset 0 0 5px #000;
-                overflow: hidden;
-            }}
-            .eyes {{
-                display: flex; justify-content: space-around; margin-top: 8px;
-            }}
-            .eye {{
-                width: 10px; height: 10px; background: #00ffff; border-radius: 50%;
-                animation: blink 4s infinite; box-shadow: 0 0 8px #00ffff;
-            }}
-            .antenna {{
-                width: 4px; height: 20px; background: #888; position: absolute; top: -15px; left: 38px;
-            }}
-            .ball {{
-                width: 10px; height: 10px; background: #ff0000; border-radius: 50%; 
-                position: absolute; top: -20px; left: 35px;
-                box-shadow: 0 0 8px #ff0000;
-                animation: glow 1s infinite alternate;
-            }}
-            .body {{
-                width: 90px; height: 60px; background: linear-gradient(135deg, #ccc, #eee);
-                border-radius: 20px; position: absolute; top: 55px; left: 15px;
-                box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-                display: flex; justify-content: center; align-items: center;
-                font-weight: bold; font-family: monospace; font-size: 14px; color: #555;
-                border: 1px solid #999;
-            }}
-            .chest-detail {{
-                width: 60px; height: 30px; background: #ddd; border-radius: 5px;
-                box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2);
-            }}
-            .arm-left, .arm-right {{
-                width: 25px; height: 70px; background: #444; border-radius: 10px;
-                position: absolute; top: 60px;
-            }}
-            .arm-left {{ left: -10px; transform-origin: top center; animation: wave 2s infinite ease-in-out; }}
-            .arm-right {{ right: -10px; }}
-            
-            .shadow {{
-                width: 80px; height: 15px; background: rgba(0,0,0,0.5); border-radius: 50%;
-                position: absolute; bottom: -40px; left: 20px; filter: blur(5px);
-                animation: shadow-scale 3s ease-in-out infinite;
-            }}
+        # AFFICHER LE LOGO (S'il existe)
+        if cfg.get("logo_b64"):
+            st.markdown(
+                f"""<div style="display:flex; justify-content:center; margin-top:50px; margin-bottom:20px;">
+                    <img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px;">
+                </div>""", 
+                unsafe_allow_html=True
+            )
 
-            /* LA BULLE BD (En dehors du robot-visual pour ne pas flipper) */
-            .bubble {{
-                position: absolute; top: -90px; left: -80px;
-                background: #fff; border-radius: 10px;
-                padding: 15px; font-family: 'Comic Sans MS', sans-serif;
-                font-size: 18px; text-align: center; color: #333;
-                width: 280px;
-                border: 2px solid #333;
-                box-shadow: 4px 4px 0px rgba(0,0,0,0.2);
-                opacity: 0; transition: opacity 0.5s;
-                pointer-events: none; z-index: 10000;
-            }}
-            .bubble:after {{
-                content: ''; position: absolute; bottom: -10px; left: 50%; 
-                border-width: 10px 10px 0; border-style: solid; border-color: #fff transparent;
-                display: block; width: 0;
-            }}
-            .bubble:before {{
-                content: ''; position: absolute; bottom: -13px; left: 50%; 
-                border-width: 10px 10px 0; border-style: solid; border-color: #333 transparent;
-                display: block; width: 0;
-            }}
-
-            /* ANIMATIONS */
-            /* Déplacement Lent */
-            @keyframes wander {{
-                0% {{ left: 10%; top: 10%; }}
-                25% {{ left: 80%; top: 20%; }}
-                50% {{ left: 70%; top: 80%; }}
-                75% {{ left: 10%; top: 70%; }}
-                100% {{ left: 10%; top: 10%; }}
-            }}
-            
-            /* Orientation du robot (Flip) synchronisé avec le mouvement */
-            @keyframes look-direction {{
-                0% {{ transform: scaleX(1); }}   /* Regarde à droite */
-                25% {{ transform: scaleX(-1); }} /* Regarde à gauche */
-                50% {{ transform: scaleX(-1); }} /* Regarde à gauche */
-                75% {{ transform: scaleX(1); }}  /* Regarde à droite */
-                100% {{ transform: scaleX(1); }}
-            }}
-
-            @keyframes float {{ 0%, 100% {{ transform: translateY(0); }} 50% {{ transform: translateY(-15px); }} }}
-            @keyframes shadow-scale {{ 0%, 100% {{ transform: scale(1); opacity: 0.5; }} 50% {{ transform: scale(0.8); opacity: 0.3; }} }}
-            @keyframes blink {{ 0%, 96%, 100% {{ transform: scaleY(1); }} 98% {{ transform: scaleY(0.1); }} }}
-            @keyframes wave {{ 0% {{ transform: rotate(0deg); }} 50% {{ transform: rotate(40deg); }} 100% {{ transform: rotate(0deg); }} }}
-            @keyframes glow {{ from {{ box-shadow: 0 0 5px #ff0000; }} to {{ box-shadow: 0 0 15px #ff0000; }} }}
-        </style>
-        
-        <div class="center-content">
-            {logo_html}
-            <div class="welcome-title">BIENVENUE</div>
-        </div>
-
-        <div class="bot-container">
-            <div class="bubble" id="bot-msg">Bonjour !</div>
-            <div class="robot-visual">
-                <div class="antenna"><div class="ball"></div></div>
-                <div class="head">
-                    <div class="face-screen">
-                        <div class="eyes"><div class="eye"></div><div class="eye"></div></div>
-                    </div>
-                </div>
-                <div class="body"><div class="chest-detail"></div></div>
-                <div class="arm-left"></div>
-                <div class="arm-right"></div>
+        # TITRE DE BIENVENUE
+        st.markdown("""
+            <div style="text-align:center; color:white; font-family:Arial; font-size:60px; font-weight:bold; margin-bottom:30px; text-transform:uppercase;">
+                Bienvenue
             </div>
-            <div class="shadow"></div>
-        </div>
+        """, unsafe_allow_html=True)
 
-        <script>
-            const messages = [
-                "Salut ! Moi c'est Clap-E !",
-                "Je suis le gardien des votes 🛡️",
-                "Préparez vos smartphones 📱",
-                "Qui va gagner le trophée ? 🏆",
-                "Ça va être un grand moment de cinéma !",
-                "N'oubliez pas les selfies ! 📸",
-                "Installez-vous, ça va commencer...",
-                "J'adore regarder vos vidéos 🎬",
-                "Ambiance de folie aujourd'hui ! 🎉"
-            ];
-            const bubble = document.getElementById('bot-msg');
-            let idx = 0;
-            
-            function cycle() {{
-                bubble.style.opacity = 0;
-                setTimeout(() => {{
-                    bubble.innerText = messages[idx];
-                    bubble.style.opacity = 1;
-                    idx = (idx + 1) % messages.length;
-                }}, 500); 
+        # --- INTEGRATION DU ROBOT 3D ---
+        # On lit les fichiers que tu as créés sur GitHub
+        try:
+            with open("style.css", "r", encoding="utf-8") as f:
+                css_content = f.read()
+            with open("robot.js", "r", encoding="utf-8") as f:
+                js_content = f.read()
+        except FileNotFoundError:
+            st.error("⚠️ Fichiers robot.js ou style.css introuvables à la racine.")
+            css_content = ""
+            js_content = ""
+
+        # On construit le HTML complet
+        html_code = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                /* On force le fond transparent pour l'iframe */
+                body {{ background-color: transparent; margin: 0; overflow: hidden; }}
+                /* Injection de ton CSS */
+                {css_content}
+            </style>
+        </head>
+        <body>
+            <div id="robot-container"></div>
+
+            <script type="importmap">
+            {{
+                "imports": {{
+                    "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+                }}
             }}
-            
-            setInterval(cycle, 7000); 
-            cycle();
-        </script>
-        """, height=900)
+            </script>
+
+            <script type="module">
+                {js_content}
+            </script>
+        </body>
+        </html>
+        """
+
+        # On affiche le tout dans un composant HTML Streamlit
+        components.html(html_code, height=500, scrolling=False)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
