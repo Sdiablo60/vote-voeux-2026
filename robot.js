@@ -7,31 +7,25 @@ const bubble = document.getElementById('robot-bubble');
 const messages = [
     "Salut tout le monde ! 👋",
     "Bienvenue aux Vœux 2026 ! ✨",
-    "Préparez vos smartphones 📱",
+    "Je vole ! 🚀",
     "Qui va gagner le trophée ? 🏆",
-    "Ça va être génial ! 🎬",
+    "Silence... on tourne ! 🎬",
     "N'oubliez pas de voter !",
     "Quelle ambiance ce soir ! 🎉"
 ];
 
-// Vérification de sécurité avant de lancer
 if (container) {
-    try {
-        initRobot(container);
-    } catch (e) {
-        console.error("Erreur lancement robot:", e);
-    }
+    try { initRobot(container); } catch (e) { console.error(e); }
 }
 
 function initRobot(container) {
-    // Dimensions
-    let width = container.clientWidth || window.innerWidth;
-    let height = container.clientHeight || window.innerHeight;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
     
     // SCENE
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 1, 7);
+    camera.position.set(0, 0, 8); // Reculé pour voir plus large
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -40,15 +34,15 @@ function initRobot(container) {
     container.appendChild(renderer.domElement);
 
     // LUMIERES
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Lumière forte
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
 
-    // --- CONSTRUCTION ROBOT ---
+    // --- ROBOT ---
     const robotGroup = new THREE.Group();
-    robotGroup.scale.set(0.6, 0.6, 0.6); // Taille 60%
+    robotGroup.scale.set(0.7, 0.7, 0.7); // Taille ajustée
     
     // Matériaux
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
@@ -93,7 +87,6 @@ function initRobot(container) {
     robotGroup.add(leftArm);
     robotGroup.add(rightArm);
     
-    robotGroup.position.y = -0.5; // Un peu plus bas pour ne pas cacher le titre
     scene.add(robotGroup);
 
     // --- PARTICULES ---
@@ -112,55 +105,77 @@ function initRobot(container) {
     let teleportTimer = 0;
     let bubbleTimer = 0;
     let msgIndex = 0;
-    let robotState = 'idle'; 
+    let robotState = 'idle';
+    
+    // Variables pour le vol fluide
+    let targetY = 0;
+    let targetX = 0;
 
-    // Affiche la 1ere bulle rapidement
-    setTimeout(showBubble, 1000);
+    // 1ere bulle rapide
+    setTimeout(showBubble, 1500);
 
     function animate() {
         requestAnimationFrame(animate);
-        time += 0.05;
+        time += 0.03; // Vitesse générale
         teleportTimer += 0.01;
         bubbleTimer += 0.01;
 
-        // IDLE
+        // --- MOUVEMENT DE VOL "IDLE" ---
         if (robotState === 'idle') {
-            robotGroup.position.y = -0.5 + Math.sin(time) * 0.1;
+            // Vol plané (courbe en 8)
+            // Il bouge un peu autour de sa position actuelle
+            robotGroup.position.y += Math.sin(time * 2) * 0.005; 
+            robotGroup.position.x += Math.cos(time * 1.5) * 0.005;
+            
+            // Légère rotation du corps pour simuler le vol
+            robotGroup.rotation.z = Math.cos(time * 1.5) * 0.05; 
+            robotGroup.rotation.x = Math.sin(time * 2) * 0.05;
+
+            // Bras
             rightArm.rotation.z = Math.cos(time * 5) * 0.5 + 0.5; 
             rightArm.rotation.x = Math.sin(time * 5) * 0.2;
+            leftArm.rotation.x = -Math.sin(time * 5) * 0.2; // L'autre bras bouge aussi
         }
 
-        // BULLE (Toutes les 6 secondes)
+        // Bulle toutes les 6s
         if (bubbleTimer > 6 && robotState === 'idle') { 
             showBubble();
             bubbleTimer = 0;
         }
 
-        // TELEPORTATION (Toutes les 5.5 secondes)
-        if (teleportTimer > 5.5 && robotState === 'idle') {
+        // Téléportation toutes les 7s
+        if (teleportTimer > 7 && robotState === 'idle') {
             startTeleport();
         }
 
-        // ETATS
+        // --- Séquence Téléportation ---
         if (robotState === 'disappear') {
             robotGroup.scale.multiplyScalar(0.9);
-            robotGroup.rotation.y += 0.4;
+            robotGroup.rotation.y += 0.5;
             hideBubble();
             
             if (robotGroup.scale.x < 0.05) {
-                // Déplacement LARGE (-5 à +5)
-                const randomX = (Math.random() * 10) - 5; 
-                robotGroup.position.x = randomX;
+                // CALCUL DE LA NOUVELLE POSITION (Plein écran)
+                // Calcul basé sur le champ de vision caméra (approx pour z=0)
+                const aspect = width / height;
+                const visibleHeight = 2 * Math.tan((camera.fov * Math.PI / 180) / 2) * Math.abs(camera.position.z);
+                const visibleWidth = visibleHeight * aspect;
+
+                // On garde une marge de sécurité (0.8) pour pas qu'il sorte de l'écran
+                const randomX = (Math.random() - 0.5) * visibleWidth * 0.8;
+                const randomY = (Math.random() - 0.5) * visibleHeight * 0.6; // Un peu moins haut
                 
-                triggerSmoke(randomX, -0.5);
-                robotGroup.rotation.y = 0;
+                robotGroup.position.set(randomX, randomY, 0);
+                
+                triggerSmoke(randomX, randomY);
+                robotGroup.rotation.set(0,0,0); // Reset rotations
                 robotState = 'reappear';
             }
         } 
         else if (robotState === 'reappear') {
             robotGroup.scale.multiplyScalar(1.15);
-            if (robotGroup.scale.x >= 0.6) {
-                robotGroup.scale.set(0.6, 0.6, 0.6);
+            if (robotGroup.scale.x >= 0.7) {
+                robotGroup.scale.set(0.7, 0.7, 0.7);
                 robotState = 'idle';
                 teleportTimer = 0;
             }
@@ -181,7 +196,7 @@ function initRobot(container) {
         bubble.innerText = messages[msgIndex];
         bubble.style.opacity = 1;
         msgIndex = (msgIndex + 1) % messages.length;
-        setTimeout(() => { bubble.style.opacity = 0; }, 4000); // Reste 4s
+        setTimeout(() => { bubble.style.opacity = 0; }, 4000);
     }
 
     function hideBubble() {
@@ -197,14 +212,14 @@ function initRobot(container) {
         const x = (headPos.x * .5 + .5) * width;
         const y = (headPos.y * -.5 + .5) * height;
 
-        // Ajustement si trop au bord
+        // Ajustement pour ne pas sortir de l'écran
         let finalX = x;
-        if (finalX < 120) finalX = 120;
-        if (finalX > width - 120) finalX = width - 120;
+        if (finalX < 150) finalX = 150;
+        if (finalX > width - 150) finalX = width - 150;
 
         bubble.style.left = finalX + 'px';
-        bubble.style.top = (y - 130) + 'px';
-        bubble.style.transform = 'translate(-50%, 0)';
+        bubble.style.top = (y - 140) + 'px'; // Au dessus de la tête
+        bubble.style.transform = 'translateX(-50%)';
     }
 
     function triggerSmoke(x, y) {
@@ -229,7 +244,7 @@ function initRobot(container) {
                     posAttr.getZ(i) + particleData[i].velocity.z
                 );
                 particleData[i].velocity.y += 0.005;
-                if (posAttr.getY(i) > 3) { 
+                if (posAttr.getY(i) > 5) { // Monte plus haut avant de disparaitre
                     particleData[i].active = false; 
                     posAttr.setXYZ(i, 999,999,999); 
                 }
@@ -239,8 +254,8 @@ function initRobot(container) {
     }
 
     window.addEventListener('resize', () => {
-        width = container.clientWidth || window.innerWidth;
-        height = container.clientHeight || window.innerHeight;
+        width = window.innerWidth;
+        height = window.innerHeight;
         renderer.setSize(width, height);
         camera.aspect = width / height;
         camera.updateProjectionMatrix();
