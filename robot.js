@@ -3,26 +3,32 @@ import * as THREE from 'three';
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// --- MESSAGES ALÉATOIRES (APRÈS INTRO) ---
-const randomMessages = [
-    "J'adore le cinéma ! 🎬",
-    "Qui a le meilleur costume ce soir ? 👔",
-    "N'oubliez pas de voter ! 🗳️",
-    "Une petite photo ? 📸",
-    "Silence... Moteur... Action ! 📢",
-    "Je suis Clap-E, votre serviteur ! 🤖",
-    "Quelle ambiance incroyable ! 🎉",
-    "C'est mon premier tapis rouge... 😳",
-    "Devinette : Quel est le comble pour une caméra ? De perdre la pellicule ! 🎞️"
+// --- MESSAGES VARIÉS ---
+const messages = [
+    "Salut l'équipe ! 👋",
+    "Tout le monde est bien installé ? 💺",
+    "Je vérifie les objectifs... 🧐",
+    "Qui a le plus beau sourire ce soir ? 📸",
+    "Silence... Moteur... Ça tourne ! 🎬",
+    "N'oubliez pas de voter pour votre favori ! 🗳️",
+    "Quelle ambiance de folie ! 🎉",
+    "Je suis Clap-E, votre assistant préféré ! 🤖",
+    "Il fait chaud sous les projecteurs, non ? 💡",
+    "J'espère qu'il y a des petits fours... 🍪",
+    "Psst... Vous me voyez bien ? 👀",
+    "C'est parti pour le show ! 🚀",
+    "Wow, cette vidéo était incroyable ! 🎞️",
+    "Un petit coucou aux organisateurs ! 👋",
+    "Je scane la salle... Vous êtes magnifiques ! ✨"
 ];
 
-// --- SCÉNARIO D'INTRODUCTION (Chronologique) ---
+// --- SCÉNARIO D'INTRO ---
 const introScript = [
     { time: 1.0, text: "Hum... C'est allumé ? 🎤", action: "look_around" },
-    { time: 4.0, text: "Y'a quelqu'un dans cet écran ? 🤔", action: "approach" },
-    { time: 7.0, text: "TOC ! TOC ! OUVREZ ! ✊", action: "knock" },
-    { time: 10.0, text: "WOUAH ! 😱 Vous êtes nombreux !", action: "recoil" },
-    { time: 14.0, text: "Bienvenue au Concours Vidéo 2026 ! ✨", action: "present" }
+    { time: 4.5, text: "Y'a quelqu'un dans cet écran ? 🤔", action: "approach" },
+    { time: 8.0, text: "TOC ! TOC ! OUVREZ ! ✊", action: "knock" },
+    { time: 11.5, text: "WOUAH ! 😱 Vous êtes nombreux !", action: "recoil" },
+    { time: 15.0, text: "Bienvenue au Concours Vidéo 2026 ! ✨", action: "present" }
 ];
 
 if (container) {
@@ -33,10 +39,10 @@ function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
     
-    // 1. SCÈNE
+    // SCENE
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 8); // Caméra reculée
+    camera.position.set(0, 0, 8); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -44,14 +50,14 @@ function initRobot(container) {
     renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
-    // 2. LUMIÈRES
+    // LUMIERES
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
 
-    // 3. ROBOT
+    // --- ROBOT ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
     
@@ -61,13 +67,12 @@ function initRobot(container) {
     const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
 
-    // Tête
+    // Modélisation (Tête, Yeux, Corps, Bras)
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.7, 32, 32), whiteMat);
     const face = new THREE.Mesh(new THREE.CircleGeometry(0.55, 32), darkMat);
     face.position.set(0, 0, 0.68);
     head.add(face);
 
-    // Yeux
     const eyeGeo = new THREE.CircleGeometry(0.12, 32);
     const leftEye = new THREE.Mesh(eyeGeo, glowMat);
     leftEye.position.set(-0.25, 0.1, 0.70);
@@ -76,11 +81,9 @@ function initRobot(container) {
     rightEye.position.set(0.25, 0.1, 0.70);
     head.add(rightEye);
 
-    // Corps
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 0.9, 32), whiteMat);
     body.position.y = -0.9;
 
-    // Bras
     function createArm(x) {
         const g = new THREE.Group();
         g.position.set(x, -0.7, 0);
@@ -103,125 +106,141 @@ function initRobot(container) {
     // --- VARIABLES DE NAVIGATION ---
     let time = 0;
     
-    // On force le démarrage à droite (Visible tout de suite)
-    let targetPosition = new THREE.Vector3(2.5, 0, 0);
+    // Position de départ : Un peu plus éloignée du texte (X=3.5)
+    let targetPosition = new THREE.Vector3(3.5, 0, 0);
     robotGroup.position.copy(targetPosition);
     
-    let robotState = 'intro'; // intro, patrol, speaking, moving
+    let robotState = 'intro'; // intro, patrol, speaking, inspecting
     let introIndex = 0;
-    let nextEventTime = 0; // Timer pour les messages aléatoires
+    let nextEventTime = 0;
+    let lastMsgIndex = -1;
 
     // --- ANIMATION ---
     function animate() {
         requestAnimationFrame(animate);
-        time += 0.02; // Horloge globale
+        time += 0.015; // Ralenti global pour des mouvements moins vifs
+
+        // --- GESTION DES CALQUES (Z-INDEX DYNAMIQUE) ---
+        // Si le robot s'approche (Z > 2), il passe DEVANT le texte (z-index 15)
+        // Sinon il reste DERRIERE (z-index 1)
+        if (robotGroup.position.z > 2) {
+            container.style.zIndex = "15";
+        } else {
+            container.style.zIndex = "1";
+        }
 
         // --- PHASE 1 : SCÉNARIO D'INTRODUCTION ---
         if (robotState === 'intro') {
-            
-            // Gestion du script temporel
             if (introIndex < introScript.length) {
                 const step = introScript[introIndex];
-                
-                // Si c'est le moment de l'étape
                 if (time >= step.time) {
-                    // Afficher le message
-                    showBubble(step.text, 3000);
-                    
-                    // Exécuter l'action spéciale
-                    performAction(step.action);
-                    
+                    showBubble(step.text, 4000);
                     introIndex++;
                 }
-            } else if (time > 18) {
-                // Fin de l'intro après 18 secondes -> Passage en mode patrouille
+            } else if (time > 19) {
                 robotState = 'moving';
                 pickNewTarget();
+                nextEventTime = time + 5;
             }
 
-            // Animations spécifiques pendant l'intro
-            if (time > 4 && time < 7) { 
-                // Approche Zoom (Lerp vers Z=5)
-                robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.05);
-            } 
-            else if (time > 7 && time < 10) {
-                // Toc Toc (Vibration rapide sur Z et bras)
-                robotGroup.position.z = 5 + Math.sin(time * 30) * 0.05;
-                rightArm.rotation.x = -Math.PI / 2 + Math.sin(time * 20) * 0.5; // Bras levé qui frappe
-            } 
-            else if (time > 10 && time < 14) {
-                // Recul de peur (Lerp vers position de sécurité)
-                robotGroup.position.lerp(new THREE.Vector3(2.5, 0, 0), 0.05);
-                rightArm.rotation.x = 0; // Bras redescend
+            // Mouvements scénarisés
+            // 1. Regarde autour
+            if (time < 4.5) {
+                robotGroup.rotation.y = Math.sin(time) * 0.3;
             }
-
+            // 2. Approche (Zoom)
+            else if (time >= 4.5 && time < 8) {
+                // Il va vers le centre devant (0, 0, 5)
+                robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.02);
+                robotGroup.rotation.y *= 0.95; // Regarde droit
+            } 
+            // 3. Toc Toc (Vibration)
+            else if (time >= 8 && time < 11.5) {
+                robotGroup.position.z = 5 + Math.sin(time * 20) * 0.02; // Micro vibration
+                rightArm.rotation.x = -Math.PI/2 + Math.sin(time * 15) * 0.3; // Frappe
+            } 
+            // 4. Recul (Repart sur le côté droit)
+            else if (time >= 11.5 && time < 19) {
+                robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03);
+                rightArm.rotation.x *= 0.9;
+                robotGroup.rotation.y = -0.2; // Regarde le public en biais
+            }
         } 
         
-        // --- PHASE 2 : VIE NORMALE (Patrouille) ---
+        // --- PHASE 2 : VIE NORMALE (Patrouille sur les côtés) ---
         else if (robotState === 'moving') {
             
-            // Déplacement fluide vers la cible
-            robotGroup.position.lerp(targetPosition, 0.01);
+            // Mouvement très fluide vers la cible
+            robotGroup.position.lerp(targetPosition, 0.008);
             
             // Orientation douce
-            robotGroup.rotation.y = (targetPosition.x - robotGroup.position.x) * 0.1;
-            robotGroup.rotation.z = -(targetPosition.x - robotGroup.position.x) * 0.05;
+            robotGroup.rotation.y += (targetPosition.x - robotGroup.position.x) * 0.05 - robotGroup.rotation.y * 0.05;
+            robotGroup.rotation.z = -(targetPosition.x - robotGroup.position.x) * 0.02;
             
             // Respiration
-            robotGroup.position.y += Math.sin(time * 2) * 0.002;
+            robotGroup.position.y += Math.sin(time * 1.5) * 0.001;
 
-            // Si arrivé, changer de cible
+            // Bras ballants
+            leftArm.rotation.x = Math.sin(time * 2) * 0.1;
+            rightArm.rotation.x = -Math.sin(time * 2) * 0.1;
+
+            // Arrivé ? Nouvelle cible
             if (robotGroup.position.distanceTo(targetPosition) < 0.5) {
                 pickNewTarget();
             }
 
-            // Déclencheur parole aléatoire
+            // Événements aléatoires
             if (time > nextEventTime) {
-                startSpeaking();
+                const rand = Math.random();
+                if (rand < 0.3) {
+                    startInspection(); // 30% chance d'aller voir de près
+                } else {
+                    startSpeaking();   // 70% chance de parler
+                }
             }
         } 
         
         // --- PHASE 3 : PARLE (Immobile) ---
         else if (robotState === 'speaking') {
-            // STOP TOTAL du déplacement X/Y/Z
-            // Juste un petit flottement sur place
             robotGroup.position.y += Math.sin(time * 3) * 0.001;
+            robotGroup.rotation.lerp(new THREE.Vector3(0,0,0), 0.05); // Regarde face
             
-            // Regarde le public
-            robotGroup.rotation.set(0, 0, 0);
+            // Coucou lent
+            rightArm.rotation.z = Math.cos(time * 4) * 0.4 + 0.4; 
+        }
+
+        // --- PHASE 4 : INSPECTION (Vient voir de près) ---
+        else if (robotState === 'inspecting') {
+            // Il s'approche de la caméra (Z=4.5) mais reste un peu décalé en X pour pas cacher tout le texte
+            // Il va osciller de gauche à droite devant
+            const inspectPos = new THREE.Vector3(Math.sin(time)*2, 0, 4.5);
+            robotGroup.position.lerp(inspectPos, 0.02);
+            robotGroup.rotation.y = Math.sin(time) * 0.2; // Regarde de gauche à droite
             
-            // Gestuelle
-            rightArm.rotation.z = Math.cos(time * 5) * 0.5 + 0.5; // Coucou
+            // Fin de l'inspection après 6 secondes
+            if (time > nextEventTime) {
+                robotState = 'moving';
+                pickNewTarget(); // Repart loin
+                nextEventTime = time + 10 + Math.random() * 10;
+            }
         }
 
         updateBubblePosition();
         renderer.render(scene, camera);
     }
 
-    // --- ACTIONS ---
-
-    function performAction(actionName) {
-        if (actionName === 'look_around') {
-            // Petite rotation tête (simulée par rotation du groupe pour simplifier)
-            // L'animation continue dans la boucle principale
-        }
-    }
-
     function pickNewTarget() {
-        // Choix d'une position sûre (Gauche ou Droite, jamais centre)
+        // Choix d'une position latérale (LOIN DU TEXTE)
         const aspect = width / height;
-        const vW = 7 * aspect; // Largeur visible approx
+        const vW = 7 * aspect; 
         
         let x, y;
-        // On alterne ou aléatoire
         if (Math.random() > 0.5) {
-            // Droite
-            x = 2.5 + Math.random() * (vW * 0.4 - 2.5);
+            x = 3.0 + Math.random() * (vW * 0.4 - 3.0); // Droite
         } else {
-            // Gauche
-            x = -2.5 - Math.random() * (vW * 0.4 - 2.5);
+            x = -3.0 - Math.random() * (vW * 0.4 - 3.0); // Gauche
         }
-        y = (Math.random() - 0.5) * 4; // Haut/Bas
+        y = (Math.random() - 0.5) * 3; // Haut/Bas modéré
         
         targetPosition.set(x, y, 0);
     }
@@ -229,14 +248,18 @@ function initRobot(container) {
     function startSpeaking() {
         robotState = 'speaking';
         
-        // Choisir un message
-        const msg = randomMessages[Math.floor(Math.random() * randomMessages.length)];
-        showBubble(msg, 5000); // 5 secondes de lecture
-        
-        // Calcul du prochain événement (dans 10 à 20 sec)
-        nextEventTime = time + 10 + Math.random() * 10;
+        // Evite de répéter le même message
+        let newIndex;
+        do {
+            newIndex = Math.floor(Math.random() * messages.length);
+        } while (newIndex === lastMsgIndex);
+        lastMsgIndex = newIndex;
 
-        // Reprise du mouvement après la lecture
+        showBubble(messages[newIndex], 5000); 
+        
+        // Reprise du mouvement
+        nextEventTime = time + 10 + Math.random() * 15; // Prochain événement dans 10-25s
+        
         setTimeout(() => {
             if (robotState === 'speaking') {
                 hideBubble();
@@ -245,12 +268,18 @@ function initRobot(container) {
         }, 5000);
     }
 
+    function startInspection() {
+        robotState = 'inspecting';
+        showBubble("Je viens voir de plus près... 🧐", 3000);
+        // Durée de l'inspection
+        nextEventTime = time + 6; 
+    }
+
     function showBubble(text, duration) {
         if(!bubble) return;
         bubble.innerText = text;
         bubble.style.opacity = 1;
-        // Le cache est géré par le timeout du state 'speaking' ou l'intro
-        if(duration && robotState === 'intro') {
+        if(duration) {
              setTimeout(() => { hideBubble(); }, duration);
         }
     }
@@ -263,7 +292,7 @@ function initRobot(container) {
         if(!bubble || bubble.style.opacity == 0) return;
         
         const headPos = robotGroup.position.clone();
-        headPos.y += 0.8; // Au dessus de la tête
+        headPos.y += 0.8; 
         headPos.project(camera);
         
         const x = (headPos.x * .5 + .5) * width;
@@ -285,8 +314,7 @@ function initRobot(container) {
         camera.updateProjectionMatrix();
     });
 
-    // Lancement
-    animate();
-    // Initialise le timer de parole pour l'après-intro
+    // Initialise le timer
     nextEventTime = 20; 
+    animate();
 }
