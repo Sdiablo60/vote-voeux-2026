@@ -37,9 +37,9 @@ const postTeleportMessages = [
     "Vous ne m'avez pas vu venir ? 😎"
 ];
 
-// --- PALETTE DE COULEURS (Changement dynamique) ---
+// --- PALETTE DE COULEURS ---
 const colorPalette = [
-    new THREE.Color(0x3388ff), // Bleu Tech (Défaut)
+    new THREE.Color(0x3388ff), // Bleu Tech
     new THREE.Color(0xff8800), // Orange
     new THREE.Color(0x8a2be2), // Violet
     new THREE.Color(0xE2001A)  // Rouge Corporate
@@ -86,9 +86,8 @@ function initRobot(container) {
     
     // Matériaux
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
-    // Ce matériau bleu va changer de couleur avec le temps
-    const coloredMat = new THREE.MeshStandardMaterial({ color: 0x3388ff, roughness: 0.2 }); 
-    const glowMat = new THREE.MeshBasicMaterial({ color: 0xe0ffff }); 
+    const coloredMat = new THREE.MeshStandardMaterial({ color: 0x3388ff, roughness: 0.2 }); // Change de couleur
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xe0ffff }); // Blanc des yeux
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
     const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
 
@@ -98,12 +97,10 @@ function initRobot(container) {
     face.position.set(0, 0, 0.68);
     head.add(face);
 
-    // --- YEUX CORRIGÉS (Plus petits) ---
-    // Ancienne taille : 0.18 -> Nouvelle taille : 0.12
+    // YEUX (Globes + Pupilles mobiles)
     const eyeScale = 0.12; 
     const eyeBallGeo = new THREE.SphereGeometry(eyeScale, 16, 16);
     eyeBallGeo.scale(1.2, 1, 0.4); 
-
     const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.4, 12, 12);
     pupilGeo.scale(1, 1, 0.5);
 
@@ -116,28 +113,41 @@ function initRobot(container) {
         eyeGroup.add(pupil);
         return eyeGroup;
     }
-
     const leftEyeGrp = createEye();
-    leftEyeGrp.position.set(-0.20, 0.15, 0.68); // Un peu rapprochés aussi
-    
+    leftEyeGrp.position.set(-0.20, 0.15, 0.68);
     const rightEyeGrp = createEye();
     rightEyeGrp.position.set(0.20, 0.15, 0.68);
-    
     head.add(leftEyeGrp);
     head.add(rightEyeGrp);
 
-    // --- BOUCHE ---
-    const mouthGeo = new THREE.SphereGeometry(0.1, 16, 8);
-    mouthGeo.scale(1.2, 0.15, 0.1); // Plus fine
-    const robotMouth = new THREE.Mesh(mouthGeo, glowMat);
-    robotMouth.position.set(0, -0.2, 0.70);
-    head.add(robotMouth);
+    // --- NOUVELLE ANTENNE ---
+    const antennaPole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3), whiteMat);
+    antennaPole.position.set(0, 0.7, 0);
+    head.add(antennaPole);
+    const antennaTip = new THREE.Mesh(new THREE.SphereGeometry(0.05), coloredMat); // Bout coloré
+    antennaTip.position.set(0, 0.85, 0);
+    head.add(antennaTip);
 
-    // Corps
+    // --- ONDES RADIO (Invisibles au départ) ---
+    const waveGroup = new THREE.Group();
+    waveGroup.position.set(0, 0.85, 0);
+    head.add(waveGroup);
+    // Matériau transparent pour les ondes
+    const waveMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0, side: THREE.DoubleSide });
+    const waves = [];
+    for(let i=0; i<3; i++) {
+        // Anneaux plats
+        const wave = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 8, 32), waveMat.clone());
+        wave.rotation.x = Math.PI / 2; // À plat
+        wave.scale.set(0,0,0);
+        waves.push(wave);
+        waveGroup.add(wave);
+    }
+
+
+    // Corps & Bras
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 0.9, 32), whiteMat);
     body.position.y = -0.9;
-
-    // Bras (utilisent coloredMat pour changer de couleur)
     function createArm(x) {
         const g = new THREE.Group();
         g.position.set(x, -0.7, 0);
@@ -150,14 +160,13 @@ function initRobot(container) {
     }
     const leftArm = createArm(-0.6);
     const rightArm = createArm(0.6);
-
     robotGroup.add(head);
     robotGroup.add(body);
     robotGroup.add(leftArm);
     robotGroup.add(rightArm);
     scene.add(robotGroup);
 
-    // --- PARTICULES ---
+    // --- PARTICULES (Fumée) ---
     const particleCount = 150; 
     const particlesGeo = new THREE.BufferGeometry();
     const positions = new Float32Array(particleCount * 3);
@@ -172,19 +181,18 @@ function initRobot(container) {
     let time = 0;
     let targetPosition = new THREE.Vector3(3.5, 0, 0); 
     robotGroup.position.copy(targetPosition);
-    
     let robotState = 'intro'; 
     let introIndex = 0;
     let nextEventTime = 0;
     let bubbleTimeout = null;
-
-    let eyeTargetX = 0;
-    let eyeTargetY = 0;
-    let nextEyeMoveTime = 0;
-
-    // Variables pour le changement de couleur
+    let eyeTargetX = 0; let eyeTargetY = 0; let nextEyeMoveTime = 0;
+    
+    // Variables Couleur & Ondes
     let colorIndex = 0;
     let colorTimer = 0;
+    let isReceivingTransmission = false;
+    let transmissionTimer = 0;
+    let nextTransmissionTime = 25; // Premier signal vers 25s
 
     function smoothRotate(object, axis, targetValue, speed) {
         object.rotation[axis] += (targetValue - object.rotation[axis]) * speed;
@@ -195,16 +203,15 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015; 
 
-        // 1. CHANGEMENT DE COULEUR FLUIDE
+        // 1. CHANGEMENT DE COULEUR (Toutes les 30s)
         colorTimer += 0.015;
-        if (colorTimer > 10) { // Change toutes les 10s
+        if (colorTimer > 30) { 
             colorIndex = (colorIndex + 1) % colorPalette.length;
             colorTimer = 0;
         }
-        // Interpolation douce vers la couleur cible
-        coloredMat.color.lerp(colorPalette[colorIndex], 0.01);
+        coloredMat.color.lerp(colorPalette[colorIndex], 0.005); // Transition très lente
 
-        // 2. GESTION Z-INDEX
+        // 2. Z-INDEX DYNAMIQUE
         if (robotGroup.position.z > 2) container.style.zIndex = "15";
         else container.style.zIndex = "1";
 
@@ -219,13 +226,41 @@ function initRobot(container) {
         smoothRotate(rightEyeGrp, 'x', eyeTargetY, 0.1);
         smoothRotate(rightEyeGrp, 'y', eyeTargetX, 0.1);
 
-        // 4. BOUCHE ANIMÉE
-        if (robotState === 'speaking') {
-            const talkScale = 0.15 + Math.abs(Math.sin(time * 30)) * 0.2;
-            robotMouth.scale.set(1.2, talkScale, 0.1);
-        } else {
-            robotMouth.scale.lerp(new THREE.Vector3(1.2, 0.15, 0.1), 0.2);
+        // 4. GESTION ONDES RADIO (Transmission)
+        if (time > nextTransmissionTime && !isReceivingTransmission && robotState === 'moving') {
+            isReceivingTransmission = true;
+            transmissionTimer = 0;
+            // Init des ondes
+            waves.forEach((w, i) => {
+                w.scale.set(0.01, 0.01, 0.01);
+                w.material.opacity = 1;
+                // Décalage de départ pour l'effet d'expansion
+                w.userData.startTime = transmissionTimer + i * 0.3;
+            });
         }
+
+        if (isReceivingTransmission) {
+            transmissionTimer += 0.03;
+            let allWavesDone = true;
+            waves.forEach(w => {
+                if(transmissionTimer >= w.userData.startTime) {
+                     const localTime = transmissionTimer - w.userData.startTime;
+                     // Agrandissement
+                     const scale = 0.1 + localTime * 2.5;
+                     w.scale.set(scale, scale, scale);
+                     // Disparition
+                     w.material.opacity = Math.max(0, 1 - localTime * 1.2);
+                     if(w.material.opacity > 0) allWavesDone = false;
+                } else {
+                     allWavesDone = false; 
+                }
+            });
+            if (allWavesDone && transmissionTimer > 1.5) {
+                isReceivingTransmission = false;
+                nextTransmissionTime = time + 20 + Math.random() * 30; // Prochaine dans 20-50s
+            }
+        }
+
 
         // --- ETATS DU ROBOT ---
 
@@ -273,7 +308,7 @@ function initRobot(container) {
 
             if (robotGroup.position.distanceTo(targetPosition) < 0.5) pickNewTarget();
 
-            if (time > nextEventTime) {
+            if (time > nextEventTime && !isReceivingTransmission) {
                 const rand = Math.random();
                 if (rand < 0.25) startTeleportSequence(); 
                 else if (rand < 0.50) startInspection();
@@ -306,8 +341,6 @@ function initRobot(container) {
         else if (robotState === 'teleport_pre') {
             robotGroup.position.y += Math.sin(time * 15) * 0.008; 
             smoothRotate(robotGroup, 'y', 0, 0.1);
-            // Bouche ouverte
-            robotMouth.scale.lerp(new THREE.Vector3(1.0, 0.8, 0.1), 0.1);
             if (time > nextEventTime) {
                 hideBubble();
                 triggerSmoke(robotGroup.position.x, robotGroup.position.y);
@@ -360,6 +393,7 @@ function initRobot(container) {
 
     function startSpeaking() {
         robotState = 'speaking';
+        targetPosition.copy(robotGroup.position);
         const msg = messages[Math.floor(Math.random() * messages.length)];
         showBubble(msg, 6000); 
         nextEventTime = time + 10 + Math.random() * 15; 
