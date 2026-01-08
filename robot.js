@@ -342,4 +342,21 @@ function initRobot(container) {
                 );
                 particleData[i].velocity.y += 0.005;
                 if (posAttr.getY(i) > 5) { 
-                    particle
+                    particleData[i].active = false; 
+                    posAttr.setXYZ(i, 999,999,999); 
+                }
+            }
+        }
+        posAttr.needsUpdate = true;
+    }
+
+    window.addEventListener('resize', () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        renderer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+    });
+
+    animate();
+}
