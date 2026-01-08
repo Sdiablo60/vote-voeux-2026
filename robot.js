@@ -285,4 +285,21 @@ function initRobot(container) {
                 robotGroup.position.y += Math.sin(time * 3) * 0.001; // Flottement léger
                 // Gestes aléatoires des bras
                 rightArm.rotation.z = Math.sin(time * 4) * 0.3 + 0.3;
-                left
+                leftArm.rotation.z = Math.cos(time * 3) * 0.3 - 0.3;
+                break;
+        }
+
+        updateBubblePosition();
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        renderer.setSize(width, height);
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+    });
+
+    animate();
+}
