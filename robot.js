@@ -118,7 +118,7 @@ function initRobot(container) {
     const eyeScale = 0.12; 
     const eyeBallGeo = new THREE.SphereGeometry(eyeScale, 16, 16);
     eyeBallGeo.scale(1.2, 1, 0.6); 
-    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.5, 12, 12);
+    const pupilGeo = new THREE.SphereGeometry(eyeScale * 0.6, 12, 12); // Pupilles un peu plus grosses pour le côté mignon
     pupilGeo.scale(1, 1, 0.5);
     function createEye() {
         const eyeGroup = new THREE.Group();
@@ -136,24 +136,26 @@ function initRobot(container) {
     head.add(leftEyeGrp);
     head.add(rightEyeGrp);
 
-    // --- NOUVEAUX ÉLÉMENTS : SOURCILS ET BOUCHE ---
-
-    // Sourcils (Rectangles fins foncés)
+    // --- SOURCILS (Inversés pour la joie) ---
     const browGeo = new THREE.BoxGeometry(0.25, 0.04, 0.02);
     const leftBrow = new THREE.Mesh(browGeo, darkMat);
-    leftBrow.position.set(-0.20, 0.28, 0.66);
-    leftBrow.rotation.z = 0.15; // Légère inclinaison
+    // Position remontée et rotation inversée (négative)
+    leftBrow.position.set(-0.20, 0.30, 0.66);
+    leftBrow.rotation.z = -0.2; 
     head.add(leftBrow);
 
     const rightBrow = new THREE.Mesh(browGeo, darkMat);
-    rightBrow.position.set(0.20, 0.28, 0.66);
-    rightBrow.rotation.z = -0.15;
+    // Position remontée et rotation inversée (positive)
+    rightBrow.position.set(0.20, 0.30, 0.66);
+    rightBrow.rotation.z = 0.2;
     head.add(rightBrow);
 
-    // Bouche de Robot (Plaque rectangulaire colorée)
-    const mouthGeo = new THREE.BoxGeometry(0.3, 0.08, 0.02);
+    // --- BOUCHE (Vrai sourire arrondi) ---
+    // Utilisation d'un Torus (demi-anneau) au lieu d'une boîte
+    const mouthGeo = new THREE.TorusGeometry(0.2, 0.04, 8, 32, Math.PI);
     const robotMouth = new THREE.Mesh(mouthGeo, coloredMat);
-    robotMouth.position.set(0, -0.25, 0.68); // En bas du visage
+    robotMouth.rotation.z = Math.PI; // Rotation pour faire un U
+    robotMouth.position.set(0, -0.15, 0.68);
     head.add(robotMouth);
 
 
@@ -466,55 +468,3 @@ function initRobot(container) {
         headPos.project(camera);
         const x = (headPos.x * .5 + .5) * width;
         const y = (headPos.y * -.5 + .5) * height;
-        let finalX = Math.max(120, Math.min(width - 120, x));
-        let finalY = Math.max(50, y - 80);
-        bubble.style.left = finalX + 'px';
-        bubble.style.top = finalY + 'px';
-        bubble.style.transform = 'translate(-50%, 0)';
-    }
-
-    function triggerSmoke(x, y) {
-        const posAttr = particleSystem.geometry.attributes.position;
-        for(let i=0; i<particleCount; i++) {
-            if (!particleData[i].active || true) { 
-                particleData[i].active = true;
-                posAttr.setXYZ(i, x + (Math.random()-0.5)*1.5, y + (Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5);
-                particleData[i].velocity.set(
-                    (Math.random()-0.5)*0.1, 
-                    (Math.random()-0.5)*0.1 + 0.05,
-                    (Math.random()-0.5)*0.1
-                );
-            }
-        }
-        posAttr.needsUpdate = true;
-    }
-
-    function updateSmoke() {
-        const posAttr = particleSystem.geometry.attributes.position;
-        for(let i=0; i<particleCount; i++) {
-            if (particleData[i].active) {
-                posAttr.setXYZ(i, 
-                    posAttr.getX(i) + particleData[i].velocity.x, 
-                    posAttr.getY(i) + particleData[i].velocity.y, 
-                    posAttr.getZ(i) + particleData[i].velocity.z
-                );
-                particleData[i].velocity.y += 0.002;
-                if (posAttr.getY(i) > 5) { 
-                    particleData[i].active = false; 
-                    posAttr.setXYZ(i, 999,999,999); 
-                }
-            }
-        }
-        posAttr.needsUpdate = true;
-    }
-
-    window.addEventListener('resize', () => {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-    });
-
-    animate();
-}
