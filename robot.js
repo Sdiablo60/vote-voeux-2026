@@ -3,22 +3,28 @@ import * as THREE from 'three';
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// Messages plus longs et engageants
+// Messages
 const messages = [
-    "Salut l'équipe ! 👋",
-    "Bienvenue aux Voeux 2026 ! ✨",
-    "On attend vos meilleures photos 📸",
-    "Qui va remporter le trophée ? 🏆",
-    "Silence... on tourne ! 🎬",
+    "Salut tout le monde ! 👋",
+    "Bienvenue aux Vœux 2026 ! ✨",
+    "Préparez vos smartphones 📱",
+    "Qui va gagner le trophée ? 🏆",
+    "Ça va être génial ! 🎬",
     "N'oubliez pas de voter !",
     "Quelle ambiance ce soir ! 🎉"
 ];
 
+// Vérification de sécurité avant de lancer
 if (container) {
-    initRobot(container);
+    try {
+        initRobot(container);
+    } catch (e) {
+        console.error("Erreur lancement robot:", e);
+    }
 }
 
 function initRobot(container) {
+    // Dimensions
     let width = container.clientWidth || window.innerWidth;
     let height = container.clientHeight || window.innerHeight;
     
@@ -34,15 +40,15 @@ function initRobot(container) {
     container.appendChild(renderer.domElement);
 
     // LUMIERES
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Lumière forte
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
     dirLight.position.set(5, 10, 7);
     scene.add(dirLight);
 
-    // --- ROBOT ---
+    // --- CONSTRUCTION ROBOT ---
     const robotGroup = new THREE.Group();
-    robotGroup.scale.set(0.6, 0.6, 0.6); // Taille réduite (60%)
+    robotGroup.scale.set(0.6, 0.6, 0.6); // Taille 60%
     
     // Matériaux
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
@@ -87,7 +93,7 @@ function initRobot(container) {
     robotGroup.add(leftArm);
     robotGroup.add(rightArm);
     
-    robotGroup.position.y = 0; 
+    robotGroup.position.y = -0.5; // Un peu plus bas pour ne pas cacher le titre
     scene.add(robotGroup);
 
     // --- PARTICULES ---
@@ -108,7 +114,7 @@ function initRobot(container) {
     let msgIndex = 0;
     let robotState = 'idle'; 
 
-    // Lancer la première bulle après 1 seconde
+    // Affiche la 1ere bulle rapidement
     setTimeout(showBubble, 1000);
 
     function animate() {
@@ -117,44 +123,36 @@ function initRobot(container) {
         teleportTimer += 0.01;
         bubbleTimer += 0.01;
 
-        // Mouvement Idle
+        // IDLE
         if (robotState === 'idle') {
-            // Flottement léger vertical
-            robotGroup.position.y += Math.sin(time) * 0.005; 
-            
-            // Bras
+            robotGroup.position.y = -0.5 + Math.sin(time) * 0.1;
             rightArm.rotation.z = Math.cos(time * 5) * 0.5 + 0.5; 
             rightArm.rotation.x = Math.sin(time * 5) * 0.2;
         }
 
-        // Bulle toutes les 7 secondes (laisse le temps de lire)
-        if (bubbleTimer > 7 && robotState === 'idle') { 
+        // BULLE (Toutes les 6 secondes)
+        if (bubbleTimer > 6 && robotState === 'idle') { 
             showBubble();
             bubbleTimer = 0;
         }
 
-        // Téléportation toutes les 6 secondes
-        if (teleportTimer > 6 && robotState === 'idle') {
+        // TELEPORTATION (Toutes les 5.5 secondes)
+        if (teleportTimer > 5.5 && robotState === 'idle') {
             startTeleport();
         }
 
-        // Séquence Téléportation
+        // ETATS
         if (robotState === 'disappear') {
             robotGroup.scale.multiplyScalar(0.9);
             robotGroup.rotation.y += 0.4;
-            hideBubble(); // On cache la bulle pendant le voyage
+            hideBubble();
             
             if (robotGroup.scale.x < 0.05) {
-                // CHANGEMENT DE POSITION (Plus large)
-                // X : de -5 à +5 (Couvre tout l'écran large)
-                // Y : de -1 à +1 (Monte ou descend un peu)
+                // Déplacement LARGE (-5 à +5)
                 const randomX = (Math.random() * 10) - 5; 
-                const randomY = (Math.random() * 2) - 1;
+                robotGroup.position.x = randomX;
                 
-                robotGroup.position.set(randomX, randomY, 0);
-                
-                triggerSmoke(randomX, randomY);
-                
+                triggerSmoke(randomX, -0.5);
                 robotGroup.rotation.y = 0;
                 robotState = 'reappear';
             }
@@ -165,9 +163,6 @@ function initRobot(container) {
                 robotGroup.scale.set(0.6, 0.6, 0.6);
                 robotState = 'idle';
                 teleportTimer = 0;
-                
-                // Réafficher une bulle juste après l'apparition parfois
-                if(Math.random() > 0.5) setTimeout(showBubble, 500);
             }
         }
 
@@ -186,9 +181,7 @@ function initRobot(container) {
         bubble.innerText = messages[msgIndex];
         bubble.style.opacity = 1;
         msgIndex = (msgIndex + 1) % messages.length;
-        
-        // RESTE AFFICHÉ 5 SECONDES (au lieu de 3)
-        setTimeout(() => { bubble.style.opacity = 0; }, 5000);
+        setTimeout(() => { bubble.style.opacity = 0; }, 4000); // Reste 4s
     }
 
     function hideBubble() {
@@ -198,21 +191,20 @@ function initRobot(container) {
     function updateBubblePosition() {
         if(!bubble || bubble.style.opacity == 0) return;
         
-        // Calcul pour coller la bulle au dessus de la tête
         const headPos = new THREE.Vector3(robotGroup.position.x, robotGroup.position.y + 0.9, robotGroup.position.z);
         headPos.project(camera);
         
         const x = (headPos.x * .5 + .5) * width;
         const y = (headPos.y * -.5 + .5) * height;
 
-        // Si le robot est trop à droite, on décale la bulle vers la gauche
-        if (x > width - 150) {
-             bubble.style.left = (x - 100) + 'px';
-        } else {
-             bubble.style.left = x + 'px';
-        }
-        
-        bubble.style.top = (y - 120) + 'px'; 
+        // Ajustement si trop au bord
+        let finalX = x;
+        if (finalX < 120) finalX = 120;
+        if (finalX > width - 120) finalX = width - 120;
+
+        bubble.style.left = finalX + 'px';
+        bubble.style.top = (y - 130) + 'px';
+        bubble.style.transform = 'translate(-50%, 0)';
     }
 
     function triggerSmoke(x, y) {
@@ -221,11 +213,7 @@ function initRobot(container) {
             if (!particleData[i].active) {
                 particleData[i].active = true;
                 posAttr.setXYZ(i, x + (Math.random()-0.5)*0.5, y + (Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5);
-                particleData[i].velocity.set(
-                    (Math.random()-0.5)*0.1, 
-                    (Math.random()-0.5)*0.1, 
-                    (Math.random()-0.5)*0.1
-                );
+                particleData[i].velocity.set((Math.random()-0.5)*0.1, (Math.random()-0.5)*0.1, (Math.random()-0.5)*0.1);
             }
         }
         posAttr.needsUpdate = true;
