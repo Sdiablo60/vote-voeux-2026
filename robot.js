@@ -3,15 +3,14 @@ import * as THREE from 'three';
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// Messages
 const messages = [
     "Salut l'équipe ! 👋",
     "Bienvenue aux Vœux 2026 ! ✨",
-    "On attend vos photos 📸",
+    "Je fais une petite pause... ☕",
     "Qui va gagner le trophée ? 🏆",
-    "Silence... on tourne ! 🎬",
+    "J'adore vos sourires 📸",
     "N'oubliez pas de voter !",
-    "Quelle ambiance ! 🎉"
+    "Quelle belle soirée ! 🎉"
 ];
 
 if (container) {
@@ -25,7 +24,7 @@ function initRobot(container) {
     // SCENE
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 8); // Recul caméra
+    camera.position.set(0, 0, 8); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -42,7 +41,7 @@ function initRobot(container) {
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
-    robotGroup.scale.set(0.45, 0.45, 0.45); // TAILLE 45%
+    robotGroup.scale.set(0.45, 0.45, 0.45); // Taille 45%
     
     // Matériaux
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
@@ -60,9 +59,10 @@ function initRobot(container) {
     const eyeGeo = new THREE.CircleGeometry(0.12, 32);
     const leftEye = new THREE.Mesh(eyeGeo, glowMat);
     leftEye.position.set(-0.25, 0.1, 0.70);
+    head.add(leftEye);
     const rightEye = new THREE.Mesh(eyeGeo, glowMat);
     rightEye.position.set(0.25, 0.1, 0.70);
-    head.add(leftEye); head.add(rightEye);
+    head.add(rightEye);
 
     // Corps
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.55, 0.9, 32), whiteMat);
@@ -100,114 +100,134 @@ function initRobot(container) {
     let particleData = Array(particleCount).fill().map(() => ({ velocity: new THREE.Vector3(), active: false }));
 
     // --- LOGIQUE DE NAVIGATION ---
-    // On définit de quel côté de l'écran le robot se trouve
-    let currentSide = (Math.random() > 0.5) ? 'left' : 'right'; 
     let targetPosition = new THREE.Vector3(0, 0, 0);
-    
-    // Initialiser la première position
-    pickNewTargetOnSide();
-    robotGroup.position.copy(targetPosition);
+    let restDuration = 0;
+    let restTimerCurrent = 0;
 
-    function pickNewTargetOnSide() {
-        // Limites visibles approx à z=0
+    // Fonction pour choisir une destination n'importe où (sauf au centre exact)
+    function pickNewTarget(forceSide = null) {
         const aspect = width / height;
         const vH = 7; // Hauteur visible approx
         const vW = vH * aspect;
         
-        // On définit deux zones sûres (Gauche et Droite)
-        // Gauche : X entre -vW/2 et -1.5
-        // Droite : X entre 1.5 et vW/2
+        let valid = false;
+        let x, y;
         
-        let minX, maxX;
-        if (currentSide === 'left') {
-            minX = -vW * 0.45;
-            maxX = -2.0; // Ne pas dépasser vers le centre
+        // Si on force un côté (pour le repos à droite par exemple)
+        if (forceSide === 'right') {
+            x = (Math.random() * (vW * 0.4 - 1.5)) + 1.5; // Entre 1.5 et bord droit
+            y = (Math.random() - 0.5) * vH * 0.8;
+            valid = true;
         } else {
-            minX = 2.0; // Ne pas dépasser vers le centre
-            maxX = vW * 0.45;
+            // Sinon, aléatoire total
+            while (!valid) {
+                x = (Math.random() - 0.5) * vW * 0.9; 
+                y = (Math.random() - 0.5) * vH * 0.8;
+                
+                // Si on tombe pile au centre (zone du texte), on refuse
+                if (Math.abs(x) < 2.0 && Math.abs(y) < 1.0) {
+                    valid = false;
+                } else {
+                    valid = true;
+                }
+            }
         }
-
-        const x = Math.random() * (maxX - minX) + minX;
-        const y = (Math.random() - 0.5) * vH * 0.8; // Hauteur libre
-        
         targetPosition.set(x, y, 0);
     }
+
+    pickNewTarget(); // Premier départ
 
     // --- ANIMATION ---
     let time = 0;
     let teleportTimer = 0;
     let bubbleTimer = 0;
     let msgIndex = 0;
-    let robotState = 'moving'; // moving, speaking, disappear, reappear
+    let robotState = 'moving'; // moving, resting, speaking, disappear, reappear
 
-    // Première bulle
     setTimeout(() => { if(robotState !== 'disappear') startSpeaking(); }, 2000);
 
     function animate() {
         requestAnimationFrame(animate);
-        time += 0.04;
+        time += 0.02; // Temps global ralenti
         
-        // On ne compte les timers que si on n'est pas en transition
+        // --- GESTION DES ETATS ---
+
+        // 1. EN MOUVEMENT (Vers la cible)
         if (robotState === 'moving') {
             teleportTimer += 0.01;
             bubbleTimer += 0.01;
-        }
 
-        // --- ETAT 1 : EN MOUVEMENT (Patrouille) ---
-        if (robotState === 'moving') {
-            // Glisser vers la cible
-            robotGroup.position.lerp(targetPosition, 0.02);
+            // Mouvement TRES FLUIDE (Lerp factor faible = 0.005)
+            // Cela crée l'effet de glissement sans à-coups
+            robotGroup.position.lerp(targetPosition, 0.005);
             
-            // Rotation fluide
-            robotGroup.rotation.y = (targetPosition.x - robotGroup.position.x) * 0.3;
-            robotGroup.rotation.z = (targetPosition.x - robotGroup.position.x) * -0.1;
+            // Orientation douce vers la cible
+            const diffX = targetPosition.x - robotGroup.position.x;
+            const diffY = targetPosition.y - robotGroup.position.y;
             
-            // Si proche de la cible, en choisir une autre (toujours du même côté)
-            if (robotGroup.position.distanceTo(targetPosition) < 0.5) {
-                pickNewTargetOnSide();
-            }
+            robotGroup.rotation.y += (diffX * 0.1 - robotGroup.rotation.y) * 0.02; // Tourne la tête lentement
+            robotGroup.rotation.z = -diffX * 0.05; // Penche un peu
 
-            // Bras qui balancent
-            rightArm.rotation.x = Math.sin(time * 5) * 0.2;
-            leftArm.rotation.x = -Math.sin(time * 5) * 0.2;
-
-            // Flottement
-            robotGroup.position.y += Math.sin(time * 3) * 0.005;
-
-            // DÉCLENCHEURS
-            if (bubbleTimer > 8) { // Parle toutes les 8s
-                startSpeaking();
-            }
-            if (teleportTimer > 20) { // Change de côté toutes les 20s
-                startTeleport();
-            }
-        }
-
-        // --- ETAT 2 : PARLE (Immobile) ---
-        else if (robotState === 'speaking') {
-            // Juste un flottement doux sur place, pas de déplacement X/Y
+            // Flottement sinusoïdal (effet vague)
             robotGroup.position.y += Math.sin(time * 2) * 0.002;
-            
-            // Il regarde en face
-            robotGroup.rotation.y *= 0.9; 
-            robotGroup.rotation.z *= 0.9;
 
-            // Il fait coucou
-            rightArm.rotation.z = Math.cos(time * 8) * 0.5 + 0.5;
+            // Bras
+            rightArm.rotation.x = Math.sin(time * 3) * 0.2;
+            leftArm.rotation.x = -Math.sin(time * 3) * 0.2;
+
+            // Vérifier si arrivé (distance < 0.8 pour ne pas attendre d'être pile dessus)
+            if (robotGroup.position.distanceTo(targetPosition) < 0.8) {
+                // Arrivé ! On décide quoi faire.
+                // 40% de chance de se reposer, sinon on repart ailleurs
+                if (Math.random() < 0.4) {
+                    startResting();
+                } else {
+                    pickNewTarget();
+                }
+            }
+
+            // Déclencheurs
+            if (bubbleTimer > 10) startSpeaking();
+            if (teleportTimer > 25) startTeleport(); // Téléportation rare
         }
 
-        // --- ETAT 3 : DISPARITION ---
+        // 2. EN REPOS (Se pose sur le côté)
+        else if (robotState === 'resting') {
+            restTimerCurrent += 0.01;
+            
+            // Flottement stationnaire "zen"
+            robotGroup.position.y += Math.sin(time * 1.5) * 0.001;
+            robotGroup.rotation.y *= 0.95; // Revient de face
+            robotGroup.rotation.z *= 0.95; // Se redresse
+
+            // Bras ballants doucement
+            rightArm.rotation.z = Math.sin(time * 2) * 0.05;
+            leftArm.rotation.z = -Math.sin(time * 2) * 0.05;
+
+            // Fin du repos ?
+            if (restTimerCurrent > restDuration) {
+                pickNewTarget(); // Repart vers une nouvelle destination
+                robotState = 'moving';
+            }
+        }
+
+        // 3. PARLE (Immobile temporaire)
+        else if (robotState === 'speaking') {
+            robotGroup.position.y += Math.sin(time * 4) * 0.002;
+            rightArm.rotation.z = Math.cos(time * 8) * 0.5 + 0.5; // Coucou
+        }
+
+        // 4. DISPARITION
         else if (robotState === 'disappear') {
-            robotGroup.scale.multiplyScalar(0.9);
-            robotGroup.rotation.y += 0.5;
+            robotGroup.scale.multiplyScalar(0.92);
+            robotGroup.rotation.y += 0.4;
             
             if (robotGroup.scale.x < 0.05) {
-                // CHANGEMENT DE CÔTÉ ICI
-                currentSide = (currentSide === 'left') ? 'right' : 'left';
-                pickNewTargetOnSide(); // Nouvelle cible sur le nouveau côté
-                
-                // On place le robot directement à la nouvelle cible
+                // Nouvelle position au hasard
+                pickNewTarget();
+                // On le place directement là-bas pour l'apparition
                 robotGroup.position.copy(targetPosition);
+                // Effet de fumée à l'arrivée
                 triggerSmoke(targetPosition.x, targetPosition.y);
                 
                 robotGroup.rotation.set(0,0,0);
@@ -215,9 +235,9 @@ function initRobot(container) {
             }
         } 
         
-        // --- ETAT 4 : REAPPARITION ---
+        // 5. REAPPARITION
         else if (robotState === 'reappear') {
-            robotGroup.scale.multiplyScalar(1.15);
+            robotGroup.scale.multiplyScalar(1.1);
             if (robotGroup.scale.x >= 0.45) {
                 robotGroup.scale.set(0.45, 0.45, 0.45);
                 robotState = 'moving';
@@ -230,25 +250,41 @@ function initRobot(container) {
         renderer.render(scene, camera);
     }
 
+    function startResting() {
+        // On choisit une cible "Repos" (souvent à droite)
+        if (Math.random() > 0.3) {
+            // 70% de chance d'aller se poser à droite
+            pickNewTarget('right');
+        } else {
+            // Sinon on reste là où on est
+        }
+        
+        // On lui donne une durée de repos (entre 3 et 6 secondes)
+        restDuration = 3 + Math.random() * 3;
+        restTimerCurrent = 0;
+        robotState = 'resting';
+    }
+
     function startSpeaking() {
+        // Si on est en train de disparaître, on annule
+        if (robotState === 'disappear' || robotState === 'reappear') return;
+
+        let previousState = robotState;
         robotState = 'speaking';
         bubbleTimer = 0;
         showBubble();
         
-        // Reste immobile pendant 6 secondes pour lire
         setTimeout(() => {
             hideBubble();
-            // Si on n'a pas été interrompu par une téléportation
+            // On reprend l'état d'avant (Moving ou Resting)
             if (robotState === 'speaking') {
-                robotState = 'moving';
+                robotState = 'moving'; 
             }
         }, 6000);
     }
 
     function startTeleport() {
-        // On ne se téléporte pas si on parle
         if (robotState === 'speaking') return;
-        
         hideBubble();
         triggerSmoke(robotGroup.position.x, robotGroup.position.y);
         robotState = 'disappear';
@@ -274,7 +310,7 @@ function initRobot(container) {
         const x = (headPos.x * .5 + .5) * width;
         const y = (headPos.y * -.5 + .5) * height;
 
-        // Garde la bulle dans l'écran
+        // Limites pour que la bulle reste à l'écran
         let finalX = Math.max(120, Math.min(width - 120, x));
         let finalY = Math.max(60, y - 100);
 
@@ -306,21 +342,4 @@ function initRobot(container) {
                 );
                 particleData[i].velocity.y += 0.005;
                 if (posAttr.getY(i) > 5) { 
-                    particleData[i].active = false; 
-                    posAttr.setXYZ(i, 999,999,999); 
-                }
-            }
-        }
-        posAttr.needsUpdate = true;
-    }
-
-    window.addEventListener('resize', () => {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-    });
-
-    animate();
-}
+                    particle
