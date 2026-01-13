@@ -998,7 +998,6 @@ else:
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # SUPPRESSION DU SCORE DANS LA CARTE (il est maintenant sur le podium)
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
 
@@ -1090,16 +1089,19 @@ else:
                     // 3ème place
                     await countdown(10, "EN TROISIÈME PLACE AVEC {s3} POINTS...");
                     w3.classList.add('visible');
+                    document.querySelector('.pedestal-3').classList.add('visible');
                     
                     // 2ème place
                     await wait(2000);
                     await countdown(10, "EN SECONDE PLACE AVEC {s2} POINTS...");
                     w2.classList.add('visible');
+                    document.querySelector('.pedestal-2').classList.add('visible');
                     
                     // 1ère place
                     await wait(2000);
                     await countdown(10, "ET ENFIN CELUI QUE TOUT LE MONDE ATTEND... LA PREMIÈRE PLACE AVEC {s1} POINTS...");
                     w1.classList.add('visible');
+                    document.querySelector('.pedestal-1').classList.add('visible');
 
                     startConfetti();
                     try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
@@ -1122,7 +1124,7 @@ else:
                 .column-1 {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
                 .column-3 {{ width: 25%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS (Au-dessus de la marche) - CORRECTION EMPILEMENT VERS LE HAUT */
+                /* CONTENEUR GAGNANTS (Au-dessus de la marche) */
                 .winners-box {{
                     display: flex; 
                     flex-direction: row;        /* Alignement horizontal */
@@ -1130,12 +1132,11 @@ else:
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    /* max-width SUPPRIMÉ pour laisser prendre toute la largeur */
+                    max-width: 340px;           /* Largeur max pour 2 cartes + marges */
                     margin: 0 auto;             /* Centrer dans la colonne */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    gap: 0; /* Gap géré par les marges des cartes */
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
 
@@ -1165,7 +1166,7 @@ else:
                     line-height: 1;
                 }}
 
-                /* NOUVEAU STYLE POUR LE SCORE SUR LE PODIUM */
+                /* STYLE POUR LE SCORE SUR LE PODIUM (Caché par défaut) */
                 .rank-score {{
                     font-family: 'Arial Black', sans-serif;
                     font-size: 30px;
@@ -1173,33 +1174,40 @@ else:
                     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
                     margin-bottom: -20px; /* Chevauchement léger avec le numéro */
                     z-index: 5;
+                    opacity: 0;
+                    transform: translateY(20px);
+                    transition: all 0.5s ease-out;
+                }}
+                /* Apparition du score quand le piédestal devient visible */
+                .pedestal.visible .rank-score {{
+                    opacity: 1;
+                    transform: translateY(0);
                 }}
 
-                /* CARTES GAGNANTS (Largeur flexible pour prendre toute la place) */
+                /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    /* Largeur en pourcentage pour en mettre 2 côte à côte */
-                    width: 48%; margin: 1%;
+                    width: 150px; /* Taille fixe légèrement augmentée */
+                    margin: 5px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
                     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-                    margin-bottom: 10px; /* Espace entre les lignes */
                 }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.1); margin-bottom: 15px; }}
+                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.15); margin-bottom: 20px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
                 .p-img, .p-placeholder {{ 
-                    width: 70px; height: 70px; border-radius: 50%; 
+                    width: 80px; height: 80px; /* Taille image augmentée */
+                    border-radius: 50%; 
                     object-fit: cover; border: 3px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
-                .rank-1 .p-img {{ width: 90px; height: 90px; border-color: #FFD700; }}
+                .rank-1 .p-img {{ width: 100px; height: 100px; border-color: #FFD700; }}
 
-                .p-name {{ font-family: Arial; font-size: 14px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 18px; }}
-                /* Score supprimé de la carte, donc plus de .p-score ici */
+                .p-name {{ font-family: Arial; font-size: 15px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 19px; }}
                 
                 /* COUNTDOWN OVERLAY (TOP OF SCREEN) */
                 .intro-overlay {{ 
