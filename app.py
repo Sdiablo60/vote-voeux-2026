@@ -998,6 +998,7 @@ else:
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
+                    # SCORE SUR LE PODIUM, PAS SUR LA CARTE
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
 
@@ -1223,11 +1224,6 @@ else:
                 .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
             </style>
             """, height=900, scrolling=False)
-
-        else:
-            # MODIFICATION : Taille 350px, Marge 10px
-            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-            ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
