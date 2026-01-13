@@ -136,8 +136,6 @@ st.markdown("""
     a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; }
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
-
-    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin via JS si besoin, mais géré par le mode) */
 </style>
 """, unsafe_allow_html=True)
 
@@ -157,7 +155,7 @@ blank_config = {
     "effect_intensity": 25, 
     "effect_speed": 15, 
     "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": ""
+    "session_id": str(uuid.uuid4())
 }
 
 default_config = {
@@ -1124,16 +1122,16 @@ else:
                 .column-1 {{ width: 40%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
                 .column-3 {{ width: 27%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS (Au-dessus de la marche) - CORRECTION EMPILEMENT VERS LE HAUT */
+                /* CONTENEUR GAGNANTS - FLEX-WRAP REVERSE POUR EMPILEMENT VERS LE HAUT */
                 .winners-box {{
                     display: flex; 
-                    flex-direction: row;        /* Alignement horizontal */
-                    flex-wrap: wrap-reverse;    /* Le "wrap" se fait vers le HAUT */
+                    flex-direction: row;        /* Ligne horizontale */
+                    flex-wrap: wrap-reverse;    /* Si ça dépasse, nouvelle ligne AU-DESSUS */
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    max-width: 320px;           /* Largeur max pour 2 cartes + marges */
-                    margin: 0 auto;             /* Centrer dans la colonne */
+                    max-width: 290px;           /* Largeur contrainte : 2 cartes de 130px tiennent, la 3ème passe au-dessus */
+                    margin: 0 auto;             /* Centré */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -1188,7 +1186,7 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 145px; /* Taille fixe légèrement augmentée */
+                    width: 130px; /* Taille fixe */
                     margin: 5px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
