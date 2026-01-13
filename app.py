@@ -157,7 +157,7 @@ blank_config = {
     "effect_intensity": 25, 
     "effect_speed": 15, 
     "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": str(uuid.uuid4())
+    "session_id": ""
 }
 
 default_config = {
@@ -1066,25 +1066,26 @@ else:
                 }}
 
                 async function runShow() {{
+                    // PHASE 1 : 3ème place
                     await countdown(10, "EN TROISIÈME PLACE AVEC {s3} POINTS...");
-                    c3.className = 'podium-item rank-3 state-center'; 
+                    c3.className = 'podium-item rank-3 state-zoom'; // ZOOM !
                     await wait(4000); 
-                    c3.className = 'podium-item rank-3 state-right'; 
+                    c3.className = 'podium-item rank-3 state-final-3'; // Place Finale
                     
+                    // PHASE 2 : 2ème place
                     await wait(1000);
                     await countdown(10, "EN SECONDE PLACE AVEC {s2} POINTS...");
-                    c2.className = 'podium-item rank-2 state-center'; 
+                    c2.className = 'podium-item rank-2 state-zoom'; // ZOOM !
                     await wait(4000); 
-                    c2.className = 'podium-item rank-2 state-left'; 
+                    c2.className = 'podium-item rank-2 state-final-2'; // Place Finale
                     
+                    // PHASE 3 : 1ère place
                     await wait(1000);
                     await countdown(10, "ET ENFIN CELUI QUE TOUT LE MONDE ATTEND... LA PREMIÈRE PLACE AVEC {s1} POINTS...");
-                    c1.className = 'podium-item rank-1 state-final-1'; 
-                    await wait(2000);
+                    c1.className = 'podium-item rank-1 state-zoom'; // ZOOM !
+                    await wait(4000);
+                    c1.className = 'podium-item rank-1 state-final-1'; // Place Finale (HAUTE)
 
-                    c2.className = 'podium-item rank-2 state-final-2';
-                    c3.className = 'podium-item rank-3 state-final-3';
-                    
                     startConfetti();
                     try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
                 }}
@@ -1094,35 +1095,42 @@ else:
             </script>
             <style>
                 .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
-                .podium-item {{ position: absolute; bottom: 50px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }}
+                /* Etat caché par défaut */
+                .podium-item {{ position: absolute; bottom: -500px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; left: 50%; transform: translateX(-50%); }}
                 
-                .state-center {{ left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }}
-                .state-left {{ left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
-                .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
+                /* ETAT ZOOM CENTRAL (GROS PLAN) */
+                .state-zoom {{ 
+                    bottom: 40% !important; 
+                    transform: translateX(-50%) scale(1.8) !important; 
+                    opacity: 1 !important; 
+                    z-index: 1000 !important;
+                }}
                 
-                /* CORRECTION : Échelles finales réduites et position basse */
-                .state-final-1 {{ left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.15); opacity: 1; z-index: 200; }}
-                .state-final-2 {{ left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.0); opacity: 1; z-index: 150; }}
-                .state-final-3 {{ left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.0); opacity: 1; z-index: 150; }}
+                /* ETATS FINAUX (PYRAMIDE RÉDUITE) */
+                /* 1er : Au centre, plus haut (35%) */
+                .state-final-1 {{ bottom: 35% !important; transform: translateX(-50%) scale(1.15) !important; opacity: 1; z-index: 200; }}
+                
+                /* 2ème : A gauche (30%), plus bas (5%) */
+                .state-final-2 {{ left: 30% !important; bottom: 5% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 150; }}
+                
+                /* 3ème : A droite (70%), plus bas (5%) */
+                .state-final-3 {{ left: 70% !important; bottom: 5% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 150; }}
 
-                /* CORRECTION : Padding réduit, Marge inférieure ajoutée */
+                /* Styles des cartes réduites */
                 .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
                 
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
-                /* CORRECTION : Tailles images réduites */
                 .p-img, .p-placeholder {{ 
                     width: 70px; height: 70px; border-radius: 50%; 
                     object-fit: cover; border: 4px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
                 
-                /* CORRECTION : Taille image rang 1 réduite */
                 .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 100px; height: 100px; }}
 
-                /* CORRECTION : Tailles polices réduites */
                 .p-name {{ font-family: Arial; font-size: 20px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
                 .rank-1 .p-name {{ color: #FFD700; font-size: 28px; }}
                 .p-score {{ font-family: Arial; font-size: 16px; color: #ccc; margin-top: 5px; }}
