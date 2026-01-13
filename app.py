@@ -1099,32 +1099,47 @@ else:
             </script>
             <style>
                 .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
-                /* Etat caché par défaut (en bas) */
-                .podium-item {{ position: absolute; bottom: -100%; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; left: 50%; transform: translateX(-50%); }}
                 
-                /* ETAT CACHÉ (Pour disparition entre les phases) */
+                /* CORRECTION : Flexbox horizontal pour les items (Zoom horizontal) */
+                .podium-item {{ 
+                    display: flex; 
+                    flex-direction: row; /* Aligne les gagnants horizontalement */
+                    justify-content: center; 
+                    align-items: flex-end; 
+                    gap: 15px; 
+                    position: absolute; 
+                    bottom: -100%; 
+                    width: 320px; 
+                    transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); 
+                    opacity: 0; 
+                    left: 50%; 
+                    transform: translateX(-50%); 
+                }}
+                
+                /* ETAT CACHÉ */
                 .state-hidden {{ opacity: 0 !important; bottom: -100% !important; }}
 
-                /* ETAT ZOOM CENTRAL (GROS PLAN MAIS BAS POUR ÉVITER LE TITRE) */
+                /* ETAT ZOOM CENTRAL (GROS PLAN) */
                 .state-zoom {{ 
-                    bottom: 35% !important; /* On part de très bas */
-                    transform: translateX(-50%) scale(2.0) !important; /* Zoom énorme x2.0 */
+                    bottom: 30% !important; /* Centré verticalement */
+                    width: 100vw !important; /* Prend toute la largeur pour aligner horizontalement */
+                    transform: translateX(-50%) scale(1.5) !important; /* Zoom conséquent */
                     opacity: 1 !important; 
                     z-index: 1000 !important;
                 }}
                 
                 /* ETATS FINAUX (PYRAMIDE RÉDUITE) */
                 /* 1er : Au centre, plus haut (55%) */
-                .state-final-1 {{ bottom: 55% !important; transform: translateX(-50%) scale(1.15) !important; opacity: 1; z-index: 500; }}
+                .state-final-1 {{ bottom: 55% !important; transform: translateX(-50%) scale(1.1) !important; opacity: 1; z-index: 500; width: auto !important; }}
                 
-                /* 2ème : A gauche (30%), plus bas (10%) */
-                .state-final-2 {{ left: 30% !important; bottom: 10% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 400; }}
+                /* 2ème : A gauche (25%), plus bas (5%) */
+                .state-final-2 {{ left: 25% !important; bottom: 5% !important; transform: translateX(-50%) scale(0.9) !important; opacity: 1; z-index: 400; width: auto !important; flex-wrap: wrap; }}
                 
-                /* 3ème : A droite (70%), plus bas (10%) */
-                .state-final-3 {{ left: 70% !important; bottom: 10% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 400; }}
+                /* 3ème : A droite (75%), plus bas (5%) */
+                .state-final-3 {{ left: 75% !important; bottom: 5% !important; transform: translateX(-50%) scale(0.9) !important; opacity: 1; z-index: 400; width: auto !important; flex-wrap: wrap; }}
 
                 /* Styles des cartes réduites */
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; min-width: 200px; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
                 
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
