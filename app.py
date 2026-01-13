@@ -998,7 +998,6 @@ else:
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # SCORE SUR LE PODIUM, PAS SUR LA CARTE
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
 
@@ -1133,7 +1132,7 @@ else:
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    max-width: 300px;           /* Largeur fixe : 2 cartes de 130px tiennent, la 3ème passe au-dessus */
+                    max-width: 310px;           /* Largeur fixe : 2 cartes de 135px tiennent, la 3ème passe au-dessus */
                     margin: 0 auto;             /* Centré */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
@@ -1189,7 +1188,7 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 130px; /* Taille fixe calibrée pour le conteneur */
+                    width: 135px; /* Taille fixe calibrée pour le conteneur */
                     margin: 4px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
