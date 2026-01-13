@@ -998,8 +998,7 @@ else:
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # SCORE SUR LE PODIUM, PAS SUR LA CARTE
-                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
+                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div>"
                 return html
 
             h1 = get_podium_html(rank1, s1, "🥇")
@@ -1021,26 +1020,17 @@ else:
             <div class="podium-container">
                 <div class="column-2">
                     <div class="winners-box rank-2" id="win-2">{h2}</div>
-                    <div class="pedestal pedestal-2">
-                        <div class="rank-score">{s2} PTS</div>
-                        <div class="rank-num">2</div>
-                    </div>
+                    <div class="pedestal pedestal-2"><div class="rank-num">2</div></div>
                 </div>
 
                 <div class="column-1">
                     <div class="winners-box rank-1" id="win-1">{h1}</div>
-                    <div class="pedestal pedestal-1">
-                        <div class="rank-score">{s1} PTS</div>
-                        <div class="rank-num">1</div>
-                    </div>
+                    <div class="pedestal pedestal-1"><div class="rank-num">1</div></div>
                 </div>
 
                 <div class="column-3">
                     <div class="winners-box rank-3" id="win-3">{h3}</div>
-                    <div class="pedestal pedestal-3">
-                        <div class="rank-score">{s3} PTS</div>
-                        <div class="rank-num">3</div>
-                    </div>
+                    <div class="pedestal pedestal-3"><div class="rank-num">3</div></div>
                 </div>
             </div>
 
@@ -1090,19 +1080,16 @@ else:
                     // 3ème place
                     await countdown(10, "EN TROISIÈME PLACE AVEC {s3} POINTS...");
                     w3.classList.add('visible');
-                    document.querySelector('.pedestal-3').classList.add('visible');
                     
                     // 2ème place
                     await wait(2000);
                     await countdown(10, "EN SECONDE PLACE AVEC {s2} POINTS...");
                     w2.classList.add('visible');
-                    document.querySelector('.pedestal-2').classList.add('visible');
                     
                     // 1ère place
                     await wait(2000);
                     await countdown(10, "ET ENFIN CELUI QUE TOUT LE MONDE ATTEND... LA PREMIÈRE PLACE AVEC {s1} POINTS...");
                     w1.classList.add('visible');
-                    document.querySelector('.pedestal-1').classList.add('visible');
 
                     startConfetti();
                     try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
@@ -1120,25 +1107,25 @@ else:
                     padding-bottom: 20px;
                 }}
 
-                /* COLONNES FIXES - PLUS LARGES POUR PERMETTRE LE CÔTE A CÔTE */
-                .column-2 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
-                .column-1 {{ width: 36%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
-                .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
+                /* COLONNES FIXES */
+                .column-2 {{ width: 25%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
+                .column-1 {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
+                .column-3 {{ width: 25%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS - FLEX-WRAP REVERSE POUR EMPILEMENT VERS LE HAUT + WIDTH CONTRAINTE */
+                /* CONTENEUR GAGNANTS (Au-dessus de la marche) - CORRECTION EMPILEMENT VERS LE HAUT */
                 .winners-box {{
                     display: flex; 
-                    flex-direction: row;        /* Ligne horizontale */
-                    flex-wrap: wrap-reverse;    /* Si ça dépasse, nouvelle ligne AU-DESSUS */
+                    flex-direction: row;        /* Alignement horizontal */
+                    flex-wrap: wrap-reverse;    /* Le "wrap" se fait vers le HAUT */
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    max-width: 310px;           /* Largeur fixe : 2 cartes de 135px tiennent, la 3ème passe au-dessus */
-                    margin: 0 auto;             /* Centré */
+                    max-width: 320px;           /* Largeur max pour forcer le retour à la ligne après 2 cartes */
+                    margin: 0 auto;             /* Centrer dans la colonne */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    gap: 5px;
+                    gap: 10px;
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
 
@@ -1148,8 +1135,8 @@ else:
                     background: linear-gradient(to bottom, #333, #000);
                     border-radius: 20px 20px 0 0;
                     box-shadow: 0 -5px 15px rgba(255,255,255,0.1);
-                    display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
-                    position: relative; padding-top: 20px;
+                    display: flex; justify-content: center; align-items: center;
+                    position: relative;
                 }}
                 /* Effet de brillance en haut */
                 .pedestal::after {{
@@ -1165,52 +1152,31 @@ else:
                 .rank-num {{
                     font-size: 120px; font-weight: 900; font-family: 'Arial Black', sans-serif;
                     opacity: 0.2; /* Transparence pour incruster dans le fond */
-                    line-height: 1;
                 }}
 
-                /* STYLE POUR LE SCORE SUR LE PODIUM (Caché par défaut) */
-                .rank-score {{
-                    font-family: 'Arial Black', sans-serif;
-                    font-size: 30px;
-                    font-weight: bold;
-                    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-                    margin-bottom: -20px; /* Chevauchement léger avec le numéro */
-                    z-index: 5;
-                    opacity: 0;
-                    transform: translateY(20px);
-                    transition: all 0.5s ease-out;
-                }}
-                /* Apparition du score quand le piédestal devient visible */
-                .pedestal.visible .rank-score {{
-                    opacity: 1;
-                    transform: translateY(0);
-                }}
-
-                /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
+                /* CARTES GAGNANTS (Compactes & Modernes) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 135px; /* Taille fixe calibrée pour le conteneur */
-                    margin: 4px;
-                    backdrop-filter: blur(5px); 
+                    width: 130px; backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
                     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-                    flex-shrink: 0; /* Empêche le rétrécissement */
+                    margin-bottom: 10px; /* Espace entre les lignes */
                 }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.15); margin-bottom: 20px; }}
+                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.1); margin-bottom: 15px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
                 .p-img, .p-placeholder {{ 
-                    width: 80px; height: 80px; /* Taille image augmentée */
-                    border-radius: 50%; 
+                    width: 70px; height: 70px; border-radius: 50%; 
                     object-fit: cover; border: 3px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
-                .rank-1 .p-img {{ width: 100px; height: 100px; border-color: #FFD700; }}
+                .rank-1 .p-img {{ width: 90px; height: 90px; border-color: #FFD700; }}
 
-                .p-name {{ font-family: Arial; font-size: 15px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 19px; }}
+                .p-name {{ font-family: Arial; font-size: 14px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 18px; }}
+                .p-score {{ font-family: Arial; font-size: 12px; color: #ccc; margin-top: 2px; }}
                 
                 /* COUNTDOWN OVERLAY (TOP OF SCREEN) */
                 .intro-overlay {{ 
@@ -1224,6 +1190,11 @@ else:
                 .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
             </style>
             """, height=900, scrolling=False)
+
+        else:
+            # MODIFICATION : Taille 350px, Marge 10px
+            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
+            ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
@@ -1288,3 +1259,4 @@ else:
 
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
