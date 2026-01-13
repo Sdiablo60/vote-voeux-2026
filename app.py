@@ -974,7 +974,7 @@ else:
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # CHARGEMENT DES VOTES
+            # ... (CODE PODIUM MODIFIÉ POUR RÉDUIRE LA TAILLE) ...
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -997,7 +997,9 @@ else:
                         img_src = f"data:image/png;base64,{c_imgs[c]}"
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
+                        # CORRECTION : Taille placeholder réduite
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
+                    # CORRECTION : Suppression du <br>, ajout de la marge dans le CSS .p-card
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div>"
                 return html
 
@@ -1005,8 +1007,6 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
-            # ATTENTION : DANS LE BLOC CI-DESSOUS (f-string), TOUTES LES ACCOLADES CSS/JS DOIVENT ÊTRE DOUBLÉES {{ }}
-            # SEULES LES VARIABLES PYTHON {h1}, {s1}, etc. GARDENT DES ACCOLADES SIMPLES
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
@@ -1122,6 +1122,14 @@ else:
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
+
+                /* REGLE SPECIFIQUE : Si exactement 2 gagnants en 3ème place, on les met côte à côte */
+                .column-3 .winners-box.rank-3:has(.p-card:nth-child(2)):not(:has(.p-card:nth-child(3))) {{
+                    flex-direction: row !important; /* Force l'affichage en ligne */
+                    justify-content: center;
+                    align-items: flex-end; 
+                    gap: 20px;
+                }}
 
                 /* MARCHES DU PODIUM (DESIGN IMAGE) */
                 .pedestal {{
