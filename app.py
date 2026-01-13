@@ -1,5 +1,14 @@
 import streamlit as st
-import os, glob, base64, qrcode, json, time, uuid, textwrap, zipfile, shutil
+import os
+import glob
+import base64
+import qrcode
+import json
+import time
+import uuid
+import textwrap
+import zipfile
+import shutil
 from io import BytesIO
 import streamlit.components.v1 as components
 from PIL import Image
@@ -15,21 +24,30 @@ import tempfile
 # 1. IMPORTS & CONFIGURATION INITIALE
 # =========================================================
 
+# TENTATIVE D'IMPORT DE FPDF
 try:
     from fpdf import FPDF
     PDF_AVAILABLE = True
 except ImportError:
     PDF_AVAILABLE = False
 
+# SECURITE PIL
 Image.MAX_IMAGE_PIXELS = None 
 
-st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
+# CONFIGURATION PAGE
+st.set_page_config(
+    page_title="Régie Master",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# RECUPERATION PARAMETRES URL
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 is_blocked = st.query_params.get("blocked") == "true"
 is_test_admin = st.query_params.get("test_admin") == "true"
 
+# DOSSIERS & FICHIERS
 LIVE_DIR = "galerie_live_users"
 ARCHIVE_DIR = "_archives_sessions"
 VOTES_FILE = "votes.json"
@@ -38,6 +56,7 @@ VOTERS_FILE = "voters.json"
 PARTICIPANTS_FILE = "participants.json"
 DETAILED_VOTES_FILE = "detailed_votes.json"
 
+# Création des dossiers si inexistants
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
@@ -56,13 +75,25 @@ st.markdown("""
     [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
     
     .social-header { 
-        position: fixed; top: 0; left: 0; width: 100%; height: 12vh; 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 12vh; 
         background: #E2001A !important; 
-        display: flex; align-items: center; justify-content: center; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
         z-index: 999999 !important; /* Priorité maximale */
         border-bottom: 5px solid white; 
     }
-    .social-title { color: white !important; font-size: 40px !important; font-weight: bold; margin: 0; text-transform: uppercase; }
+    .social-title { 
+        color: white !important; 
+        font-size: 40px !important; 
+        font-weight: bold; 
+        margin: 0; 
+        text-transform: uppercase; 
+    }
 
     /* STOP SCROLLING ULTIME (Global) */
     html, body, [data-testid="stAppViewContainer"] {
@@ -77,26 +108,59 @@ st.markdown("""
     ::-webkit-scrollbar { display: none; }
     
     /* Boutons Généraux */
-    button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
-    button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
-    button[kind="primary"]:hover { background-color: #C20015 !important; }
+    button[kind="secondary"] { 
+        color: #333 !important; 
+        border-color: #333 !important; 
+    }
+    button[kind="primary"] { 
+        color: white !important; 
+        background-color: #E2001A !important; 
+        border: none; 
+    }
+    button[kind="primary"]:hover { 
+        background-color: #C20015 !important; 
+    }
     
     /* Login Box */
     .login-container {
-        max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f8f9fa; border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
+        max-width: 400px; 
+        margin: 100px auto; 
+        padding: 40px;
+        background: #f8f9fa; 
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+        text-align: center; 
+        border: 1px solid #ddd;
     }
-    .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
-    .stTextInput input { text-align: center; font-size: 18px; }
+    .login-title { 
+        color: #E2001A; 
+        font-size: 24px; 
+        font-weight: bold; 
+        margin-bottom: 20px; 
+        text-transform: uppercase; 
+    }
+    .stTextInput input { 
+        text-align: center; 
+        font-size: 18px; 
+    }
     
     /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
+    section[data-testid="stSidebar"] { 
+        background-color: #f0f2f6 !important; 
+    }
     section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
+        background-color: #E2001A !important; 
+        width: 100%; 
+        border-radius: 5px; 
+        margin-bottom: 5px;
     }
     section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
+        background-color: #333333 !important; 
+        width: 100%; 
+        border-radius: 5px; 
+        margin-bottom: 5px; 
+        border: none !important; 
+        color: white !important;
     }
     
     /* STYLE DES BOUTONS D'EXPORT */
@@ -128,9 +192,13 @@ st.markdown("""
         box-sizing: border-box !important;
         line-height: 1.5 !important;
     }
-    a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; }
+    a.custom-link-btn:hover { 
+        transform: scale(1.02); 
+        opacity: 0.9; 
+    }
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -1126,7 +1194,7 @@ else:
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    max-width: 300px;           /* Largeur fixe : 2 cartes de 130px tiennent, la 3ème passe au-dessus */
+                    max-width: 310px;           /* Largeur fixe : 2 cartes de 140px + marge tiennent. La 3ème passe au-dessus */
                     margin: 0 auto;             /* Centré */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
@@ -1182,8 +1250,8 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 130px; /* Taille fixe calibrée pour le conteneur */
-                    margin: 4px;
+                    width: 140px; /* Taille fixe calibrée pour le conteneur */
+                    margin: 5px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
