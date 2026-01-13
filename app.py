@@ -136,6 +136,8 @@ st.markdown("""
     a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; }
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
+
+    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin via JS si besoin, mais géré par le mode) */
 </style>
 """, unsafe_allow_html=True)
 
@@ -155,7 +157,7 @@ blank_config = {
     "effect_intensity": 25, 
     "effect_speed": 15, 
     "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": str(uuid.uuid4())
+    "session_id": ""
 }
 
 default_config = {
@@ -996,6 +998,7 @@ else:
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
+                    # SCORE SUR LE PODIUM, PAS SUR LA CARTE
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
 
@@ -1117,12 +1120,12 @@ else:
                     padding-bottom: 20px;
                 }}
 
-                /* COLONNES FIXES */
-                .column-2 {{ width: 27%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
-                .column-1 {{ width: 40%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
-                .column-3 {{ width: 27%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
+                /* COLONNES FIXES - PLUS LARGES POUR PERMETTRE LE CÔTE A CÔTE */
+                .column-2 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
+                .column-1 {{ width: 36%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
+                .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS - FLEX-WRAP REVERSE POUR EMPILEMENT VERS LE HAUT */
+                /* CONTENEUR GAGNANTS - FLEX-WRAP REVERSE POUR EMPILEMENT VERS LE HAUT + WIDTH CONTRAINTE */
                 .winners-box {{
                     display: flex; 
                     flex-direction: row;        /* Ligne horizontale */
@@ -1130,7 +1133,7 @@ else:
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    max-width: 290px;           /* Largeur contrainte : 2 cartes de 130px tiennent, la 3ème passe au-dessus */
+                    max-width: 300px;           /* Largeur fixe : 2 cartes de 130px tiennent, la 3ème passe au-dessus */
                     margin: 0 auto;             /* Centré */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
@@ -1186,12 +1189,13 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 130px; /* Taille fixe */
-                    margin: 5px;
+                    width: 130px; /* Taille fixe calibrée pour le conteneur */
+                    margin: 4px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
                     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+                    flex-shrink: 0; /* Empêche le rétrécissement */
                 }}
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.15); margin-bottom: 20px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
