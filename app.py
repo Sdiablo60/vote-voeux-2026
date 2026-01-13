@@ -905,6 +905,18 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
+    # --- CORRECTION FOND NOIR ---
+    # On force le fond de l'application à être NOIR pour le Mur Social
+    # Cela écrase la configuration blanche de l'Admin définie plus haut
+    st.markdown("""
+        <style>
+            .stApp {
+                background-color: black !important;
+                color: white !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
     # HEADER ROUGE EN Z-INDEX MAXIMAL (FIXE)
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
