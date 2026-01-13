@@ -1139,11 +1139,11 @@ else:
             
             # --- 2. AFFICHAGE COMPTEUR + TAGS ---
             st.markdown(f"""
-            <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:30px;">
-                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:15px; text-transform:uppercase;">
+            <div style="margin-top:15vh; text-align:center; width:100%; margin-bottom:20px;">
+                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
                     👥 {nb_total} PARTICIPANTS EN LIGNE
                 </div>
-                <div style="width:90%; margin:0 auto; line-height:1.6;">
+                <div style="width:80%; margin:0 auto; line-height:1.6;">
                     {tags_html}
                 </div>
             </div>
@@ -1180,15 +1180,16 @@ else:
             <style>
                 .vote-container {
                     display: flex;
-                    justify-content: space-between;
-                    align-items: flex-start; /* Aligne tout en haut */
+                    justify-content: center; /* CORRECTION : Centre horizontalement */
+                    align-items: flex-start;
                     width: 100vw;
-                    height: 55vh; 
+                    height: auto; /* Hauteur auto pour s'adapter au contenu */
                     padding: 0 20px;
                     box-sizing: border-box;
+                    margin-top: 2vh; /* CORRECTION : Espace supplémentaire sous le compteur */
                 }
                 .col-participants {
-                    flex: 1;
+                    flex: 1; /* Prend l'espace disponible mais limité par max-width des rangées */
                     display: flex;
                     flex-direction: column;
                     align-items: center;
@@ -1201,11 +1202,11 @@ else:
                     align-items: center;
                     justify-content: flex-start; 
                     height: 100%;
-                    padding-top: 10px; 
+                    margin: 0 50px; /* CORRECTION : Ajout d'espace entre le centre et les côtés */
                 }
                 .cand-row {
-                    width: 90% !important;
-                    max-width: 400px !important;
+                    width: 100% !important; /* Prend la largeur de sa colonne */
+                    max-width: 380px !important; /* Limite la largeur pour que ça reste compact */
                     background: rgba(255,255,255,0.1);
                     backdrop-filter: blur(5px);
                     display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; padding: 8px 15px; border-radius: 50px; height: 70px; margin: 0 auto 10px auto;
@@ -1218,7 +1219,7 @@ else:
             # --- 6. ASSEMBLAGE ---
             full_html = css_styles
             full_html += '<div class="vote-container">'
-            full_html += '<div class="col-participants">' + html_left + '</div>'
+            full_html += '<div class="col-participants" style="align-items: flex-end;">' + html_left + '</div>' # Alignement droite pour la colonne de gauche
             
             # Colonne Centrale (Logo + QR)
             full_html += '<div class="col-center">'
@@ -1229,7 +1230,7 @@ else:
             full_html += "<div class='vote-cta' style='margin-top: 30px; text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; text-transform: uppercase;'>À VOS VOTES !</div>"
             full_html += '</div>'
             
-            full_html += '<div class="col-participants">' + html_right + '</div>'
+            full_html += '<div class="col-participants" style="align-items: flex-start;">' + html_right + '</div>' # Alignement gauche pour la colonne de droite
             full_html += '</div>'
 
             # --- 7. AFFICHAGE ---
