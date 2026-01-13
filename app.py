@@ -1120,9 +1120,9 @@ else:
                 }}
 
                 /* COLONNES FIXES */
-                .column-2 {{ width: 25%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
-                .column-1 {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
-                .column-3 {{ width: 25%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
+                .column-2 {{ width: 27%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
+                .column-1 {{ width: 40%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
+                .column-3 {{ width: 27%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
                 /* CONTENEUR GAGNANTS (Au-dessus de la marche) - CORRECTION EMPILEMENT VERS LE HAUT */
                 .winners-box {{
@@ -1132,11 +1132,12 @@ else:
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    max-width: 340px;           /* Largeur max pour 2 cartes + marges */
+                    max-width: 320px;           /* Largeur max pour 2 cartes + marges */
                     margin: 0 auto;             /* Centrer dans la colonne */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    gap: 5px;
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
 
@@ -1187,7 +1188,7 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 150px; /* Taille fixe légèrement augmentée */
+                    width: 145px; /* Taille fixe légèrement augmentée */
                     margin: 5px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
