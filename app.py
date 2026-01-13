@@ -157,7 +157,7 @@ blank_config = {
     "effect_intensity": 25, 
     "effect_speed": 15, 
     "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": str(uuid.uuid4())
+    "session_id": ""
 }
 
 default_config = {
@@ -1017,10 +1017,22 @@ else:
                 <source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg">
             </audio>
 
-            <div class="podium-stage">
-                <div id="col-3" class="podium-item rank-3">{h3}</div>
-                <div id="col-2" class="podium-item rank-2">{h2}</div>
-                <div id="col-1" class="podium-item rank-1">{h1}</div>
+            <div class="podium-stage-3d">
+                <div class="pedestal pedestal-3">
+                    <div class="laurel laurel-3"></div>
+                    <div class="number number-3">3</div>
+                    <div id="col-3" class="podium-item rank-3">{h3}</div>
+                </div>
+                <div class="pedestal pedestal-1">
+                    <div class="laurel laurel-1"></div>
+                    <div class="number number-1">1</div>
+                    <div id="col-1" class="podium-item rank-1">{h1}</div>
+                </div>
+                <div class="pedestal pedestal-2">
+                    <div class="laurel laurel-2"></div>
+                    <div class="number number-2">2</div>
+                    <div id="col-2" class="podium-item rank-2">{h2}</div>
+                </div>
             </div>
 
             <script>
@@ -1085,10 +1097,10 @@ else:
                     c1.className = 'podium-item rank-1 state-zoom'; // ZOOM !
                     await wait(4000);
                     
-                    // FINALE : TOUT LE MONDE REVIENT
-                    c1.className = 'podium-item rank-1 state-final-1'; 
-                    c2.className = 'podium-item rank-2 state-final-2';
-                    c3.className = 'podium-item rank-3 state-final-3';
+                    // FINALE : TOUT LE MONDE SUR LE PODIUM 3D
+                    c1.className = 'podium-item rank-1 state-final-3d'; 
+                    c2.className = 'podium-item rank-2 state-final-3d';
+                    c3.className = 'podium-item rank-3 state-final-3d';
 
                     startConfetti();
                     try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
@@ -1098,68 +1110,114 @@ else:
                 runShow();
             </script>
             <style>
-                .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
+                .podium-stage-3d {
+                    position: relative;
+                    width: 100vw;
+                    height: 85vh;
+                    overflow: hidden;
+                    background: black;
+                    display: flex;
+                    justify-content: center;
+                    align-items: flex-end;
+                    padding-bottom: 50px;
+                }
+                .pedestal {
+                    position: relative;
+                    width: 25vw;
+                    height: 150px;
+                    background: linear-gradient(to bottom, #333, #111);
+                    border-radius: 50% 50% 0 0 / 20% 20% 0 0;
+                    box-shadow: 0 10px 20px rgba(0,0,0,0.8), inset 0 5px 10px rgba(255,255,255,0.1);
+                    display: flex;
+                    justify-content: center;
+                    align-items: flex-start; /* Aligne les cartes en haut du piédestal */
+                }
+                .pedestal::before {
+                    content: ''; position: absolute; top: -10px; left: 5%; width: 90%; height: 20px;
+                    border-radius: 50%;
+                    background: linear-gradient(to bottom, #555, #222);
+                    box-shadow: 0 5px 10px rgba(0,0,0,0.5);
+                }
+                .pedestal-1 { height: 250px; z-index: 3; margin: 0 -20px; order: 2; border-top: 5px solid #FFD700; }
+                .pedestal-2 { height: 200px; z-index: 2; order: 1; border-top: 5px solid #C0C0C0; }
+                .pedestal-3 { height: 180px; z-index: 1; order: 3; border-top: 5px solid #CD7F32; }
                 
+                .laurel { position: absolute; top: -120px; width: 100px; height: 100px; background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.8; }
+                .laurel-1 { background-image: url('https://www.svgrepo.com/show/305781/laurel-wreath-gold.svg'); top: -140px; }
+                .laurel-2 { background-image: url('https://www.svgrepo.com/show/305782/laurel-wreath-silver.svg'); }
+                .laurel-3 { background-image: url('https://www.svgrepo.com/show/305783/laurel-wreath-bronze.svg'); }
+
+                .number { position: absolute; top: -90px; font-size: 60px; font-weight: 900; font-family: 'Arial Black', sans-serif; }
+                .number-1 { color: #FFD700; top: -110px; }
+                .number-2 { color: #C0C0C0; }
+                .number-3 { color: #CD7F32; }
+
                 /* CORRECTION : Flexbox horizontal pour les items (Zoom horizontal) */
-                .podium-item {{ 
+                .podium-item { 
                     display: flex; 
                     flex-direction: row; /* Aligne les gagnants horizontalement */
-                    justify-content: center; 
+                    justify-content: center;
+                    flex-wrap: wrap; /* Permet de passer à la ligne si trop nombreux */
                     align-items: flex-end; 
                     gap: 15px; 
                     position: absolute; 
                     bottom: -100%; 
-                    width: 200px; /* Largeur réduite */
+                    width: 100%;
+                    max-width: 80vw; /* Limite la largeur pour rester dans l'écran */
                     transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); 
                     opacity: 0; 
                     left: 50%; 
-                    transform: translateX(-50%); 
-                }}
+                    transform: translateX(-50%);
+                    padding-bottom: 20px; /* Espace au-dessus du piédestal */
+                }
                 
                 /* ETAT CACHÉ */
-                .state-hidden {{ opacity: 0 !important; bottom: -100% !important; }}
+                .state-hidden { opacity: 0 !important; bottom: -100% !important; }
 
-                /* ETAT ZOOM CENTRAL (GROS PLAN) */
-                .state-zoom {{ 
+                /* ETAT ZOOM CENTRAL (GROS PLAN) - CORRIGÉ POUR NE PAS DÉPASSER */
+                .state-zoom { 
                     bottom: 30% !important; /* Centré verticalement */
-                    width: 100vw !important; /* Prend toute la largeur pour aligner horizontalement */
-                    transform: translateX(-50%) scale(1.5) !important; /* Zoom conséquent */
+                    width: auto !important;
+                    max-width: 90vw !important; /* Empêche de dépasser l'écran */
+                    transform: translateX(-50%) scale(1.3) !important; /* Zoom un peu moins fort */
                     opacity: 1 !important; 
                     z-index: 1000 !important;
-                }}
+                    position: fixed !important; /* Sort du flux pour être au centre */
+                }
                 
-                /* ETATS FINAUX (PYRAMIDE RÉDUITE) */
-                /* 1er : Au centre, plus haut (55%) */
-                .state-final-1 {{ bottom: 55% !important; transform: translateX(-50%) scale(1.1) !important; opacity: 1; z-index: 500; width: auto !important; }}
-                
-                /* 2ème : A gauche (25%), plus bas (5%) */
-                .state-final-2 {{ left: 25% !important; bottom: 5% !important; transform: translateX(-50%) scale(0.9) !important; opacity: 1; z-index: 400; width: auto !important; flex-wrap: wrap; }}
-                
-                /* 3ème : A droite (75%), plus bas (5%) */
-                .state-final-3 {{ left: 75% !important; bottom: 5% !important; transform: translateX(-50%) scale(0.9) !important; opacity: 1; z-index: 400; width: auto !important; flex-wrap: wrap; }}
+                /* ETAT FINAL SUR LE PODIUM 3D */
+                .state-final-3d { 
+                    bottom: 100% !important; /* Place juste au-dessus du piédestal */
+                    transform: translateX(-50%) scale(0.8) !important; /* Taille réduite pour le podium */
+                    opacity: 1; 
+                    z-index: 500; 
+                    width: auto !important; 
+                    max-width: 28vw !important;
+                    position: absolute !important; /* Revient dans le flux du parent */
+                }
 
                 /* Styles des cartes réduites */
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; min-width: 160px; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
+                .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; min-width: 160px; max-width: 200px; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }
                 
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
-                .rank-2 .p-card {{ border-color: #C0C0C0; }}
-                .rank-3 .p-card {{ border-color: #CD7F32; }}
+                .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); }
+                .rank-2 .p-card { border-color: #C0C0C0; }
+                .rank-3 .p-card { border-color: #CD7F32; }
 
-                .p-img, .p-placeholder {{ 
+                .p-img, .p-placeholder { 
                     width: 70px; height: 70px; border-radius: 50%; 
                     object-fit: cover; border: 4px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
-                }}
+                }
                 
-                .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 100px; height: 100px; }}
+                .rank-1 .p-img, .rank-1 .p-placeholder { border-color: #FFD700; width: 100px; height: 100px; }
 
-                .p-name {{ font-family: Arial; font-size: 18px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 28px; }}
-                .p-score {{ font-family: Arial; font-size: 16px; color: #ccc; margin-top: 5px; }}
+                .p-name { font-family: Arial; font-size: 18px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+                .rank-1 .p-name { color: #FFD700; font-size: 24px; }
+                .p-score { font-family: Arial; font-size: 16px; color: #ccc; margin-top: 5px; }
                 
-                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
-                .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
-                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
+                .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
+                .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
+                .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
             </style>
             """, height=900, scrolling=False)
 
