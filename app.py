@@ -403,66 +403,6 @@ if PDF_AVAILABLE:
             pdf.ln()
         return pdf.output(dest='S').encode('latin-1')
 
-    def create_pdf_distribution(title, rank_dist, nb_voters):
-        pdf = PDFReport()
-        pdf.add_page()
-        draw_summary_box(pdf, nb_voters, "N/A", "N/A")
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, txt="ANALYSE DE LA RÉPARTITION DES RANGS", ln=True, align='L')
-        pdf.ln(5)
-        pdf.set_fill_color(50, 50, 50)
-        pdf.set_text_color(255)
-        pdf.set_font("Arial", 'B', 10)
-        pdf.cell(80, 8, "Candidat", 1, 0, 'C', 1)
-        pdf.cell(35, 8, "1ere Place (Or)", 1, 0, 'C', 1)
-        pdf.cell(35, 8, "2eme Place (Arg)", 1, 0, 'C', 1)
-        pdf.cell(35, 8, "3eme Place (Brz)", 1, 1, 'C', 1)
-        pdf.set_text_color(0)
-        pdf.set_font("Arial", size=10)
-        fill = False
-        pdf.ln()
-        sorted_dist = sorted(rank_dist.items(), key=lambda x: x[1][1], reverse=True)
-        for cand, ranks in sorted_dist:
-            cand_txt = str(cand).encode('latin-1', 'replace').decode('latin-1')
-            if fill: pdf.set_fill_color(245, 245, 245)
-            else: pdf.set_fill_color(255, 255, 255)
-            pdf.cell(80, 8, cand_txt, 1, 0, 'L', 1)
-            pdf.cell(35, 8, str(ranks[1]), 1, 0, 'C', 1)
-            pdf.cell(35, 8, str(ranks[2]), 1, 0, 'C', 1)
-            pdf.cell(35, 8, str(ranks[3]), 1, 1, 'C', 1)
-            fill = not fill
-            pdf.ln()
-        return pdf.output(dest='S').encode('latin-1')
-
-    def create_pdf_audit(title, df, nb_voters):
-        pdf = PDFReport()
-        pdf.add_page()
-        draw_summary_box(pdf, nb_voters, len(df), "N/A")
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, txt="JOURNAL D'AUDIT COMPLET", ln=True, align='L')
-        pdf.ln(5)
-        cols = df.columns.tolist() 
-        col_w = 190 / len(cols)
-        pdf.set_fill_color(50, 50, 50)
-        pdf.set_text_color(255)
-        pdf.set_font("Arial", 'B', 9)
-        for col in cols:
-            c_txt = str(col).encode('latin-1', 'replace').decode('latin-1')
-            pdf.cell(col_w, 8, c_txt, 1, 0, 'C', 1)
-        pdf.ln()
-        pdf.set_text_color(0)
-        pdf.set_font("Arial", size=8)
-        fill = False
-        for i, row in df.iterrows():
-            if fill: pdf.set_fill_color(245, 245, 245)
-            else: pdf.set_fill_color(255, 255, 255)
-            for col in cols:
-                txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
-                pdf.cell(col_w, 8, txt, 1, 0, 'C', 1)
-            pdf.ln()
-            fill = not fill
-        return pdf.output(dest='S').encode('latin-1')
-
 # --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
@@ -936,7 +876,8 @@ else:
 
         logo_img_tag = ""
         if cfg.get("logo_b64"):
-            logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:250px; margin-bottom:20px;">'
+            # MODIFICATION : Taille 350px, Marge 10px
+            logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">'
 
         # STRUCTURE ANTI-CLIGNOTEMENT: Texte dans le HTML de l'iframe + Fond noir forcé
         html_code = f"""
@@ -1167,7 +1108,8 @@ else:
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:250px; margin-bottom:20px;'>" if cfg.get("logo_b64") else ""
+            # MODIFICATION : Taille 350px, Marge 10px
+            logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px; margin-bottom:10px;'>" if cfg.get("logo_b64") else ""
 
             # --- 4. CONSTRUCTION DES LISTES (HTML STRING) ---
             html_left = ""
@@ -1245,7 +1187,8 @@ else:
             ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
-            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
+            # MODIFICATION : Taille 350px, Marge 10px
+            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
@@ -1256,11 +1199,11 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
-        # QR CODE AGRANDI A 250px et BOX A 400px
+        # MODIFICATION : Taille 350px, Marge 10px pour le logo
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
-                {f'<img src="data:image/png;base64,{logo_data}" style="width:250px; margin-bottom:15px;">' if logo_data else ''}
+                {f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}
                 <div style='background:white; padding:15px; border-radius:15px; display:inline-block;'>
                     <img src='data:image/png;base64,{qr_b64}' style='width:250px;'>
                 </div>
