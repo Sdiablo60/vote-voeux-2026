@@ -974,7 +974,7 @@ else:
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # ... (CODE PODIUM MODIFIÉ POUR RÉDUIRE LA TAILLE) ...
+            # CHARGEMENT DES VOTES
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -997,9 +997,7 @@ else:
                         img_src = f"data:image/png;base64,{c_imgs[c]}"
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
-                        # CORRECTION : Taille placeholder réduite
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # CORRECTION : Suppression du <br>, ajout de la marge dans le CSS .p-card
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div>"
                 return html
 
@@ -1007,6 +1005,8 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
+            # ATTENTION : DANS LE BLOC CI-DESSOUS (f-string), TOUTES LES ACCOLADES CSS/JS DOIVENT ÊTRE DOUBLÉES {{ }}
+            # SEULES LES VARIABLES PYTHON {h1}, {s1}, etc. GARDENT DES ACCOLADES SIMPLES
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
@@ -1115,21 +1115,19 @@ else:
                 /* CONTENEUR GAGNANTS (Au-dessus de la marche) - CORRECTION EMPILEMENT VERS LE HAUT */
                 .winners-box {{
                     display: flex; 
-                    flex-direction: column-reverse; /* Empile les gagnants du bas vers le haut */
-                    align-items: center; 
-                    gap: 10px; width: 100%; padding-bottom: 0px;
+                    flex-direction: row;        /* Alignement horizontal */
+                    flex-wrap: wrap-reverse;    /* Le "wrap" se fait vers le HAUT */
+                    justify-content: center;
+                    align-items: flex-end;      /* Aligne le bas des cartes */
+                    width: 100%;
+                    max-width: 300px;           /* Largeur max pour forcer le retour à la ligne après 2 cartes */
+                    margin: 0 auto;             /* Centrer dans la colonne */
+                    padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                    gap: 10px;
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
-
-                /* REGLE SPECIFIQUE : Si exactement 2 gagnants en 3ème place, on les met côte à côte */
-                .column-3 .winners-box.rank-3:has(.p-card:nth-child(2)):not(:has(.p-card:nth-child(3))) {{
-                    flex-direction: row !important; /* Force l'affichage en ligne */
-                    justify-content: center;
-                    align-items: flex-end; 
-                    gap: 20px;
-                }}
 
                 /* MARCHES DU PODIUM (DESIGN IMAGE) */
                 .pedestal {{
@@ -1159,12 +1157,13 @@ else:
                 /* CARTES GAGNANTS (Compactes & Modernes) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 140px; backdrop-filter: blur(5px); 
+                    width: 130px; backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
                     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+                    margin-bottom: 10px; /* Espace entre les lignes */
                 }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.1); margin-bottom: 10px; }}
+                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.1); margin-bottom: 15px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
