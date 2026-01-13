@@ -974,7 +974,7 @@ else:
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # ... (CODE PODIUM MODIFIÉ POUR RÉDUIRE LA TAILLE) ...
+            # CHARGEMENT DES VOTES
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -997,9 +997,7 @@ else:
                         img_src = f"data:image/png;base64,{c_imgs[c]}"
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
-                        # CORRECTION : Taille placeholder réduite
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # CORRECTION : Suppression du <br>, ajout de la marge dans le CSS .p-card
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div>"
                 return html
 
@@ -1007,6 +1005,8 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
+            # ATTENTION : DANS LE BLOC CI-DESSOUS (f-string), TOUTES LES ACCOLADES CSS/JS DOIVENT ÊTRE DOUBLÉES {{ }}
+            # SEULES LES VARIABLES PYTHON {h1}, {s1}, etc. GARDENT DES ACCOLADES SIMPLES
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
@@ -1112,16 +1112,18 @@ else:
                 .column-1 {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
                 .column-3 {{ width: 25%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS (Au-dessus de la marche) */
+                /* CONTENEUR GAGNANTS (Au-dessus de la marche) - CORRECTION EMPILEMENT VERS LE HAUT */
                 .winners-box {{
-                    display: flex; flex-direction: row; justify-content: center; flex-wrap: wrap; 
-                    gap: 10px; width: 100%; padding-bottom: 20px;
+                    display: flex; 
+                    flex-direction: column-reverse; /* Empile les gagnants du bas vers le haut */
+                    align-items: center; 
+                    gap: 10px; width: 100%; padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
 
-                /* MARCHES DU PODIUM */
+                /* MARCHES DU PODIUM (DESIGN IMAGE) */
                 .pedestal {{
                     width: 100%;
                     background: linear-gradient(to bottom, #333, #000);
@@ -1130,45 +1132,55 @@ else:
                     display: flex; justify-content: center; align-items: center;
                     position: relative;
                 }}
+                /* Effet de brillance en haut */
                 .pedestal::after {{
                     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
-                    box-shadow: 0 0 10px currentColor;
+                    box-shadow: 0 0 15px currentColor;
+                    border-radius: 20px 20px 0 0;
                 }}
 
-                .pedestal-1 {{ height: 350px; border-top: 5px solid #FFD700; color: #FFD700; }}
-                .pedestal-2 {{ height: 220px; border-top: 5px solid #C0C0C0; color: #C0C0C0; }}
-                .pedestal-3 {{ height: 150px; border-top: 5px solid #CD7F32; color: #CD7F32; }}
+                .pedestal-1 {{ height: 350px; border-top: 3px solid #FFD700; color: #FFD700; }}
+                .pedestal-2 {{ height: 220px; border-top: 3px solid #C0C0C0; color: #C0C0C0; }}
+                .pedestal-3 {{ height: 150px; border-top: 3px solid #CD7F32; color: #CD7F32; }}
 
                 .rank-num {{
-                    font-size: 100px; font-weight: 900; font-family: 'Arial Black', sans-serif;
-                    opacity: 0.3;
+                    font-size: 120px; font-weight: 900; font-family: 'Arial Black', sans-serif;
+                    opacity: 0.2; /* Transparence pour incruster dans le fond */
                 }}
 
-                /* CARTES GAGNANTS (Compactes) */
+                /* CARTES GAGNANTS (Compactes & Modernes) */
                 .p-card {{ 
-                    background: rgba(255,255,255,0.1); border-radius: 15px; padding: 10px; 
+                    background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
                     width: 140px; backdrop-filter: blur(5px); 
-                    border: 2px solid rgba(255,255,255,0.2); 
+                    border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
                 }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); transform: scale(1.1); }}
+                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.1); margin-bottom: 10px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
                 .p-img, .p-placeholder {{ 
-                    width: 80px; height: 80px; border-radius: 50%; 
+                    width: 70px; height: 70px; border-radius: 50%; 
                     object-fit: cover; border: 3px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
-                .rank-1 .p-img {{ width: 100px; height: 100px; border-color: #FFD700; }}
+                .rank-1 .p-img {{ width: 90px; height: 90px; border-color: #FFD700; }}
 
-                .p-name {{ font-family: Arial; font-size: 16px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; }}
-                .p-score {{ font-family: Arial; font-size: 14px; color: #ccc; margin-top: 2px; }}
+                .p-name {{ font-family: Arial; font-size: 14px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 18px; }}
+                .p-score {{ font-family: Arial; font-size: 12px; color: #ccc; margin-top: 2px; }}
                 
-                /* COUNTDOWN OVERLAY */
-                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
-                .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
-                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
+                /* COUNTDOWN OVERLAY (TOP OF SCREEN) */
+                .intro-overlay {{ 
+                    position: fixed; top: 15vh; /* Juste sous le header rouge */
+                    left: 0; width: 100vw; height: auto; 
+                    z-index: 5000; 
+                    display: flex; flex-direction: column; align-items: center; 
+                    text-align: center; transition: opacity 0.5s; pointer-events: none; 
+                }}
+                .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px black; }}
+                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
             </style>
             """, height=900, scrolling=False)
 
