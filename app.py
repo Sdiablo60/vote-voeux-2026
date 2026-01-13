@@ -403,6 +403,66 @@ if PDF_AVAILABLE:
             pdf.ln()
         return pdf.output(dest='S').encode('latin-1')
 
+    def create_pdf_distribution(title, rank_dist, nb_voters):
+        pdf = PDFReport()
+        pdf.add_page()
+        draw_summary_box(pdf, nb_voters, "N/A", "N/A")
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, txt="ANALYSE DE LA RÉPARTITION DES RANGS", ln=True, align='L')
+        pdf.ln(5)
+        pdf.set_fill_color(50, 50, 50)
+        pdf.set_text_color(255)
+        pdf.set_font("Arial", 'B', 10)
+        pdf.cell(80, 8, "Candidat", 1, 0, 'C', 1)
+        pdf.cell(35, 8, "1ere Place (Or)", 1, 0, 'C', 1)
+        pdf.cell(35, 8, "2eme Place (Arg)", 1, 0, 'C', 1)
+        pdf.cell(35, 8, "3eme Place (Brz)", 1, 1, 'C', 1)
+        pdf.set_text_color(0)
+        pdf.set_font("Arial", size=10)
+        fill = False
+        pdf.ln()
+        sorted_dist = sorted(rank_dist.items(), key=lambda x: x[1][1], reverse=True)
+        for cand, ranks in sorted_dist:
+            cand_txt = str(cand).encode('latin-1', 'replace').decode('latin-1')
+            if fill: pdf.set_fill_color(245, 245, 245)
+            else: pdf.set_fill_color(255, 255, 255)
+            pdf.cell(80, 8, cand_txt, 1, 0, 'L', 1)
+            pdf.cell(35, 8, str(ranks[1]), 1, 0, 'C', 1)
+            pdf.cell(35, 8, str(ranks[2]), 1, 0, 'C', 1)
+            pdf.cell(35, 8, str(ranks[3]), 1, 1, 'C', 1)
+            fill = not fill
+            pdf.ln()
+        return pdf.output(dest='S').encode('latin-1')
+
+    def create_pdf_audit(title, df, nb_voters):
+        pdf = PDFReport()
+        pdf.add_page()
+        draw_summary_box(pdf, nb_voters, len(df), "N/A")
+        pdf.set_font("Arial", 'B', 12)
+        pdf.cell(0, 10, txt="JOURNAL D'AUDIT COMPLET", ln=True, align='L')
+        pdf.ln(5)
+        cols = df.columns.tolist() 
+        col_w = 190 / len(cols)
+        pdf.set_fill_color(50, 50, 50)
+        pdf.set_text_color(255)
+        pdf.set_font("Arial", 'B', 9)
+        for col in cols:
+            c_txt = str(col).encode('latin-1', 'replace').decode('latin-1')
+            pdf.cell(col_w, 8, c_txt, 1, 0, 'C', 1)
+        pdf.ln()
+        pdf.set_text_color(0)
+        pdf.set_font("Arial", size=8)
+        fill = False
+        for i, row in df.iterrows():
+            if fill: pdf.set_fill_color(245, 245, 245)
+            else: pdf.set_fill_color(255, 255, 255)
+            for col in cols:
+                txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
+                pdf.cell(col_w, 8, txt, 1, 0, 'C', 1)
+            pdf.ln()
+            fill = not fill
+        return pdf.output(dest='S').encode('latin-1')
+
 # --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
@@ -1046,7 +1106,7 @@ else:
                 .state-final-3 {{ left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.0); opacity: 1; z-index: 150; }}
 
                 /* CORRECTION : Padding réduit, Marge inférieure ajoutée */
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 15px; }}
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
                 
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
@@ -1054,18 +1114,18 @@ else:
 
                 /* CORRECTION : Tailles images réduites */
                 .p-img, .p-placeholder {{ 
-                    width: 110px; height: 110px; border-radius: 50%; 
-                    object-fit: cover; border: 4px solid white; margin-bottom: 15px; 
+                    width: 70px; height: 70px; border-radius: 50%; 
+                    object-fit: cover; border: 4px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
                 
                 /* CORRECTION : Taille image rang 1 réduite */
-                .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 130px; height: 130px; }}
+                .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 100px; height: 100px; }}
 
                 /* CORRECTION : Tailles polices réduites */
-                .p-name {{ font-family: Arial; font-size: 24px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 32px; }}
-                .p-score {{ font-family: Arial; font-size: 18px; color: #ccc; margin-top: 10px; }}
+                .p-name {{ font-family: Arial; font-size: 20px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 28px; }}
+                .p-score {{ font-family: Arial; font-size: 16px; color: #ccc; margin-top: 5px; }}
                 
                 .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
                 .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
