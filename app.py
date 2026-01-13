@@ -974,19 +974,19 @@ else:
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # ... (CODE PODIUM MODIFIÉ POUR RÉDUIRE LA TAILLE) ...
+            # CHARGEMENT DES VOTES
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
             sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
             
-            s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else -1
+            s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else 0
             rank1 = [c for c, s in v_data.items() if s == s1]
             
-            s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else -1
+            s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else 0
             rank2 = [c for c, s in v_data.items() if s == s2]
             
-            s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else -1
+            s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else 0
             rank3 = [c for c, s in v_data.items() if s == s3]
             
             def get_podium_html(cands, score, emoji):
@@ -997,9 +997,7 @@ else:
                         img_src = f"data:image/png;base64,{c_imgs[c]}"
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
-                        # CORRECTION : Taille placeholder réduite
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # CORRECTION : Suppression du <br>, ajout de la marge dans le CSS .p-card
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div>"
                 return html
 
@@ -1007,6 +1005,8 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
+            # ATTENTION : DANS LE BLOC CI-DESSOUS (f-string), TOUTES LES ACCOLADES CSS/JS DOIVENT ÊTRE DOUBLÉES {{ }}
+            # SEULES LES VARIABLES PYTHON {h1}, {s1}, etc. GARDENT DES ACCOLADES SIMPLES
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
@@ -1080,24 +1080,24 @@ else:
                 async function runShow() {{
                     // PHASE 1 : 3ème place
                     await countdown(10, "EN TROISIÈME PLACE AVEC {s3} POINTS...");
-                    c3.className = 'podium-item rank-3 state-zoom'; // ZOOM !
+                    c3.className = 'podium-item rank-3 state-zoom';
                     await wait(4000); 
-                    c3.className = 'podium-item rank-3 state-hidden'; // DISPARAIT !
+                    c3.className = 'podium-item rank-3 state-hidden';
                     
                     // PHASE 2 : 2ème place
                     await wait(1000);
                     await countdown(10, "EN SECONDE PLACE AVEC {s2} POINTS...");
-                    c2.className = 'podium-item rank-2 state-zoom'; // ZOOM !
+                    c2.className = 'podium-item rank-2 state-zoom';
                     await wait(4000); 
-                    c2.className = 'podium-item rank-2 state-hidden'; // DISPARAIT !
+                    c2.className = 'podium-item rank-2 state-hidden';
                     
                     // PHASE 3 : 1ère place
                     await wait(1000);
                     await countdown(10, "ET ENFIN CELUI QUE TOUT LE MONDE ATTEND... LA PREMIÈRE PLACE AVEC {s1} POINTS...");
-                    c1.className = 'podium-item rank-1 state-zoom'; // ZOOM !
+                    c1.className = 'podium-item rank-1 state-zoom';
                     await wait(4000);
                     
-                    // FINALE : TOUT LE MONDE SUR LE PODIUM 3D
+                    // FINALE
                     c1.className = 'podium-item rank-1 state-final-3d'; 
                     c2.className = 'podium-item rank-2 state-final-3d';
                     c3.className = 'podium-item rank-3 state-final-3d';
@@ -1110,7 +1110,7 @@ else:
                 runShow();
             </script>
             <style>
-                .podium-stage-3d {
+                .podium-stage-3d {{
                     position: relative;
                     width: 100vw;
                     height: 85vh;
@@ -1120,8 +1120,8 @@ else:
                     justify-content: center;
                     align-items: flex-end;
                     padding-bottom: 50px;
-                }
-                .pedestal {
+                }}
+                .pedestal {{
                     position: relative;
                     width: 25vw;
                     height: 150px;
@@ -1130,215 +1130,91 @@ else:
                     box-shadow: 0 10px 20px rgba(0,0,0,0.8), inset 0 5px 10px rgba(255,255,255,0.1);
                     display: flex;
                     justify-content: center;
-                    align-items: flex-start; /* Aligne les cartes en haut du piédestal */
-                }
-                .pedestal::before {
+                    align-items: flex-start;
+                }}
+                .pedestal::before {{
                     content: ''; position: absolute; top: -10px; left: 5%; width: 90%; height: 20px;
                     border-radius: 50%;
                     background: linear-gradient(to bottom, #555, #222);
                     box-shadow: 0 5px 10px rgba(0,0,0,0.5);
-                }
-                .pedestal-1 { height: 250px; z-index: 3; margin: 0 -20px; order: 2; border-top: 5px solid #FFD700; }
-                .pedestal-2 { height: 200px; z-index: 2; order: 1; border-top: 5px solid #C0C0C0; }
-                .pedestal-3 { height: 180px; z-index: 1; order: 3; border-top: 5px solid #CD7F32; }
+                }}
+                .pedestal-1 {{ height: 250px; z-index: 3; margin: 0 -20px; order: 2; border-top: 5px solid #FFD700; }}
+                .pedestal-2 {{ height: 200px; z-index: 2; order: 1; border-top: 5px solid #C0C0C0; }}
+                .pedestal-3 {{ height: 180px; z-index: 1; order: 3; border-top: 5px solid #CD7F32; }}
                 
-                .laurel { position: absolute; top: -120px; width: 100px; height: 100px; background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.8; }
-                .laurel-1 { background-image: url('https://www.svgrepo.com/show/305781/laurel-wreath-gold.svg'); top: -140px; }
-                .laurel-2 { background-image: url('https://www.svgrepo.com/show/305782/laurel-wreath-silver.svg'); }
-                .laurel-3 { background-image: url('https://www.svgrepo.com/show/305783/laurel-wreath-bronze.svg'); }
+                .laurel {{ position: absolute; top: -120px; width: 100px; height: 100px; background-size: contain; background-repeat: no-repeat; background-position: center; opacity: 0.8; }}
+                .laurel-1 {{ background-image: url('https://www.svgrepo.com/show/305781/laurel-wreath-gold.svg'); top: -140px; }}
+                .laurel-2 {{ background-image: url('https://www.svgrepo.com/show/305782/laurel-wreath-silver.svg'); }}
+                .laurel-3 {{ background-image: url('https://www.svgrepo.com/show/305783/laurel-wreath-bronze.svg'); }}
 
-                .number { position: absolute; top: -90px; font-size: 60px; font-weight: 900; font-family: 'Arial Black', sans-serif; }
-                .number-1 { color: #FFD700; top: -110px; }
-                .number-2 { color: #C0C0C0; }
-                .number-3 { color: #CD7F32; }
+                .number {{ position: absolute; top: -90px; font-size: 60px; font-weight: 900; font-family: 'Arial Black', sans-serif; }}
+                .number-1 {{ color: #FFD700; top: -110px; }}
+                .number-2 {{ color: #C0C0C0; }}
+                .number-3 {{ color: #CD7F32; }}
 
-                /* CORRECTION : Flexbox horizontal pour les items (Zoom horizontal) */
-                .podium-item { 
+                .podium-item {{ 
                     display: flex; 
-                    flex-direction: row; /* Aligne les gagnants horizontalement */
+                    flex-direction: row; 
                     justify-content: center;
-                    flex-wrap: wrap; /* Permet de passer à la ligne si trop nombreux */
+                    flex-wrap: wrap; 
                     align-items: flex-end; 
                     gap: 15px; 
                     position: absolute; 
                     bottom: -100%; 
                     width: 100%;
-                    max-width: 80vw; /* Limite la largeur pour rester dans l'écran */
+                    max-width: 80vw;
                     transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); 
                     opacity: 0; 
                     left: 50%; 
                     transform: translateX(-50%);
-                    padding-bottom: 20px; /* Espace au-dessus du piédestal */
-                }
+                    padding-bottom: 20px;
+                }}
                 
-                /* ETAT CACHÉ */
-                .state-hidden { opacity: 0 !important; bottom: -100% !important; }
+                .state-hidden {{ opacity: 0 !important; bottom: -100% !important; }}
 
-                /* ETAT ZOOM CENTRAL (GROS PLAN) - CORRIGÉ POUR NE PAS DÉPASSER */
-                .state-zoom { 
-                    bottom: 30% !important; /* Centré verticalement */
+                .state-zoom {{ 
+                    bottom: 30% !important; 
                     width: auto !important;
-                    max-width: 90vw !important; /* Empêche de dépasser l'écran */
-                    transform: translateX(-50%) scale(1.3) !important; /* Zoom un peu moins fort */
+                    max-width: 90vw !important;
+                    transform: translateX(-50%) scale(1.3) !important;
                     opacity: 1 !important; 
                     z-index: 1000 !important;
-                    position: fixed !important; /* Sort du flux pour être au centre */
-                }
+                    position: fixed !important;
+                }}
                 
-                /* ETAT FINAL SUR LE PODIUM 3D */
-                .state-final-3d { 
-                    bottom: 100% !important; /* Place juste au-dessus du piédestal */
-                    transform: translateX(-50%) scale(0.8) !important; /* Taille réduite pour le podium */
+                .state-final-3d {{ 
+                    bottom: 100% !important; 
+                    transform: translateX(-50%) scale(0.8) !important; 
                     opacity: 1; 
                     z-index: 500; 
                     width: auto !important; 
                     max-width: 28vw !important;
-                    position: absolute !important; /* Revient dans le flux du parent */
-                }
+                    position: absolute !important;
+                }}
 
-                /* Styles des cartes réduites */
-                .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; min-width: 160px; max-width: 200px; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; min-width: 160px; max-width: 200px; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
                 
-                .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); }
-                .rank-2 .p-card { border-color: #C0C0C0; }
-                .rank-3 .p-card { border-color: #CD7F32; }
+                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
+                .rank-2 .p-card {{ border-color: #C0C0C0; }}
+                .rank-3 .p-card {{ border-color: #CD7F32; }}
 
-                .p-img, .p-placeholder { 
+                .p-img, .p-placeholder {{ 
                     width: 70px; height: 70px; border-radius: 50%; 
                     object-fit: cover; border: 4px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
-                }
+                }}
                 
-                .rank-1 .p-img, .rank-1 .p-placeholder { border-color: #FFD700; width: 100px; height: 100px; }
+                .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 100px; height: 100px; }}
 
-                .p-name { font-family: Arial; font-size: 18px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
-                .rank-1 .p-name { color: #FFD700; font-size: 24px; }
-                .p-score { font-family: Arial; font-size: 16px; color: #ccc; margin-top: 5px; }
+                .p-name {{ font-family: Arial; font-size: 18px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 24px; }}
+                .p-score {{ font-family: Arial; font-size: 16px; color: #ccc; margin-top: 5px; }}
                 
-                .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
-                .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-                .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
+                .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
+                .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
+                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }}
             </style>
             """, height=900, scrolling=False)
-
-        elif cfg.get("session_ouverte"):
-            # --- 1. LOAD PARTICIPANTS ---
-            participants = load_json(PARTICIPANTS_FILE, [])
-            nb_total = len(participants)
-            
-            if nb_total > 0:
-                last_24 = participants[-24:][::-1] 
-                tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
-            else:
-                tags_html = "<span style='color:grey; font-style:italic;'>En attente des premiers participants...</span>"
-            
-            # --- 2. AFFICHAGE COMPTEUR + TAGS (MODIFIÉ: BAS DE L'ÉCRAN) ---
-            st.markdown(f"""
-            <div style="
-                position: fixed;
-                bottom: 0;
-                left: 0;
-                width: 100%;
-                text-align: center;
-                padding-bottom: 30px;
-                z-index: 1000;
-                background: linear-gradient(to top, black 80%, transparent);
-            ">
-                <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
-                    👥 {nb_total} PARTICIPANTS EN LIGNE
-                </div>
-                <div style="width:80%; margin:0 auto; line-height:1.6;">
-                    {tags_html}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            # --- 3. PREPARATION DES DONNEES ---
-            cands = cfg.get("candidats", [])
-            imgs = cfg.get("candidats_images", {})
-            mid = (len(cands) + 1) // 2
-            left_list, right_list = cands[:mid], cands[mid:]
-            
-            host = st.context.headers.get('host', 'localhost')
-            qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-            qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-            # MODIFICATION : Taille 350px, Marge 10px
-            logo_html = f"<img src='data:image/png;base64,{cfg['logo_b64']}' style='width:350px; margin-bottom:10px;'>" if cfg.get("logo_b64") else ""
-
-            # --- 4. CONSTRUCTION DES LISTES (HTML STRING) ---
-            html_left = ""
-            for c in left_list:
-                if c in imgs:
-                    html_left += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
-                else:
-                    html_left += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
-
-            html_right = ""
-            for c in right_list:
-                if c in imgs:
-                    html_right += "<div class='cand-row'><img src='data:image/png;base64," + imgs[c] + "' class='cand-img'><span class='cand-name'>" + c + "</span></div>"
-                else:
-                    html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
-
-            # --- 5. CSS CORRIGÉ (CENTRAGE HORIZONTAL PARFAIT & MARGE POUR ÉVITER TITRE) ---
-            css_styles = """
-            <style>
-                .vote-container {
-                    display: flex;
-                    justify-content: center; /* Centre horizontalement */
-                    align-items: flex-start;
-                    width: 100%; /* S'assure que ça prend toute la largeur dispo */
-                    position: absolute; /* Ignore les marges parentes */
-                    left: 0;
-                    margin-top: 15vh; /* Ajusté pour laisser le titre libre */
-                }
-                .col-participants {
-                    flex: 1; /* Prend une largeur égale */
-                    width: 0; /* Force la largeur égale */
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: flex-start; 
-                }
-                .col-center {
-                    flex: 0 0 400px;
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: flex-start; 
-                    height: 100%;
-                    margin: 0 40px;
-                }
-                .cand-row {
-                    width: 100% !important; 
-                    max-width: 380px !important; 
-                    background: rgba(255,255,255,0.1);
-                    backdrop-filter: blur(5px);
-                    display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; padding: 8px 15px; border-radius: 50px; height: 70px; margin: 0 auto 10px auto;
-                }
-                .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
-                .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
-            </style>
-            """
-
-            # --- 6. ASSEMBLAGE ---
-            full_html = css_styles
-            full_html += '<div class="vote-container">'
-            full_html += '<div class="col-participants" style="align-items: flex-end; padding-right: 20px;">' + html_left + '</div>' 
-            
-            # Colonne Centrale (Logo + QR)
-            full_html += '<div class="col-center">'
-            full_html += logo_html
-            full_html += "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>"
-            full_html += "<img src='data:image/png;base64," + qr_b64 + "' style='width: 250px; display:block;'>"
-            full_html += "</div>"
-            full_html += "<div class='vote-cta' style='margin-top: 30px; text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; text-transform: uppercase;'>À VOS VOTES !</div>"
-            full_html += '</div>'
-            
-            full_html += '<div class="col-participants" style="align-items: flex-start; padding-left: 20px;">' + html_right + '</div>' 
-            full_html += '</div>'
-
-            # --- 7. AFFICHAGE ---
-            ph.markdown(full_html, unsafe_allow_html=True)
 
         else:
             # MODIFICATION : Taille 350px, Marge 10px
