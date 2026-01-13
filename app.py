@@ -1137,9 +1137,18 @@ else:
             else:
                 tags_html = "<span style='color:grey; font-style:italic;'>En attente des premiers participants...</span>"
             
-            # --- 2. AFFICHAGE COMPTEUR + TAGS (AJUSTÉ AVEC MARGE TOP) ---
+            # --- 2. AFFICHAGE COMPTEUR + TAGS (MODIFIÉ: BAS DE L'ÉCRAN) ---
             st.markdown(f"""
-            <div style="margin-top:22vh; text-align:center; width:100%; margin-bottom:20px;">
+            <div style="
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                text-align: center;
+                padding-bottom: 30px;
+                z-index: 1000;
+                background: linear-gradient(to top, black 80%, transparent);
+            ">
                 <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:10px; text-transform:uppercase;">
                     👥 {nb_total} PARTICIPANTS EN LIGNE
                 </div>
@@ -1175,7 +1184,7 @@ else:
                 else:
                     html_right += "<div class='cand-row'><div style='width:55px;height:55px;border-radius:50%;background:black;border:3px solid #E2001A;display:flex;align-items:center;justify-content:center;margin-right:15px;flex-shrink:0;'><span style='font-size:30px;'>🏆</span></div><span class='cand-name'>" + c + "</span></div>"
 
-            # --- 5. CSS CORRIGÉ (CENTRAGE HORIZONTAL PARFAIT) ---
+            # --- 5. CSS CORRIGÉ (CENTRAGE HORIZONTAL PARFAIT & MARGE POUR ÉVITER TITRE) ---
             css_styles = """
             <style>
                 .vote-container {
@@ -1185,7 +1194,7 @@ else:
                     width: 100%; /* S'assure que ça prend toute la largeur dispo */
                     position: absolute; /* Ignore les marges parentes */
                     left: 0;
-                    margin-top: 2vh; 
+                    margin-top: 15vh; /* Ajusté pour laisser le titre libre */
                 }
                 .col-participants {
                     flex: 1; /* Prend une largeur égale */
