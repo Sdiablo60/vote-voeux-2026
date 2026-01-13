@@ -157,7 +157,7 @@ blank_config = {
     "effect_intensity": 25, 
     "effect_speed": 15, 
     "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": ""
+    "session_id": str(uuid.uuid4())
 }
 
 default_config = {
@@ -1066,19 +1066,19 @@ else:
                 }}
 
                 async function runShow() {{
-                    await countdown(5, "ET POUR LA MÉDAILLE DE BRONZE...");
+                    await countdown(10, "EN TROISIÈME PLACE AVEC {s3} POINTS...");
                     c3.className = 'podium-item rank-3 state-center'; 
                     await wait(4000); 
                     c3.className = 'podium-item rank-3 state-right'; 
                     
                     await wait(1000);
-                    await countdown(5, "LA MÉDAILLE D'ARGENT REVIENT À...");
+                    await countdown(10, "EN SECONDE PLACE AVEC {s2} POINTS...");
                     c2.className = 'podium-item rank-2 state-center'; 
                     await wait(4000); 
                     c2.className = 'podium-item rank-2 state-left'; 
                     
                     await wait(1000);
-                    await countdown(7, "ET LE GRAND VAINQUEUR EST...");
+                    await countdown(10, "ET ENFIN CELUI QUE TOUT LE MONDE ATTEND... LA PREMIÈRE PLACE AVEC {s1} POINTS...");
                     c1.className = 'podium-item rank-1 state-final-1'; 
                     await wait(2000);
 
