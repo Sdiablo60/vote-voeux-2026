@@ -25,13 +25,11 @@ Image.MAX_IMAGE_PIXELS = None
 
 st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
 
-# RECUPERATION PARAMETRES URL
 est_admin = st.query_params.get("admin") == "true"
 est_utilisateur = st.query_params.get("mode") == "vote"
 is_blocked = st.query_params.get("blocked") == "true"
 is_test_admin = st.query_params.get("test_admin") == "true"
 
-# DOSSIERS & FICHIERS
 LIVE_DIR = "galerie_live_users"
 ARCHIVE_DIR = "_archives_sessions"
 VOTES_FILE = "votes.json"
@@ -44,27 +42,37 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
 # =========================================================
-# 2. CSS GLOBAL (POUR L'ADMIN UNIQUEMENT)
+# 2. CSS GLOBAL (BASE ADMIN BLANCHE & STRUCTURE)
 # =========================================================
-# On force le fond blanc ici pour être sûr que l'Admin soit lisible
 st.markdown("""
 <style>
+    /* PAR DEFAUT : FOND BLANC (Pour l'Admin) */
     .stApp {
         background-color: #FFFFFF;
         color: black;
     }
     
+    /* FIX DU HEADER ROUGE POUR EVITER LE CLIGNOTEMENT SUR LE MUR SOCIAL */
     [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
     
     .social-header { 
         position: fixed; top: 0; left: 0; width: 100%; height: 12vh; 
         background: #E2001A !important; 
         display: flex; align-items: center; justify-content: center; 
-        z-index: 999999 !important;
+        z-index: 999999 !important; /* Priorité maximale */
         border-bottom: 5px solid white; 
     }
     .social-title { color: white !important; font-size: 40px !important; font-weight: bold; margin: 0; text-transform: uppercase; }
 
+    /* STOP SCROLLING ULTIME (Global) */
+    html, body, [data-testid="stAppViewContainer"] {
+        overflow: hidden !important;
+        height: 100vh !important;
+        width: 100vw !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+    
     /* Cacher scrollbars */
     ::-webkit-scrollbar { display: none; }
     
@@ -983,7 +991,7 @@ else:
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # SUPPRESSION DU SCORE SUR LA CARTE (il est sur le podium)
+                    # SCORE SUR LE PODIUM, PAS SUR LA CARTE
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
 
@@ -1118,7 +1126,7 @@ else:
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    max-width: 310px;           /* Largeur fixe : 2 cartes de 135px tiennent, la 3ème passe au-dessus */
+                    max-width: 300px;           /* Largeur fixe : 2 cartes de 130px tiennent, la 3ème passe au-dessus */
                     margin: 0 auto;             /* Centré */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
@@ -1174,7 +1182,7 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 135px; /* Taille fixe calibrée pour le conteneur */
+                    width: 130px; /* Taille fixe calibrée pour le conteneur */
                     margin: 4px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
@@ -1209,6 +1217,32 @@ else:
                 .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
             </style>
             """, height=900, scrolling=False)
+
+        elif cfg["session_ouverte"]:
+             # --- ECRAN VOTES OUVERTS ---
+             host = st.context.headers.get('host', 'localhost')
+             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
+             
+             components.html(f"""
+                <style>
+                    body {{ background: black; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: Arial, sans-serif; }}
+                    .container {{ text-align: center; color: white; animation: fadeIn 1s ease-in; }}
+                    .title {{ font-size: 80px; font-weight: 900; color: #E2001A; margin: 0; text-transform: uppercase; letter-spacing: 5px; }}
+                    .subtitle {{ font-size: 40px; font-weight: bold; margin-bottom: 30px; }}
+                    .qr-box {{ background: white; padding: 20px; border-radius: 20px; display: inline-block; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); }}
+                    @keyframes fadeIn {{ from {{ opacity: 0; transform: scale(0.9); }} to {{ opacity: 1; transform: scale(1); }} }}
+                </style>
+                <div class="container">
+                    {logo_html}
+                    <div class="title">VOTES OUVERTS</div>
+                    <div class="subtitle">Scannez pour voter</div>
+                    <div class="qr-box">
+                        <img src="data:image/png;base64,{qr_b64}" width="400">
+                    </div>
+                </div>
+             """, height=900)
 
         else:
             # MODIFICATION : Taille 350px, Marge 10px
