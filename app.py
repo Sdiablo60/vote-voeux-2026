@@ -1115,19 +1115,27 @@ else:
                 /* CONTENEUR GAGNANTS (Au-dessus de la marche) - CORRECTION EMPILEMENT VERS LE HAUT */
                 .winners-box {{
                     display: flex; 
-                    flex-direction: row;        /* Alignement horizontal */
-                    flex-wrap: wrap-reverse;    /* Le "wrap" se fait vers le HAUT */
-                    justify-content: center;
-                    align-items: flex-end;      /* Aligne le bas des cartes */
-                    width: 100%;
-                    max-width: 300px;           /* Largeur max pour forcer le retour à la ligne après 2 cartes */
-                    margin: 0 auto;             /* Centrer dans la colonne */
-                    padding-bottom: 0px;
+                    flex-direction: column-reverse; /* Empile les gagnants du bas vers le haut */
+                    align-items: center; 
+                    gap: 10px; width: 100%; padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    gap: 10px;
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
+
+                /* REGLE SPECIFIQUE POUR LA 3EME PLACE : INVERSION DE L'EMPILEMENT */
+                /* Si on est dans la colonne 3, on change la direction pour empiler du haut vers le bas */
+                .column-3 .winners-box {{
+                    flex-direction: column !important;
+                }}
+                
+                /* REGLE SPECIFIQUE : Si exactement 2 gagnants en 3ème place, on les met côte à côte */
+                .column-3 .winners-box.rank-3:has(.p-card:nth-child(2)):not(:has(.p-card:nth-child(3))) {{
+                    flex-direction: row !important; /* Force l'affichage en ligne */
+                    justify-content: center;
+                    align-items: flex-end; 
+                    gap: 20px;
+                }}
 
                 /* MARCHES DU PODIUM (DESIGN IMAGE) */
                 .pedestal {{
