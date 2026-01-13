@@ -1070,21 +1070,25 @@ else:
                     await countdown(10, "EN TROISIÈME PLACE AVEC {s3} POINTS...");
                     c3.className = 'podium-item rank-3 state-zoom'; // ZOOM !
                     await wait(4000); 
-                    c3.className = 'podium-item rank-3 state-final-3'; // Place Finale
+                    c3.className = 'podium-item rank-3 state-hidden'; // DISPARAIT !
                     
                     // PHASE 2 : 2ème place
                     await wait(1000);
                     await countdown(10, "EN SECONDE PLACE AVEC {s2} POINTS...");
                     c2.className = 'podium-item rank-2 state-zoom'; // ZOOM !
                     await wait(4000); 
-                    c2.className = 'podium-item rank-2 state-final-2'; // Place Finale
+                    c2.className = 'podium-item rank-2 state-hidden'; // DISPARAIT !
                     
                     // PHASE 3 : 1ère place
                     await wait(1000);
                     await countdown(10, "ET ENFIN CELUI QUE TOUT LE MONDE ATTEND... LA PREMIÈRE PLACE AVEC {s1} POINTS...");
                     c1.className = 'podium-item rank-1 state-zoom'; // ZOOM !
                     await wait(4000);
-                    c1.className = 'podium-item rank-1 state-final-1'; // Place Finale (HAUTE)
+                    
+                    // FINALE : TOUT LE MONDE REVIENT
+                    c1.className = 'podium-item rank-1 state-final-1'; 
+                    c2.className = 'podium-item rank-2 state-final-2';
+                    c3.className = 'podium-item rank-3 state-final-3';
 
                     startConfetti();
                     try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
@@ -1095,26 +1099,29 @@ else:
             </script>
             <style>
                 .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
-                /* Etat caché par défaut */
-                .podium-item {{ position: absolute; bottom: -500px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; left: 50%; transform: translateX(-50%); }}
+                /* Etat caché par défaut (en bas) */
+                .podium-item {{ position: absolute; bottom: -100%; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; left: 50%; transform: translateX(-50%); }}
                 
-                /* ETAT ZOOM CENTRAL (GROS PLAN) */
+                /* ETAT CACHÉ (Pour disparition entre les phases) */
+                .state-hidden {{ opacity: 0 !important; bottom: -100% !important; }}
+
+                /* ETAT ZOOM CENTRAL (GROS PLAN MAIS BAS POUR ÉVITER LE TITRE) */
                 .state-zoom {{ 
-                    bottom: 40% !important; 
-                    transform: translateX(-50%) scale(1.8) !important; 
+                    bottom: 5% !important; /* On part de très bas */
+                    transform: translateX(-50%) scale(1.3) !important; /* Zoom raisonnable */
                     opacity: 1 !important; 
                     z-index: 1000 !important;
                 }}
                 
                 /* ETATS FINAUX (PYRAMIDE RÉDUITE) */
                 /* 1er : Au centre, plus haut (35%) */
-                .state-final-1 {{ bottom: 35% !important; transform: translateX(-50%) scale(1.15) !important; opacity: 1; z-index: 200; }}
+                .state-final-1 {{ bottom: 35% !important; transform: translateX(-50%) scale(1.15) !important; opacity: 1; z-index: 500; }}
                 
                 /* 2ème : A gauche (30%), plus bas (5%) */
-                .state-final-2 {{ left: 30% !important; bottom: 5% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 150; }}
+                .state-final-2 {{ left: 30% !important; bottom: 5% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 400; }}
                 
                 /* 3ème : A droite (70%), plus bas (5%) */
-                .state-final-3 {{ left: 70% !important; bottom: 5% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 150; }}
+                .state-final-3 {{ left: 70% !important; bottom: 5% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 400; }}
 
                 /* Styles des cartes réduites */
                 .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
