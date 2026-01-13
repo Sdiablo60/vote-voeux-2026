@@ -57,6 +57,18 @@ st.markdown("""
         color: black;
     }
     
+    /* FIX DU HEADER ROUGE POUR EVITER LE CLIGNOTEMENT SUR LE MUR SOCIAL */
+    [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
+    
+    .social-header { 
+        position: fixed; top: 0; left: 0; width: 100%; height: 12vh; 
+        background: #E2001A !important; 
+        display: flex; align-items: center; justify-content: center; 
+        z-index: 999999 !important; /* Priorité maximale */
+        border-bottom: 5px solid white; 
+    }
+    .social-title { color: white !important; font-size: 40px !important; font-weight: bold; margin: 0; text-transform: uppercase; }
+
     /* STOP SCROLLING ULTIME (Global) */
     html, body, [data-testid="stAppViewContainer"] {
         overflow: hidden !important;
@@ -125,8 +137,7 @@ st.markdown("""
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
 
-    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin) */
-    .social-header { display: none; }
+    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin via JS si besoin, mais géré par le mode) */
 </style>
 """, unsafe_allow_html=True)
 
@@ -894,95 +905,9 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    st.markdown("""
-    <style>
-        /* CSS SOCIAL WALL UNIQUEMENT - NO SCROLL & NO SIDEBAR */
-        
-        /* Cacher la scrollbar sur Chrome/Safari */
-        ::-webkit-scrollbar { display: none; }
-
-        /* Cacher la Sidebar de manière brute */
-        [data-testid="stSidebar"], section[data-testid="stSidebar"] { display: none !important; width: 0 !important; }
-        [data-testid="stSidebarCollapsedControl"] { display: none !important; }
-
-        /* Cacher le Header Streamlit */
-        header, [data-testid="stHeader"] { display: none !important; height: 0 !important; }
-        [data-testid="stToolbar"] { display: none !important; }
-        [data-testid="stDecoration"] { display: none !important; }
-
-        /* Bloquer le scroll et forcer le fond noir sur TOUTES les couches */
-        html, body, .stApp, [data-testid="stAppViewContainer"] { 
-            background-color: black !important; 
-            font-family: 'Arial', sans-serif; 
-            overflow: hidden !important; 
-            height: 100vh !important;
-            width: 100vw !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            position: fixed !important; /* Verrouillage ultime */
-            top: 0 !important;
-            left: 0 !important;
-        }
-
-        /* Supprimer les marges internes de Streamlit */
-        .block-container { 
-            padding: 0 !important; 
-            max-width: 100vw !important; 
-            margin: 0 !important;
-        }
-
-        .social-header { position: fixed; top: 0; left: 0; width: 100%; height: 12vh; background: #E2001A; display: flex; align-items: center; justify-content: center; z-index: 5000; border-bottom: 5px solid white; }
-        .social-title { color: white; font-size: 40px; font-weight: bold; margin: 0; text-transform: uppercase; }
-        .vote-cta { text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; margin-top: 15px; text-transform: uppercase; }
-        .cand-row { display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; background: rgba(255,255,255,0.08); padding: 8px 15px; border-radius: 50px; width: 100%; max-width: 350px; height: 70px; margin: 0 auto 10px auto; }
-        .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
-        .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
-        .full-screen-center { position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2; }
-        
-        /* PODIUM STYLES (ABSOLUTE ANIMATION) */
-        .podium-stage { position: relative; width: 100vw; height: 80vh; overflow: hidden; background: black; top: 12vh; }
-        
-        /* Classe de base pour un candidat sur le podium */
-        .podium-item { position: absolute; bottom: 50px; width: 300px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.8); z-index: 100; }
-        
-        /* POSITIONS CLES */
-        .state-hidden { opacity: 0; transform: scale(0.5); }
-        .state-center { left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }
-        .state-left { left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }
-        .state-right { left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }
-        
-        /* ETATS FINAUX PYRAMIDE RESSERREE */
-        .state-final-1 { left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.25); opacity: 1; z-index: 200; }
-        .state-final-2 { left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }
-        .state-final-3 { left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }
-
-        /* Modifications ici : meme style pour img et div de remplacement */
-        .p-card { background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }
-        
-        .rank-1 .p-card { border-color: #FFD700; background: rgba(20,20,20,0.9); }
-        .rank-2 .p-card { border-color: #C0C0C0; }
-        .rank-3 .p-card { border-color: #CD7F32; }
-
-        /* Style commun image et coupe */
-        .p-img, .p-placeholder { 
-            width: 140px; height: 140px; border-radius: 50%; 
-            object-fit: cover; border: 4px solid white; margin-bottom: 20px; 
-            display: flex; justify-content: center; align-items: center; 
-        }
-        
-        .rank-1 .p-img, .rank-1 .p-placeholder { border-color: #FFD700; width: 160px; height: 160px; }
-
-        .p-name { font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }
-        .rank-1 .p-name { color: #FFD700; font-size: 40px; }
-        .p-score { font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }
-        
-        .intro-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }
-        .intro-text { color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-        .intro-count { color: #E2001A; font-family: Arial; font-size: 150px; font-weight: 900; margin-top: 20px; }
-    </style>
-    """, unsafe_allow_html=True)
-    
+    # HEADER ROUGE EN Z-INDEX MAXIMAL (FIXE)
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
+    
     mode = cfg.get("mode_affichage")
     effects = cfg.get("screen_effects", {})
     effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
@@ -991,38 +916,38 @@ else:
     ph = st.empty()
     
     if mode == "attente":
-        # On ne met plus le logo/titre en markdown Streamlit car on l'intègre au HTML pour mieux centrer
-        
-        # Lecture des fichiers
         try:
             with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
             with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
         except FileNotFoundError:
             css_content = ""; js_content = "console.error('Fichiers manquants');"
 
-        # Affichage du Logo (si présent) encodé
         logo_img_tag = ""
         if cfg.get("logo_b64"):
             logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:250px; margin-bottom:20px;">'
 
+        # STRUCTURE ANTI-CLIGNOTEMENT: Texte dans le HTML de l'iframe + Fond noir forcé
         html_code = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <style>
+                body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
                 {css_content}
+                #welcome-text {{
+                    position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+                    text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5;
+                    font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none;
+                }}
             </style>
         </head>
         <body>
             <div id="welcome-text">
-                {logo_img_tag}<br>
-                BIENVENUE
+                {logo_img_tag}<br>BIENVENUE
             </div>
-
             <div id="robot-bubble" class="bubble">...</div>
-
             <div id="robot-container"></div>
-
+            
             <script type="importmap">
             {{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}
             </script>
@@ -1032,11 +957,11 @@ else:
         </body>
         </html>
         """
-        # On utilise une hauteur de 900px pour prendre tout l'écran dans l'iframe
-        components.html(html_code, height=900, scrolling=False)
+        components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
+            # ... (CODE PODIUM RESTE INCHANGÉ, JUSTE HEADER FIXÉ) ...
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1068,7 +993,6 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
-            # --- INJECTION JS SCÉNARIO DYNAMIQUE ---
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
@@ -1128,26 +1052,22 @@ else:
                 }}
 
                 async function runShow() {{
-                    // PHASE 1: 3eme (Intro -> Centre -> Droite)
                     await countdown(5, "ET POUR LA MÉDAILLE DE BRONZE...");
                     c3.className = 'podium-item rank-3 state-center'; 
                     await wait(4000); 
-                    c3.className = 'podium-item rank-3 state-right'; // 3eme à DROITE
+                    c3.className = 'podium-item rank-3 state-right'; 
                     
-                    // PHASE 2: 2eme (Intro -> Centre -> Gauche)
                     await wait(1000);
                     await countdown(5, "LA MÉDAILLE D'ARGENT REVIENT À...");
                     c2.className = 'podium-item rank-2 state-center'; 
                     await wait(4000); 
-                    c2.className = 'podium-item rank-2 state-left'; // 2eme à GAUCHE
+                    c2.className = 'podium-item rank-2 state-left'; 
                     
-                    // PHASE 3: 1er (Intro -> Centre Haut)
                     await wait(1000);
                     await countdown(7, "ET LE GRAND VAINQUEUR EST...");
                     c1.className = 'podium-item rank-1 state-final-1'; 
                     await wait(2000);
 
-                    // PHASE 4: PYRAMIDE FINALE RESSERREE & SON
                     c2.className = 'podium-item rank-2 state-final-2';
                     c3.className = 'podium-item rank-3 state-final-3';
                     
@@ -1162,24 +1082,20 @@ else:
                 .podium-stage {{ position: relative; width: 100vw; height: 85vh; overflow: hidden; background: black; }}
                 .podium-item {{ position: absolute; bottom: 50px; width: 320px; text-align: center; transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); opacity: 0; transform: scale(0.5) translateX(-50%); left: 50%; }}
                 
-                /* ETATS INTERMEDIAIRES */
                 .state-center {{ left: 50%; transform: translateX(-50%) scale(1); opacity: 1; }}
                 .state-left {{ left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 
-                /* ETATS FINAUX PYRAMIDE COMPACTE */
                 .state-final-1 {{ left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.25); opacity: 1; z-index: 200; }}
                 .state-final-2 {{ left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }}
                 .state-final-3 {{ left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }}
 
-                /* Modifications ici : meme style pour img et div de remplacement */
                 .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
                 
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
-                /* Style commun image et coupe */
                 .p-img, .p-placeholder {{ 
                     width: 140px; height: 140px; border-radius: 50%; 
                     object-fit: cover; border: 4px solid white; margin-bottom: 20px; 
@@ -1203,15 +1119,13 @@ else:
             participants = load_json(PARTICIPANTS_FILE, [])
             nb_total = len(participants)
             
-            # FIX: Gérer le cas où la liste est vide pour éviter le bug </div>
             if nb_total > 0:
-                last_24 = participants[-24:][::-1] # Derniers 24 inversés
+                last_24 = participants[-24:][::-1] 
                 tags_html = "".join([f"<span style='display:inline-block; padding:5px 12px; margin:4px; border:1px solid #E2001A; border-radius:20px; background:rgba(255,255,255,0.1); color:white; font-size:14px;'>{p}</span>" for p in last_24])
             else:
                 tags_html = "<span style='color:grey; font-style:italic;'>En attente des premiers participants...</span>"
             
             # --- 2. AFFICHAGE COMPTEUR + TAGS ---
-            # Ajout d'une marge supérieure plus importante (18vh) pour décoller du titre
             st.markdown(f"""
             <div style="margin-top:18vh; text-align:center; width:100%; margin-bottom:30px;">
                 <div style="color:#E2001A; font-size:30px; font-weight:bold; margin-bottom:15px; text-transform:uppercase;">
@@ -1229,7 +1143,6 @@ else:
             mid = (len(cands) + 1) // 2
             left_list, right_list = cands[:mid], cands[mid:]
             
-            # Génération du QR Code et Logo
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
@@ -1283,7 +1196,10 @@ else:
                     max-width: 400px !important;
                     background: rgba(255,255,255,0.1);
                     backdrop-filter: blur(5px);
+                    display: flex; align-items: center; justify-content: flex-start; margin-bottom: 10px; padding: 8px 15px; border-radius: 50px; height: 70px; margin: 0 auto 10px auto;
                 }
+                .cand-img { width: 55px; height: 55px; border-radius: 50%; object-fit: cover; border: 3px solid #E2001A; margin-right: 15px; }
+                .cand-name { color: white; font-size: 20px; font-weight: 600; margin: 0; white-space: nowrap; }
             </style>
             """
 
@@ -1298,7 +1214,7 @@ else:
             full_html += "<div style='background: white; padding: 15px; border-radius: 15px; box-shadow: 0 0 30px rgba(226,0,26,0.5);'>"
             full_html += "<img src='data:image/png;base64," + qr_b64 + "' style='width: 250px; display:block;'>"
             full_html += "</div>"
-            full_html += "<div class='vote-cta' style='margin-top: 30px;'>À VOS VOTES !</div>"
+            full_html += "<div class='vote-cta' style='margin-top: 30px; text-align: center; color: #E2001A; font-size: 35px; font-weight: 900; text-transform: uppercase;'>À VOS VOTES !</div>"
             full_html += '</div>'
             
             full_html += '<div class="col-participants">' + html_right + '</div>'
@@ -1309,7 +1225,7 @@ else:
 
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:30px;">' if cfg.get("logo_b64") else ""
-            ph.markdown(f"<div class='full-screen-center'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div>", unsafe_allow_html=True)
+            ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 50px; border-radius: 40px; background: rgba(0,0,0,0.9);'><h1 style='color:#E2001A; font-size:70px; margin:0;'>VOTES CLÔTURÉS</h1></div></div></div>", unsafe_allow_html=True)
 
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
@@ -1318,12 +1234,14 @@ else:
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        
+        # QR CODE AGRANDI A 250px et BOX A 400px
         center_html_content = f"""
-            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:340px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
+            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
-                {f'<img src="data:image/png;base64,{logo_data}" style="width:180px; margin-bottom:15px;">' if logo_data else ''}
-                <div style='background:white; padding:10px; border-radius:10px; display:inline-block;'>
-                    <img src='data:image/png;base64,{qr_b64}' style='width:150px;'>
+                {f'<img src="data:image/png;base64,{logo_data}" style="width:250px; margin-bottom:15px;">' if logo_data else ''}
+                <div style='background:white; padding:15px; border-radius:15px; display:inline-block;'>
+                    <img src='data:image/png;base64,{qr_b64}' style='width:250px;'>
                 </div>
                 <h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2>
             </div>
