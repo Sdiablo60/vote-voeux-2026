@@ -1107,21 +1107,21 @@ else:
 
                 /* ETAT ZOOM CENTRAL (GROS PLAN MAIS BAS POUR ÉVITER LE TITRE) */
                 .state-zoom {{ 
-                    bottom: 5% !important; /* On part de très bas */
-                    transform: translateX(-50%) scale(1.3) !important; /* Zoom raisonnable */
+                    bottom: 35% !important; /* On part de très bas */
+                    transform: translateX(-50%) scale(2.0) !important; /* Zoom énorme x2.0 */
                     opacity: 1 !important; 
                     z-index: 1000 !important;
                 }}
                 
                 /* ETATS FINAUX (PYRAMIDE RÉDUITE) */
-                /* 1er : Au centre, plus haut (35%) */
-                .state-final-1 {{ bottom: 35% !important; transform: translateX(-50%) scale(1.15) !important; opacity: 1; z-index: 500; }}
+                /* 1er : Au centre, plus haut (55%) */
+                .state-final-1 {{ bottom: 55% !important; transform: translateX(-50%) scale(1.15) !important; opacity: 1; z-index: 500; }}
                 
-                /* 2ème : A gauche (30%), plus bas (5%) */
-                .state-final-2 {{ left: 30% !important; bottom: 5% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 400; }}
+                /* 2ème : A gauche (30%), plus bas (10%) */
+                .state-final-2 {{ left: 30% !important; bottom: 10% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 400; }}
                 
-                /* 3ème : A droite (70%), plus bas (5%) */
-                .state-final-3 {{ left: 70% !important; bottom: 5% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 400; }}
+                /* 3ème : A droite (70%), plus bas (10%) */
+                .state-final-3 {{ left: 70% !important; bottom: 10% !important; transform: translateX(-50%) scale(1.0) !important; opacity: 1; z-index: 400; }}
 
                 /* Styles des cartes réduites */
                 .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
