@@ -998,7 +998,8 @@ else:
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div>"
+                    # SUPPRESSION DU SCORE DANS LA CARTE (il est maintenant sur le podium)
+                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
 
             h1 = get_podium_html(rank1, s1, "🥇")
@@ -1020,17 +1021,26 @@ else:
             <div class="podium-container">
                 <div class="column-2">
                     <div class="winners-box rank-2" id="win-2">{h2}</div>
-                    <div class="pedestal pedestal-2"><div class="rank-num">2</div></div>
+                    <div class="pedestal pedestal-2">
+                        <div class="rank-score">{s2} PTS</div>
+                        <div class="rank-num">2</div>
+                    </div>
                 </div>
 
                 <div class="column-1">
                     <div class="winners-box rank-1" id="win-1">{h1}</div>
-                    <div class="pedestal pedestal-1"><div class="rank-num">1</div></div>
+                    <div class="pedestal pedestal-1">
+                        <div class="rank-score">{s1} PTS</div>
+                        <div class="rank-num">1</div>
+                    </div>
                 </div>
 
                 <div class="column-3">
                     <div class="winners-box rank-3" id="win-3">{h3}</div>
-                    <div class="pedestal pedestal-3"><div class="rank-num">3</div></div>
+                    <div class="pedestal pedestal-3">
+                        <div class="rank-score">{s3} PTS</div>
+                        <div class="rank-num">3</div>
+                    </div>
                 </div>
             </div>
 
@@ -1120,12 +1130,12 @@ else:
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
                     width: 100%;
-                    max-width: 320px;           /* Largeur max pour forcer le retour à la ligne après 2 cartes */
+                    /* max-width SUPPRIMÉ pour laisser prendre toute la largeur */
                     margin: 0 auto;             /* Centrer dans la colonne */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    gap: 10px;
+                    gap: 0; /* Gap géré par les marges des cartes */
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
 
@@ -1135,8 +1145,8 @@ else:
                     background: linear-gradient(to bottom, #333, #000);
                     border-radius: 20px 20px 0 0;
                     box-shadow: 0 -5px 15px rgba(255,255,255,0.1);
-                    display: flex; justify-content: center; align-items: center;
-                    position: relative;
+                    display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+                    position: relative; padding-top: 20px;
                 }}
                 /* Effet de brillance en haut */
                 .pedestal::after {{
@@ -1152,12 +1162,25 @@ else:
                 .rank-num {{
                     font-size: 120px; font-weight: 900; font-family: 'Arial Black', sans-serif;
                     opacity: 0.2; /* Transparence pour incruster dans le fond */
+                    line-height: 1;
                 }}
 
-                /* CARTES GAGNANTS (Compactes & Modernes) */
+                /* NOUVEAU STYLE POUR LE SCORE SUR LE PODIUM */
+                .rank-score {{
+                    font-family: 'Arial Black', sans-serif;
+                    font-size: 30px;
+                    font-weight: bold;
+                    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                    margin-bottom: -20px; /* Chevauchement léger avec le numéro */
+                    z-index: 5;
+                }}
+
+                /* CARTES GAGNANTS (Largeur flexible pour prendre toute la place) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 130px; backdrop-filter: blur(5px); 
+                    /* Largeur en pourcentage pour en mettre 2 côte à côte */
+                    width: 48%; margin: 1%;
+                    backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
                     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -1176,7 +1199,7 @@ else:
 
                 .p-name {{ font-family: Arial; font-size: 14px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
                 .rank-1 .p-name {{ color: #FFD700; font-size: 18px; }}
-                .p-score {{ font-family: Arial; font-size: 12px; color: #ccc; margin-top: 2px; }}
+                /* Score supprimé de la carte, donc plus de .p-score ici */
                 
                 /* COUNTDOWN OVERLAY (TOP OF SCREEN) */
                 .intro-overlay {{ 
