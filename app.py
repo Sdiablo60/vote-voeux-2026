@@ -914,7 +914,7 @@ else:
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # ... (CODE PODIUM RESTE INCHANGÉ, JUSTE HEADER FIXÉ) ...
+            # ... (CODE PODIUM MODIFIÉ POUR RÉDUIRE LA TAILLE) ...
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -937,9 +937,10 @@ else:
                         img_src = f"data:image/png;base64,{c_imgs[c]}"
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
-                        img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:60px;'>{emoji}</div>"
-                    
-                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div><br>"
+                        # CORRECTION : Taille placeholder réduite
+                        img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
+                    # CORRECTION : Suppression du <br>, ajout de la marge dans le CSS .p-card
+                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div><div class='p-score'>{score} pts</div></div>"
                 return html
 
             h1 = get_podium_html(rank1, s1, "🥇")
@@ -1039,27 +1040,32 @@ else:
                 .state-left {{ left: 20%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 .state-right {{ left: 80%; transform: translateX(-50%) scale(0.9); opacity: 1; }}
                 
-                .state-final-1 {{ left: 50%; bottom: 45%; transform: translateX(-50%) scale(1.25); opacity: 1; z-index: 200; }}
-                .state-final-2 {{ left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }}
-                .state-final-3 {{ left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.1); opacity: 1; z-index: 150; }}
+                /* CORRECTION : Échelles finales réduites et position basse */
+                .state-final-1 {{ left: 50%; bottom: 35%; transform: translateX(-50%) scale(1.15); opacity: 1; z-index: 200; }}
+                .state-final-2 {{ left: 30%; bottom: 5%; transform: translateX(-50%) scale(1.0); opacity: 1; z-index: 150; }}
+                .state-final-3 {{ left: 70%; bottom: 5%; transform: translateX(-50%) scale(1.0); opacity: 1; z-index: 150; }}
 
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 30px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; }}
+                /* CORRECTION : Padding réduit, Marge inférieure ajoutée */
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; width: 100%; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 15px; }}
                 
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
+                /* CORRECTION : Tailles images réduites */
                 .p-img, .p-placeholder {{ 
-                    width: 140px; height: 140px; border-radius: 50%; 
-                    object-fit: cover; border: 4px solid white; margin-bottom: 20px; 
+                    width: 110px; height: 110px; border-radius: 50%; 
+                    object-fit: cover; border: 4px solid white; margin-bottom: 15px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
                 
-                .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 160px; height: 160px; }}
+                /* CORRECTION : Taille image rang 1 réduite */
+                .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 130px; height: 130px; }}
 
-                .p-name {{ font-family: Arial; font-size: 30px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 40px; }}
-                .p-score {{ font-family: Arial; font-size: 24px; color: #ccc; margin-top: 10px; }}
+                /* CORRECTION : Tailles polices réduites */
+                .p-name {{ font-family: Arial; font-size: 24px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 32px; }}
+                .p-score {{ font-family: Arial; font-size: 18px; color: #ccc; margin-top: 10px; }}
                 
                 .intro-overlay {{ position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: black; z-index: 5000; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
                 .intro-text {{ color: white; font-family: Arial; font-size: 50px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }}
