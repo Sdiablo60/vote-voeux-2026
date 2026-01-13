@@ -1124,7 +1124,7 @@ else:
                 .column-1 {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
                 .column-3 {{ width: 25%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS (Au-dessus de la marche) */
+                /* CONTENEUR GAGNANTS (Au-dessus de la marche) - CORRECTION EMPILEMENT VERS LE HAUT */
                 .winners-box {{
                     display: flex; 
                     flex-direction: row;        /* Alignement horizontal */
