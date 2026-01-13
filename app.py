@@ -157,7 +157,7 @@ blank_config = {
     "effect_intensity": 25, 
     "effect_speed": 15, 
     "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
-    "session_id": ""
+    "session_id": str(uuid.uuid4())
 }
 
 default_config = {
@@ -1109,7 +1109,7 @@ else:
                     gap: 15px; 
                     position: absolute; 
                     bottom: -100%; 
-                    width: 320px; 
+                    width: 200px; /* Largeur réduite */
                     transition: all 1.5s cubic-bezier(0.25, 1, 0.5, 1); 
                     opacity: 0; 
                     left: 50%; 
@@ -1139,7 +1139,7 @@ else:
                 .state-final-3 {{ left: 75% !important; bottom: 5% !important; transform: translateX(-50%) scale(0.9) !important; opacity: 1; z-index: 400; width: auto !important; flex-wrap: wrap; }}
 
                 /* Styles des cartes réduites */
-                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; min-width: 200px; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
+                .p-card {{ background: rgba(255,255,255,0.1); border-radius: 20px; padding: 10px; width: 100%; min-width: 160px; backdrop-filter: blur(10px); box-shadow: 0 10px 40px rgba(0,0,0,0.8); border: 2px solid rgba(255,255,255,0.2); display:flex; flex-direction:column; align-items:center; margin-bottom: 5px; }}
                 
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(20,20,20,0.9); }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
@@ -1153,7 +1153,7 @@ else:
                 
                 .rank-1 .p-img, .rank-1 .p-placeholder {{ border-color: #FFD700; width: 100px; height: 100px; }}
 
-                .p-name {{ font-family: Arial; font-size: 20px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
+                .p-name {{ font-family: Arial; font-size: 18px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; }}
                 .rank-1 .p-name {{ color: #FFD700; font-size: 28px; }}
                 .p-score {{ font-family: Arial; font-size: 16px; color: #ccc; margin-top: 5px; }}
                 
