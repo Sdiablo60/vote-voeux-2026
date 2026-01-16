@@ -644,7 +644,9 @@ if est_admin:
                         st.session_state.admin_menu = "👥 UTILISATEURS"; st.rerun()
 
                 st.divider()
-                st.markdown('<a href="/" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
+# On ajoute ?mode=wall pour forcer l'affichage du mur et ignorer le mode vote
+st.markdown('<a href="?mode=wall" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
+
                 if st.button("🔓 DÉCONNEXION"): 
                     st.session_state["auth"] = False
                     st.session_state["session_active"] = False
