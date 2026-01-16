@@ -1250,8 +1250,8 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 140px; /* Taille fixe calibrée pour le conteneur */
-                    margin: 5px;
+                    width: 135px; /* Taille fixe calibrée pour le conteneur */
+                    margin: 4px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
@@ -1312,21 +1312,31 @@ else:
 
              components.html(f"""
                 <style>
-                    body {{ background: black; margin: 0; height: 100vh; overflow: hidden; font-family: Arial, sans-serif; display:flex; justify-content:center; align-items:center; }}
-                    .main-wrapper {{ display: flex; width: 95%; height: 90vh; align-items: center; justify-content: space-between; }}
-                    .side-col {{ width: 25%; height: 100%; overflow-y: auto; padding: 20px; }}
-                    .center-col {{ width: 40%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
+                    body {{ background: black; margin: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: Arial, sans-serif; }}
+                    
+                    /* HEADER LOGO + TITRE */
+                    .header-logo {{ text-align: center; margin-bottom: 20px; }}
                     .title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 0; text-transform: uppercase; letter-spacing: 3px; }}
                     .subtitle {{ font-size: 30px; font-weight: bold; margin-bottom: 20px; color: white; }}
+
+                    /* CONTENEUR PRINCIPAL LISTES + QR */
+                    .main-wrapper {{ display: flex; width: 95%; height: 60vh; align-items: center; justify-content: space-between; }}
+                    .side-col {{ width: 25%; height: 100%; overflow-y: auto; padding: 20px; }}
+                    .center-col {{ width: 40%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
+                    
                     .qr-box {{ background: white; padding: 15px; border-radius: 20px; display: inline-block; box-shadow: 0 0 40px rgba(226, 0, 26, 0.4); }}
                     ::-webkit-scrollbar {{ display: none; }}
                 </style>
+                
+                <div class="header-logo">
+                    {logo_html}
+                    <div class="title">VOTES OUVERTS</div>
+                    <div class="subtitle">Scannez pour voter</div>
+                </div>
+
                 <div class="main-wrapper">
                     <div class="side-col">{left_html}</div>
                     <div class="center-col">
-                        {logo_html}
-                        <div class="title">VOTES OUVERTS</div>
-                        <div class="subtitle">Scannez pour voter</div>
                         <div class="qr-box">
                             <img src="data:image/png;base64,{qr_b64}" width="350">
                         </div>
