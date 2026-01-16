@@ -1232,7 +1232,7 @@ else:
                     startConfetti();
                     try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play blocked"); }}
                     
-                    // NOUVEAU : Attendre 5s puis afficher l'écran final
+                    // Apparition du logo final en haut après 5s
                     await wait(5000);
                     document.getElementById('final-overlay').classList.add('visible');
                 }}
@@ -1260,7 +1260,7 @@ else:
                     flex-wrap: wrap-reverse; /* Empile vers le haut */
                     justify-content: center;
                     align-items: flex-end;      
-                    width: 450px !important;  /* AGRANDI pour 2 grosses cartes + marges */
+                    width: 450px !important;  
                     max-width: 450px !important;
                     margin: 0 auto;             
                     padding-bottom: 0px;
@@ -1287,14 +1287,14 @@ else:
                 .rank-score {{ font-family: 'Arial Black', sans-serif; font-size: 30px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-bottom: -20px; z-index: 5; opacity: 0; transform: translateY(20px); transition: all 0.5s ease-out; }}
                 .pedestal.visible .rank-score {{ opacity: 1; transform: translateY(0); }}
 
-                /* CARTES GAGNANTS - AGRANDIES SIGNIFICATIVEMENT */
+                /* CARTES GAGNANTS - GRANDES */
                 .p-card {{ 
-                    background: rgba(20,20,20,0.8); border-radius: 15px; padding: 15px; /* +Padding */
-                    width: 200px; /* LARGEUR AGRANDIE */
+                    background: rgba(20,20,20,0.8); border-radius: 15px; padding: 15px; 
+                    width: 200px; 
                     height: auto;
-                    margin: 10px; /* +Marge */
+                    margin: 10px; 
                     backdrop-filter: blur(5px); 
-                    border: 2px solid rgba(255,255,255,0.3); /* Bordure plus épaisse */
+                    border: 2px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
                     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
                     flex-shrink: 0; 
@@ -1305,38 +1305,37 @@ else:
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
                 .p-img, .p-placeholder {{ 
-                    width: 140px; height: 140px; /* PHOTOS AGRANDIES */
+                    width: 140px; height: 140px; 
                     border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
                 .rank-1 .p-img {{ width: 160px; height: 160px; border-color: #FFD700; }}
 
-                .p-name {{ font-family: Arial; font-size: 22px; /* POLICE AGRANDIE */ font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }}
+                .p-name {{ font-family: Arial; font-size: 22px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }}
                 .rank-1 .p-name {{ color: #FFD700; font-size: 26px; }}
                 
                 .intro-overlay {{ position: fixed; top: 15vh; left: 0; width: 100vw; z-index: 5000; display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
                 .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px black; }}
                 .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
             
-                /* NOUVEAU : CSS Écran Final */
+                /* NOUVEAU : CSS Écran Final Ajusté */
                 .final-overlay {{
-                    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                    background: rgba(0,0,0,0.85); /* Fond noir semi-transparent */
-                    z-index: 6000; /* Au-dessus de tout */
+                    position: fixed; top: 5%; left: 0; width: 100vw; height: 40vh; /* Seulement le haut */
+                    background: transparent; /* Pas de fond noir */
+                    z-index: 6000; 
                     display: flex; flex-direction: column; justify-content: center; align-items: center;
                     opacity: 0; pointer-events: none;
-                    transition: opacity 1s ease-in-out;
+                    transition: all 1.5s ease-out;
+                    transform: translateY(20px); /* Départ légèrement plus bas */
                 }}
-                .final-overlay.visible {{ opacity: 1; pointer-events: auto; }}
-                .final-content {{
-                    text-align: center; transform: scale(0.8); opacity: 0;
-                    transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Effet rebond */
-                }}
-                .final-overlay.visible .final-content {{ transform: scale(1); opacity: 1; }}
-                .final-logo {{ width: 500px; margin-bottom: 30px; }} /* Logo très grand */
+                .final-overlay.visible {{ opacity: 1; pointer-events: auto; transform: translateY(0); }}
+                
+                /* Logo un peu plus petit pour ne pas écraser */
+                .final-logo {{ width: 300px; margin-bottom: 15px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.3)); }}
                 .final-text {{
-                    font-family: 'Arial Black', sans-serif; font-size: 60px; color: #E2001A; /* Rouge */
-                    text-transform: uppercase; text-shadow: 0 0 30px rgba(255,255,255,0.5); margin: 0;
+                    font-family: 'Arial Black', sans-serif; font-size: 50px; color: #E2001A; 
+                    text-transform: uppercase; text-shadow: 0 0 20px rgba(0,0,0,0.8); margin: 0;
+                    background: rgba(0,0,0,0.5); padding: 10px 30px; border-radius: 20px; /* Petit fond pour lisibilité */
                 }}
             </style>
             """, height=900, scrolling=False)
@@ -1425,4 +1424,3 @@ else:
             container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-
