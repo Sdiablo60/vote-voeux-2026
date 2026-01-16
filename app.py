@@ -1317,7 +1317,7 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 140px; /* Taille fixe calibrée pour le conteneur */
+                    width: 140px; /* Taille fixe */
                     margin: 5px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
@@ -1330,15 +1330,15 @@ else:
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
                 .p-img, .p-placeholder {{ 
-                    width: 80px; height: 80px; /* Taille image augmentée */
+                    width: 100px; height: 100px; /* Taille image augmentée */
                     border-radius: 50%; 
                     object-fit: cover; border: 3px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
-                .rank-1 .p-img {{ width: 100px; height: 100px; border-color: #FFD700; }}
+                .rank-1 .p-img {{ width: 120px; height: 120px; border-color: #FFD700; }}
 
-                .p-name {{ font-family: Arial; font-size: 15px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 19px; }}
+                .p-name {{ font-family: Arial; font-size: 18px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 22px; }}
                 
                 /* COUNTDOWN OVERLAY (TOP OF SCREEN) */
                 .intro-overlay {{ 
