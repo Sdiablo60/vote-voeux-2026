@@ -114,6 +114,23 @@ st.markdown("""
         background-color: #C20015 !important; 
     }
     
+    /* STYLE SESSION MANAGER */
+    .session-card {
+        background-color: #f8f9fa;
+        padding: 30px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        text-align: center;
+        border: 1px solid #ddd;
+    }
+    .session-title {
+        color: #E2001A;
+        font-size: 24px;
+        font-weight: 900;
+        text-transform: uppercase;
+        margin-bottom: 20px;
+    }
+    
     .login-container {
         max-width: 400px; 
         margin: 100px auto; 
@@ -155,16 +172,16 @@ st.markdown("""
     }
     
     .blue-anim-btn button {
-        background-color: #2980b9 !important;
-        color: white !important;
-        border: none !important;
-        transition: all 0.3s ease !important;
-        font-weight: bold !important;
+        background-color: #2980b9 !important; 
+        color: white !important; 
+        border: none !important; 
+        transition: all 0.3s ease !important; 
+        font-weight: bold !important; 
     }
     .blue-anim-btn button:hover {
-        transform: scale(1.05) !important;
-        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important;
-        background-color: #3498db !important;
+        transform: scale(1.05) !important; 
+        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important; 
+        background-color: #3498db !important; 
     }
 
     a.custom-link-btn {
@@ -176,10 +193,10 @@ st.markdown("""
         font-weight: bold !important; 
         margin-bottom: 10px !important;
         color: white !important; 
-        transition: transform 0.2s !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-        line-height: 1.5 !important;
+        transition: transform 0.2s !important; 
+        width: 100% !important; 
+        box-sizing: border-box !important; 
+        line-height: 1.5 !important; 
     }
     a.custom-link-btn:hover { 
         transform: scale(1.02); 
@@ -188,16 +205,15 @@ st.markdown("""
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
     
-    /* CORRECTION FORCÉE POUR LES MENUS DÉROULANTS (TEST ADMIN) */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
         background-color: white !important;
     }
     li[role="option"] {
-        color: black !important;
-        background-color: white !important;
+        color: black !important; 
+        background-color: white !important; 
     }
     div[data-baseweb="select"] div {
-        color: black !important;
+        color: black !important; 
     }
     li[role="option"] span { color: black !important; }
 </style>
@@ -506,7 +522,8 @@ if PDF_AVAILABLE:
 # --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
-    # =========================================================
+
+# =========================================================
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
@@ -547,33 +564,47 @@ if est_admin:
         
         # --- DASHBOARD SESSIONS ---
         if "session_active" not in st.session_state or not st.session_state["session_active"]:
-            st.title(f"🗂️ GESTIONNAIRE DE SESSIONS ({st.session_state['user_role']})")
-            c1, c2 = st.columns(2)
-            c1.button(f"OUVRIR : {st.session_state.config.get('titre_mur', 'Session')}", type="primary", on_click=lambda: st.session_state.update({"session_active": True}))
+            # CENTRAGE ET ESTHÉTIQUE
+            st.markdown("<br>", unsafe_allow_html=True)
+            main_col1, main_col2, main_col3 = st.columns([1, 2, 1])
             
-            if is_super_admin or "config" in perms:
-                c2.button("CRÉER UNE NOUVELLE SESSION VIERGE", type="primary", on_click=lambda: (archive_current_session(), reset_app_data("blank"), st.session_state.update({"session_active": True})))
-            
-            st.divider()
-            st.write("Archives:")
-            archives = sorted([d for d in os.listdir(ARCHIVE_DIR) if os.path.isdir(os.path.join(ARCHIVE_DIR, d))], reverse=True)
-            if not archives: st.caption("Aucune archive trouvée.")
-            else:
-                for arc in archives:
-                    with st.expander(f"📁 {arc}"):
-                        c_res, c_del = st.columns([3, 1])
-                        if c_res.button(f"Restaurer {arc}", key=f"res_{arc}"):
-                            archive_current_session()
-                            restore_session_from_archive(arc)
-                            st.session_state.config = load_json(CONFIG_FILE, default_config)
-                            st.session_state["session_active"] = True
-                            st.success("Session restaurée !")
-                            time.sleep(1); st.rerun()
+            with main_col2:
+                st.markdown(f'<div class="session-card"><div class="session-title">🗂️ GESTIONNAIRE DE SESSIONS</div>', unsafe_allow_html=True)
+                st.write(f"Connecté en tant que : **{st.session_state['user_role']}**")
+                
+                st.button(f"📂 OUVRIR LA SESSION ACTIVE : {st.session_state.config.get('titre_mur', 'Session')}", type="primary", use_container_width=True, on_click=lambda: st.session_state.update({"session_active": True}))
+                
+                if is_super_admin or "config" in perms:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.button("✨ CRÉER UNE NOUVELLE SESSION VIERGE", type="secondary", use_container_width=True, on_click=lambda: (archive_current_session(), reset_app_data("blank"), st.session_state.update({"session_active": True})))
+                
+                st.markdown('</div>', unsafe_allow_html=True) # Fin card
+                
+                st.divider()
+                st.subheader("📦 Archives des sessions")
+                archives = sorted([d for d in os.listdir(ARCHIVE_DIR) if os.path.isdir(os.path.join(ARCHIVE_DIR, d))], reverse=True)
+                
+                if not archives:
+                    st.caption("Aucune archive disponible.")
+                else:
+                    for arc in archives:
+                        # Affichage en mode liste propre
+                        c_name, c_act = st.columns([3, 1])
+                        c_name.text(f"📁 {arc}")
+                        
+                        sub_c1, sub_c2 = c_act.columns(2)
+                        if sub_c1.button("♻️", key=f"res_{arc}", help="Restaurer"):
+                             archive_current_session()
+                             restore_session_from_archive(arc)
+                             st.session_state.config = load_json(CONFIG_FILE, default_config)
+                             st.session_state["session_active"] = True
+                             st.toast("Session restaurée !")
+                             time.sleep(1); st.rerun()
                         
                         if is_super_admin:
-                            confirm = c_del.checkbox("Confirmer", key=f"chk_{arc}")
-                            if c_del.button("🗑️", key=f"del_{arc}", disabled=not confirm):
-                                delete_archived_session(arc); st.rerun()
+                             if sub_c2.button("🗑️", key=f"del_{arc}", help="Supprimer"):
+                                  delete_archived_session(arc); st.rerun()
+                        
         else:
             # --- INTERFACE ADMIN COMPLETE ---
             cfg = st.session_state.config
@@ -733,27 +764,53 @@ if est_admin:
             elif menu == "📸 MÉDIATHÈQUE" and (is_super_admin or "mediatheque" in perms):
                 st.title("📸 MÉDIATHÈQUE")
                 files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
-                st.markdown("### 📤 Actions Export")
-                c1, c2 = st.columns(2)
-                with c1:
-                    if files:
-                        zip_buffer_all = BytesIO()
-                        with zipfile.ZipFile(zip_buffer_all, "w") as zf:
-                            export_date = datetime.now().strftime("%Y-%m-%d")
+                
+                if not files: 
+                    st.info("Aucune photo dans la galerie.")
+                else:
+                    # GESTION SELECTION
+                    if "selected_images" not in st.session_state: st.session_state.selected_images = []
+
+                    # BOUTONS D'ACTION
+                    c_global_1, c_global_2 = st.columns(2)
+                    with c_global_1:
+                         # ZIP TOUT
+                         zip_buffer_all = BytesIO()
+                         with zipfile.ZipFile(zip_buffer_all, "w") as zf:
                             for idx, file_path in enumerate(files):
                                 ext = os.path.splitext(file_path)[1]
-                                new_name = f"photo_Live{idx+1:02d}_{export_date}{ext}"
+                                new_name = f"photo_{idx+1:03d}{ext}"
                                 zf.write(file_path, arcname=new_name)
-                        st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                        st.download_button("📥 TÉLÉCHARGER TOUTE LA GALERIE (ZIP)", data=zip_buffer_all.getvalue(), file_name=f"galerie_complete_{int(time.time())}.zip", mime="application/zip", use_container_width=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
-                st.divider()
-                if not files: st.info("Aucune photo.")
-                else:
+                         st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
+                         st.download_button("📥 TOUT TÉLÉCHARGER (ZIP)", data=zip_buffer_all.getvalue(), file_name=f"galerie_complete.zip", mime="application/zip", use_container_width=True)
+                         st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    with c_global_2:
+                         # ZIP SELECTION
+                         if st.session_state.selected_images:
+                             zip_buffer_sel = BytesIO()
+                             with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
+                                for idx, file_path in enumerate(st.session_state.selected_images):
+                                    ext = os.path.splitext(file_path)[1]
+                                    new_name = f"selection_{idx+1:03d}{ext}"
+                                    zf.write(file_path, arcname=new_name)
+                             st.download_button(f"📥 TÉLÉCHARGER SÉLECTION ({len(st.session_state.selected_images)})", data=zip_buffer_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True, type="primary")
+                         else:
+                             st.button("Sélectionnez des images...", disabled=True, use_container_width=True)
+
+                    st.divider()
+                    
+                    # GRILLE D'IMAGES AVEC CHECKBOX
                     cols = st.columns(5)
                     for i, f in enumerate(files):
-                        with cols[i % 5]: st.image(f, use_container_width=True)
-                
+                        with cols[i % 5]:
+                            st.image(f, use_container_width=True)
+                            is_sel = f in st.session_state.selected_images
+                            if st.checkbox("Select", key=f"sel_{f}", value=is_sel, label_visibility="collapsed"):
+                                if f not in st.session_state.selected_images: st.session_state.selected_images.append(f)
+                            else:
+                                if f in st.session_state.selected_images: st.session_state.selected_images.remove(f)
+
                 st.markdown("<br><br><br>", unsafe_allow_html=True)
                 if is_super_admin:
                     with st.expander("🚨 ZONE DE DANGER (SUPPRESSION TOTALE)"):
@@ -761,6 +818,7 @@ if est_admin:
                         if st.button("🗑️ TOUT SUPPRIMER DÉFINITIVEMENT", type="primary", use_container_width=True):
                             files = glob.glob(f"{LIVE_DIR}/*")
                             for f in files: os.remove(f)
+                            st.session_state.selected_images = []
                             st.success("Suppression OK"); time.sleep(1); st.rerun()
 
             elif menu == "📊 DATA" and (is_super_admin or "data" in perms):
@@ -988,11 +1046,13 @@ else:
     inject_visual_effect(effect_name, 25, 15)
     ph = st.empty()
     
+    # --- CHARGEMENT DU ROBOT (FILES) ---
+    try:
+        with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
+        with open("robot.js", "r", encoding="utf-8") as js_content_raw: js_content = js_content_raw.read()
+    except: css_content = ""; js_content = "console.error('Fichiers manquants');"
+
     if mode == "attente":
-        try:
-            with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
-            with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
-        except: css_content = ""; js_content = "console.error('Fichiers manquants');"
         logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
         html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body><div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
         components.html(html_code, height=1000, scrolling=False)
@@ -1055,17 +1115,85 @@ else:
              right_html = gen_html_list(right_cands, cfg.get("candidats_images", {}), 'right')
              components.html(f"""<style>body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}.marquee-container {{ width: 100%; background: #E2001A; color: white; height: 50px; position: fixed; top: 0; left: 0; z-index: 1000; display: flex; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-bottom: 2px solid white; }}.marquee-label {{ background: #E2001A; color: white; font-weight: 900; font-size: 18px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 1001; box-shadow: 5px 0 10px rgba(0,0,0,0.2); }}.marquee-wrapper {{ overflow: hidden; white-space: nowrap; flex-grow: 1; height: 100%; display: flex; align-items: center; }}.marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; }}@keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}.top-section {{ width: 100%; height: 35vh; margin-top: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }}.title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 10px 0 0 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1; }}.subtitle {{ font-size: 30px; font-weight: bold; margin-top: 10px; color: white; }}.instructions {{ text-align: center; color: white; font-size: 16px; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; width: 80%; max-width: 600px; }}.bottom-section {{ width: 95%; margin: 0 auto; height: 55vh; display: flex; align-items: center; justify-content: space-between; }}.side-col {{ width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }}.center-col {{ width: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; }}.qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite; }}.qr-box img {{ width: 300px; }}@keyframes pulse {{ 0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} 50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }} 100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} }}::-webkit-scrollbar {{ display: none; }}</style><div class="marquee-container"><div class="marquee-label">DERNIERS VOTANTS :</div><div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div></div><div class="top-section">{logo_html}<div class="title">VOTES OUVERTS</div><div class="subtitle">Scannez pour voter</div></div><div class="bottom-section"><div class="side-col" style="align-items: flex-start;">{left_html}</div><div class="center-col"><div class="instructions"><p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p><p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p><p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p></div><div class="qr-box"><img src="data:image/png;base64,{qr_b64}"></div></div><div class="side-col" style="align-items: flex-end;">{right_html}</div></div>""", height=900)
         else:
+            # --- ROBOT DANS ECRAN DE FIN DE VOTE ---
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-            ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.9); max-width: 800px; text-align: center;'><h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI DE VOTRE PARTICIPATION</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GRANDS GAGNANTS dans quelques instants...</h3></div></div></div>", unsafe_allow_html=True)
+            overlay_html = f"""<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 10; display:flex; flex-direction:column; align-items:center; justify-content:center;'><div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI !</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3></div></div>"""
+            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{overlay_html}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
+            components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "photos_live":
+        # --- ROBOT + BULLES PHOTOS (FUSION) ---
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        
+        # Le container HTML du centre (QR + Titre)
         center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
-        components.html(f"""<script>var doc = window.parent.document;var existing = doc.getElementById('live-container');if(existing) existing.remove();var container = doc.createElement('div');container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
+        
+        # Script des bulles
+        bubbles_script = f"""
+        <script>
+            // On attend que le DOM soit pret
+            setTimeout(function() {{
+                var container = document.createElement('div');
+                container.id = 'live-container'; 
+                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:50;overflow:hidden;background:transparent;pointer-events:none;';
+                document.body.appendChild(container);
+                
+                // Ajout de la boite centrale
+                var centerDiv = document.createElement('div');
+                centerDiv.innerHTML = `{center_html_content}`;
+                document.body.appendChild(centerDiv);
+
+                const imgs = {img_js}; 
+                const bubbles = [];
+                const minSize = 150; 
+                const maxSize = 450;
+                var screenW = window.innerWidth;
+                var screenH = window.innerHeight;
+
+                imgs.forEach((src, i) => {{
+                    const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
+                    const el = document.createElement('img'); 
+                    el.src = src;
+                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50; opacity:0.9;';
+                    
+                    let x = Math.random() * (screenW - bSize);
+                    let y = Math.random() * (screenH - bSize);
+                    let angle = Math.random() * Math.PI * 2;
+                    let speed = 0.5 + Math.random() * 0.8; // Vitesse un peu reduite pour pas surcharger avec le robot
+                    let vx = Math.cos(angle) * speed;
+                    let vy = Math.sin(angle) * speed;
+                    
+                    container.appendChild(el); 
+                    bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
+                }});
+
+                function animateBubbles() {{
+                    screenW = window.innerWidth;
+                    screenH = window.innerHeight;
+                    bubbles.forEach(b => {{
+                        b.x += b.vx; 
+                        b.y += b.vy;
+                        if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
+                        if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
+                        if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
+                        if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
+                        b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
+                    }});
+                    requestAnimationFrame(animateBubbles);
+                }}
+                animateBubbles();
+            }}, 500);
+        </script>
+        """
+        
+        # On utilise la structure HTML du robot, et on ajoute le script des bulles a la fin
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script>{bubbles_script}</body></html>"""
+        components.html(html_code, height=1000, scrolling=False)
+        
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
