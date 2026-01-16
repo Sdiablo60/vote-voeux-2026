@@ -1124,10 +1124,22 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
+            # Préparation du logo pour l'écran final
+            final_logo_html = ""
+            if cfg.get("logo_b64"):
+                final_logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="final-logo">'
+
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
                 <div id="intro-num" class="intro-count"></div>
+            </div>
+            
+            <div id="final-overlay" class="final-overlay">
+                <div class="final-content">
+                    {final_logo_html}
+                    <h1 class="final-text">FÉLICITATIONS AUX GAGNANTS !</h1>
+                </div>
             </div>
             
             <audio id="applause-sound" preload="auto">
@@ -1219,6 +1231,10 @@ else:
 
                     startConfetti();
                     try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play blocked"); }}
+                    
+                    // NOUVEAU : Attendre 5s puis afficher l'écran final
+                    await wait(5000);
+                    document.getElementById('final-overlay').classList.add('visible');
                 }}
 
                 window.parent.document.body.style.backgroundColor = "black";
@@ -1301,6 +1317,27 @@ else:
                 .intro-overlay {{ position: fixed; top: 15vh; left: 0; width: 100vw; z-index: 5000; display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
                 .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px black; }}
                 .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
+            
+                /* NOUVEAU : CSS Écran Final */
+                .final-overlay {{
+                    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                    background: rgba(0,0,0,0.85); /* Fond noir semi-transparent */
+                    z-index: 6000; /* Au-dessus de tout */
+                    display: flex; flex-direction: column; justify-content: center; align-items: center;
+                    opacity: 0; pointer-events: none;
+                    transition: opacity 1s ease-in-out;
+                }}
+                .final-overlay.visible {{ opacity: 1; pointer-events: auto; }}
+                .final-content {{
+                    text-align: center; transform: scale(0.8); opacity: 0;
+                    transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Effet rebond */
+                }}
+                .final-overlay.visible .final-content {{ transform: scale(1); opacity: 1; }}
+                .final-logo {{ width: 500px; margin-bottom: 30px; }} /* Logo très grand */
+                .final-text {{
+                    font-family: 'Arial Black', sans-serif; font-size: 60px; color: #E2001A; /* Rouge */
+                    text-transform: uppercase; text-shadow: 0 0 30px rgba(255,255,255,0.5); margin: 0;
+                }}
             </style>
             """, height=900, scrolling=False)
 
@@ -1388,3 +1425,4 @@ else:
             container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
