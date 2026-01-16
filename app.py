@@ -1,5 +1,14 @@
 import streamlit as st
-import os, glob, base64, qrcode, json, time, uuid, textwrap, zipfile, shutil
+import os
+import glob
+import base64
+import qrcode
+import json
+import time
+import uuid
+import textwrap
+import zipfile
+import shutil
 from io import BytesIO
 import streamlit.components.v1 as components
 from PIL import Image
@@ -26,7 +35,11 @@ except ImportError:
 Image.MAX_IMAGE_PIXELS = None 
 
 # CONFIGURATION PAGE
-st.set_page_config(page_title="Régie Master", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="Régie Master",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # RECUPERATION PARAMETRES URL
 est_admin = st.query_params.get("admin") == "true"
@@ -43,6 +56,7 @@ VOTERS_FILE = "voters.json"
 PARTICIPANTS_FILE = "participants.json"
 DETAILED_VOTES_FILE = "detailed_votes.json"
 
+# Création des dossiers si inexistants
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
@@ -61,13 +75,25 @@ st.markdown("""
     [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
     
     .social-header { 
-        position: fixed; top: 0; left: 0; width: 100%; height: 12vh; 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 12vh; 
         background: #E2001A !important; 
-        display: flex; align-items: center; justify-content: center; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
         z-index: 999999 !important; /* Priorité maximale */
         border-bottom: 5px solid white; 
     }
-    .social-title { color: white !important; font-size: 40px !important; font-weight: bold; margin: 0; text-transform: uppercase; }
+    .social-title { 
+        color: white !important; 
+        font-size: 40px !important; 
+        font-weight: bold; 
+        margin: 0; 
+        text-transform: uppercase; 
+    }
 
     /* STOP SCROLLING ULTIME (Global) */
     html, body, [data-testid="stAppViewContainer"] {
@@ -82,26 +108,59 @@ st.markdown("""
     ::-webkit-scrollbar { display: none; }
     
     /* Boutons Généraux */
-    button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
-    button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
-    button[kind="primary"]:hover { background-color: #C20015 !important; }
+    button[kind="secondary"] { 
+        color: #333 !important; 
+        border-color: #333 !important; 
+    }
+    button[kind="primary"] { 
+        color: white !important; 
+        background-color: #E2001A !important; 
+        border: none; 
+    }
+    button[kind="primary"]:hover { 
+        background-color: #C20015 !important; 
+    }
     
     /* Login Box */
     .login-container {
-        max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f8f9fa; border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
+        max-width: 400px; 
+        margin: 100px auto; 
+        padding: 40px;
+        background: #f8f9fa; 
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+        text-align: center; 
+        border: 1px solid #ddd;
     }
-    .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
-    .stTextInput input { text-align: center; font-size: 18px; }
+    .login-title { 
+        color: #E2001A; 
+        font-size: 24px; 
+        font-weight: bold; 
+        margin-bottom: 20px; 
+        text-transform: uppercase; 
+    }
+    .stTextInput input { 
+        text-align: center; 
+        font-size: 18px; 
+    }
     
     /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
+    section[data-testid="stSidebar"] { 
+        background-color: #f0f2f6 !important; 
+    }
     section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
+        background-color: #E2001A !important; 
+        width: 100%; 
+        border-radius: 5px; 
+        margin-bottom: 5px;
     }
     section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
+        background-color: #333333 !important; 
+        width: 100%; 
+        border-radius: 5px; 
+        margin-bottom: 5px; 
+        border: none !important; 
+        color: white !important;
     }
     
     /* STYLE DES BOUTONS D'EXPORT */
@@ -133,11 +192,13 @@ st.markdown("""
         box-sizing: border-box !important;
         line-height: 1.5 !important;
     }
-    a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; }
+    a.custom-link-btn:hover { 
+        transform: scale(1.02); 
+        opacity: 0.9; 
+    }
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
 
-    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin via JS si besoin, mais géré par le mode) */
 </style>
 """, unsafe_allow_html=True)
 
@@ -859,13 +920,27 @@ elif est_utilisateur:
                 st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
         
         elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
+            # MODIFICATION MOBILE : Affichage conditionnel pour cacher le formulaire après vote
+            if st.session_state.vote_success:
+                 st.balloons()
+                 st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
+                 if not is_test_admin: 
+                     components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                 else: 
+                     st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
+                 # ON ARRÊTE L'EXÉCUTION ICI POUR NE PAS AFFICHER LE RESTE
+                 st.stop()
+            
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             if not st.session_state.rules_accepted:
                 st.info("⚠️ **RÈGLES DU VOTE**")
                 st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
-                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix")
+                # MESSAGE D'ALERTE AJOUTÉ ICI
+                st.warning("⚠️ RAPPEL IMPORTANT : Votre vote est UNIQUE. Une fois validé, il sera définitif et impossible à modifier.")
+                
+                choix = st.multiselect("Vos 3 vidéos préférées (par ordre de préférence) :", cfg["candidats"], max_selections=3, key="widget_choix")
                 if len(choix) == 3:
                     if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
                         vts = load_json(VOTES_FILE, {})
@@ -876,10 +951,7 @@ elif est_utilisateur:
                         details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                         save_json(DETAILED_VOTES_FILE, details)
                         st.session_state.vote_success = True
-                        st.balloons()
-                        st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-                        if not is_test_admin: components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0); st.stop()
-                        else: st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary"); st.stop()
+                        st.rerun()
         
         elif is_test_admin and cfg["mode_affichage"] == "votes":
              st.write(f"Bonjour **{st.session_state.user_pseudo}** (Mode Test Force)")
@@ -1232,6 +1304,13 @@ else:
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
              
+             # --- BANDEAU DEFILANT DES VOTANTS ---
+             recent_votes = load_json(DETAILED_VOTES_FILE, [])
+             # On prend les 20 derniers votants pour ne pas surcharger
+             voter_names = [v['Utilisateur'] for v in recent_votes[-20:]]
+             voter_names.reverse() # Les plus récents en premier
+             voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
+             
              # --- GENERATION LISTES CANDIDATS ---
              cands = cfg["candidats"]
              mid = (len(cands) + 1) // 2
@@ -1267,10 +1346,39 @@ else:
                 <style>
                     body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
                     
-                    /* HAUT : LOGO + TITRES */
+                    /* BANDEAU DEFILANT */
+                    .marquee-container {{
+                        width: 100%;
+                        background: #E2001A;
+                        color: white;
+                        padding: 10px 0;
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        z-index: 1000;
+                        overflow: hidden;
+                        white-space: nowrap;
+                        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+                        border-bottom: 2px solid white;
+                    }}
+                    .marquee-content {{
+                        display: inline-block;
+                        padding-left: 100%;
+                        animation: marquee 20s linear infinite;
+                        font-weight: bold;
+                        font-size: 18px;
+                        text-transform: uppercase;
+                    }}
+                    @keyframes marquee {{
+                        0%   {{ transform: translate(0, 0); }}
+                        100% {{ transform: translate(-100%, 0); }}
+                    }}
+
+                    /* HAUT : LOGO + TITRES (Décalé vers le bas à cause du bandeau) */
                     .top-section {{
                         width: 100%;
                         height: 35vh;
+                        margin-top: 60px; 
                         display: flex; flex-direction: column; align-items: center; justify-content: center;
                         z-index: 10;
                     }}
@@ -1287,7 +1395,7 @@ else:
                     .bottom-section {{
                         width: 95%;
                         margin: 0 auto;
-                        height: 60vh;
+                        height: 55vh;
                         display: flex; 
                         align-items: center; /* Centre verticalement les 3 colonnes */
                         justify-content: space-between;
@@ -1327,6 +1435,10 @@ else:
                     ::-webkit-scrollbar {{ display: none; }}
                 </style>
                 
+                <div class="marquee-container">
+                    <div class="marquee-content">DERNIERS VOTANTS : {voter_string}</div>
+                </div>
+
                 <div class="top-section">
                     {logo_html}
                     <div class="title">VOTES OUVERTS</div>
