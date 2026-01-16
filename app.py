@@ -450,30 +450,6 @@ if PDF_AVAILABLE:
             pdf.set_xy(x_start + max_bar_width + 4, y_start)
             pdf.cell(20, bar_height, f"{points} pts", 0, 1, 'L')
             pdf.ln(bar_height + spacing)
-        pdf.ln(6) 
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 8, txt="MATRICE DÉTAILLÉE DES RÉSULTATS", ln=True, align='L')
-        pdf.ln(1)
-        pdf.set_fill_color(50, 50, 50)
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Arial", 'B', 9) 
-        row_h = 5 
-        pdf.cell(100, row_h, "Candidat", 1, 0, 'C', 1)
-        pdf.cell(45, row_h, "Points Total", 1, 0, 'C', 1)
-        pdf.cell(45, row_h, "Nb Votes", 1, 1, 'C', 1)
-        pdf.set_text_color(0, 0, 0)
-        pdf.set_font("Arial", size=8)
-        fill = False
-        pdf.ln()
-        for i, row in df.iterrows():
-            cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
-            if fill: pdf.set_fill_color(245, 245, 245)
-            else: pdf.set_fill_color(255, 255, 255)
-            pdf.cell(100, row_h, cand, 1, 0, 'L', 1)
-            pdf.cell(45, row_h, str(row['Points']), 1, 0, 'C', 1)
-            pdf.cell(45, row_h, str(row['Nb Votes']), 1, 1, 'C', 1)
-            fill = not fill
-            pdf.ln()
         return pdf.output(dest='S').encode('latin-1')
 
     def create_pdf_distribution(title, rank_dist, nb_voters):
@@ -539,8 +515,7 @@ if PDF_AVAILABLE:
 # --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
-
-# =========================================================
+    # =========================================================
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
@@ -610,7 +585,6 @@ if est_admin:
                 
                 if st.button("🔴 PILOTAGE LIVE", type="primary" if st.session_state.admin_menu == "🔴 PILOTAGE LIVE" else "secondary"): 
                     st.session_state.admin_menu = "🔴 PILOTAGE LIVE"; st.rerun()
-                # NOUVEAU BOUTON MENU TEST MOBILE
                 if st.button("📱 TEST MOBILE", type="primary" if st.session_state.admin_menu == "📱 TEST MOBILE" else "secondary"): 
                     st.session_state.admin_menu = "📱 TEST MOBILE"; st.rerun()
                 if st.button("⚙️ CONFIG", type="primary" if st.session_state.admin_menu == "⚙️ CONFIG" else "secondary"): 
@@ -657,7 +631,6 @@ if est_admin:
                         time.sleep(1)
                         st.rerun()
             
-            # --- NOUVEAU MENU TEST MOBILE DÉDIÉ ---
             elif menu == "📱 TEST MOBILE":
                 st.title("📱 TEST & SIMULATION")
                 st.markdown("""
@@ -932,23 +905,15 @@ if est_admin:
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    
-    # CSS SPÉCIFIQUE MOBILE ET SELECTBOX (FORCE TEXTE NOIR SUR FOND BLANC)
-    st.markdown("""
-        <style>
-            .stApp {background-color:black !important; color:white !important;} 
-            [data-testid='stHeader'] {display:none;}
-            .block-container {padding: 1rem !important;}
-            h1, h2, h3, p, div, span, label { color: white !important; }
-            
-            /* FORCE LA COULEUR NOIRE POUR LES MENUS DÉROULANTS */
-            li[role="option"] span { color: black !important; }
-            div[data-baseweb="select"] span { color: black !important; }
-            div[data-baseweb="menu"] li { color: black !important; background-color: white !important; }
-            div[data-baseweb="popover"] { background-color: white !important; }
-            span[data-baseweb="tag"] { color: black !important; }
-        </style>
-    """, unsafe_allow_html=True)
+    st.markdown("""<style>
+    .stApp {background-color:black !important; color:white !important;} 
+    [data-testid='stHeader'] {display:none;} .block-container {padding: 1rem !important;} 
+    h1, h2, h3, p, div, span, label { color: white !important; }
+    /* FIX EXTREME POUR LE TEXTE NOIR DANS LES DROPDOWNS */
+    li[role="option"] span, li[role="option"] div, div[data-baseweb="select"] span, div[data-baseweb="menu"] li, div[data-baseweb="popover"] div { color: black !important; }
+    div[data-baseweb="popover"] { background-color: white !important; }
+    ul[role="listbox"] { background-color: white !important; }
+    </style>""", unsafe_allow_html=True)
     
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
@@ -970,29 +935,15 @@ elif est_utilisateur:
             st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
         
     if "user_pseudo" not in st.session_state:
-        st.subheader("Identification")
-        if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
-        pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
-        if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            st.session_state.user_pseudo = pseudo.strip()
-            parts = load_json(PARTICIPANTS_FILE, [])
-            parts.append(pseudo.strip())
-            save_json(PARTICIPANTS_FILE, parts)
-            st.rerun()
+        st.subheader("Identification"); pseudo = st.text_input("Pseudo :")
+        if st.button("ENTRER") and pseudo: st.session_state.user_pseudo = pseudo; st.rerun()
     else:
         if cfg["mode_affichage"] == "photos_live":
-            st.info("📸 ENVOYER UNE PHOTO")
-            up_key = f"uploader_{st.session_state.cam_reset_id}"
-            cam_key = f"camera_{st.session_state.cam_reset_id}"
-            uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
-            cam_file = st.camera_input("Prendre une photo", key=cam_key)
-            final_file = uploaded_file if uploaded_file else cam_file
-            if final_file:
-                fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
-                with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
-                st.success("Photo envoyée !")
-                st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
-        
+            st.info("📸 ENVOYER UNE PHOTO"); up_file = st.file_uploader("Photo", type=['png', 'jpg']); 
+            if up_file: 
+                with open(os.path.join(LIVE_DIR, f"live_{uuid.uuid4().hex}.jpg"), "wb") as f: f.write(up_file.getbuffer())
+                st.success("Envoyé !"); time.sleep(1); st.rerun()
+
         elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
             if st.session_state.vote_success:
                  st.balloons()
@@ -1002,21 +953,19 @@ elif est_utilisateur:
                  st.stop()
             
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
-            st.warning("⚠️ RAPPEL IMPORTANT : Votre vote est UNIQUE. Une fois validé, il sera définitif et impossible à modifier.")
-            choix = st.multiselect("Vos 3 vidéos préférées (par ordre de préférence) :", cfg["candidats"], max_selections=3)
+            st.warning("⚠️ RAPPEL : Vote UNIQUE et DÉFINITIF.")
+            choix = st.multiselect("Vos 3 vidéos préférées (par ordre) :", cfg["candidats"], max_selections=3)
             if len(choix) == 3:
-                if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                    vts = load_json(VOTES_FILE, {})
-                    pts = cfg.get("points_ponderation", [5, 3, 1])
+                if st.button("VALIDER (DÉFINITIF)", type="primary"):
+                    vts = load_json(VOTES_FILE, {}); pts = cfg.get("points_ponderation", [5, 3, 1])
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     save_json(VOTES_FILE, vts)
                     details = load_json(DETAILED_VOTES_FILE, [])
-                    details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
+                    details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1": choix[0], "Choix 2": choix[1], "Choix 3": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                     save_json(DETAILED_VOTES_FILE, details)
-                    st.session_state.vote_success = True
-                    st.rerun()
+                    st.session_state.vote_success = True; st.rerun()
         
-        elif is_test_admin and cfg["mode_affichage"] == "votes":
+        elif is_test_admin and cfg["mode_affichage"] == "votes": # Fallback test
              choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
