@@ -1153,6 +1153,7 @@ else:
                         <div class="rank-num">2</div>
                     </div>
                 </div>
+
                 <div class="column-1">
                     <div class="winners-box rank-1" id="win-1">{h1}</div>
                     <div class="pedestal pedestal-1">
@@ -1160,6 +1161,7 @@ else:
                         <div class="rank-num">1</div>
                     </div>
                 </div>
+
                 <div class="column-3">
                     <div class="winners-box rank-3" id="win-3">{h3}</div>
                     <div class="pedestal pedestal-3">
@@ -1210,7 +1212,6 @@ else:
                 }}
 
                 async function runShow() {{
-                    // PODIUM SEQUENCE
                     await countdown(5, "EN TROISIÈME PLACE...");
                     w3.classList.add('visible');
                     document.querySelector('.pedestal-3').classList.add('visible');
@@ -1226,17 +1227,15 @@ else:
                     document.querySelector('.pedestal-1').classList.add('visible');
 
                     startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio blocked"); }}
+                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play blocked"); }}
                     
-                    // --- SEQUENCE FINALE ---
+                    // Séquence Finale
                     await wait(4000);
-                    // 1. Apparition FOND NOIR + LOGO GRAND
-                    finalOverlay.classList.add('stage-1-black');
+                    finalOverlay.classList.add('stage-1-black'); // Fond noir + Gros logo
                     
                     await wait(4000); 
-                    // 2. Transition vers le HAUT et FOND TRANSPARENT (Révélation Podium)
                     finalOverlay.classList.remove('stage-1-black');
-                    finalOverlay.classList.add('stage-2-transparent');
+                    finalOverlay.classList.add('stage-2-transparent'); // Remontée vers le haut
                 }}
 
                 window.parent.document.body.style.backgroundColor = "black";
@@ -1267,15 +1266,15 @@ else:
                     transform: scale(1.5);
                 }}
 
-                /* ETAPE 2 : FOND TRANSPARENT + PETIT LOGO EN HAUT */
+                /* ETAPE 2 : FOND TRANSPARENT + PETIT LOGO REMONTÉ */
                 .final-overlay.stage-2-transparent {{
                     background-color: transparent;
                     opacity: 1;
                     justify-content: flex-start;
-                    padding-top: 5vh;
+                    padding-top: 0; /* Collé au haut */
                 }}
                 .final-overlay.stage-2-transparent .final-content {{
-                    transform: scale(0.6);
+                    transform: scale(0.55) translateY(-30px); /* Rétrécit et remonte encore plus */
                 }}
 
                 .final-content {{
@@ -1287,7 +1286,6 @@ else:
                     text-transform: uppercase; text-shadow: 0 0 20px rgba(0,0,0,0.8); margin: 0;
                 }}
 
-                /* CSS PODIUM CLASSIQUE */
                 .column-2 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
                 .column-1 {{ width: 36%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
                 .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
@@ -1402,4 +1400,3 @@ else:
         components.html(f"""<script>var doc = window.parent.document;var existing = doc.getElementById('live-container');if(existing) existing.remove();var container = doc.createElement('div');container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-
