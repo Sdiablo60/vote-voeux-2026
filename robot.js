@@ -1,434 +1,224 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// --- CONFIGURATION REÇUE DE PYTHON ---
+// On récupère le titre et le mode, ou des valeurs par défaut
+const config = window.robotConfig || { mode: 'attente', titre: 'Grand Événement' };
+console.log("Robot Config:", config);
+
+// --- DONNÉES DE DIALOGUE ---
+const DIALOGUES = {
+    // 1. ACCUEIL : Séquence d'intro
+    intro: [
+        { text: "Bonjour tout le monde !", action: "Wave", time: 3000 },
+        { text: "Je suis votre I.A. de soirée.", action: "Talk", time: 3000 },
+        { text: "Je regarde qui est là...", action: "Look", time: 3000 },
+        { text: "Wouah ! Il y a du beau monde !", action: "Yes", time: 3000 },
+        { text: "Je suis né juste pour...", action: "Talk", time: 2000 },
+        { text: config.titre + " !", action: "Wave", time: 4000 }, // Affiche le titre dynamique
+        { text: "Profitez bien de la soirée !", action: "Idle", time: 3000 }
+    ],
+    // 2. ACCUEIL (Boucle après l'intro)
+    attente_loop: [
+        "J'adore l'ambiance ici.",
+        "N'oubliez pas de voter tout à l'heure !",
+        "Je surveille tout...",
+        "Quelle belle salle !",
+        "Vous êtes prêts pour " + config.titre + " ?",
+        "Je suis un robot très sophistiqué, vous savez.",
+        "Bip boup... Je plaisante."
+    ],
+    // 3. VOTE OFF (En attente des résultats)
+    vote_off: [
+        "Les votes sont CLÔTURÉS !",
+        "Les jeux sont faits...",
+        "Merci de patienter un peu.",
+        "Le podium va bientôt être révélé !",
+        "Mais que fait la régie ?",
+        "Allo la technique ? On s'endort ?",
+        "Ils calculent à la main ou quoi ?",
+        "Vous ne trouvez pas qu'ils sont longs ?",
+        "Suspens insoutenable...",
+        "Je parie que mon favori a gagné.",
+        "Ça arrive, ça arrive...",
+        "Je chauffe le processeur pour les résultats."
+    ],
+    // 4. PHOTOS LIVE
+    photos: [
+        "C'est le moment des photos !",
+        "Ne m'oubliez pas !",
+        "Je veux être sur la photo aussi !",
+        "Un petit selfie ensemble ?",
+        "Vous ne voulez pas me prendre en photo ?",
+        "Allez, faites une grimace !",
+        "Montrez vos plus beaux sourires.",
+        "Envoyez vos photos, je les affiche !",
+        "Je suis photogénique, non ?",
+        "Attention le petit oiseau va sortir...",
+        "On partage, on partage !"
+    ]
+};
+
+// --- INITIALISATION THREE.JS ---
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// --- MESSAGES ---
-const messages = [
-    "Salut l'équipe ! 👋",
-    "Tout le monde est bien installé ? 💺",
-    "Je vérifie les objectifs... 🧐",
-    "Qui a le plus beau sourire ce soir ? 📸",
-    "Silence... Moteur... Ça tourne ! 🎬",
-    "N'oubliez pas de voter ! 🗳️",
-    "Quelle ambiance de folie ! 🎉",
-    "Je suis Clap-E, votre assistant ! 🤖",
-    "Il fait chaud sous les spots, non ? 💡",
-    "J'espère qu'il y a des petits fours... 🍪",
-    "Vous me voyez bien ? 👀",
-    "C'est parti pour le show ! 🚀",
-    "Bip bop... J'adore ce que je vois ! 🤖",
-    "N'hésitez pas à faire des selfies avec moi ! 🤳"
-];
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 1.5, 4); 
 
-const preTeleportMessages = [
-    "Vous savez que je peux me téléporter ? ⚡",
-    "Attention... Tour de magie ! 🎩",
-    "Et hop ! Je disparais ! 💨",
-    "Je vais voir ce qu'il se passe là-bas... 🔭",
-    "3... 2... 1... Disparition ! ⏱️"
-];
+const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+container.appendChild(renderer.domElement);
 
-const postTeleportMessages = [
-    "Coucou ! Je suis là ! 👋",
-    "Me revoilà ! Surprise ! 🎁",
-    "C'était rapide, non ? 🚀",
-    "Tadaaa ! ✨",
-    "Vous ne m'avez pas vu venir ? 😎"
-];
+// Lumières
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+scene.add(hemiLight);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(5, 10, 7.5);
+scene.add(dirLight);
 
-const introScript = [
-    { time: 1.0, text: "Hum... C'est allumé ? 🎤", action: "look_around" },
-    { time: 5.0, text: "Y'a quelqu'un dans cet écran ? 🤔", action: "approach" },
-    { time: 8.5, text: "TOC ! TOC ! OUVREZ ! ✊", action: "knock" },
-    { time: 12.0, text: "WOUAH ! 😱 Vous êtes nombreux !", action: "recoil" },
-    { time: 16.0, text: "Bienvenue au Concours Vidéo 2026 ! ✨", action: "present" },
-    { time: 20.0, text: "Installez-vous, le show va commencer ! ⏳", action: "wait" }
-];
+// --- CHARGEMENT DU MODÈLE ---
+// Utilisez l'URL d'un modèle GLB public fiable (Robot "X Bot" de Mixamo est parfait pour ça)
+// Si vous avez votre propre fichier, mettez le chemin local : './robot.glb'
+const MODEL_URL = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
-if (container) {
-    try { initRobot(container); } catch (e) { console.error(e); }
+let mixer;
+let animations = {};
+let activeAction;
+let model;
+
+const loader = new GLTFLoader();
+loader.load(MODEL_URL, function (gltf) {
+    model = gltf.scene;
+    scene.add(model);
+    
+    // Position du robot (centré bas)
+    model.position.y = -2;
+    model.scale.set(0.6, 0.6, 0.6); // Ajustez la taille si besoin
+
+    // Gestion Animations
+    mixer = new THREE.AnimationMixer(model);
+    gltf.animations.forEach((clip) => {
+        animations[clip.name] = mixer.clipAction(clip);
+    });
+
+    // Lancer le comportement
+    startBehaviorLogics();
+    
+    animate();
+
+}, undefined, function (error) {
+    console.error(error);
+});
+
+// --- GESTION DES ANIMATIONS ---
+function playAnim(name, duration = 0.5) {
+    // Si l'anim n'existe pas, on joue 'Idle' ou 'Wave' par défaut
+    const animName = animations[name] ? name : 'Idle'; 
+    const newAction = animations[animName];
+    
+    if (newAction !== activeAction) {
+        if (activeAction) activeAction.fadeOut(duration);
+        newAction.reset().fadeIn(duration).play();
+        activeAction = newAction;
+    }
 }
 
-function initRobot(container) {
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+// --- BULLE DE DIALOGUE ---
+function showBubble(text, duration = 3000) {
+    bubble.innerHTML = text;
+    bubble.style.opacity = 1;
+    bubble.style.transform = "translate(-50%, -20px) scale(1)";
     
-    // --- 1. CORRECTION CLIGNOTEMENT (CSS) ---
-    // On force le conteneur à flotter au-dessus de tout, sans interaction souris
-    container.style.position = 'fixed';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.width = '100%';
-    container.style.height = '100%';
-    container.style.zIndex = '9999'; // Très haut pour être sûr
-    container.style.pointerEvents = 'none'; // Permet de cliquer sur le site à travers le robot
+    setTimeout(() => {
+        bubble.style.opacity = 0;
+        bubble.style.transform = "translate(-50%, 0) scale(0.8)";
+    }, duration);
+}
+
+// --- CERVEAU DU ROBOT (Logique de comportement) ---
+async function startBehaviorLogics() {
     
-    // SCENE
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 8); 
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.shadowMap.enabled = true;
-    container.appendChild(renderer.domElement);
-
-    // LUMIERES
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.1);
-    scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
-    dirLight.position.set(5, 10, 7);
-    scene.add(dirLight);
-    const screenLight = new THREE.PointLight(0x00ffff, 0.5, 4);
-    screenLight.position.set(0, 0, 2);
-    scene.add(screenLight);
-
-    // --- ROBOT ---
-    const robotGroup = new THREE.Group();
-    robotGroup.scale.set(0.45, 0.45, 0.45);
+    // 1. SEQUENCE D'INTRO (Seulement si mode Accueil)
+    if (config.mode === 'attente') {
+        const sequence = DIALOGUES.intro;
+        for (let step of sequence) {
+            playAnim(step.action); // Wave, Talk, etc.
+            showBubble(step.text, step.time - 500);
+            await new Promise(r => setTimeout(r, step.time));
+        }
+        // Une fois l'intro finie, on passe en boucle aléatoire
+        startRandomLoop('attente_loop');
+    } 
     
-    // MATERIAUX
-    const whiteShellMat = new THREE.MeshStandardMaterial({ 
-        color: 0xffffff, roughness: 0.2, metalness: 0.1 
-    });
-    const blackScreenMat = new THREE.MeshStandardMaterial({ 
-        color: 0x000000, roughness: 0.1, metalness: 0.5 
-    });
-    const neonBlueMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
-    const greyMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
-
-    // 1. TÊTE (Coque Blanche)
-    const headGeo = new THREE.SphereGeometry(0.85, 64, 64); 
-    const head = new THREE.Mesh(headGeo, whiteShellMat);
-    head.scale.set(1.4, 1.0, 0.75); 
+    // 2. VOTE OFF
+    else if (config.mode === 'vote_off') {
+        playAnim('Idle'); 
+        startRandomLoop('vote_off');
+    }
     
-    // 2. ÉCRAN NOIR (Visage)
-    const faceGeo = new THREE.SphereGeometry(0.78, 64, 64);
-    const face = new THREE.Mesh(faceGeo, blackScreenMat);
-    face.scale.set(1.25, 0.85, 0.6); 
-    face.position.set(0, 0, 0.55); // Bien en avant du blanc
-    head.add(face);
-
-    // --- 2. CORRECTION BOUCHE & YEUX ---
-    // On les pousse beaucoup plus loin en Z (1.05) pour qu'ils sortent bien du noir
-
-    // YEUX
-    const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 32, Math.PI); 
+    // 3. PHOTOS LIVE
+    else if (config.mode === 'photos') {
+        playAnim('Dance'); // Il danse pendant les photos !
+        startRandomLoop('photos');
+    }
     
-    const leftEye = new THREE.Mesh(eyeGeo, neonBlueMat);
-    leftEye.position.set(-0.35, 0.15, 1.05); // Z augmenté
-    leftEye.rotation.z = 0; 
-    head.add(leftEye);
-
-    const rightEye = new THREE.Mesh(eyeGeo, neonBlueMat);
-    rightEye.position.set(0.35, 0.15, 1.05); // Z augmenté
-    rightEye.rotation.z = 0;
-    head.add(rightEye);
-
-    // BOUCHE
-    const mouthGeo = new THREE.TorusGeometry(0.1, 0.035, 8, 32, Math.PI);
-    const mouth = new THREE.Mesh(mouthGeo, neonBlueMat);
-    mouth.position.set(0, -0.15, 1.05); // Z augmenté (elle ne disparaîtra plus)
-    mouth.rotation.z = Math.PI; 
-    head.add(mouth);
-
-    // 5. OREILLES
-    const earGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32);
-    earGeo.rotateZ(Math.PI / 2); 
-    const leftEar = new THREE.Mesh(earGeo, whiteShellMat);
-    leftEar.position.set(-1.1, 0, 0); 
-    head.add(leftEar);
-    const rightEar = new THREE.Mesh(earGeo, whiteShellMat);
-    rightEar.position.set(1.1, 0, 0);
-    head.add(rightEar);
-
-    // 6. CORPS
-    const bodyGeo = new THREE.SphereGeometry(0.65, 32, 32);
-    const body = new THREE.Mesh(bodyGeo, whiteShellMat);
-    body.scale.set(0.95, 1.1, 0.8);
-    body.position.set(0, -1.1, 0); 
-    const beltGeo = new THREE.TorusGeometry(0.62, 0.03, 16, 64);
-    const belt = new THREE.Mesh(beltGeo, greyMat);
-    belt.rotation.x = Math.PI / 2;
-    body.add(belt);
-
-    // 7. BRAS
-    const armGeo = new THREE.CapsuleGeometry(0.13, 0.5, 4, 16);
-    const leftArm = new THREE.Mesh(armGeo, whiteShellMat);
-    leftArm.position.set(-0.8, -0.8, 0);
-    leftArm.rotation.z = 0.15; 
-    const rightArm = new THREE.Mesh(armGeo, whiteShellMat);
-    rightArm.position.set(0.8, -0.8, 0);
-    rightArm.rotation.z = -0.15;
-
-    robotGroup.add(head);
-    robotGroup.add(body);
-    robotGroup.add(leftArm);
-    robotGroup.add(rightArm);
-    scene.add(robotGroup);
-
-    // --- PARTICULES ---
-    const particleCount = 200; 
-    const particlesGeo = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
-    for(let i=0; i<particleCount*3; i++) positions[i] = 999;
-    particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const particleMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.15, transparent: true, opacity: 0.8 });
-    const particleSystem = new THREE.Points(particlesGeo, particleMat);
-    scene.add(particleSystem);
-    let particleData = Array(particleCount).fill().map(() => ({ velocity: new THREE.Vector3(), active: false }));
-
-    // --- VARIABLES LOGIQUES ---
-    let time = 0;
-    let targetPosition = new THREE.Vector3(3.5, 0, 0); 
-    robotGroup.position.copy(targetPosition);
-    let robotState = 'intro'; 
-    let introIndex = 0;
-    let nextEventTime = 0;
-    let bubbleTimeout = null;
-    let lastMsgIndex = -1;
-
-    function smoothRotate(object, axis, targetValue, speed) {
-        object.rotation[axis] += (targetValue - object.rotation[axis]) * speed;
+    // 4. AUTRES CAS
+    else {
+        startRandomLoop('attente_loop');
     }
+}
 
-    // --- ANIMATION ---
-    function animate() {
-        requestAnimationFrame(animate);
-        time += 0.015; 
-
-        // NOTE: On ne touche plus au z-index ici. Le CSS d'intro s'en charge.
-
-        // Flottement
-        robotGroup.position.y += Math.sin(time * 2) * 0.002;
-
-        // ETATS
-        if (robotState === 'intro') {
-            if (introIndex < introScript.length) {
-                const step = introScript[introIndex];
-                if (time >= step.time) {
-                    showBubble(step.text, 5000);
-                    introIndex++;
-                }
-            } else if (time > 24) { 
-                robotState = 'moving';
-                pickNewTarget();
-                nextEventTime = time + 5;
+function startRandomLoop(categoryKey) {
+    const phrases = DIALOGUES[categoryKey];
+    
+    // Boucle infinie de phrases aléatoires
+    setInterval(() => {
+        // 1 chance sur 3 de parler toutes les 6 secondes
+        if (Math.random() > 0.3) {
+            const text = phrases[Math.floor(Math.random() * phrases.length)];
+            
+            // Animation aléatoire quand il parle
+            const actions = ['Talk', 'ThumbsUp', 'Wave', 'Yes'];
+            const rndAction = actions[Math.floor(Math.random() * actions.length)];
+            
+            // Si on est en mode photo, on le laisse danser parfois
+            if(config.mode === 'photos' && Math.random() > 0.5) {
+                 // On ne change pas l'anim (Dance)
+            } else {
+                 playAnim(rndAction);
             }
-            if (time < 5.0) robotGroup.rotation.y = Math.sin(time) * 0.3;
-            else if (time >= 5.0 && time < 8.5) { 
-                robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.02);
-                smoothRotate(robotGroup, 'y', 0, 0.05);
-            } 
-            else if (time >= 8.5 && time < 12.0) { 
-                robotGroup.position.z = 5 + Math.sin(time * 20) * 0.02; 
-                rightArm.rotation.x = -Math.PI/2 + Math.sin(time * 15) * 0.3; 
-            } 
-            else if (time >= 12.0 && time < 24) { 
-                robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03);
-                rightArm.rotation.x *= 0.9;
-                smoothRotate(robotGroup, 'y', -0.2, 0.05);
-            }
-        } 
-        
-        else if (robotState === 'moving') {
-            robotGroup.position.lerp(targetPosition, 0.008);
-            const targetRotY = (targetPosition.x - robotGroup.position.x) * 0.05;
-            const targetRotZ = -(targetPosition.x - robotGroup.position.x) * 0.03;
-            smoothRotate(robotGroup, 'y', targetRotY, 0.05);
-            smoothRotate(robotGroup, 'z', targetRotZ, 0.05);
-            leftArm.rotation.x = Math.sin(time * 3) * 0.15;
-            rightArm.rotation.x = -Math.sin(time * 3) * 0.15;
-
-            if (robotGroup.position.distanceTo(targetPosition) < 0.5) pickNewTarget();
-
-            if (time > nextEventTime) {
-                const rand = Math.random();
-                if (rand < 0.25) startTeleportSequence(); 
-                else if (rand < 0.50) startInspection();
-                else startSpeaking();
-            }
-        } 
-        
-        else if (robotState === 'speaking') {
-            robotGroup.position.lerp(targetPosition, 0.001); 
-            smoothRotate(robotGroup, 'y', 0, 0.05); 
-            smoothRotate(robotGroup, 'z', 0, 0.05);
-            const talkScale = 1 + Math.sin(time * 20) * 0.2;
-            mouth.scale.set(1, talkScale, 1);
-            rightArm.rotation.z = Math.cos(time * 4) * 0.4 + 0.4; 
+            
+            showBubble(text, 4000);
+            
+            // Retour à Idle (ou Dance) après avoir parlé
+            setTimeout(() => {
+                if(config.mode === 'photos') playAnim('Dance');
+                else playAnim('Idle');
+            }, 3000);
         }
+    }, 6000);
+}
 
-        else if (robotState === 'inspecting') {
-            const inspectPos = new THREE.Vector3(Math.sin(time)*2, 0, 4.5);
-            robotGroup.position.lerp(inspectPos, 0.02);
-            smoothRotate(robotGroup, 'y', Math.sin(time) * 0.2, 0.05);
-            if (time > nextEventTime) {
-                robotState = 'moving';
-                pickNewTarget(); 
-                nextEventTime = time + 8 + Math.random() * 8;
-            }
-        }
+// --- BOUCLE DE RENDU ---
+const clock = new THREE.Clock();
 
-        else if (robotState === 'teleport_pre') {
-            robotGroup.position.y += Math.sin(time * 15) * 0.01; 
-            smoothRotate(robotGroup, 'y', 0, 0.1);
-            if (time > nextEventTime) {
-                hideBubble();
-                triggerSmoke(robotGroup.position.x, robotGroup.position.y);
-                robotState = 'disappear';
-            }
-        }
-        else if (robotState === 'disappear') {
-            robotGroup.scale.multiplyScalar(0.85);
-            robotGroup.rotation.y += 0.8;
-            if (robotGroup.scale.x < 0.01) {
-                pickNewTarget();
-                robotGroup.position.copy(targetPosition);
-                triggerSmoke(targetPosition.x, targetPosition.y);
-                robotState = 'reappear';
-            }
-        }
-        else if (robotState === 'reappear') {
-            robotGroup.scale.multiplyScalar(1.2);
-            if (robotGroup.scale.x >= 0.45) {
-                robotGroup.scale.set(0.45, 0.45, 0.45);
-                robotGroup.rotation.set(0,0,0);
-                const msg = postTeleportMessages[Math.floor(Math.random() * postTeleportMessages.length)];
-                showBubble(msg, 3000);
-                robotState = 'teleport_post';
-                nextEventTime = time + 3;
-            }
-        }
-        else if (robotState === 'teleport_post') {
-            if (time > nextEventTime) {
-                hideBubble();
-                robotState = 'moving';
-                nextEventTime = time + 10;
-            }
-        }
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    if (mixer) mixer.update(delta);
+    
+    // Faire regarder la souris (optionnel, effet sympa)
+    // if (model) model.rotation.y = Math.sin(Date.now() * 0.001) * 0.1;
 
-        if(robotState !== 'speaking') {
-             mouth.scale.set(1, 1, 1);
-        }
+    renderer.render(scene, camera);
+}
 
-        updateSmoke();
-        updateBubblePosition();
-        renderer.render(scene, camera);
-    }
-
-    function pickNewTarget() {
-        const aspect = width / height;
-        const vW = 7 * aspect; 
-        let x, y;
-        if (Math.random() > 0.5) x = 3.0 + Math.random() * (vW * 0.4 - 3.0); 
-        else x = -3.0 - Math.random() * (vW * 0.4 - 3.0); 
-        y = (Math.random() - 0.5) * 3; 
-        targetPosition.set(x, y, 0);
-    }
-
-    function startSpeaking() {
-        robotState = 'speaking';
-        targetPosition.copy(robotGroup.position);
-        let newIndex;
-        do { newIndex = Math.floor(Math.random() * messages.length); } while (newIndex === lastMsgIndex);
-        lastMsgIndex = newIndex;
-
-        showBubble(messages[newIndex], 6000); 
-        nextEventTime = time + 10 + Math.random() * 15; 
-        
-        setTimeout(() => {
-            if (robotState === 'speaking') {
-                hideBubble();
-                robotState = 'moving';
-                pickNewTarget();
-            }
-        }, 6000);
-    }
-
-    function startInspection() {
-        robotState = 'inspecting';
-        showBubble("Je viens voir de plus près... 🧐", 3000);
-        nextEventTime = time + 6; 
-    }
-
-    function startTeleportSequence() {
-        robotState = 'teleport_pre';
-        const msg = preTeleportMessages[Math.floor(Math.random() * preTeleportMessages.length)];
-        showBubble(msg, 2500);
-        nextEventTime = time + 2.5;
-    }
-
-    function showBubble(text, duration) {
-        if(!bubble) return;
-        if (bubbleTimeout) { clearTimeout(bubbleTimeout); bubbleTimeout = null; }
-        bubble.innerText = text;
-        bubble.style.opacity = 1;
-        if(duration) bubbleTimeout = setTimeout(() => { hideBubble(); }, duration);
-    }
-
-    function hideBubble() {
-        if(bubble) bubble.style.opacity = 0;
-    }
-
-    function updateBubblePosition() {
-        if(!bubble || bubble.style.opacity == 0) return;
-        const headPos = robotGroup.position.clone();
-        headPos.y += 0.8; 
-        headPos.project(camera);
-        const x = (headPos.x * .5 + .5) * width;
-        const y = (headPos.y * -.5 + .5) * height;
-        let finalX = Math.max(120, Math.min(width - 120, x));
-        let finalY = Math.max(50, y - 80);
-        bubble.style.left = finalX + 'px';
-        bubble.style.top = finalY + 'px';
-        bubble.style.transform = 'translate(-50%, 0)';
-    }
-
-    function triggerSmoke(x, y) {
-        const posAttr = particleSystem.geometry.attributes.position;
-        for(let i=0; i<particleCount; i++) {
-            if (!particleData[i].active || true) { 
-                particleData[i].active = true;
-                posAttr.setXYZ(i, x + (Math.random()-0.5)*1.5, y + (Math.random()-0.5)*1.5, (Math.random()-0.5)*1.5);
-                particleData[i].velocity.set(
-                    (Math.random()-0.5)*0.1, 
-                    (Math.random()-0.5)*0.1 + 0.05,
-                    (Math.random()-0.5)*0.1
-                );
-            }
-        }
-        posAttr.needsUpdate = true;
-    }
-
-    function updateSmoke() {
-        const posAttr = particleSystem.geometry.attributes.position;
-        for(let i=0; i<particleCount; i++) {
-            if (particleData[i].active) {
-                posAttr.setXYZ(i, 
-                    posAttr.getX(i) + particleData[i].velocity.x, 
-                    posAttr.getY(i) + particleData[i].velocity.y, 
-                    posAttr.getZ(i) + particleData[i].velocity.z
-                );
-                particleData[i].velocity.y += 0.002;
-                if (posAttr.getY(i) > 5) { 
-                    particleData[i].active = false; 
-                    posAttr.setXYZ(i, 999,999,999); 
-                }
-            }
-        }
-        posAttr.needsUpdate = true;
-    }
-
-    window.addEventListener('resize', () => {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
-        camera.updateProjectionMatrix();
-    });
-
-    animate();
+// Gestion redimensionnement
+window.addEventListener('resize', onWindowResize, false);
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
 }
