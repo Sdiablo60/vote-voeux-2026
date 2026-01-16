@@ -1038,7 +1038,7 @@ elif est_utilisateur:
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
-        # =========================================================
+# =========================================================
 # 3. MUR SOCIAL
 # =========================================================
 else:
@@ -1063,14 +1063,12 @@ else:
     except: css_content = ""; js_content = "console.error('Fichiers manquants');"
 
     # --- CONFIGURATION DU ROBOT (TITRE ET MODE) ---
-    # C'est ici qu'on donne le cerveau au robot
-    robot_mode = "attente" # par défaut
+    robot_mode = "attente"
     if mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
         robot_mode = "vote_off"
     elif mode == "photos_live":
         robot_mode = "photos"
     
-    # On nettoie le titre pour le JS
     safe_title = cfg['titre_mur'].replace("'", "\\'")
     
     # Injection des variables pour le JS
@@ -1082,10 +1080,13 @@ else:
         }};
     </script>
     """
+    
+    # --- IMPORT MAP CORRIGÉE (C'EST ICI QUE CA SE JOUE) ---
+    import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
 
     if mode == "attente":
         logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body>{js_config}<div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body>{js_config}<div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
         components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "votes":
@@ -1149,12 +1150,11 @@ else:
             # --- VOTE OFF (ROBOT ACTIF) ---
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             overlay_html = f"""<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 10; display:flex; flex-direction:column; align-items:center; justify-content:center;'><div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI !</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3></div></div>"""
-            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}{overlay_html}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
+            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}{overlay_html}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
             components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "photos_live":
         # --- PHOTOS LIVE (AVEC ROBOT EN FOND) ---
-        # Code Fusionné Bulles + Robot
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
@@ -1200,7 +1200,7 @@ else:
             }}, 500);
         </script>
         """
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script>{bubbles_script}</body></html>"""
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div>{import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
         components.html(html_code, height=1000, scrolling=False)
     
     else:
