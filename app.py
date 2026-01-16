@@ -931,7 +931,6 @@ elif est_utilisateur:
                 background-color: #C20015 !important;
                 color: white !important;
             }
-            /* FIN CSS MOBILE */
         </style>
     """, unsafe_allow_html=True)
     
@@ -1262,8 +1261,7 @@ else:
                     flex-wrap: wrap-reverse;    /* Si ça dépasse, nouvelle ligne AU-DESSUS */
                     justify-content: center;
                     align-items: flex-end;      /* Aligne le bas des cartes */
-                    width: 300px !important;    /* LARGEUR FORCÉE POUR 2 CARTES MAX (130+10)*2 approx */
-                    max-width: 300px !important;
+                    width: 310px;           /* Largeur fixe : 2 cartes de 140px + marge tiennent. La 3ème passe au-dessus */
                     margin: 0 auto;             /* Centré */
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
@@ -1319,7 +1317,7 @@ else:
                 /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 130px; /* Taille fixe */
+                    width: 140px; /* Taille fixe calibrée pour le conteneur */
                     margin: 5px;
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
@@ -1566,8 +1564,59 @@ else:
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
-        components.html(f"""<script>var doc = window.parent.document;var existing = doc.getElementById('live-container');if(existing) existing.remove();var container = doc.createElement('div');container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
+        
+        # MODIFICATION : Taille 350px, Marge 10px pour le logo
+        center_html_content = f"""
+            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
+                <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
+                {f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}
+                <div style='background:white; padding:15px; border-radius:15px; display:inline-block;'>
+                    <img src='data:image/png;base64,{qr_b64}' style='width:250px;'>
+                </div>
+                <h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2>
+            </div>
+        """
+        components.html(f"""<script>
+            var doc = window.parent.document;
+            var existing = doc.getElementById('live-container');
+            if(existing) existing.remove();
+            var container = doc.createElement('div');
+            container.id = 'live-container'; 
+            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
+            doc.body.appendChild(container);
+            container.innerHTML = `{center_html_content}`;
+            const imgs = {img_js}; const bubbles = [];
+            const minSize = 100; const maxSize = 350;
+            var screenW = window.innerWidth || 1920;
+            var screenH = window.innerHeight || 1080;
+            imgs.forEach((src, i) => {{
+                const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
+                const el = doc.createElement('img'); el.src = src;
+                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
+                let x = Math.random() * (screenW - bSize);
+                let y = Math.random() * (screenH - bSize);
+                let angle = Math.random() * Math.PI * 2;
+                let speed = 0.8 + Math.random() * 1.2;
+                let vx = Math.cos(angle) * speed;
+                let vy = Math.sin(angle) * speed;
+                container.appendChild(el); 
+                bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
+            }});
+            function animate() {{
+                screenW = window.innerWidth || 1920;
+                screenH = window.innerHeight || 1080;
+                bubbles.forEach(b => {{
+                    b.x += b.vx; b.y += b.vy;
+                    if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
+                    if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
+                    if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
+                    if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
+                    b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
+                }});
+                requestAnimationFrame(animate);
+            }}
+            animate();
+        </script>""", height=900)
+
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-
