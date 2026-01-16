@@ -6,7 +6,7 @@ const bubble = document.getElementById('robot-bubble');
 // --- CONFIGURATION ---
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
-// --- TEXTES (AVEC NOUVELLES BLAGUES D'EXPLOSION) ---
+// --- TEXTES (AVEC DANSE & EXPLOSION) ---
 const MESSAGES_BAG = {
     attente: [
         "Salut tout le monde ! 👋", "Tout le monde est bien installé ? 💺", 
@@ -21,7 +21,8 @@ const MESSAGES_BAG = {
         "Les votes sont CLOS ! 🛑", "Rien ne va plus ! 🎲",
         "Le podium arrive... 🏆", "Mais que fait la régie ? 😴",
         "Suspens insoutenable... 😬", "Je calcule les résultats... 🧮",
-        "Qui a gagné selon vous ? 🤔", "Patience, patience... ⏳"
+        "Qui a gagné selon vous ? 🤔", "Patience, patience... ⏳",
+        "On attend le feu vert... 🚦"
     ],
     photos: [
         "C'est l'heure des photos ! 📸", "Envoyez vos selfies ! 🤳",
@@ -29,16 +30,16 @@ const MESSAGES_BAG = {
         "On partage, on partage ! 📲", "Montrez vos plus beaux profils !",
         "Allez, une petite grimace ! 🤪"
     ],
-    cache_cache: [
-        "Coucou ! Je suis là ! 👋", "Vous m'aviez perdu ? 👻",
-        "Bouh ! Surprise ! 🎃", "Téléportation réussie ! ⚡",
-        "Je suis passé par le Wi-Fi ! 📶"
+    danse: [
+        "C'est l'heure de danser ! 💃", "DJ, monte le son ! 🔊",
+        "Regardez mon déhanché ! 🕺", "On se retrouve sur la piste ?",
+        "Je suis une machine... à danser ! 🤖", "Bougez avec moi !",
+        "Allez, tout le monde debout ! 🙌", "C'est ma chanson préférée ! 🎶"
     ],
     explosion: [
         "Oups ! Surchauffe système ! 🔥", "J'ai littéralement perdu la tête ! 🤯",
-        "Ne vous inquiétez pas, c'est normal.", "Ça fait du bien de s'aérer un peu.",
-        "Je me sens un peu éparpillé ce soir...", "Rassemblement des pièces... 🧲",
-        "Quelqu'un a vu mon bras gauche ? 💪", "C'est juste un petit bug d'affichage."
+        "Rassemblement des pièces... 🧲", "C'est juste un petit bug d'affichage.",
+        "Aie, mes circuits... ⚡", "Promis, je me recolle tout de suite."
     ]
 };
 
@@ -92,32 +93,40 @@ function initRobot(container) {
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.1); scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 2.5); dirLight.position.set(5, 10, 7); scene.add(dirLight);
     const screenLight = new THREE.PointLight(0x00ffff, 0.5, 4); screenLight.position.set(0, 0, 2); scene.add(screenLight);
+    
+    // LUMIERE D'EXPLOSION (Flash)
+    const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
+    explosionLight.position.set(0, 0, 5);
+    scene.add(explosionLight);
 
-    // --- SYSTEME DE PARTICULES (FUMÉE) ---
-    const particleCount = 300; // Nombre de particules
+    // --- SYSTEME DE PARTICULES (FUMÉE & ETINCELLES) ---
+    const particleCount = 400; 
     const particlesGeo = new THREE.BufferGeometry();
     const posArray = new Float32Array(particleCount * 3);
+    const colorArray = new Float32Array(particleCount * 3); // Pour la couleur
     const scaleArray = new Float32Array(particleCount);
-    const velocityArray = []; // Stockage JS pour la vitesse
+    const velocityArray = []; 
+
+    const baseColor = new THREE.Color(0xaaaaaa); // Gris fumée
+    const sparkColor = new THREE.Color(0xffaa00); // Orange étincelle
 
     for(let i=0; i<particleCount; i++) {
-        posArray[i*3] = 9999; // Caché au début
-        posArray[i*3+1] = 9999;
-        posArray[i*3+2] = 9999;
+        posArray[i*3] = 9999; posArray[i*3+1] = 9999; posArray[i*3+2] = 9999;
         scaleArray[i] = 0;
         velocityArray.push({x:0, y:0, z:0, life:0});
     }
     
     particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    particlesGeo.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
     particlesGeo.setAttribute('scale', new THREE.BufferAttribute(scaleArray, 1));
 
-    // Shader simple pour des ronds flous (fumée)
     const particleMat = new THREE.PointsMaterial({
-        color: 0xaaaaaa,
-        size: 0.5,
+        vertexColors: true,
+        size: 0.6,
         transparent: true,
-        opacity: 0.6,
-        map: createCircleTexture() // Fonction utilitaire plus bas
+        opacity: 0.8,
+        depthWrite: false, // Important pour la transparence
+        map: createCircleTexture() 
     });
 
     const particleSystem = new THREE.Points(particlesGeo, particleMat);
@@ -130,30 +139,38 @@ function initRobot(container) {
         grad.addColorStop(0, 'rgba(255,255,255,1)');
         grad.addColorStop(1, 'rgba(255,255,255,0)');
         ctx.fillStyle = grad; ctx.fillRect(0,0,32,32);
-        const tex = new THREE.Texture(canvas); tex.needsUpdate = true;
-        return tex;
+        const tex = new THREE.Texture(canvas); tex.needsUpdate = true; return tex;
     }
 
-    function triggerSmoke(x, y, z) {
+    function triggerSmoke(x, y, z, isExplosion = false) {
         const positions = particleSystem.geometry.attributes.position.array;
+        const colors = particleSystem.geometry.attributes.color.array;
         const scales = particleSystem.geometry.attributes.scale.array;
         
         for(let i=0; i<particleCount; i++) {
-            // Reset des particules au point d'impact
-            positions[i*3] = x + (Math.random()-0.5)*1.5;
-            positions[i*3+1] = y + (Math.random()-0.5)*2.0;
-            positions[i*3+2] = z + (Math.random()-0.5)*1.5;
+            // Position de départ
+            positions[i*3] = x + (Math.random()-0.5);
+            positions[i*3+1] = y + (Math.random()-0.5);
+            positions[i*3+2] = z + (Math.random()-0.5);
+            
+            // Couleur : 30% de chance d'être une étincelle si c'est une explosion
+            const isSpark = isExplosion && Math.random() < 0.3;
+            const c = isSpark ? sparkColor : baseColor;
+            colors[i*3] = c.r; colors[i*3+1] = c.g; colors[i*3+2] = c.b;
+            
             scales[i] = Math.random() * 0.8 + 0.2;
             
-            // Explosion vers le haut
+            // Vitesse
+            let speed = isExplosion ? 0.2 : 0.05;
             velocityArray[i] = {
-                x: (Math.random()-0.5) * 0.05,
-                y: Math.random() * 0.1 + 0.02,
-                z: (Math.random()-0.5) * 0.05,
-                life: 1.0 // Durée de vie
+                x: (Math.random()-0.5) * speed,
+                y: (Math.random()-0.5) * speed + (isExplosion ? 0.05 : 0.02),
+                z: (Math.random()-0.5) * speed,
+                life: 1.0 
             };
         }
         particleSystem.geometry.attributes.position.needsUpdate = true;
+        particleSystem.geometry.attributes.color.needsUpdate = true;
         particleSystem.geometry.attributes.scale.needsUpdate = true;
     }
 
@@ -169,12 +186,10 @@ function initRobot(container) {
                 positions[i*3+1] += velocityArray[i].y;
                 positions[i*3+2] += velocityArray[i].z;
                 
-                velocityArray[i].life -= 0.02;
-                scales[i] = velocityArray[i].life; // Rétrécit en mourant
+                velocityArray[i].life -= 0.015;
+                scales[i] = velocityArray[i].life; 
                 
-                if(velocityArray[i].life <= 0) {
-                    positions[i*3] = 9999; // Cache
-                }
+                if(velocityArray[i].life <= 0) positions[i*3] = 9999; // Cacher
             }
         }
         if(active) {
@@ -193,58 +208,44 @@ function initRobot(container) {
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
     const greyMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
 
-    // Construction des pièces (Sauvegarde des positions initiales pour la reconstruction)
     function createPart(geo, mat, x, y, z, parent) {
         const mesh = new THREE.Mesh(geo, mat);
         mesh.position.set(x, y, z);
         mesh.userData.origPos = new THREE.Vector3(x, y, z);
         mesh.userData.origRot = new THREE.Euler(0, 0, 0);
-        // Vecteur de vélocité pour l'explosion
         mesh.userData.velocity = new THREE.Vector3();
         mesh.userData.rotVelocity = new THREE.Vector3();
         if(parent) parent.add(mesh);
         return mesh;
     }
 
-    // 1. TETE
     const head = createPart(new THREE.SphereGeometry(0.85, 32, 32), whiteMat, 0, 0, 0, robotGroup);
     head.scale.set(1.4, 1.0, 0.75);
-    head.userData.origScale = new THREE.Vector3(1.4, 1.0, 0.75);
-
     const face = createPart(new THREE.SphereGeometry(0.78, 32, 32), blackMat, 0, 0, 0.55, head);
     face.scale.set(1.25, 0.85, 0.6);
-
     const leftEye = createPart(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat, -0.35, 0.15, 1.05, head);
     const rightEye = createPart(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat, 0.35, 0.15, 1.05, head);
     const mouth = createPart(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat, 0, -0.15, 1.05, head);
     mouth.rotation.z = Math.PI; mouth.userData.origRot.z = Math.PI;
-
     const leftEar = createPart(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 16), whiteMat, -1.1, 0, 0, head);
     leftEar.rotation.z = Math.PI/2; leftEar.userData.origRot.z = Math.PI/2;
     const rightEar = createPart(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 16), whiteMat, 1.1, 0, 0, head);
     rightEar.rotation.z = Math.PI/2; rightEar.userData.origRot.z = Math.PI/2;
 
-    // 2. CORPS
     const body = createPart(new THREE.SphereGeometry(0.65, 32, 32), whiteMat, 0, -1.1, 0, robotGroup);
     body.scale.set(0.95, 1.1, 0.8);
-    body.userData.origScale = new THREE.Vector3(0.95, 1.1, 0.8);
-    
     const belt = createPart(new THREE.TorusGeometry(0.62, 0.03, 16, 32), greyMat, 0, 0, 0, body);
     belt.rotation.x = Math.PI/2;
 
-    // 3. BRAS
     const leftArm = createPart(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat, -0.8, -0.8, 0, robotGroup);
     leftArm.rotation.z = 0.15; leftArm.userData.origRot.z = 0.15;
-    
     const rightArm = createPart(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat, 0.8, -0.8, 0, robotGroup);
     rightArm.rotation.z = -0.15; rightArm.userData.origRot.z = -0.15;
 
-    // Liste des pièces détachables pour l'explosion
     const parts = [head, body, leftArm, rightArm];
-
     scene.add(robotGroup);
 
-    // --- VARIABLES LOGIQUES ---
+    // --- LOGIQUE ---
     let time = 0;
     let targetPosition = new THREE.Vector3(4.0, 0, 0); 
     robotGroup.position.copy(targetPosition);
@@ -272,77 +273,79 @@ function initRobot(container) {
 
     function hideBubble() { if(bubble) bubble.style.opacity = 0; }
 
+    // --- DECISION DE CIBLE (LARGE Z-I : ZONE INTERDITE) ---
     function pickNewTarget() {
         const aspect = width / height; const vW = 7 * aspect; 
         const side = Math.random() > 0.5 ? 1 : -1; 
-        const safeMin = 3.8; const safeMax = vW * 0.55; 
+        
+        // Zone interdite élargie pour le QR Code : de -3.8 à +3.8
+        const safeMin = 4.2; // Très large pour éviter le QR
+        const safeMax = vW * 0.55; 
+        
         let x = side * (safeMin + Math.random() * (safeMax - safeMin));
         let y = (Math.random() - 0.5) * 4.0;
         targetPosition.set(x, y, 0);
     }
 
-    // --- LOGIQUE DES EFFETS SPECIAUX ---
+    // --- ETATS SPECIAUX ---
 
-    // 1. TELEPORTATION AVEC FUMEE
     function startTeleport() {
         robotState = 'teleporting_out';
-        const msg = getUniqueMessage('cache_cache');
-        showBubble(msg, 2000);
-        
-        // 1. Fumée au départ
-        triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z);
-        
+        triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z, false);
         setTimeout(() => {
-            // Disparition
             robotGroup.visible = false;
-            pickNewTarget(); // Nouvelle position
+            pickNewTarget(); 
             robotGroup.position.copy(targetPosition);
-            
-            // Attente avant réapparition
             setTimeout(() => {
-                // 2. Fumée à l'arrivée
-                triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z);
+                triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z, false);
                 robotGroup.visible = true;
                 robotState = 'moving';
-            }, 1500);
-        }, 300);
+            }, 1000);
+        }, 200);
     }
 
-    // 2. EXPLOSION (SURCHAUFFE)
     function startExplosion() {
         robotState = 'exploding';
         const msg = getUniqueMessage('explosion');
-        showBubble(msg, 4000);
+        showBubble(msg, 3500);
         
-        // 1. Tremblement (géré dans animate)
+        // Sécurité : Si trop au bord, on recentre un peu avant d'exploser
+        if (Math.abs(robotGroup.position.x) > 6) {
+            robotGroup.position.x = (robotGroup.position.x > 0) ? 5 : -5;
+        }
+
         setTimeout(() => {
-            // 2. BOUM !
-            triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z);
+            // Flash lumière
+            explosionLight.intensity = 5;
+            setTimeout(() => { explosionLight.intensity = 0; }, 200);
             
-            // On donne des vitesses aléatoires à chaque membre
+            triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z, true);
+            
             parts.forEach(part => {
-                part.userData.velocity.set(
-                    (Math.random()-0.5) * 0.3,
-                    (Math.random()-0.5) * 0.3,
-                    (Math.random()-0.5) * 0.3
-                );
-                part.userData.rotVelocity.set(
-                    Math.random() * 0.2,
-                    Math.random() * 0.2,
-                    Math.random() * 0.2
-                );
+                part.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4);
+                part.userData.rotVelocity.set(Math.random()*0.2, Math.random()*0.2, Math.random()*0.2);
             });
             
-            // 3. Reconstruction après 3 secondes
             setTimeout(() => {
                 robotState = 'reassembling';
-                setTimeout(() => {
-                    robotState = 'moving';
-                    pickNewTarget();
-                }, 2000);
+                setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 2000);
             }, 3000);
-            
-        }, 1500); // Temps de tremblement avant explosion
+        }, 1000);
+    }
+
+    function startDance() {
+        robotState = 'dancing';
+        targetPosition.copy(robotGroup.position); // Danse sur place
+        const msg = getUniqueMessage('danse');
+        showBubble(msg, 4000);
+        
+        setTimeout(() => {
+            if (robotState === 'dancing') {
+                hideBubble();
+                robotState = 'moving';
+                pickNewTarget();
+            }
+        }, 6000); // Danse pendant 6s
     }
 
     function startSpeaking() {
@@ -358,29 +361,46 @@ function initRobot(container) {
     function animate() {
         requestAnimationFrame(animate);
         time += 0.015; 
-        updateParticles(); // Met à jour la fumée
+        updateParticles();
 
-        // --- GESTION DES ETATS ---
+        if (robotState === 'intro') {
+            if (introIndex < introScript.length) {
+                const step = introScript[introIndex];
+                if (time >= step.time) { showBubble(step.text, 3000); introIndex++; }
+            } else if (time > 22) { robotState = 'moving'; pickNewTarget(); nextEventTime = time + 3; }
+            if (time < 5.0) robotGroup.rotation.y = Math.sin(time) * 0.3;
+            else if (time < 12.0) { robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.02); } 
+            else { robotGroup.position.lerp(new THREE.Vector3(4.0, 0, 0), 0.03); }
+        } 
         
-        if (robotState === 'moving') {
-            robotGroup.position.y += Math.sin(time * 2) * 0.002; // Flottement
+        else if (robotState === 'moving') {
+            robotGroup.position.y += Math.sin(time * 2) * 0.002;
             robotGroup.position.lerp(targetPosition, 0.02);
             smoothRotate(robotGroup, 'y', (targetPosition.x - robotGroup.position.x) * 0.05, 0.05);
             smoothRotate(robotGroup, 'z', -(targetPosition.x - robotGroup.position.x) * 0.03, 0.05);
             
             if (robotGroup.position.distanceTo(targetPosition) < 0.5) pickNewTarget();
             
-            // DECLENCHEUR ALEATOIRE
             if (time > nextEventTime) {
                 const rand = Math.random();
-                if (rand < 0.15) startTeleport(); 
-                else if (rand < 0.25) startExplosion(); 
+                if (rand < 0.10) startTeleport(); 
+                else if (rand < 0.20) startExplosion(); 
+                else if (rand < 0.35) startDance(); // Danse !
                 else startSpeaking(); 
             }
         } 
         
+        else if (robotState === 'dancing') {
+            // Animation de danse procédurale
+            const danceSpeed = time * 8;
+            robotGroup.position.y = Math.abs(Math.sin(danceSpeed)) * 0.5 - 1; // Rebondit
+            robotGroup.rotation.z = Math.sin(danceSpeed * 0.5) * 0.2; // Balance
+            leftArm.rotation.z = Math.PI - 0.5 + Math.sin(danceSpeed) * 0.5; // Bras en l'air
+            rightArm.rotation.z = -Math.PI + 0.5 - Math.sin(danceSpeed) * 0.5;
+            head.rotation.y = Math.sin(danceSpeed * 2) * 0.3;
+        }
+
         else if (robotState === 'exploding') {
-            // Tremblement avant explosion (si velocity est nulle) ou Explosion
             let isMoving = false;
             parts.forEach(part => {
                 if (part.userData.velocity.lengthSq() > 0) {
@@ -389,27 +409,21 @@ function initRobot(container) {
                     part.rotation.x += part.userData.rotVelocity.x;
                     part.rotation.y += part.userData.rotVelocity.y;
                     part.rotation.z += part.userData.rotVelocity.z;
-                    // Ralentissement (friction)
                     part.userData.velocity.multiplyScalar(0.95);
                 }
             });
-            
-            if (!isMoving) {
-                // Tremblement pré-explosion
+            if (!isMoving) { // Tremblement avant explosion
                 robotGroup.position.x += (Math.random()-0.5) * 0.1;
                 robotGroup.position.y += (Math.random()-0.5) * 0.1;
             }
         }
         
         else if (robotState === 'reassembling') {
-            // Retour magnétique
             parts.forEach(part => {
-                part.position.lerp(part.userData.origPos, 0.05);
-                // Lerp rotation manually
-                part.rotation.x += (part.userData.origRot.x - part.rotation.x) * 0.05;
-                part.rotation.y += (part.userData.origRot.y - part.rotation.y) * 0.05;
-                part.rotation.z += (part.userData.origRot.z - part.rotation.z) * 0.05;
-                // Reset velocity
+                part.position.lerp(part.userData.origPos, 0.08);
+                part.rotation.x += (part.userData.origRot.x - part.rotation.x) * 0.08;
+                part.rotation.y += (part.userData.origRot.y - part.rotation.y) * 0.08;
+                part.rotation.z += (part.userData.origRot.z - part.rotation.z) * 0.08;
                 part.userData.velocity.set(0,0,0);
             });
         }
@@ -419,32 +433,19 @@ function initRobot(container) {
             smoothRotate(robotGroup, 'y', 0, 0.05); 
             mouth.scale.set(1, 1 + Math.sin(time * 20) * 0.2, 1); 
         }
-        
-        else if (robotState === 'intro') {
-             if (introIndex < introScript.length) {
-                const step = introScript[introIndex];
-                if (time >= step.time) { showBubble(step.text, 3000); introIndex++; }
-            } else if (time > 22) { robotState = 'moving'; pickNewTarget(); nextEventTime = time + 3; }
-            if (time < 5.0) robotGroup.rotation.y = Math.sin(time) * 0.3;
-            else if (time < 12.0) { robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.02); } 
-            else { robotGroup.position.lerp(new THREE.Vector3(4.0, 0, 0), 0.03); }
-        }
 
-        // --- BULLE CADRÉE (NE SORT PLUS DE L'ECRAN) ---
+        // --- BULLE INTELLIGENTE (Ne sort plus de l'écran) ---
         if(bubble && bubble.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); 
-            // Si on explose, la bulle reste au centre du groupe, pas sur la tête qui vole
-            if (robotState !== 'exploding' && robotState !== 'reassembling') {
-                headPos.y += 0.8; 
-            }
+            if(robotState !== 'exploding') headPos.y += 0.8; 
             headPos.project(camera);
             
             const x = (headPos.x * .5 + .5) * width; 
             const y = (headPos.y * -.5 + .5) * height;
             
-            // Padding ajusté pour que le texte reste visible
-            // 200px à gauche, et on retire 300px à droite pour le texte long
-            const safeX = Math.max(200, Math.min(width - 300, x));
+            // On s'assure que la bulle reste dans l'écran (padding)
+            const bubbleWidth = 250; 
+            const safeX = Math.max(bubbleWidth/2 + 20, Math.min(width - bubbleWidth/2 - 20, x));
             
             bubble.style.left = safeX + 'px';
             bubble.style.top = Math.max(50, y - 80) + 'px';
