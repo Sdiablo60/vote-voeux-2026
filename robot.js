@@ -80,7 +80,6 @@ scene.add(dirLight);
 
 // --- CHARGEMENT DU MODÈLE ---
 // Utilisez l'URL d'un modèle GLB public fiable (Robot "X Bot" de Mixamo est parfait pour ça)
-// Si vous avez votre propre fichier, mettez le chemin local : './robot.glb'
 const MODEL_URL = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
 
 let mixer;
@@ -209,9 +208,6 @@ function animate() {
     const delta = clock.getDelta();
     if (mixer) mixer.update(delta);
     
-    // Faire regarder la souris (optionnel, effet sympa)
-    // if (model) model.rotation.y = Math.sin(Date.now() * 0.001) * 0.1;
-
     renderer.render(scene, camera);
 }
 
