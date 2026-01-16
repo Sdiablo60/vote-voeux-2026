@@ -4,10 +4,9 @@ const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
 // --- CONFIGURATION REÇUE DE PYTHON ---
-// C'est ici que le robot sait dans quel mode il est !
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
-// --- TEXTES DYNAMIQUES ---
+// --- TEXTES INTELLIGENTS ---
 const MESSAGES = {
     attente: [
         "Salut l'équipe ! 👋", "Tout le monde est bien installé ? 💺", 
@@ -48,6 +47,7 @@ function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
     
+    // Positionnement Fixe
     container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
     container.style.width = '100%'; container.style.height = '100%';
     container.style.zIndex = '1'; container.style.pointerEvents = 'none';
@@ -59,12 +59,14 @@ function initRobot(container) {
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.shadowMap.enabled = true;
     container.appendChild(renderer.domElement);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.1); scene.add(ambientLight);
     const dirLight = new THREE.DirectionalLight(0xffffff, 2.5); dirLight.position.set(5, 10, 7); scene.add(dirLight);
+    const screenLight = new THREE.PointLight(0x00ffff, 0.5, 4); screenLight.position.set(0, 0, 2); scene.add(screenLight);
 
-    // --- CONSTRUCTION DU ROBOT (Votre Code Original) ---
+    // --- ROBOT "CLAP-E" (VOTRE CODE) ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
     
@@ -78,6 +80,7 @@ function initRobot(container) {
     const faceGeo = new THREE.SphereGeometry(0.78, 64, 64);
     const face = new THREE.Mesh(faceGeo, blackScreenMat); face.scale.set(1.25, 0.85, 0.6); face.position.set(0, 0, 0.55); head.add(face);
 
+    // Yeux et Bouche (Position corrigée)
     const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 32, Math.PI); 
     const leftEye = new THREE.Mesh(eyeGeo, neonBlueMat); leftEye.position.set(-0.35, 0.15, 1.05); head.add(leftEye);
     const rightEye = new THREE.Mesh(eyeGeo, neonBlueMat); rightEye.position.set(0.35, 0.15, 1.05); head.add(rightEye);
@@ -109,7 +112,7 @@ function initRobot(container) {
     let nextEventTime = 0;
     let bubbleTimeout = null;
 
-    // SI on n'est pas en accueil, on saute l'intro !
+    // Si pas en mode accueil, on saute l'intro
     if (config.mode !== 'attente') {
         robotState = 'moving';
         targetPosition.set(0,0,0);
@@ -133,7 +136,7 @@ function initRobot(container) {
         robotState = 'speaking';
         targetPosition.copy(robotGroup.position);
         
-        // CHOIX DU MESSAGE SELON LE MODE
+        // CHOIX MESSAGE INTELLIGENT
         let list = MESSAGES[config.mode] || MESSAGES.attente;
         let txt = list[Math.floor(Math.random() * list.length)];
 
@@ -161,7 +164,6 @@ function initRobot(container) {
                 if (time >= step.time) { showBubble(step.text, 3500); introIndex++; }
             } else if (time > 24) { robotState = 'moving'; pickNewTarget(); nextEventTime = time + 5; }
             
-            // Animation Intro (Simplifiée)
             if (time < 5.0) robotGroup.rotation.y = Math.sin(time) * 0.3;
             else if (time < 12.0) { robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.02); } 
             else { robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03); }
@@ -178,10 +180,9 @@ function initRobot(container) {
         else if (robotState === 'speaking') {
             robotGroup.position.lerp(targetPosition, 0.001); 
             smoothRotate(robotGroup, 'y', 0, 0.05);
-            mouth.scale.set(1, 1 + Math.sin(time * 20) * 0.2, 1); // La bouche bouge !
+            mouth.scale.set(1, 1 + Math.sin(time * 20) * 0.2, 1); 
         }
 
-        // Bulle Position
         if(bubble && bubble.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); headPos.y += 0.8; headPos.project(camera);
             const x = (headPos.x * .5 + .5) * width; const y = (headPos.y * -.5 + .5) * height;
