@@ -38,9 +38,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- RECUPERATION PARAMETRES URL (LOGIQUE BLINDÉE) ---
+# --- RECUPERATION PARAMETRES URL ---
 qp = st.query_params
-mode_url = qp.get("mode", "wall") # Par défaut, on va sur le mur
+mode_url = qp.get("mode", "wall") 
 admin_url = qp.get("admin", "false")
 is_blocked = qp.get("blocked") == "true"
 is_test_admin = qp.get("test_admin") == "true"
@@ -211,7 +211,6 @@ st.markdown("""
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
     
-    /* CORRECTION FORCÉE POUR LES MENUS DÉROULANTS (TEST ADMIN) */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
         background-color: white !important;
     }
@@ -466,66 +465,6 @@ if PDF_AVAILABLE:
             pdf.ln(bar_height + spacing)
         return pdf.output(dest='S').encode('latin-1')
 
-    def create_pdf_distribution(title, rank_dist, nb_voters):
-        pdf = PDFReport()
-        pdf.add_page()
-        draw_summary_box(pdf, nb_voters, "N/A", "N/A")
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, txt="ANALYSE DE LA RÉPARTITION DES RANGS", ln=True, align='L')
-        pdf.ln(5)
-        pdf.set_fill_color(50, 50, 50)
-        pdf.set_text_color(255)
-        pdf.set_font("Arial", 'B', 10)
-        pdf.cell(80, 8, "Candidat", 1, 0, 'C', 1)
-        pdf.cell(35, 8, "1ere Place (Or)", 1, 0, 'C', 1)
-        pdf.cell(35, 8, "2eme Place (Arg)", 1, 0, 'C', 1)
-        pdf.cell(35, 8, "3eme Place (Brz)", 1, 1, 'C', 1)
-        pdf.set_text_color(0)
-        pdf.set_font("Arial", size=10)
-        fill = False
-        pdf.ln()
-        sorted_dist = sorted(rank_dist.items(), key=lambda x: x[1][1], reverse=True)
-        for cand, ranks in sorted_dist:
-            cand_txt = str(cand).encode('latin-1', 'replace').decode('latin-1')
-            if fill: pdf.set_fill_color(245, 245, 245)
-            else: pdf.set_fill_color(255, 255, 255)
-            pdf.cell(80, 8, cand_txt, 1, 0, 'L', 1)
-            pdf.cell(35, 8, str(ranks[1]), 1, 0, 'C', 1)
-            pdf.cell(35, 8, str(ranks[2]), 1, 0, 'C', 1)
-            pdf.cell(35, 8, str(ranks[3]), 1, 1, 'C', 1)
-            fill = not fill
-            pdf.ln()
-        return pdf.output(dest='S').encode('latin-1')
-
-    def create_pdf_audit(title, df, nb_voters):
-        pdf = PDFReport()
-        pdf.add_page()
-        draw_summary_box(pdf, nb_voters, len(df), "N/A")
-        pdf.set_font("Arial", 'B', 12)
-        pdf.cell(0, 10, txt="JOURNAL D'AUDIT COMPLET", ln=True, align='L')
-        pdf.ln(5)
-        cols = df.columns.tolist() 
-        col_w = 190 / len(cols)
-        pdf.set_fill_color(50, 50, 50)
-        pdf.set_text_color(255)
-        pdf.set_font("Arial", 'B', 9)
-        for col in cols:
-            c_txt = str(col).encode('latin-1', 'replace').decode('latin-1')
-            pdf.cell(col_w, 8, c_txt, 1, 0, 'C', 1)
-        pdf.ln()
-        pdf.set_text_color(0)
-        pdf.set_font("Arial", size=8)
-        fill = False
-        for i, row in df.iterrows():
-            if fill: pdf.set_fill_color(245, 245, 245)
-            else: pdf.set_fill_color(255, 255, 255)
-            for col in cols:
-                txt = str(row[col]).encode('latin-1', 'replace').decode('latin-1')
-                pdf.cell(col_w, 8, txt, 1, 0, 'C', 1)
-            pdf.ln()
-            fill = not fill
-        return pdf.output(dest='S').encode('latin-1')
-
 # --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
@@ -620,7 +559,6 @@ if est_admin:
                 if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
                 st.header(f"MENU ({st.session_state['current_user']})")
                 
-                # --- MENU DYNAMIQUE ---
                 if "admin_menu" not in st.session_state: st.session_state.admin_menu = "🔴 PILOTAGE LIVE"
 
                 if is_super_admin or "pilotage" in perms:
@@ -659,7 +597,6 @@ if est_admin:
 
             menu = st.session_state.admin_menu
 
-            # --- CONTENU DES PAGES ADMIN ---
             if menu == "🔴 PILOTAGE LIVE" and (is_super_admin or "pilotage" in perms):
                 st.title("🔴 PILOTAGE LIVE")
                 st.subheader("Séquenceur")
@@ -947,7 +884,7 @@ if est_admin:
                                 save_json(USERS_FILE, users_db)
                                 st.success(f"Utilisateur {new_u} créé !"); time.sleep(1); st.rerun()
                         else: st.error("Remplissez l'identifiant et le mot de passe.")
-# =========================================================
+                            # =========================================================
 # 2. APPLICATION MOBILE (Vote)
 # =========================================================
 elif est_utilisateur:
@@ -1036,7 +973,7 @@ elif est_utilisateur:
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
-# =========================================================
+        # =========================================================
 # 3. MUR SOCIAL
 # =========================================================
 else:
@@ -1061,12 +998,14 @@ else:
     except: css_content = ""; js_content = "console.error('Fichiers manquants');"
 
     # --- CONFIGURATION DU ROBOT (TITRE ET MODE) ---
-    robot_mode = "attente"
+    # C'est ici qu'on donne le cerveau au robot
+    robot_mode = "attente" # par défaut
     if mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
         robot_mode = "vote_off"
     elif mode == "photos_live":
         robot_mode = "photos"
     
+    # On nettoie le titre pour le JS
     safe_title = cfg['titre_mur'].replace("'", "\\'")
     
     # Injection des variables pour le JS
@@ -1084,12 +1023,11 @@ else:
 
     if mode == "attente":
         logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body>{js_config}<div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body>{js_config}<div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
         components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # PODIUM COMPLET (Recopié depuis la V12)
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1126,7 +1064,6 @@ else:
             </style>""", height=900, scrolling=False)
 
         elif cfg["session_ouverte"]:
-             # --- ECRAN VOTES OUVERTS (AVEC MARQUEE ET LISTES) ---
              host = st.context.headers.get('host', 'localhost')
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
@@ -1149,13 +1086,12 @@ else:
         else:
             # --- VOTE OFF (ROBOT ACTIF) ---
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-            overlay_html = f"""<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 10; display:flex; flex-direction:column; align-items:center; justify-content:center;'><div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI !</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3></div></div>"""
-            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}{overlay_html}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
+            overlay_html = f"""<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 2; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events: none;'><div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI !</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3></div></div>"""
+            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}{overlay_html}<div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
             components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "photos_live":
         # --- PHOTOS LIVE (AVEC ROBOT EN FOND) ---
-        # Code Fusionné Bulles + Robot
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
@@ -1163,14 +1099,14 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
-        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
+        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8); pointer-events: none;'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
         
         bubbles_script = f"""
         <script>
             setTimeout(function() {{
                 var container = document.createElement('div');
                 container.id = 'live-container'; 
-                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:50;overflow:hidden;background:transparent;pointer-events:none;';
+                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:5;overflow:hidden;background:transparent;pointer-events:none;';
                 document.body.appendChild(container);
                 var centerDiv = document.createElement('div');
                 centerDiv.innerHTML = `{center_html_content}`;
@@ -1201,7 +1137,7 @@ else:
             }}, 500);
         </script>
         """
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div>{import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}<div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
         components.html(html_code, height=1000, scrolling=False)
     
     else:
