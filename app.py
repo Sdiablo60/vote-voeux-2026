@@ -1254,9 +1254,9 @@ else:
                      margin_side = "margin-left:15px;" # Marge entre la photo et le texte
                      
                      h += f"""
-                     <div style="display:flex; align-items:center; justify-content:{justify}; flex-direction:{flex_dir}; margin:10px 0; background:rgba(255,255,255,0.1); padding:8px 15px; border-radius:50px; width:fit-content; margin-{align}: auto;">
+                     <div style="display:flex; align-items:center; justify-content:{justify}; flex-direction:{flex_dir}; margin:10px 0; background:rgba(255,255,255,0.1); padding:10px 20px; border-radius:50px; width:220px; margin-{align}: auto;">
                         {im}
-                        <span style="{margin_side} font-size:18px; font-weight:bold; color:white; text-transform:uppercase;">{c}</span>
+                        <span style="{margin_side} font-size:18px; font-weight:bold; color:white; text-transform:uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{c}</span>
                      </div>
                      """
                  return h
