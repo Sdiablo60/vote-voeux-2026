@@ -36,8 +36,8 @@ Image.MAX_IMAGE_PIXELS = None
 
 # CONFIGURATION PAGE
 st.set_page_config(
-    page_title="Régie Master",
-    layout="wide",
+    page_title="Régie Master", 
+    layout="wide", 
     initial_sidebar_state="expanded"
 )
 
@@ -56,7 +56,6 @@ VOTERS_FILE = "voters.json"
 PARTICIPANTS_FILE = "participants.json"
 DETAILED_VOTES_FILE = "detailed_votes.json"
 
-# Création des dossiers si inexistants
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
@@ -75,25 +74,13 @@ st.markdown("""
     [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
     
     .social-header { 
-        position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 12vh; 
+        position: fixed; top: 0; left: 0; width: 100%; height: 12vh; 
         background: #E2001A !important; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
+        display: flex; align-items: center; justify-content: center; 
         z-index: 999999 !important; /* Priorité maximale */
         border-bottom: 5px solid white; 
     }
-    .social-title { 
-        color: white !important; 
-        font-size: 40px !important; 
-        font-weight: bold; 
-        margin: 0; 
-        text-transform: uppercase; 
-    }
+    .social-title { color: white !important; font-size: 40px !important; font-weight: bold; margin: 0; text-transform: uppercase; }
 
     /* STOP SCROLLING ULTIME (Global) */
     html, body, [data-testid="stAppViewContainer"] {
@@ -108,59 +95,26 @@ st.markdown("""
     ::-webkit-scrollbar { display: none; }
     
     /* Boutons Généraux */
-    button[kind="secondary"] { 
-        color: #333 !important; 
-        border-color: #333 !important; 
-    }
-    button[kind="primary"] { 
-        color: white !important; 
-        background-color: #E2001A !important; 
-        border: none; 
-    }
-    button[kind="primary"]:hover { 
-        background-color: #C20015 !important; 
-    }
+    button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
+    button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
+    button[kind="primary"]:hover { background-color: #C20015 !important; }
     
     /* Login Box */
     .login-container {
-        max-width: 400px; 
-        margin: 100px auto; 
-        padding: 40px;
-        background: #f8f9fa; 
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-        text-align: center; 
-        border: 1px solid #ddd;
+        max-width: 400px; margin: 100px auto; padding: 40px;
+        background: #f8f9fa; border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
     }
-    .login-title { 
-        color: #E2001A; 
-        font-size: 24px; 
-        font-weight: bold; 
-        margin-bottom: 20px; 
-        text-transform: uppercase; 
-    }
-    .stTextInput input { 
-        text-align: center; 
-        font-size: 18px; 
-    }
+    .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
+    .stTextInput input { text-align: center; font-size: 18px; }
     
     /* Sidebar */
-    section[data-testid="stSidebar"] { 
-        background-color: #f0f2f6 !important; 
-    }
+    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
     section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; 
-        width: 100%; 
-        border-radius: 5px; 
-        margin-bottom: 5px;
+        background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
     }
     section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; 
-        width: 100%; 
-        border-radius: 5px; 
-        margin-bottom: 5px; 
-        border: none !important; 
-        color: white !important;
+        background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
     }
     
     /* STYLE DES BOUTONS D'EXPORT */
@@ -192,13 +146,11 @@ st.markdown("""
         box-sizing: border-box !important;
         line-height: 1.5 !important;
     }
-    a.custom-link-btn:hover { 
-        transform: scale(1.02); 
-        opacity: 0.9; 
-    }
+    a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; }
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
 
+    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin via JS si besoin, mais géré par le mode) */
 </style>
 """, unsafe_allow_html=True)
 
@@ -1291,24 +1243,47 @@ else:
              host = st.context.headers.get('host', 'localhost')
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:300px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
+             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom:20px;">' if cfg.get("logo_b64") else ""
              
+             # --- GENERATION LISTES CANDIDATS ---
+             cands = cfg["candidats"]
+             mid = (len(cands) + 1) // 2
+             left_cands = cands[:mid]
+             right_cands = cands[mid:]
+             
+             def gen_html_list(clist, imgs):
+                 h = ""
+                 for c in clist:
+                     im = '<div style="font-size:30px;">👤</div>'
+                     if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid white;">'
+                     h += f'<div style="display:flex;align-items:center;margin:10px 0;background:rgba(255,255,255,0.1);padding:8px;border-radius:10px;">{im}<span style="margin-left:15px;font-size:18px;font-weight:bold;color:white;">{c}</span></div>'
+                 return h
+
+             left_html = gen_html_list(left_cands, cfg.get("candidats_images", {}))
+             right_html = gen_html_list(right_cands, cfg.get("candidats_images", {}))
+
              components.html(f"""
                 <style>
-                    body {{ background: black; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: Arial, sans-serif; }}
-                    .container {{ text-align: center; color: white; animation: fadeIn 1s ease-in; }}
-                    .title {{ font-size: 80px; font-weight: 900; color: #E2001A; margin: 0; text-transform: uppercase; letter-spacing: 5px; }}
-                    .subtitle {{ font-size: 40px; font-weight: bold; margin-bottom: 30px; }}
-                    .qr-box {{ background: white; padding: 20px; border-radius: 20px; display: inline-block; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); }}
-                    @keyframes fadeIn {{ from {{ opacity: 0; transform: scale(0.9); }} to {{ opacity: 1; transform: scale(1); }} }}
+                    body {{ background: black; margin: 0; height: 100vh; overflow: hidden; font-family: Arial, sans-serif; display:flex; justify-content:center; align-items:center; }}
+                    .main-wrapper {{ display: flex; width: 95%; height: 90vh; align-items: center; justify-content: space-between; }}
+                    .side-col {{ width: 25%; height: 100%; overflow-y: auto; padding: 20px; }}
+                    .center-col {{ width: 40%; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
+                    .title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 0; text-transform: uppercase; letter-spacing: 3px; }}
+                    .subtitle {{ font-size: 30px; font-weight: bold; margin-bottom: 20px; color: white; }}
+                    .qr-box {{ background: white; padding: 15px; border-radius: 20px; display: inline-block; box-shadow: 0 0 40px rgba(226, 0, 26, 0.4); }}
+                    ::-webkit-scrollbar {{ display: none; }}
                 </style>
-                <div class="container">
-                    {logo_html}
-                    <div class="title">VOTES OUVERTS</div>
-                    <div class="subtitle">Scannez pour voter</div>
-                    <div class="qr-box">
-                        <img src="data:image/png;base64,{qr_b64}" width="400">
+                <div class="main-wrapper">
+                    <div class="side-col">{left_html}</div>
+                    <div class="center-col">
+                        {logo_html}
+                        <div class="title">VOTES OUVERTS</div>
+                        <div class="subtitle">Scannez pour voter</div>
+                        <div class="qr-box">
+                            <img src="data:image/png;base64,{qr_b64}" width="350">
+                        </div>
                     </div>
+                    <div class="side-col">{right_html}</div>
                 </div>
              """, height=900)
 
