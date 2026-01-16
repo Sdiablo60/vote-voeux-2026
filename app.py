@@ -1124,7 +1124,6 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
-            # Préparation du logo pour l'écran final
             final_logo_html = ""
             if cfg.get("logo_b64"):
                 final_logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="final-logo">'
@@ -1154,7 +1153,6 @@ else:
                         <div class="rank-num">2</div>
                     </div>
                 </div>
-
                 <div class="column-1">
                     <div class="winners-box rank-1" id="win-1">{h1}</div>
                     <div class="pedestal pedestal-1">
@@ -1162,7 +1160,6 @@ else:
                         <div class="rank-num">1</div>
                     </div>
                 </div>
-
                 <div class="column-3">
                     <div class="winners-box rank-3" id="win-3">{h3}</div>
                     <div class="pedestal pedestal-3">
@@ -1181,6 +1178,7 @@ else:
                 const w2 = document.getElementById('win-2');
                 const w3 = document.getElementById('win-3');
                 const audio = document.getElementById('applause-sound');
+                const finalOverlay = document.getElementById('final-overlay');
 
                 function startConfetti() {{
                     var script = document.createElement('script');
@@ -1205,16 +1203,14 @@ else:
                     layer.style.display = 'flex';
                     layer.style.opacity = '1';
                     txt.innerText = message;
-                    for(let i=seconds; i>0; i--) {{
-                        num.innerText = i;
-                        await wait(1000);
-                    }}
+                    for(let i=seconds; i>0; i--) {{ num.innerText = i; await wait(1000); }}
                     layer.style.opacity = '0';
                     await wait(500); 
                     layer.style.display = 'none';
                 }}
 
                 async function runShow() {{
+                    // PODIUM SEQUENCE
                     await countdown(5, "EN TROISIÈME PLACE...");
                     w3.classList.add('visible');
                     document.querySelector('.pedestal-3').classList.add('visible');
@@ -1230,11 +1226,17 @@ else:
                     document.querySelector('.pedestal-1').classList.add('visible');
 
                     startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play blocked"); }}
+                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio blocked"); }}
                     
-                    // Apparition du logo final en haut après 5s
-                    await wait(5000);
-                    document.getElementById('final-overlay').classList.add('visible');
+                    // --- SEQUENCE FINALE ---
+                    await wait(4000);
+                    // 1. Apparition FOND NOIR + LOGO GRAND
+                    finalOverlay.classList.add('stage-1-black');
+                    
+                    await wait(4000); 
+                    // 2. Transition vers le HAUT et FOND TRANSPARENT (Révélation Podium)
+                    finalOverlay.classList.remove('stage-1-black');
+                    finalOverlay.classList.add('stage-2-transparent');
                 }}
 
                 window.parent.document.body.style.backgroundColor = "black";
@@ -1245,36 +1247,63 @@ else:
                 
                 .podium-container {{
                     position: absolute; bottom: 0; left: 0; width: 100%; height: 100vh;
-                    display: flex; justify-content: center; align-items: flex-end;
-                    padding-bottom: 20px;
+                    display: flex; justify-content: center; align-items: flex-end; padding-bottom: 20px;
+                }}
+                
+                /* GESTION SEQUENCE FINALE */
+                .final-overlay {{
+                    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                    display: flex; flex-direction: column; justify-content: center; align-items: center;
+                    z-index: 6000; pointer-events: none; opacity: 0;
+                    transition: all 1.5s ease-in-out;
+                }}
+                
+                /* ETAPE 1 : FOND NOIR TOTAL + GRAND LOGO */
+                .final-overlay.stage-1-black {{
+                    background-color: black;
+                    opacity: 1;
+                }}
+                .final-overlay.stage-1-black .final-content {{
+                    transform: scale(1.5);
                 }}
 
+                /* ETAPE 2 : FOND TRANSPARENT + PETIT LOGO EN HAUT */
+                .final-overlay.stage-2-transparent {{
+                    background-color: transparent;
+                    opacity: 1;
+                    justify-content: flex-start;
+                    padding-top: 5vh;
+                }}
+                .final-overlay.stage-2-transparent .final-content {{
+                    transform: scale(0.6);
+                }}
+
+                .final-content {{
+                    text-align: center; transition: all 1.5s ease-in-out;
+                }}
+                .final-logo {{ width: 400px; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(255,255,255,0.2)); }}
+                .final-text {{
+                    font-family: 'Arial Black', sans-serif; font-size: 50px; color: #E2001A;
+                    text-transform: uppercase; text-shadow: 0 0 20px rgba(0,0,0,0.8); margin: 0;
+                }}
+
+                /* CSS PODIUM CLASSIQUE */
                 .column-2 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
                 .column-1 {{ width: 36%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
                 .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS - FIXE POUR 2 CARTES CÔTE A CÔTE */
                 .winners-box {{
-                    display: flex; 
-                    flex-direction: row;        
-                    flex-wrap: wrap-reverse; /* Empile vers le haut */
-                    justify-content: center;
-                    align-items: flex-end;      
-                    width: 450px !important;  
-                    max-width: 450px !important;
-                    margin: 0 auto;             
-                    padding-bottom: 0px;
+                    display: flex; flex-direction: row; flex-wrap: wrap-reverse;
+                    justify-content: center; align-items: flex-end;      
+                    width: 450px !important; margin: 0 auto; padding-bottom: 0px; gap: 10px;
                     opacity: 0; transform: translateY(50px) scale(0.8);
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
 
-                /* MARCHES */
                 .pedestal {{
-                    width: 100%;
-                    background: linear-gradient(to bottom, #333, #000);
-                    border-radius: 20px 20px 0 0;
-                    box-shadow: 0 -5px 15px rgba(255,255,255,0.1);
+                    width: 100%; background: linear-gradient(to bottom, #333, #000);
+                    border-radius: 20px 20px 0 0; box-shadow: 0 -5px 15px rgba(255,255,255,0.1);
                     display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
                     position: relative; padding-top: 20px;
                 }}
@@ -1287,91 +1316,46 @@ else:
                 .rank-score {{ font-family: 'Arial Black', sans-serif; font-size: 30px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-bottom: -20px; z-index: 5; opacity: 0; transform: translateY(20px); transition: all 0.5s ease-out; }}
                 .pedestal.visible .rank-score {{ opacity: 1; transform: translateY(0); }}
 
-                /* CARTES GAGNANTS - GRANDES */
                 .p-card {{ 
-                    background: rgba(20,20,20,0.8); border-radius: 15px; padding: 15px; 
-                    width: 200px; 
-                    height: auto;
-                    margin: 10px; 
-                    backdrop-filter: blur(5px); 
-                    border: 2px solid rgba(255,255,255,0.3); 
-                    display:flex; flex-direction:column; align-items:center; 
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-                    flex-shrink: 0; 
-                    box-sizing: border-box !important;
+                    background: rgba(20,20,20,0.8); border-radius: 15px; padding: 15px; width: 200px; margin: 10px;
+                    backdrop-filter: blur(5px); border: 2px solid rgba(255,255,255,0.3);
+                    display:flex; flex-direction:column; align-items:center; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+                    flex-shrink: 0; box-sizing: border-box !important;
                 }}
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.15); margin-bottom: 20px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
-                .p-img, .p-placeholder {{ 
-                    width: 140px; height: 140px; 
-                    border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; 
-                    display: flex; justify-content: center; align-items: center; 
-                }}
+                .p-img, .p-placeholder {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; }}
                 .rank-1 .p-img {{ width: 160px; height: 160px; border-color: #FFD700; }}
-
                 .p-name {{ font-family: Arial; font-size: 22px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }}
                 .rank-1 .p-name {{ color: #FFD700; font-size: 26px; }}
                 
                 .intro-overlay {{ position: fixed; top: 15vh; left: 0; width: 100vw; z-index: 5000; display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
                 .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px black; }}
                 .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
-            
-                /* NOUVEAU : CSS Écran Final Ajusté */
-                .final-overlay {{
-                    position: fixed; top: 5%; left: 0; width: 100vw; height: 40vh; /* Seulement le haut */
-                    background: transparent; /* Pas de fond noir */
-                    z-index: 6000; 
-                    display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    opacity: 0; pointer-events: none;
-                    transition: all 1.5s ease-out;
-                    transform: translateY(20px); /* Départ légèrement plus bas */
-                }}
-                .final-overlay.visible {{ opacity: 1; pointer-events: auto; transform: translateY(0); }}
-                
-                /* Logo un peu plus petit pour ne pas écraser */
-                .final-logo {{ width: 300px; margin-bottom: 15px; filter: drop-shadow(0 0 10px rgba(255,255,255,0.3)); }}
-                .final-text {{
-                    font-family: 'Arial Black', sans-serif; font-size: 50px; color: #E2001A; 
-                    text-transform: uppercase; text-shadow: 0 0 20px rgba(0,0,0,0.8); margin: 0;
-                    background: rgba(0,0,0,0.5); padding: 10px 30px; border-radius: 20px; /* Petit fond pour lisibilité */
-                }}
             </style>
             """, height=900, scrolling=False)
 
         elif cfg["session_ouverte"]:
-             # --- ECRAN VOTES OUVERTS ---
              host = st.context.headers.get('host', 'localhost')
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-             
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
-             voter_names = [v['Utilisateur'] for v in recent_votes[-20:]]
-             voter_names.reverse()
+             voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
              voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
-             
              cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
              left_cands = cands[:mid]; right_cands = cands[mid:]
-             
              def gen_html_list(clist, imgs, align='left'):
                  h = ""
                  for c in clist:
                      im = '<div style="font-size:30px;">👤</div>'
                      if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid white;">'
-                     margin_side = "margin-left:15px;" 
-                     h += f"""
-                     <div style="display:flex; align-items:center; justify-content:flex-start; flex-direction:row; margin:10px 0; background:rgba(255,255,255,0.1); padding:10px 20px; border-radius:50px; width:220px; margin-{align}: auto;">
-                        {im}
-                        <span style="{margin_side} font-size:18px; font-weight:bold; color:white; text-transform:uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{c}</span>
-                     </div>
-                     """
+                     h += f"""<div style="display:flex; align-items:center; justify-content:flex-start; flex-direction:row; margin:10px 0; background:rgba(255,255,255,0.1); padding:10px 20px; border-radius:50px; width:220px; margin-{align}: auto;">{im}<span style="margin-left:15px; font-size:18px; font-weight:bold; color:white; text-transform:uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{c}</span></div>"""
                  return h
-
              left_html = gen_html_list(left_cands, cfg.get("candidats_images", {}), 'left')
              right_html = gen_html_list(right_cands, cfg.get("candidats_images", {}), 'right')
-
              components.html(f"""
                 <style>
                     body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
@@ -1403,7 +1387,6 @@ else:
                     <div class="side-col" style="align-items: flex-end;">{right_html}</div>
                 </div>
              """, height=900)
-
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.9); max-width: 800px; text-align: center;'><h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI DE VOTRE PARTICIPATION</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GRANDS GAGNANTS dans quelques instants...</h3></div></div></div>", unsafe_allow_html=True)
@@ -1416,11 +1399,7 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
-        components.html(f"""<script>
-            var doc = window.parent.document;
-            var existing = doc.getElementById('live-container');
-            if(existing) existing.remove();
-            var container = doc.createElement('div');
-            container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
+        components.html(f"""<script>var doc = window.parent.document;var existing = doc.getElementById('live-container');if(existing) existing.remove();var container = doc.createElement('div');container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
