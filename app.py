@@ -865,12 +865,23 @@ if est_admin:
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
+    
+    # CSS SPÉCIFIQUE MOBILE POUR FORCER LE TEXTE NOIR DANS LE SELECT
     st.markdown("""
         <style>
             .stApp {background-color:black !important; color:white !important;} 
             [data-testid='stHeader'] {display:none;}
             .block-container {padding: 1rem !important;}
             h1, h2, h3, p, div, span, label { color: white !important; }
+            
+            /* FORCE LA COULEUR NOIRE POUR LES OPTIONS DU MULTISELECT */
+            div[role="listbox"] li, div[data-baseweb="menu"] {
+                color: black !important;
+            }
+            span[data-baseweb="tag"] {
+                 color: black !important;
+            }
+            /* FIN CSS MOBILE */
         </style>
     """, unsafe_allow_html=True)
     
@@ -920,7 +931,6 @@ elif est_utilisateur:
                 st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
         
         elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
-            # MODIFICATION MOBILE : Affichage conditionnel pour cacher le formulaire après vote
             if st.session_state.vote_success:
                  st.balloons()
                  st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
@@ -928,7 +938,6 @@ elif est_utilisateur:
                      components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
                  else: 
                      st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
-                 # ON ARRÊTE L'EXÉCUTION ICI POUR NE PAS AFFICHER LE RESTE
                  st.stop()
             
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
@@ -937,7 +946,6 @@ elif est_utilisateur:
                 st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
-                # MESSAGE D'ALERTE AJOUTÉ ICI
                 st.warning("⚠️ RAPPEL IMPORTANT : Votre vote est UNIQUE. Une fois validé, il sera définitif et impossible à modifier.")
                 
                 choix = st.multiselect("Vos 3 vidéos préférées (par ordre de préférence) :", cfg["candidats"], max_selections=3, key="widget_choix")
@@ -1319,9 +1327,6 @@ else:
              
              def gen_html_list(clist, imgs, align='left'):
                  h = ""
-                 # On garde le format [Image] [Texte] pour les deux côtés pour la symétrie visuelle
-                 # L'alignement du conteneur change
-                 
                  for c in clist:
                      im = '<div style="font-size:30px;">👤</div>'
                      if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid white;">'
@@ -1351,16 +1356,41 @@ else:
                         width: 100%;
                         background: #E2001A;
                         color: white;
-                        padding: 10px 0;
+                        height: 50px;
                         position: fixed;
                         top: 0;
                         left: 0;
                         z-index: 1000;
-                        overflow: hidden;
-                        white-space: nowrap;
+                        display: flex;
+                        align-items: center;
                         box-shadow: 0 5px 15px rgba(0,0,0,0.3);
                         border-bottom: 2px solid white;
                     }}
+                    
+                    /* PARTIE GAUCHE STATIQUE */
+                    .marquee-label {{
+                        background: #E2001A;
+                        color: white;
+                        font-weight: 900;
+                        font-size: 18px;
+                        padding: 0 20px;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        z-index: 1001; /* Au-dessus du défilement */
+                        box-shadow: 5px 0 10px rgba(0,0,0,0.2); /* Ombre pour séparer */
+                    }}
+
+                    /* PARTIE DROITE DÉFILANTE */
+                    .marquee-wrapper {{
+                        overflow: hidden;
+                        white-space: nowrap;
+                        flex-grow: 1;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                    }}
+
                     .marquee-content {{
                         display: inline-block;
                         padding-left: 100%;
@@ -1369,6 +1399,7 @@ else:
                         font-size: 18px;
                         text-transform: uppercase;
                     }}
+                    
                     @keyframes marquee {{
                         0%   {{ transform: translate(0, 0); }}
                         100% {{ transform: translate(-100%, 0); }}
@@ -1436,7 +1467,10 @@ else:
                 </style>
                 
                 <div class="marquee-container">
-                    <div class="marquee-content">DERNIERS VOTANTS : {voter_string}</div>
+                    <div class="marquee-label">DERNIERS VOTANTS :</div>
+                    <div class="marquee-wrapper">
+                        <div class="marquee-content">{voter_string}</div>
+                    </div>
                 </div>
 
                 <div class="top-section">
