@@ -787,6 +787,42 @@ if est_admin:
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
                 
+                # --- NOUVEAU BLOC : GENERATEUR DE VOTES ---
+                st.markdown("### 🧪 Simulation / Test de Charge")
+                with st.expander("Générer des votes aléatoires"):
+                    nb_simu = st.number_input("Nombre de votes à générer", min_value=1, max_value=1000, value=10, step=1)
+                    if st.button("🚀 Générer les votes", type="primary"):
+                        votes = load_json(VOTES_FILE, {})
+                        details = load_json(DETAILED_VOTES_FILE, [])
+                        cands = cfg["candidats"]
+                        points = cfg.get("points_ponderation", [5, 3, 1])
+                        
+                        if len(cands) >= 3:
+                            for _ in range(nb_simu):
+                                # Choisir 3 candidats au hasard
+                                choix_simu = random.sample(cands, 3)
+                                # Mettre à jour les scores
+                                for v, p in zip(choix_simu, points):
+                                    votes[v] = votes.get(v, 0) + p
+                                # Ajouter au journal
+                                details.append({
+                                    "Utilisateur": f"Bot_{random.randint(1000,9999)}",
+                                    "Choix 1 (5pts)": choix_simu[0],
+                                    "Choix 2 (3pts)": choix_simu[1],
+                                    "Choix 3 (1pt)": choix_simu[2],
+                                    "Date": datetime.now().strftime("%H:%M:%S")
+                                })
+                            
+                            save_json(VOTES_FILE, votes)
+                            save_json(DETAILED_VOTES_FILE, details)
+                            st.success(f"✅ {nb_simu} votes générés avec succès !")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("Il faut au moins 3 participants pour générer des votes.")
+
+                st.divider()
+
                 # --- CALCULS DONNEES ---
                 votes = load_json(VOTES_FILE, {})
                 vote_counts, nb_unique_voters, rank_dist = get_advanced_stats()
@@ -817,7 +853,8 @@ if est_admin:
                     st.altair_chart(chart, use_container_width=True)
                 
                 with c_data:
-                    st.dataframe(df_totals, height=350, use_container_width=True, hide_index=True)
+                    # Utilisation de st.table pour éviter les erreurs JS numbro.js
+                    st.table(df_totals)
                 
                 # Exports Résultats
                 st.markdown("##### 📥 Exporter le Rapport de Résultats")
@@ -845,7 +882,8 @@ if est_admin:
                     if 'Date' in df_audit.columns:
                         df_audit = df_audit.drop(columns=['Date'])
                         
-                    st.dataframe(df_audit, use_container_width=True, height=400)
+                    # Utilisation de st.table pour robustesse
+                    st.table(df_audit)
                     
                     st.markdown("##### 📥 Exporter l'Audit")
                     c4, c5 = st.columns(2)
@@ -866,7 +904,7 @@ if est_admin:
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # CSS SPÉCIFIQUE MOBILE POUR FORCER LE TEXTE NOIR DANS LE SELECT
+    # CSS SPÉCIFIQUE MOBILE ET SELECTBOX
     st.markdown("""
         <style>
             .stApp {background-color:black !important; color:white !important;} 
@@ -875,8 +913,15 @@ elif est_utilisateur:
             h1, h2, h3, p, div, span, label { color: white !important; }
             
             /* FORCE LA COULEUR NOIRE POUR LES OPTIONS DU MULTISELECT */
-            div[role="listbox"] li, div[data-baseweb="menu"] {
+            div[data-baseweb="select"] span {
                 color: black !important;
+            }
+            div[data-baseweb="menu"] li {
+                color: black !important;
+                background-color: white !important;
+            }
+            div[data-baseweb="popover"] {
+                background-color: white !important;
             }
             span[data-baseweb="tag"] {
                  color: black !important;
@@ -1327,6 +1372,9 @@ else:
              
              def gen_html_list(clist, imgs, align='left'):
                  h = ""
+                 # On garde le format [Image] [Texte] pour les deux côtés pour la symétrie visuelle
+                 # L'alignement du conteneur change
+                 
                  for c in clist:
                      im = '<div style="font-size:30px;">👤</div>'
                      if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid white;">'
