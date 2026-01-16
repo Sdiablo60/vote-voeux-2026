@@ -1024,19 +1024,18 @@ elif est_utilisateur:
                     st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
                     st.stop()
         else: st.info("⏳ En attente...")
-
 # =========================================================
 # 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
+    
+    # Refresh auto : 5s si podium, sinon 4s
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
     # --- CORRECTION FOND NOIR ---
-    # On force le fond de l'application à être NOIR pour le Mur Social
-    # Cela écrase la configuration blanche de l'Admin définie plus haut
     st.markdown("""
         <style>
             .stApp {
@@ -1046,7 +1045,7 @@ else:
         </style>
     """, unsafe_allow_html=True)
     
-    # HEADER ROUGE EN Z-INDEX MAXIMAL (FIXE)
+    # HEADER ROUGE
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
@@ -1056,6 +1055,7 @@ else:
 
     ph = st.empty()
     
+    # --- MODE ATTENTE ---
     if mode == "attente":
         try:
             with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
@@ -1065,10 +1065,8 @@ else:
 
         logo_img_tag = ""
         if cfg.get("logo_b64"):
-            # MODIFICATION : Taille 350px, Marge 10px
             logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">'
 
-        # STRUCTURE ANTI-CLIGNOTEMENT: Texte dans le HTML de l'iframe + Fond noir forcé
         html_code = f"""
         <!DOCTYPE html>
         <html>
@@ -1089,18 +1087,14 @@ else:
             </div>
             <div id="robot-bubble" class="bubble">...</div>
             <div id="robot-container"></div>
-            
-            <script type="importmap">
-            {{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}
-            </script>
-            <script type="module">
-                {js_content}
-            </script>
+            <script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script>
+            <script type="module">{js_content}</script>
         </body>
         </html>
         """
         components.html(html_code, height=1000, scrolling=False)
 
+    # --- MODE VOTES (PODIUM ou OUVERT/FERMÉ) ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
             # CHARGEMENT DES VOTES
@@ -1127,7 +1121,6 @@ else:
                         img_tag = f"<img src='{img_src}' class='p-img'>"
                     else:
                         img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # SCORE SUR LE PODIUM, PAS SUR LA CARTE
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
 
@@ -1135,8 +1128,6 @@ else:
             h2 = get_podium_html(rank2, s2, "🥈")
             h3 = get_podium_html(rank3, s3, "🥉")
             
-            # ATTENTION : DANS LE BLOC CI-DESSOUS (f-string), TOUTES LES ACCOLADES CSS/JS DOIVENT ÊTRE DOUBLÉES {{ }}
-            # SEULES LES VARIABLES PYTHON {h1}, {s1}, etc. GARDENT DES ACCOLADES SIMPLES
             components.html(f"""
             <div id="intro-layer" class="intro-overlay">
                 <div id="intro-txt" class="intro-text"></div>
@@ -1249,28 +1240,29 @@ else:
                     padding-bottom: 20px;
                 }}
 
-                /* COLONNES FIXES - PLUS LARGES POUR PERMETTRE LE CÔTE A CÔTE */
+                /* COLONNES FIXES */
                 .column-2 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
                 .column-1 {{ width: 36%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
                 .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS - FLEX-WRAP REVERSE POUR EMPILEMENT VERS LE HAUT + WIDTH CONTRAINTE */
+                /* CONTENEUR GAGNANTS - LARGEUR CORRIGÉE POUR LE 2x2 */
                 .winners-box {{
                     display: flex; 
-                    flex-direction: row;        /* Ligne horizontale */
-                    flex-wrap: wrap-reverse;    /* Si ça dépasse, nouvelle ligne AU-DESSUS */
+                    flex-direction: row;        
+                    flex-wrap: wrap-reverse;    /* IMPORTANT: Empile vers le haut */
                     justify-content: center;
-                    align-items: flex-end;      /* Aligne le bas des cartes */
-                    width: 310px;           /* Largeur fixe : 2 cartes de 140px + marge tiennent. La 3ème passe au-dessus */
-                    margin: 0 auto;             /* Centré */
+                    align-items: flex-end;      
+                    width: 350px !important;    /* Assez large pour 2 cartes de 150px + marges */
+                    max-width: 350px !important;
+                    margin: 0 auto;             
                     padding-bottom: 0px;
-                    opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
+                    opacity: 0; transform: translateY(50px) scale(0.8);
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    gap: 5px;
+                    gap: 10px; /* Espace entre les cartes */
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
 
-                /* MARCHES DU PODIUM (DESIGN IMAGE) */
+                /* MARCHES DU PODIUM */
                 .pedestal {{
                     width: 100%;
                     background: linear-gradient(to bottom, #333, #000);
@@ -1279,7 +1271,6 @@ else:
                     display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
                     position: relative; padding-top: 20px;
                 }}
-                /* Effet de brillance en haut */
                 .pedestal::after {{
                     content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
                     box-shadow: 0 0 15px currentColor;
@@ -1292,58 +1283,47 @@ else:
 
                 .rank-num {{
                     font-size: 120px; font-weight: 900; font-family: 'Arial Black', sans-serif;
-                    opacity: 0.2; /* Transparence pour incruster dans le fond */
-                    line-height: 1;
+                    opacity: 0.2; line-height: 1;
                 }}
 
-                /* STYLE POUR LE SCORE SUR LE PODIUM (Caché par défaut) */
                 .rank-score {{
                     font-family: 'Arial Black', sans-serif;
-                    font-size: 30px;
-                    font-weight: bold;
+                    font-size: 30px; font-weight: bold;
                     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-                    margin-bottom: -20px; /* Chevauchement léger avec le numéro */
-                    z-index: 5;
-                    opacity: 0;
-                    transform: translateY(20px);
-                    transition: all 0.5s ease-out;
+                    margin-bottom: -20px; z-index: 5;
+                    opacity: 0; transform: translateY(20px); transition: all 0.5s ease-out;
                 }}
-                /* Apparition du score quand le piédestal devient visible */
-                .pedestal.visible .rank-score {{
-                    opacity: 1;
-                    transform: translateY(0);
-                }}
+                .pedestal.visible .rank-score {{ opacity: 1; transform: translateY(0); }}
 
-                /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
+                /* CARTES GAGNANTS - AGRANDIES */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 140px; /* Taille fixe */
-                    margin: 5px;
+                    width: 150px; /* Taille augmentée */
+                    margin: 0; /* Géré par le gap du conteneur */
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
                     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-                    flex-shrink: 0; /* Empêche le rétrécissement */
+                    flex-shrink: 0; 
                 }}
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.15); margin-bottom: 20px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
                 .p-img, .p-placeholder {{ 
-                    width: 100px; height: 100px; /* Taille image augmentée */
+                    width: 100px; height: 100px; /* Photos agrandies */
                     border-radius: 50%; 
                     object-fit: cover; border: 3px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
                 .rank-1 .p-img {{ width: 120px; height: 120px; border-color: #FFD700; }}
 
-                .p-name {{ font-family: Arial; font-size: 18px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 22px; }}
+                .p-name {{ font-family: Arial; font-size: 16px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 20px; }}
                 
-                /* COUNTDOWN OVERLAY (TOP OF SCREEN) */
+                /* COUNTDOWN OVERLAY */
                 .intro-overlay {{ 
-                    position: fixed; top: 15vh; /* Juste sous le header rouge */
-                    left: 0; width: 100vw; height: auto; 
+                    position: fixed; top: 15vh; left: 0; width: 100vw; height: auto; 
                     z-index: 5000; 
                     display: flex; flex-direction: column; align-items: center; 
                     text-align: center; transition: opacity 0.5s; pointer-events: none; 
@@ -1362,12 +1342,10 @@ else:
              
              # --- BANDEAU DEFILANT DES VOTANTS ---
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
-             # On prend les 20 derniers votants pour ne pas surcharger
              voter_names = [v['Utilisateur'] for v in recent_votes[-20:]]
-             voter_names.reverse() # Les plus récents en premier
+             voter_names.reverse()
              voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
              
-             # --- GENERATION LISTES CANDIDATS ---
              cands = cfg["candidats"]
              mid = (len(cands) + 1) // 2
              left_cands = cands[:mid]
@@ -1375,20 +1353,12 @@ else:
              
              def gen_html_list(clist, imgs, align='left'):
                  h = ""
-                 # On garde le format [Image] [Texte] pour les deux côtés pour la symétrie visuelle
-                 # L'alignement du conteneur change
-                 
                  for c in clist:
                      im = '<div style="font-size:30px;">👤</div>'
                      if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid white;">'
-                     
-                     # Style pour aligner
-                     justify = "flex-start" 
-                     flex_dir = "row"       
                      margin_side = "margin-left:15px;" 
-                     
                      h += f"""
-                     <div style="display:flex; align-items:center; justify-content:{justify}; flex-direction:{flex_dir}; margin:10px 0; background:rgba(255,255,255,0.1); padding:10px 20px; border-radius:50px; width:220px; margin-{align}: auto;">
+                     <div style="display:flex; align-items:center; justify-content:flex-start; flex-direction:row; margin:10px 0; background:rgba(255,255,255,0.1); padding:10px 20px; border-radius:50px; width:220px; margin-{align}: auto;">
                         {im}
                         <span style="{margin_side} font-size:18px; font-weight:bold; color:white; text-transform:uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{c}</span>
                      </div>
@@ -1404,63 +1374,33 @@ else:
                     
                     /* BANDEAU DEFILANT */
                     .marquee-container {{
-                        width: 100%;
-                        background: #E2001A;
-                        color: white;
-                        height: 50px;
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        z-index: 1000;
-                        display: flex;
-                        align-items: center;
-                        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                        border-bottom: 2px solid white;
+                        width: 100%; background: #E2001A; color: white; height: 50px;
+                        position: fixed; top: 0; left: 0; z-index: 1000;
+                        display: flex; align-items: center;
+                        box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-bottom: 2px solid white;
                     }}
-                    
-                    /* PARTIE GAUCHE STATIQUE */
                     .marquee-label {{
-                        background: #E2001A;
-                        color: white;
-                        font-weight: 900;
-                        font-size: 18px;
-                        padding: 0 20px;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        z-index: 1001; /* Au-dessus du défilement */
-                        box-shadow: 5px 0 10px rgba(0,0,0,0.2); /* Ombre pour séparer */
+                        background: #E2001A; color: white; font-weight: 900; font-size: 18px;
+                        padding: 0 20px; height: 100%; display: flex; align-items: center;
+                        z-index: 1001; box-shadow: 5px 0 10px rgba(0,0,0,0.2);
                     }}
-
-                    /* PARTIE DROITE DÉFILANTE */
                     .marquee-wrapper {{
-                        overflow: hidden;
-                        white-space: nowrap;
-                        flex-grow: 1;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
+                        overflow: hidden; white-space: nowrap; flex-grow: 1;
+                        height: 100%; display: flex; align-items: center;
                     }}
-
                     .marquee-content {{
-                        display: inline-block;
-                        padding-left: 100%;
+                        display: inline-block; padding-left: 100%;
                         animation: marquee 20s linear infinite;
-                        font-weight: bold;
-                        font-size: 18px;
-                        text-transform: uppercase;
+                        font-weight: bold; font-size: 18px; text-transform: uppercase;
                     }}
-                    
                     @keyframes marquee {{
                         0%   {{ transform: translate(0, 0); }}
                         100% {{ transform: translate(-100%, 0); }}
                     }}
 
-                    /* HAUT : LOGO + TITRES (Décalé vers le bas à cause du bandeau) */
+                    /* HAUT : LOGO + TITRES */
                     .top-section {{
-                        width: 100%;
-                        height: 35vh;
-                        margin-top: 60px; 
+                        width: 100%; height: 35vh; margin-top: 60px; 
                         display: flex; flex-direction: column; align-items: center; justify-content: center;
                         z-index: 10;
                     }}
@@ -1475,53 +1415,27 @@ else:
 
                     /* BAS : LISTES + QR */
                     .bottom-section {{
-                        width: 95%;
-                        margin: 0 auto;
-                        height: 55vh;
-                        display: flex; 
-                        align-items: center; /* Centre verticalement les 3 colonnes */
-                        justify-content: space-between;
+                        width: 95%; margin: 0 auto; height: 55vh;
+                        display: flex; align-items: center; justify-content: space-between;
                     }}
-                    
-                    .side-col {{ 
-                        width: 30%; 
-                        height: 100%; 
-                        display: flex; flex-direction: column; justify-content: center; /* Centre la liste verticalement */
-                        overflow-y: auto;
-                    }}
-                    
-                    .center-col {{ 
-                        width: 30%; 
-                        display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    }}
-                    
+                    .side-col {{ width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }}
+                    .center-col {{ width: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; }}
                     .qr-box {{ 
-                        background: white; 
-                        padding: 15px; 
-                        border-radius: 20px; 
-                        box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); 
-                        animation: pulse 3s infinite;
+                        background: white; padding: 15px; border-radius: 20px; 
+                        box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite;
                     }}
-                    
-                    .qr-box img {{
-                        width: 300px; /* TAILLE DU QR CODE REDUITE A 300px */
-                    }}
-                    
+                    .qr-box img {{ width: 300px; }}
                     @keyframes pulse {{
                         0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }}
                         50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }}
                         100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }}
                     }}
-
-                    /* SCROLLBAR CACHÉE */
                     ::-webkit-scrollbar {{ display: none; }}
                 </style>
                 
                 <div class="marquee-container">
                     <div class="marquee-label">DERNIERS VOTANTS :</div>
-                    <div class="marquee-wrapper">
-                        <div class="marquee-content">{voter_string}</div>
-                    </div>
+                    <div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div>
                 </div>
 
                 <div class="top-section">
@@ -1531,32 +1445,24 @@ else:
                 </div>
 
                 <div class="bottom-section">
-                    <div class="side-col" style="align-items: flex-start;">
-                        {left_html}
-                    </div>
-                    
+                    <div class="side-col" style="align-items: flex-start;">{left_html}</div>
                     <div class="center-col">
                         <div class="instructions">
                             <p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p>
                             <p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p>
                             <p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p>
                         </div>
-                        <div class="qr-box">
-                            <img src="data:image/png;base64,{qr_b64}">
-                        </div>
+                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}"></div>
                     </div>
-                    
-                    <div class="side-col" style="align-items: flex-end;">
-                        {right_html}
-                    </div>
+                    <div class="side-col" style="align-items: flex-end;">{right_html}</div>
                 </div>
              """, height=900)
 
         else:
-            # MODIFICATION : Taille 350px, Marge 10px
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.9); max-width: 800px; text-align: center;'><h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI DE VOTRE PARTICIPATION</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GRANDS GAGNANTS dans quelques instants...</h3></div></div></div>", unsafe_allow_html=True)
 
+    # --- MODE PHOTOS LIVE ---
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
@@ -1565,7 +1471,6 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
-        # MODIFICATION : Taille 350px, Marge 10px pour le logo
         center_html_content = f"""
             <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
                 <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
@@ -1586,7 +1491,7 @@ else:
             doc.body.appendChild(container);
             container.innerHTML = `{center_html_content}`;
             const imgs = {img_js}; const bubbles = [];
-            const minSize = 100; const maxSize = 350;
+            const minSize = 150; const maxSize = 450;
             var screenW = window.innerWidth || 1920;
             var screenH = window.innerHeight || 1080;
             imgs.forEach((src, i) => {{
