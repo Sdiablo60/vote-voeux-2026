@@ -26,6 +26,11 @@ const MESSAGES = {
         "Je veux être sur la photo ! 🤖", "Souriez ! 😁",
         "On partage, on partage ! 📲", "Montrez vos plus beaux profils !",
         "Allez, une petite grimace ! 🤪", "C'est instantané ! ⚡"
+    ],
+    cache_cache: [
+        "Coucou ! Je suis là ! 👋", "Vous m'aviez perdu ? 👻",
+        "Bouh ! Surprise ! 🎃", "Je suis trop rapide pour vous ! ⚡",
+        "On joue à cache-cache ? 🙈"
     ]
 };
 
@@ -103,8 +108,8 @@ function initRobot(container) {
 
     // --- VARIABLES LOGIQUES ---
     let time = 0;
-    // Initialisation : On le met à droite pour ne pas gêner
-    let targetPosition = new THREE.Vector3(3.5, 0, 0); 
+    // Position de départ SAFE (à droite)
+    let targetPosition = new THREE.Vector3(4.0, 0, 0); 
     robotGroup.position.copy(targetPosition);
     
     let robotState = 'intro'; 
@@ -114,9 +119,8 @@ function initRobot(container) {
 
     if (config.mode !== 'attente') {
         robotState = 'moving';
-        // En mode vote/photo, on commence direct sur le coté, pas au centre
-        targetPosition.set(3.5, 0, 0); 
-        robotGroup.position.set(3.5, 0, 0);
+        targetPosition.set(4.0, 0, 0); // Force à droite
+        robotGroup.position.set(4.0, 0, 0);
     }
 
     function smoothRotate(object, axis, targetValue, speed) {
@@ -132,10 +136,72 @@ function initRobot(container) {
 
     function hideBubble() { if(bubble) bubble.style.opacity = 0; }
 
+    // --- LOGIQUE DE DECISION ---
+    function pickNewTarget() {
+        const aspect = width / height; 
+        const vW = 7 * aspect; 
+        
+        // ZONE INTERDITE STRICTE : Le centre (x entre -3.5 et 3.5 est interdit)
+        // Le robot doit aller soit tout à gauche (x < -3.5) soit tout à droite (x > 3.5)
+        
+        const side = Math.random() > 0.5 ? 1 : -1; // 1 = Droite, -1 = Gauche
+        
+        // Calcul de la zone "Sure" (Loin du centre)
+        const safeMin = 3.8; 
+        const safeMax = vW * 0.5; // Bord de l'écran
+        
+        let x = side * (safeMin + Math.random() * (safeMax - safeMin));
+        let y = (Math.random() - 0.5) * 4.0; // Hauteur libre
+        let z = 0; // Profondeur standard
+        
+        targetPosition.set(x, y, z);
+    }
+
+    function startCloseUpInteraction() {
+        robotState = 'closeup';
+        // Il vient AU CENTRE mais TRÈS PRÈS (Z=5) pour passer DEVANT le cadre
+        // Attention : Z=8 est la caméra. Z=5 est très proche.
+        targetPosition.set(0, -0.5, 5.0); 
+        showBubble("👀", 2000);
+        
+        // Il reste 4 secondes puis repart
+        setTimeout(() => {
+            if (robotState === 'closeup') {
+                const msgs = MESSAGES[config.mode] || MESSAGES.attente;
+                showBubble(msgs[Math.floor(Math.random() * msgs.length)], 4000);
+                
+                // On attend qu'il ait fini de parler pour repartir
+                setTimeout(() => {
+                    hideBubble();
+                    robotState = 'moving';
+                    pickNewTarget();
+                }, 4000);
+            }
+        }, 3000);
+    }
+
+    function startHideAndSeek() {
+        robotState = 'hiding';
+        // Il sort de l'écran (soit en bas, soit sur le côté)
+        if(Math.random() > 0.5) targetPosition.set(robotGroup.position.x, -10, 0); // Bas
+        else targetPosition.set(robotGroup.position.x * 3, 0, 0); // Côté
+        
+        // Après 5 secondes caché, il réapparait
+        setTimeout(() => {
+            if (robotState === 'hiding') {
+                robotState = 'moving'; // Retour à la normale
+                pickNewTarget(); // Choisit un point visible
+                // Message de retour
+                setTimeout(() => {
+                    showBubble(MESSAGES.cache_cache[Math.floor(Math.random() * MESSAGES.cache_cache.length)], 3000);
+                }, 1500); // Délai pour qu'il ait le temps de revenir à l'écran
+            }
+        }, 5000);
+    }
+
     function startSpeaking() {
         robotState = 'speaking';
-        // On ne change PAS la position ici, il parle là où il est (sur le coté)
-        targetPosition.copy(robotGroup.position);
+        targetPosition.copy(robotGroup.position); // Reste sur place (sur le coté)
         
         let list = MESSAGES[config.mode] || MESSAGES.attente;
         let txt = list[Math.floor(Math.random() * list.length)];
@@ -143,41 +209,14 @@ function initRobot(container) {
         showBubble(txt, 5000); 
         nextEventTime = time + 8 + Math.random() * 10; 
         
-        setTimeout(() => { 
-            if (robotState === 'speaking') { 
-                hideBubble(); 
-                robotState = 'moving'; 
-                pickNewTarget(); // Il repart vers un autre endroit sûr
-            } 
-        }, 5000);
-    }
-
-    // --- C'EST ICI QUE LA MAGIE OPERE (ZONE D'EXCLUSION) ---
-    function pickNewTarget() {
-        const aspect = width / height; 
-        const vW = 7 * aspect; 
-        
-        // Logique "Gauche OU Droite" (Jamais au centre)
-        // Le centre est à x=0. On veut qu'il soit soit < -2.0 soit > 2.0
-        
-        const side = Math.random() > 0.5 ? 1 : -1; // 1 = Droite, -1 = Gauche
-        
-        // On calcule une position aléatoire mais forcée sur un coté
-        // Entre 2.0 et 4.5 (selon la largeur de l'écran)
-        const safeDistance = 2.2; 
-        const maxDistance = vW * 0.45;
-        
-        let x = side * (safeDistance + Math.random() * (maxDistance - safeDistance));
-        let y = (Math.random() - 0.5) * 3.5; // Hauteur libre
-        
-        targetPosition.set(x, y, 0);
+        setTimeout(() => { if (robotState === 'speaking') { hideBubble(); robotState = 'moving'; pickNewTarget(); } }, 5000);
     }
 
     // --- ANIMATION LOOP ---
     function animate() {
         requestAnimationFrame(animate);
         time += 0.015; 
-        robotGroup.position.y += Math.sin(time * 2) * 0.002;
+        robotGroup.position.y += Math.sin(time * 2) * 0.002; // Petit flottement constant
 
         if (robotState === 'intro') {
             if (introIndex < introScript.length) {
@@ -187,37 +226,62 @@ function initRobot(container) {
             
             if (time < 5.0) robotGroup.rotation.y = Math.sin(time) * 0.3;
             else if (time < 12.0) { robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.02); } 
-            else { 
-                // Fin intro : il se range sur le côté droit
-                robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03); 
-            }
+            else { robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03); }
         } 
         
         else if (robotState === 'moving') {
-            robotGroup.position.lerp(targetPosition, 0.008);
+            // Mouvement standard vers les cotes
+            robotGroup.position.lerp(targetPosition, 0.015); // Vitesse standard
+            
+            // Rotation douce vers la cible
             smoothRotate(robotGroup, 'y', (targetPosition.x - robotGroup.position.x) * 0.05, 0.05);
             smoothRotate(robotGroup, 'z', -(targetPosition.x - robotGroup.position.x) * 0.03, 0.05);
             
-            // Si arrivé, on en cherche une autre
+            // Si arrivé à destination
             if (robotGroup.position.distanceTo(targetPosition) < 0.5) pickNewTarget();
             
-            // Parler de temps en temps
-            if (time > nextEventTime) startSpeaking();
+            // Événements Aléatoires
+            if (time > nextEventTime) {
+                const rand = Math.random();
+                if (rand < 0.15) startHideAndSeek(); // 15% Cache-cache
+                else if (rand < 0.35) startCloseUpInteraction(); // 20% Gros Plan
+                else startSpeaking(); // Le reste : Parler
+            }
         } 
+        
+        else if (robotState === 'closeup') {
+            // Mouvement rapide vers le centre avant
+            robotGroup.position.lerp(targetPosition, 0.04); 
+            smoothRotate(robotGroup, 'y', 0, 0.1); // Regarde bien en face
+            smoothRotate(robotGroup, 'z', 0, 0.1);
+            // Animation "Coucou" des bras
+            rightArm.rotation.z = Math.sin(time * 10) * 0.5 - 0.5;
+        }
+
+        else if (robotState === 'hiding') {
+            // Fuite rapide
+            robotGroup.position.lerp(targetPosition, 0.05); 
+        }
         
         else if (robotState === 'speaking') {
             robotGroup.position.lerp(targetPosition, 0.001); 
-            smoothRotate(robotGroup, 'y', 0, 0.05); // Il regarde face caméra quand il parle
+            smoothRotate(robotGroup, 'y', 0, 0.05); 
             mouth.scale.set(1, 1 + Math.sin(time * 20) * 0.2, 1); 
         }
 
+        // --- GESTION DE LA BULLE (Pour qu'elle reste à l'écran) ---
         if(bubble && bubble.style.opacity == 1) {
-            const headPos = robotGroup.position.clone(); headPos.y += 0.8; headPos.project(camera);
-            const x = (headPos.x * .5 + .5) * width; const y = (headPos.y * -.5 + .5) * height;
+            const headPos = robotGroup.position.clone(); 
+            headPos.y += 0.8; 
+            headPos.project(camera);
             
-            // Limites bulle pour ne pas sortir de l'écran
-            bubble.style.left = Math.max(100, Math.min(width-100, x)) + 'px';
-            bubble.style.top = Math.max(50, y - 80) + 'px';
+            const x = (headPos.x * .5 + .5) * width; 
+            const y = (headPos.y * -.5 + .5) * height;
+            
+            // On force la bulle à rester dans les limites visibles (padding 50px)
+            const padding = 50;
+            bubble.style.left = Math.max(padding, Math.min(width-padding, x)) + 'px';
+            bubble.style.top = Math.max(padding, y - 80) + 'px';
         }
 
         renderer.render(scene, camera);
