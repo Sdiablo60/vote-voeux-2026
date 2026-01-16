@@ -3,10 +3,10 @@ import * as THREE from 'three';
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 
-// --- CONFIGURATION REÇUE DE PYTHON ---
+// --- CONFIGURATION ---
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
-// --- TEXTES INTELLIGENTS ---
+// --- TEXTES ---
 const MESSAGES = {
     attente: [
         "Salut l'équipe ! 👋", "Tout le monde est bien installé ? 💺", 
@@ -29,7 +29,7 @@ const MESSAGES = {
     ]
 };
 
-// Séquence d'intro (Seulement pour l'accueil)
+// Séquence Intro
 const introScript = [
     { time: 1.0, text: "Hum... C'est allumé ? 🎤", action: "look_around" },
     { time: 5.0, text: "Y'a quelqu'un dans cet écran ? 🤔", action: "approach" },
@@ -47,7 +47,6 @@ function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
     
-    // Positionnement Fixe
     container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
     container.style.width = '100%'; container.style.height = '100%';
     container.style.zIndex = '1'; container.style.pointerEvents = 'none';
@@ -66,7 +65,7 @@ function initRobot(container) {
     const dirLight = new THREE.DirectionalLight(0xffffff, 2.5); dirLight.position.set(5, 10, 7); scene.add(dirLight);
     const screenLight = new THREE.PointLight(0x00ffff, 0.5, 4); screenLight.position.set(0, 0, 2); scene.add(screenLight);
 
-    // --- ROBOT "CLAP-E" (VOTRE CODE) ---
+    // --- ROBOT GEOMETRIQUE ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
     
@@ -80,7 +79,6 @@ function initRobot(container) {
     const faceGeo = new THREE.SphereGeometry(0.78, 64, 64);
     const face = new THREE.Mesh(faceGeo, blackScreenMat); face.scale.set(1.25, 0.85, 0.6); face.position.set(0, 0, 0.55); head.add(face);
 
-    // Yeux et Bouche (Position corrigée)
     const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 32, Math.PI); 
     const leftEye = new THREE.Mesh(eyeGeo, neonBlueMat); leftEye.position.set(-0.35, 0.15, 1.05); head.add(leftEye);
     const rightEye = new THREE.Mesh(eyeGeo, neonBlueMat); rightEye.position.set(0.35, 0.15, 1.05); head.add(rightEye);
@@ -105,18 +103,20 @@ function initRobot(container) {
 
     // --- VARIABLES LOGIQUES ---
     let time = 0;
+    // Initialisation : On le met à droite pour ne pas gêner
     let targetPosition = new THREE.Vector3(3.5, 0, 0); 
     robotGroup.position.copy(targetPosition);
+    
     let robotState = 'intro'; 
     let introIndex = 0;
     let nextEventTime = 0;
     let bubbleTimeout = null;
 
-    // Si pas en mode accueil, on saute l'intro
     if (config.mode !== 'attente') {
         robotState = 'moving';
-        targetPosition.set(0,0,0);
-        robotGroup.position.set(0,0,0);
+        // En mode vote/photo, on commence direct sur le coté, pas au centre
+        targetPosition.set(3.5, 0, 0); 
+        robotGroup.position.set(3.5, 0, 0);
     }
 
     function smoothRotate(object, axis, targetValue, speed) {
@@ -134,22 +134,43 @@ function initRobot(container) {
 
     function startSpeaking() {
         robotState = 'speaking';
+        // On ne change PAS la position ici, il parle là où il est (sur le coté)
         targetPosition.copy(robotGroup.position);
         
-        // CHOIX MESSAGE INTELLIGENT
         let list = MESSAGES[config.mode] || MESSAGES.attente;
         let txt = list[Math.floor(Math.random() * list.length)];
 
         showBubble(txt, 5000); 
         nextEventTime = time + 8 + Math.random() * 10; 
         
-        setTimeout(() => { if (robotState === 'speaking') { hideBubble(); robotState = 'moving'; pickNewTarget(); } }, 5000);
+        setTimeout(() => { 
+            if (robotState === 'speaking') { 
+                hideBubble(); 
+                robotState = 'moving'; 
+                pickNewTarget(); // Il repart vers un autre endroit sûr
+            } 
+        }, 5000);
     }
 
+    // --- C'EST ICI QUE LA MAGIE OPERE (ZONE D'EXCLUSION) ---
     function pickNewTarget() {
-        const aspect = width / height; const vW = 7 * aspect; 
-        let x = (Math.random() > 0.5) ? 3.0 + Math.random() * (vW * 0.4 - 3.0) : -3.0 - Math.random() * (vW * 0.4 - 3.0);
-        targetPosition.set(x, (Math.random() - 0.5) * 3, 0);
+        const aspect = width / height; 
+        const vW = 7 * aspect; 
+        
+        // Logique "Gauche OU Droite" (Jamais au centre)
+        // Le centre est à x=0. On veut qu'il soit soit < -2.0 soit > 2.0
+        
+        const side = Math.random() > 0.5 ? 1 : -1; // 1 = Droite, -1 = Gauche
+        
+        // On calcule une position aléatoire mais forcée sur un coté
+        // Entre 2.0 et 4.5 (selon la largeur de l'écran)
+        const safeDistance = 2.2; 
+        const maxDistance = vW * 0.45;
+        
+        let x = side * (safeDistance + Math.random() * (maxDistance - safeDistance));
+        let y = (Math.random() - 0.5) * 3.5; // Hauteur libre
+        
+        targetPosition.set(x, y, 0);
     }
 
     // --- ANIMATION LOOP ---
@@ -166,26 +187,35 @@ function initRobot(container) {
             
             if (time < 5.0) robotGroup.rotation.y = Math.sin(time) * 0.3;
             else if (time < 12.0) { robotGroup.position.lerp(new THREE.Vector3(0, 0, 5), 0.02); } 
-            else { robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03); }
+            else { 
+                // Fin intro : il se range sur le côté droit
+                robotGroup.position.lerp(new THREE.Vector3(3.5, 0, 0), 0.03); 
+            }
         } 
         
         else if (robotState === 'moving') {
             robotGroup.position.lerp(targetPosition, 0.008);
             smoothRotate(robotGroup, 'y', (targetPosition.x - robotGroup.position.x) * 0.05, 0.05);
             smoothRotate(robotGroup, 'z', -(targetPosition.x - robotGroup.position.x) * 0.03, 0.05);
+            
+            // Si arrivé, on en cherche une autre
             if (robotGroup.position.distanceTo(targetPosition) < 0.5) pickNewTarget();
+            
+            // Parler de temps en temps
             if (time > nextEventTime) startSpeaking();
         } 
         
         else if (robotState === 'speaking') {
             robotGroup.position.lerp(targetPosition, 0.001); 
-            smoothRotate(robotGroup, 'y', 0, 0.05);
+            smoothRotate(robotGroup, 'y', 0, 0.05); // Il regarde face caméra quand il parle
             mouth.scale.set(1, 1 + Math.sin(time * 20) * 0.2, 1); 
         }
 
         if(bubble && bubble.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); headPos.y += 0.8; headPos.project(camera);
             const x = (headPos.x * .5 + .5) * width; const y = (headPos.y * -.5 + .5) * height;
+            
+            // Limites bulle pour ne pas sortir de l'écran
             bubble.style.left = Math.max(100, Math.min(width-100, x)) + 'px';
             bubble.style.top = Math.max(50, y - 80) + 'px';
         }
