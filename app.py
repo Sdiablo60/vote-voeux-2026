@@ -38,11 +38,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# RECUPERATION PARAMETRES URL
-est_admin = st.query_params.get("admin") == "true"
-est_utilisateur = st.query_params.get("mode") == "vote"
-is_blocked = st.query_params.get("blocked") == "true"
-is_test_admin = st.query_params.get("test_admin") == "true"
+# --- RECUPERATION PARAMETRES URL (LOGIQUE BLINDÉE) ---
+qp = st.query_params
+mode_url = qp.get("mode", "wall") # Par défaut, on va sur le mur
+admin_url = qp.get("admin", "false")
+is_blocked = qp.get("blocked") == "true"
+is_test_admin = qp.get("test_admin") == "true"
+
+est_admin = (admin_url == "true")
+# FIX CRITIQUE : On est utilisateur SEULEMENT si c'est écrit "vote" explicitement
+est_utilisateur = (mode_url == "vote")
 
 # DOSSIERS & FICHIERS
 LIVE_DIR = "galerie_live_users"
@@ -644,7 +649,11 @@ if est_admin:
                         st.session_state.admin_menu = "👥 UTILISATEURS"; st.rerun()
 
                 st.divider()
-                st.markdown('<a href="/" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
+                # BOUTON MODIFIÉ : FORCE L'URL WALL
+                host_url = st.context.headers.get("host", "")
+                full_url = f"https://{host_url}/?mode=wall"
+                st.markdown(f'<a href="{full_url}" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
+                
                 if st.button("🔓 DÉCONNEXION"): 
                     st.session_state["auth"] = False
                     st.session_state["session_active"] = False
@@ -1035,8 +1044,10 @@ elif est_utilisateur:
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
+    # Refresh auto pour vérifier les changements d'état
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
+    
     st.markdown("""<style>.stApp { background-color: black !important; color: white !important; }</style>""", unsafe_allow_html=True)
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
@@ -1044,17 +1055,37 @@ else:
     effects = cfg.get("screen_effects", {})
     effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
     inject_visual_effect(effect_name, 25, 15)
-    ph = st.empty()
     
-    # --- CHARGEMENT DU ROBOT (FILES) ---
+    # --- CHARGEMENT DES FICHIERS ---
     try:
         with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
-        with open("robot.js", "r", encoding="utf-8") as js_content_raw: js_content = js_content_raw.read()
+        with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
     except: css_content = ""; js_content = "console.error('Fichiers manquants');"
+
+    # --- CONFIGURATION DU ROBOT (TITRE ET MODE) ---
+    # C'est ici qu'on donne le cerveau au robot
+    robot_mode = "attente" # par défaut
+    if mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
+        robot_mode = "vote_off"
+    elif mode == "photos_live":
+        robot_mode = "photos"
+    
+    # On nettoie le titre pour le JS
+    safe_title = cfg['titre_mur'].replace("'", "\\'")
+    
+    # Injection des variables pour le JS
+    js_config = f"""
+    <script>
+        window.robotConfig = {{
+            mode: '{robot_mode}',
+            titre: '{safe_title}'
+        }};
+    </script>
+    """
 
     if mode == "attente":
         logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body><div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body>{js_config}<div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
         components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "votes":
@@ -1115,14 +1146,15 @@ else:
              right_html = gen_html_list(right_cands, cfg.get("candidats_images", {}), 'right')
              components.html(f"""<style>body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}.marquee-container {{ width: 100%; background: #E2001A; color: white; height: 50px; position: fixed; top: 0; left: 0; z-index: 1000; display: flex; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-bottom: 2px solid white; }}.marquee-label {{ background: #E2001A; color: white; font-weight: 900; font-size: 18px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 1001; box-shadow: 5px 0 10px rgba(0,0,0,0.2); }}.marquee-wrapper {{ overflow: hidden; white-space: nowrap; flex-grow: 1; height: 100%; display: flex; align-items: center; }}.marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; }}@keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}.top-section {{ width: 100%; height: 35vh; margin-top: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }}.title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 10px 0 0 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1; }}.subtitle {{ font-size: 30px; font-weight: bold; margin-top: 10px; color: white; }}.instructions {{ text-align: center; color: white; font-size: 16px; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; width: 80%; max-width: 600px; }}.bottom-section {{ width: 95%; margin: 0 auto; height: 55vh; display: flex; align-items: center; justify-content: space-between; }}.side-col {{ width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }}.center-col {{ width: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; }}.qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite; }}.qr-box img {{ width: 300px; }}@keyframes pulse {{ 0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} 50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }} 100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} }}::-webkit-scrollbar {{ display: none; }}</style><div class="marquee-container"><div class="marquee-label">DERNIERS VOTANTS :</div><div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div></div><div class="top-section">{logo_html}<div class="title">VOTES OUVERTS</div><div class="subtitle">Scannez pour voter</div></div><div class="bottom-section"><div class="side-col" style="align-items: flex-start;">{left_html}</div><div class="center-col"><div class="instructions"><p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p><p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p><p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p></div><div class="qr-box"><img src="data:image/png;base64,{qr_b64}"></div></div><div class="side-col" style="align-items: flex-end;">{right_html}</div></div>""", height=900)
         else:
-            # --- ROBOT DANS ECRAN DE FIN DE VOTE ---
+            # --- VOTE OFF (ROBOT ACTIF) ---
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             overlay_html = f"""<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 10; display:flex; flex-direction:column; align-items:center; justify-content:center;'><div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI !</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3></div></div>"""
-            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{overlay_html}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
+            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}{overlay_html}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
             components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "photos_live":
-        # --- ROBOT + BULLES PHOTOS (FUSION) ---
+        # --- PHOTOS LIVE (AVEC ROBOT EN FOND) ---
+        # Code Fusionné Bulles + Robot
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
@@ -1130,58 +1162,36 @@ else:
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         
-        # Le container HTML du centre (QR + Titre)
         center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
         
-        # Script des bulles
         bubbles_script = f"""
         <script>
-            // On attend que le DOM soit pret
             setTimeout(function() {{
                 var container = document.createElement('div');
                 container.id = 'live-container'; 
                 container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:50;overflow:hidden;background:transparent;pointer-events:none;';
                 document.body.appendChild(container);
-                
-                // Ajout de la boite centrale
                 var centerDiv = document.createElement('div');
                 centerDiv.innerHTML = `{center_html_content}`;
                 document.body.appendChild(centerDiv);
-
                 const imgs = {img_js}; 
                 const bubbles = [];
-                const minSize = 150; 
-                const maxSize = 450;
-                var screenW = window.innerWidth;
-                var screenH = window.innerHeight;
-
+                var screenW = window.innerWidth; var screenH = window.innerHeight;
                 imgs.forEach((src, i) => {{
-                    const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-                    const el = document.createElement('img'); 
-                    el.src = src;
+                    const bSize = Math.floor(Math.random() * (450 - 150 + 1)) + 150;
+                    const el = document.createElement('img'); el.src = src;
                     el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50; opacity:0.9;';
-                    
-                    let x = Math.random() * (screenW - bSize);
-                    let y = Math.random() * (screenH - bSize);
-                    let angle = Math.random() * Math.PI * 2;
-                    let speed = 0.5 + Math.random() * 0.8; // Vitesse un peu reduite pour pas surcharger avec le robot
-                    let vx = Math.cos(angle) * speed;
-                    let vy = Math.sin(angle) * speed;
-                    
-                    container.appendChild(el); 
-                    bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
+                    let x = Math.random() * (screenW - bSize); let y = Math.random() * (screenH - bSize);
+                    let angle = Math.random() * Math.PI * 2; let speed = 0.5 + Math.random() * 0.8;
+                    let vx = Math.cos(angle) * speed; let vy = Math.sin(angle) * speed;
+                    container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
                 }});
-
                 function animateBubbles() {{
-                    screenW = window.innerWidth;
-                    screenH = window.innerHeight;
+                    screenW = window.innerWidth; screenH = window.innerHeight;
                     bubbles.forEach(b => {{
-                        b.x += b.vx; 
-                        b.y += b.vy;
-                        if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
-                        if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
-                        if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
-                        if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
+                        b.x += b.vx; b.y += b.vy;
+                        if(b.x <= 0) {{ b.x=0; b.vx *= -1; }} if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
+                        if(b.y <= 0) {{ b.y=0; b.vy *= -1; }} if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
                         b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
                     }});
                     requestAnimationFrame(animateBubbles);
@@ -1190,10 +1200,8 @@ else:
             }}, 500);
         </script>
         """
-        
-        # On utilise la structure HTML du robot, et on ajoute le script des bulles a la fin
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script>{bubbles_script}</body></html>"""
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}<div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script>{bubbles_script}</body></html>"""
         components.html(html_code, height=1000, scrolling=False)
-        
+    
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
