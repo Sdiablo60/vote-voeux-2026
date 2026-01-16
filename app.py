@@ -1249,10 +1249,9 @@ else:
                      if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid white;">'
                      
                      # Style pour aligner
-                     justify = "flex-start" if align == 'left' else "flex-end"
-                     text_align = "left" if align == 'left' else "right"
-                     flex_dir = "row" if align == 'left' else "row-reverse"
-                     margin_side = "margin-left:15px;" if align == 'left' else "margin-right:15px;"
+                     justify = "flex-start" # Toujours aligner à gauche dans le conteneur
+                     flex_dir = "row"       # Toujours [Photo] puis [Texte]
+                     margin_side = "margin-left:15px;" # Marge entre la photo et le texte
                      
                      h += f"""
                      <div style="display:flex; align-items:center; justify-content:{justify}; flex-direction:{flex_dir}; margin:10px 0; background:rgba(255,255,255,0.1); padding:8px 15px; border-radius:50px; width:fit-content; margin-{align}: auto;">
@@ -1285,7 +1284,7 @@ else:
                         margin: 0 auto;
                         height: 60vh;
                         display: flex; 
-                        align-items: center; /* Centre verticalement */
+                        align-items: center; /* Centre verticalement les 3 colonnes */
                         justify-content: space-between;
                     }}
                     
@@ -1307,6 +1306,10 @@ else:
                         border-radius: 20px; 
                         box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); 
                         animation: pulse 3s infinite;
+                    }}
+                    
+                    .qr-box img {{
+                        width: 300px; /* TAILLE DU QR CODE REDUITE A 300px */
                     }}
                     
                     @keyframes pulse {{
@@ -1332,7 +1335,7 @@ else:
                     
                     <div class="center-col">
                         <div class="qr-box">
-                            <img src="data:image/png;base64,{qr_b64}" width="350">
+                            <img src="data:image/png;base64,{qr_b64}">
                         </div>
                     </div>
                     
