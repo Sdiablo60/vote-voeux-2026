@@ -188,7 +188,6 @@ st.markdown("""
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
     
-    /* CORRECTION FORCÉE POUR LES MENUS DÉROULANTS (TEST ADMIN) */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
         background-color: white !important;
     }
@@ -238,7 +237,6 @@ default_config = {
     "session_id": str(uuid.uuid4())
 }
 
-# CONFIG UTILISATEURS PAR DEFAUT
 default_users = {
     "admin": {"pwd": "ADMIN_LIVE_MASTER", "role": "Super Admin", "perms": ["all"]}
 }
@@ -336,7 +334,6 @@ def process_participant_image(uploaded_file):
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
-# --- ACTIONS & VISUAL ---
 def inject_visual_effect(effect_name, intensity, speed):
     if effect_name == "Aucun":
         components.html("<script>var old = window.parent.document.getElementById('effect-layer'); if(old) old.remove();</script>", height=0)
@@ -371,7 +368,6 @@ def get_advanced_stats():
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
-# --- GENERATEUR PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
@@ -509,7 +505,8 @@ if PDF_AVAILABLE:
 # --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
-    # =========================================================
+
+# =========================================================
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
@@ -801,89 +798,114 @@ if est_admin:
 
             elif menu == "👥 UTILISATEURS" and is_super_admin:
                 st.title("👥 GESTION DES UTILISATEURS")
-                with st.expander("➕ Créer un nouvel utilisateur", expanded=False):
-                    new_u = st.text_input("Identifiant (ex: regie1)")
-                    new_p = st.text_input("Mot de passe")
-                    new_r = st.selectbox("Rôle affiché", ["Assistant", "Régie", "Client"])
-                    st.write("Permissions :")
-                    c1, c2, c3 = st.columns(3)
-                    p_pilot = c1.checkbox("Pilotage Live")
-                    p_conf = c2.checkbox("Configuration")
-                    p_media = c3.checkbox("Médiathèque")
-                    c4, c5 = st.columns(2)
-                    p_data = c4.checkbox("Data / Résultats")
-                    p_test = c5.checkbox("Test Mobile")
-                    
-                    if st.button("Créer l'utilisateur"):
-                        if new_u and new_p:
-                            perms_list = []
-                            if p_pilot: perms_list.append("pilotage")
-                            if p_conf: perms_list.append("config")
-                            if p_media: perms_list.append("mediatheque")
-                            if p_data: perms_list.append("data")
-                            if p_test: perms_list.append("test_mobile")
+                
+                # --- LISTE & MODIFICATION ---
+                st.subheader("📋 Liste des utilisateurs existants")
+                st.info("Sélectionnez un utilisateur dans la liste ci-dessous pour modifier ses droits.")
+                
+                user_list = list(users_db.keys())
+                selected_user = st.selectbox("👤 Sélectionner l'utilisateur à modifier", user_list)
+                
+                if selected_user:
+                    st.markdown(f"### ✏️ Édition de : **{selected_user}**")
+                    with st.container(border=True):
+                        # Protection du compte admin
+                        if selected_user == "admin":
+                            st.warning("⚠️ Le compte Super Admin ne peut pas être renommé ou supprimé. Vous pouvez seulement changer son mot de passe.")
+                        
+                        # Formulaire
+                        user_data = users_db[selected_user]
+                        c_edit_1, c_edit_2 = st.columns(2)
+                        new_pwd_edit = c_edit_1.text_input("Nouveau mot de passe", value=user_data["pwd"], type="password")
+                        current_role_idx = ["Assistant", "Régie", "Client", "Super Admin"].index(user_data.get("role", "Régie")) if user_data.get("role") in ["Assistant", "Régie", "Client", "Super Admin"] else 1
+                        new_role_edit = c_edit_2.selectbox("Rôle", ["Assistant", "Régie", "Client"], index=current_role_idx, disabled=(selected_user=="admin"))
+                        
+                        st.write("Permissions :")
+                        current_perms = user_data.get("perms", [])
+                        c1, c2, c3 = st.columns(3)
+                        p_pilot_e = c1.checkbox("Pilotage Live", value=("pilotage" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
+                        p_conf_e = c2.checkbox("Configuration", value=("config" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
+                        p_media_e = c3.checkbox("Médiathèque", value=("mediatheque" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
+                        c4, c5 = st.columns(2)
+                        p_data_e = c4.checkbox("Data / Résultats", value=("data" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
+                        p_test_e = c5.checkbox("Test Mobile", value=("test_mobile" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
+                        
+                        col_save, col_del = st.columns([1, 4])
+                        
+                        if col_save.button("💾 Mettre à jour", type="primary", use_container_width=True):
+                            new_perms_list = []
+                            if selected_user == "admin":
+                                new_perms_list = ["all"]
+                            else:
+                                if p_pilot_e: new_perms_list.append("pilotage")
+                                if p_conf_e: new_perms_list.append("config")
+                                if p_media_e: new_perms_list.append("mediatheque")
+                                if p_data_e: new_perms_list.append("data")
+                                if p_test_e: new_perms_list.append("test_mobile")
                             
-                            users_db[new_u] = {"pwd": new_p, "role": new_r, "perms": perms_list}
+                            users_db[selected_user] = {"pwd": new_pwd_edit, "role": new_role_edit if selected_user != "admin" else "Super Admin", "perms": new_perms_list}
                             save_json(USERS_FILE, users_db)
-                            st.success(f"Utilisateur {new_u} créé !")
+                            st.success(f"Utilisateur {selected_user} mis à jour avec succès !")
                             time.sleep(1); st.rerun()
-                        else: st.error("Remplissez l'identifiant et le mot de passe.")
+                        
+                        if selected_user != "admin":
+                            if col_del.button("🗑️ Supprimer l'utilisateur", type="primary"):
+                                del users_db[selected_user]
+                                save_json(USERS_FILE, users_db)
+                                st.success(f"Utilisateur {selected_user} supprimé.")
+                                time.sleep(1); st.rerun()
 
                 st.divider()
-                st.subheader("Liste des comptes")
-                for u, info in users_db.items():
-                    with st.container(border=True):
-                        c_info, c_act = st.columns([3, 1])
-                        c_info.markdown(f"**{u}** ({info['role']})")
-                        c_info.caption(f"Permissions: {', '.join(info['perms'])}")
-                        if u != "admin":
-                            if c_act.button("Supprimer", key=f"del_u_{u}"):
-                                del users_db[u]
+                
+                # --- CREATION ---
+                with st.expander("➕ Créer un NOUVEL utilisateur", expanded=False):
+                    new_u = st.text_input("Nouvel Identifiant (ex: client1)")
+                    new_p = st.text_input("Nouveau Mot de passe")
+                    new_r = st.selectbox("Nouveau Rôle", ["Assistant", "Régie", "Client"])
+                    st.write("Permissions pour le nouveau compte :")
+                    c1, c2, c3 = st.columns(3); p_pilot = c1.checkbox("Pilotage Live", key="new_p1"); p_conf = c2.checkbox("Configuration", key="new_p2"); p_media = c3.checkbox("Médiathèque", key="new_p3")
+                    c4, c5 = st.columns(2); p_data = c4.checkbox("Data / Résultats", key="new_p4"); p_test = c5.checkbox("Test Mobile", key="new_p5")
+                    
+                    if st.button("Créer l'utilisateur", key="btn_create"):
+                        if new_u and new_p:
+                            if new_u in users_db:
+                                st.error("Cet utilisateur existe déjà.")
+                            else:
+                                perms_list = []
+                                if p_pilot: perms_list.append("pilotage")
+                                if p_conf: perms_list.append("config")
+                                if p_media: perms_list.append("mediatheque")
+                                if p_data: perms_list.append("data")
+                                if p_test: perms_list.append("test_mobile")
+                                users_db[new_u] = {"pwd": new_p, "role": new_r, "perms": perms_list}
                                 save_json(USERS_FILE, users_db)
-                                st.rerun()
-                        else:
-                            c_act.write("⛔ (Super Admin)")
-                            # =========================================================
+                                st.success(f"Utilisateur {new_u} créé !"); time.sleep(1); st.rerun()
+                        else: st.error("Remplissez l'identifiant et le mot de passe.")
+# =========================================================
 # 2. APPLICATION MOBILE (Vote)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    
-    # CSS SPÉCIFIQUE MOBILE : CORRECTION BOUTON + TEXTE NOIR
-    st.markdown("""
-        <style>
-            .stApp {background-color:black !important; color:white !important;} 
-            [data-testid='stHeader'] {display:none;}
-            .block-container {padding: 1rem !important;}
-            h1, h2, h3, p, div, span, label { color: white !important; }
-            
-            /* FORCE LE TEXTE NOIR DANS LES MENUS DÉROULANTS */
-            li[role="option"] span, li[role="option"] div, div[data-baseweb="select"] span, div[data-baseweb="menu"] li, div[data-baseweb="popover"] div { 
-                color: black !important; 
-            }
-            div[data-baseweb="popover"] { background-color: white !important; }
-            ul[role="listbox"] { background-color: white !important; }
-            
-            /* FORCE LE BOUTON ENTRER EN ROUGE */
-            button[kind="primary"], div[data-testid="stBaseButton-primary"] button {
-                background-color: #E2001A !important;
-                color: white !important;
-                border: 1px solid #E2001A !important;
-            }
-            button[kind="primary"]:hover, div[data-testid="stBaseButton-primary"] button:hover {
-                background-color: #C20015 !important;
-                color: white !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
+    st.markdown("""<style>
+    .stApp {background-color:black !important; color:white !important;} 
+    [data-testid='stHeader'] {display:none;} .block-container {padding: 1rem !important;} 
+    h1, h2, h3, p, div, span, label { color: white !important; }
+    /* FIX EXTREME POUR LE TEXTE NOIR DANS LES DROPDOWNS */
+    li[role="option"] span, li[role="option"] div, div[data-baseweb="select"] span, div[data-baseweb="menu"] li, div[data-baseweb="popover"] div { color: black !important; }
+    div[data-baseweb="popover"] { background-color: white !important; }
+    ul[role="listbox"] { background-color: white !important; }
+    /* BOUTON ROUGE */
+    button[kind="primary"], div[data-testid="stBaseButton-primary"] button { background-color: #E2001A !important; color: white !important; border: 1px solid #E2001A !important; }
+    button[kind="primary"]:hover { background-color: #C20015 !important; }
+    </style>""", unsafe_allow_html=True)
     
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
     if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
     if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
-
+    
     if cfg["mode_affichage"] == "photos_live":
-        if "user_pseudo" not in st.session_state or st.session_state.user_pseudo != "Anonyme": st.session_state.user_pseudo = "Anonyme"
+        if "user_pseudo" not in st.session_state: st.session_state.user_pseudo = "Anonyme"
     elif cfg["mode_affichage"] == "votes":
         if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": del st.session_state["user_pseudo"]; st.rerun()
 
@@ -910,373 +932,107 @@ elif est_utilisateur:
             st.rerun()
     else:
         if cfg["mode_affichage"] == "photos_live":
-            st.info("📸 ENVOYER UNE PHOTO")
-            up_key = f"uploader_{st.session_state.cam_reset_id}"
-            cam_key = f"camera_{st.session_state.cam_reset_id}"
+            st.info("📸 ENVOYER UNE PHOTO"); up_key = f"uploader_{st.session_state.cam_reset_id}"; cam_key = f"camera_{st.session_state.cam_reset_id}"
             uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
             cam_file = st.camera_input("Prendre une photo", key=cam_key)
             final_file = uploaded_file if uploaded_file else cam_file
             if final_file:
                 fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
                 with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
-                st.success("Photo envoyée !")
-                st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
-        
+                st.success("Envoyé !"); st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
+
         elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
             if st.session_state.vote_success:
                  st.balloons()
                  st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-                 if not is_test_admin: 
-                     components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-                 else: 
-                     st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
+                 if not is_test_admin: components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                 else: st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
                  st.stop()
-            
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             if not st.session_state.rules_accepted:
-                st.info("⚠️ **RÈGLES DU VOTE**")
-                st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
+                st.info("⚠️ **RÈGLES DU VOTE**"); st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
-                st.warning("⚠️ RAPPEL IMPORTANT : Votre vote est UNIQUE. Une fois validé, il sera définitif et impossible à modifier.")
-                
-                choix = st.multiselect("Vos 3 vidéos préférées (par ordre de préférence) :", cfg["candidats"], max_selections=3, key="widget_choix")
+                st.warning("⚠️ RAPPEL : Vote UNIQUE.")
+                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
                 if len(choix) == 3:
-                    if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                        vts = load_json(VOTES_FILE, {})
-                        pts = cfg.get("points_ponderation", [5, 3, 1])
+                    if st.button("VALIDER (DÉFINITIF)", type="primary"):
+                        vts = load_json(VOTES_FILE, {}); pts = cfg.get("points_ponderation", [5, 3, 1])
                         for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                         save_json(VOTES_FILE, vts)
                         details = load_json(DETAILED_VOTES_FILE, [])
-                        details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
+                        details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1": choix[0], "Choix 2": choix[1], "Choix 3": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
                         save_json(DETAILED_VOTES_FILE, details)
-                        st.session_state.vote_success = True
-                        st.rerun()
+                        st.session_state.vote_success = True; st.rerun()
         
         elif is_test_admin and cfg["mode_affichage"] == "votes":
-             st.write(f"Bonjour **{st.session_state.user_pseudo}** (Mode Test Force)")
-             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix_force")
-             if len(choix) == 3:
-                if st.button("VALIDER (MODE TEST)", type="primary"):
-                    vts = load_json(VOTES_FILE, {})
-                    pts = cfg.get("points_ponderation", [5, 3, 1])
-                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-                    save_json(VOTES_FILE, vts)
-                    st.balloons()
-                    st.success("Vote Test OK")
-                    st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
-                    st.stop()
+             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+             if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
+                 st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
-        # =========================================================
+
+# =========================================================
 # 3. MUR SOCIAL
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
-    
-    # Refresh auto
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
-    
-    # --- CSS GLOBAL MUR ---
-    st.markdown("""
-        <style>
-            .stApp { background-color: black !important; color: white !important; }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # HEADER
+    st.markdown("""<style>.stApp { background-color: black !important; color: white !important; }</style>""", unsafe_allow_html=True)
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
     effects = cfg.get("screen_effects", {})
     effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
     inject_visual_effect(effect_name, 25, 15)
-
     ph = st.empty()
     
-    # --- MODE ATTENTE ---
     if mode == "attente":
         try:
             with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
             with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
-        except FileNotFoundError:
-            css_content = ""; js_content = "console.error('Fichiers manquants');"
-
-        logo_img_tag = ""
-        if cfg.get("logo_b64"):
-            logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">'
-
-        html_code = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
-                {css_content}
-                #welcome-text {{
-                    position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-                    text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5;
-                    font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none;
-                }}
-            </style>
-        </head>
-        <body>
-            <div id="welcome-text">
-                {logo_img_tag}<br>BIENVENUE
-            </div>
-            <div id="robot-bubble" class="bubble">...</div>
-            <div id="robot-container"></div>
-            <script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script>
-            <script type="module">{js_content}</script>
-        </body>
-        </html>
-        """
+        except: css_content = ""; js_content = "console.error('Fichiers manquants');"
+        logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body><div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble">...</div><div id="robot-container"></div><script type="importmap">{{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}</script><script type="module">{js_content}</script></body></html>"""
         components.html(html_code, height=1000, scrolling=False)
 
-    # --- MODE VOTES (PODIUM ou STANDARD) ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
             sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
-            
-            s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else 0
-            rank1 = [c for c, s in v_data.items() if s == s1]
-            
-            s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else 0
-            rank2 = [c for c, s in v_data.items() if s == s2]
-            
-            s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else 0
-            rank3 = [c for c, s in v_data.items() if s == s3]
-            
+            s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else 0; rank1 = [c for c, s in v_data.items() if s == s1]
+            s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else 0; rank2 = [c for c, s in v_data.items() if s == s2]
+            s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else 0; rank3 = [c for c, s in v_data.items() if s == s3]
             def get_podium_html(cands, score, emoji):
                 if not cands: return ""
                 html = ""
                 for c in cands:
-                    if c in c_imgs:
-                        img_src = f"data:image/png;base64,{c_imgs[c]}"
-                        img_tag = f"<img src='{img_src}' class='p-img'>"
-                    else:
-                        img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:60px;'>{emoji}</div>"
+                    img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:60px;'>{emoji}</div>"
+                    if c in c_imgs: img_tag = f"<img src='data:image/png;base64,{c_imgs[c]}' class='p-img'>"
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
-
-            h1 = get_podium_html(rank1, s1, "🥇")
-            h2 = get_podium_html(rank2, s2, "🥈")
-            h3 = get_podium_html(rank3, s3, "🥉")
-            
-            final_logo_html = ""
-            if cfg.get("logo_b64"):
-                final_logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="final-logo">'
-
-            components.html(f"""
-            <div id="intro-layer" class="intro-overlay">
-                <div id="intro-txt" class="intro-text"></div>
-                <div id="intro-num" class="intro-count"></div>
-            </div>
-            
-            <div id="final-overlay" class="final-overlay">
-                <div class="final-content">
-                    {final_logo_html}
-                    <h1 class="final-text">FÉLICITATIONS AUX GAGNANTS !</h1>
-                </div>
-            </div>
-            
-            <audio id="applause-sound" preload="auto">
-                <source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg">
-            </audio>
-
-            <div class="podium-container">
-                <div class="column-2">
-                    <div class="winners-box rank-2" id="win-2">{h2}</div>
-                    <div class="pedestal pedestal-2">
-                        <div class="rank-score">{s2} PTS</div>
-                        <div class="rank-num">2</div>
-                    </div>
-                </div>
-
-                <div class="column-1">
-                    <div class="winners-box rank-1" id="win-1">{h1}</div>
-                    <div class="pedestal pedestal-1">
-                        <div class="rank-score">{s1} PTS</div>
-                        <div class="rank-num">1</div>
-                    </div>
-                </div>
-
-                <div class="column-3">
-                    <div class="winners-box rank-3" id="win-3">{h3}</div>
-                    <div class="pedestal pedestal-3">
-                        <div class="rank-score">{s3} PTS</div>
-                        <div class="rank-num">3</div>
-                    </div>
-                </div>
-            </div>
-
-            <script>
-                const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                const layer = document.getElementById('intro-layer');
-                const txt = document.getElementById('intro-txt');
-                const num = document.getElementById('intro-num');
-                const w1 = document.getElementById('win-1');
-                const w2 = document.getElementById('win-2');
-                const w3 = document.getElementById('win-3');
-                const audio = document.getElementById('applause-sound');
-                const finalOverlay = document.getElementById('final-overlay');
-
-                function startConfetti() {{
-                    var script = document.createElement('script');
-                    script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
-                    script.onload = () => {{
-                        var duration = 15 * 1000;
-                        var animationEnd = Date.now() + duration;
-                        var defaults = {{ startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }};
-                        var random = (min, max) => Math.random() * (max - min) + min;
-                        var interval = setInterval(function() {{
-                            var timeLeft = animationEnd - Date.now();
-                            if (timeLeft <= 0) {{ return clearInterval(interval); }}
-                            var particleCount = 50 * (timeLeft / duration);
-                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.1, 0.3), y: Math.random() - 0.2 }} }}));
-                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.7, 0.9), y: Math.random() - 0.2 }} }}));
-                        }}, 250);
-                    }};
-                    document.body.appendChild(script);
-                }}
-
-                async function countdown(seconds, message) {{
-                    layer.style.display = 'flex';
-                    layer.style.opacity = '1';
-                    txt.innerText = message;
-                    for(let i=seconds; i>0; i--) {{ num.innerText = i; await wait(1000); }}
-                    layer.style.opacity = '0';
-                    await wait(500); 
-                    layer.style.display = 'none';
-                }}
-
-                async function runShow() {{
-                    await countdown(5, "EN TROISIÈME PLACE...");
-                    w3.classList.add('visible');
-                    document.querySelector('.pedestal-3').classList.add('visible');
-                    
-                    await wait(2000);
-                    await countdown(5, "EN SECONDE PLACE...");
-                    w2.classList.add('visible');
-                    document.querySelector('.pedestal-2').classList.add('visible');
-                    
-                    await wait(2000);
-                    await countdown(7, "ET LE VAINQUEUR EST...");
-                    w1.classList.add('visible');
-                    document.querySelector('.pedestal-1').classList.add('visible');
-
-                    startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play blocked"); }}
-                    
-                    // Séquence Finale
-                    await wait(4000);
-                    finalOverlay.classList.add('stage-1-black'); // Fond noir + Gros logo
-                    
-                    await wait(4000); 
-                    finalOverlay.classList.remove('stage-1-black');
-                    finalOverlay.classList.add('stage-2-transparent'); // Remontée vers le haut
-                }}
-
-                window.parent.document.body.style.backgroundColor = "black";
-                runShow();
-            </script>
-            <style>
-                body {{ margin: 0; overflow: hidden; background: black; }}
-                
-                .podium-container {{
-                    position: absolute; bottom: 0; left: 0; width: 100%; height: 100vh;
-                    display: flex; justify-content: center; align-items: flex-end; padding-bottom: 20px;
-                }}
-                
-                /* GESTION SEQUENCE FINALE */
-                .final-overlay {{
-                    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-                    display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    z-index: 6000; pointer-events: none; opacity: 0;
-                    transition: all 1.5s ease-in-out;
-                }}
-                
-                /* ETAPE 1 : FOND NOIR TOTAL + GRAND LOGO */
-                .final-overlay.stage-1-black {{
-                    background-color: black;
-                    opacity: 1;
-                }}
-                .final-overlay.stage-1-black .final-content {{
-                    transform: scale(1.5);
-                }}
-
-                /* ETAPE 2 : FOND TRANSPARENT + PETIT LOGO REMONTÉ */
-                .final-overlay.stage-2-transparent {{
-                    background-color: transparent;
-                    opacity: 1;
-                    justify-content: flex-start;
-                    padding-top: 0; /* Collé au haut */
-                }}
-                .final-overlay.stage-2-transparent .final-content {{
-                    transform: scale(0.55) translateY(-30px); /* Rétrécit et remonte encore plus */
-                }}
-
-                .final-content {{
-                    text-align: center; transition: all 1.5s ease-in-out;
-                }}
-                .final-logo {{ width: 400px; margin-bottom: 20px; filter: drop-shadow(0 0 20px rgba(255,255,255,0.2)); }}
-                .final-text {{
-                    font-family: 'Arial Black', sans-serif; font-size: 50px; color: #E2001A;
-                    text-transform: uppercase; text-shadow: 0 0 20px rgba(0,0,0,0.8); margin: 0;
-                }}
-
-                .column-2 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
-                .column-1 {{ width: 36%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
-                .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
-
-                .winners-box {{
-                    display: flex; flex-direction: row; flex-wrap: wrap-reverse;
-                    justify-content: center; align-items: flex-end;      
-                    width: 450px !important; margin: 0 auto; padding-bottom: 0px; gap: 10px;
-                    opacity: 0; transform: translateY(50px) scale(0.8);
-                    transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                }}
-                .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
-
-                .pedestal {{
-                    width: 100%; background: linear-gradient(to bottom, #333, #000);
-                    border-radius: 20px 20px 0 0; box-shadow: 0 -5px 15px rgba(255,255,255,0.1);
-                    display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
-                    position: relative; padding-top: 20px;
-                }}
-                .pedestal::after {{ content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; box-shadow: 0 0 15px currentColor; border-radius: 20px 20px 0 0; }}
-                .pedestal-1 {{ height: 350px; border-top: 3px solid #FFD700; color: #FFD700; }}
-                .pedestal-2 {{ height: 220px; border-top: 3px solid #C0C0C0; color: #C0C0C0; }}
-                .pedestal-3 {{ height: 150px; border-top: 3px solid #CD7F32; color: #CD7F32; }}
-
-                .rank-num {{ font-size: 120px; font-weight: 900; font-family: 'Arial Black', sans-serif; opacity: 0.2; line-height: 1; }}
-                .rank-score {{ font-family: 'Arial Black', sans-serif; font-size: 30px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-bottom: -20px; z-index: 5; opacity: 0; transform: translateY(20px); transition: all 0.5s ease-out; }}
-                .pedestal.visible .rank-score {{ opacity: 1; transform: translateY(0); }}
-
-                .p-card {{ 
-                    background: rgba(20,20,20,0.8); border-radius: 15px; padding: 15px; width: 200px; margin: 10px;
-                    backdrop-filter: blur(5px); border: 2px solid rgba(255,255,255,0.3);
-                    display:flex; flex-direction:column; align-items:center; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-                    flex-shrink: 0; box-sizing: border-box !important;
-                }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.15); margin-bottom: 20px; }}
-                .rank-2 .p-card {{ border-color: #C0C0C0; }}
-                .rank-3 .p-card {{ border-color: #CD7F32; }}
-
-                .p-img, .p-placeholder {{ width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid white; margin-bottom: 10px; display: flex; justify-content: center; align-items: center; }}
-                .rank-1 .p-img {{ width: 160px; height: 160px; border-color: #FFD700; }}
-                .p-name {{ font-family: Arial; font-size: 22px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 26px; }}
-                
-                .intro-overlay {{ position: fixed; top: 15vh; left: 0; width: 100vw; z-index: 5000; display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
-                .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px black; }}
-                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
-            </style>
-            """, height=900, scrolling=False)
+            h1 = get_podium_html(rank1, s1, "🥇"); h2 = get_podium_html(rank2, s2, "🥈"); h3 = get_podium_html(rank3, s3, "🥉")
+            final_logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="final-logo">' if cfg.get("logo_b64") else ""
+            components.html(f"""<div id="intro-layer" class="intro-overlay"><div id="intro-txt" class="intro-text"></div><div id="intro-num" class="intro-count"></div></div>
+            <div id="final-overlay" class="final-overlay"><div class="final-content">{final_logo_html}<h1 class="final-text">FÉLICITATIONS AUX GAGNANTS !</h1></div></div>
+            <audio id="applause-sound" preload="auto"><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg"></audio>
+            <div class="podium-container"><div class="column-2"><div class="winners-box rank-2" id="win-2">{h2}</div><div class="pedestal pedestal-2"><div class="rank-score">{s2} PTS</div><div class="rank-num">2</div></div></div>
+            <div class="column-1"><div class="winners-box rank-1" id="win-1">{h1}</div><div class="pedestal pedestal-1"><div class="rank-score">{s1} PTS</div><div class="rank-num">1</div></div></div>
+            <div class="column-3"><div class="winners-box rank-3" id="win-3">{h3}</div><div class="pedestal pedestal-3"><div class="rank-score">{s3} PTS</div><div class="rank-num">3</div></div></div></div>
+            <script>const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));const layer=document.getElementById('intro-layer'),txt=document.getElementById('intro-txt'),num=document.getElementById('intro-num'),w1=document.getElementById('win-1'),w2=document.getElementById('win-2'),w3=document.getElementById('win-3'),audio=document.getElementById('applause-sound'),finalOverlay=document.getElementById('final-overlay');function startConfetti(){{var script=document.createElement('script');script.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";script.onload=()=>{{var duration=15*1000;var animationEnd=Date.now()+duration;var defaults={{startVelocity:30,spread:360,ticks:60,zIndex:9999}};var random=(min,max)=>Math.random()*(max-min)+min;var interval=setInterval(function(){{var timeLeft=animationEnd-Date.now();if(timeLeft<=0){{return clearInterval(interval);}}var particleCount=50*(timeLeft/duration);confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.1,0.3),y:Math.random()-0.2}}}}));confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.7,0.9),y:Math.random()-0.2}}}}));}},250);}};document.body.appendChild(script);}}async function countdown(seconds,message){{layer.style.display='flex';layer.style.opacity='1';txt.innerText=message;for(let i=seconds;i>0;i--){{num.innerText=i;await wait(1000);}}layer.style.opacity='0';await wait(500);layer.style.display='none';}}async function runShow(){{await countdown(5,"EN TROISIÈME PLACE...");w3.classList.add('visible');document.querySelector('.pedestal-3').classList.add('visible');await wait(2000);await countdown(5,"EN SECONDE PLACE...");w2.classList.add('visible');document.querySelector('.pedestal-2').classList.add('visible');await wait(2000);await countdown(7,"ET LE VAINQUEUR EST...");w1.classList.add('visible');document.querySelector('.pedestal-1').classList.add('visible');startConfetti();try{{audio.currentTime=0;audio.play();}}catch(e){{console.log("Audio blocked");}}await wait(4000);finalOverlay.classList.add('stage-1-black');await wait(4000);finalOverlay.classList.remove('stage-1-black');finalOverlay.classList.add('stage-2-transparent');}}window.parent.document.body.style.backgroundColor="black";runShow();</script>
+            <style>body{{margin:0;overflow:hidden;background:black;}}.podium-container{{position:absolute;bottom:0;left:0;width:100%;height:100vh;display:flex;justify-content:center;align-items:flex-end;padding-bottom:20px;}}.column-2{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-right:-20px;z-index:2;}}.column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}.column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}.winners-box{{display:flex;flex-direction:row;flex-wrap:wrap-reverse;justify-content:center;align-items:flex-end;width:450px!important;max-width:450px!important;margin:0 auto;padding-bottom:0px;opacity:0;transform:translateY(50px) scale(0.8);transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);gap:10px;}}.winners-box.visible{{opacity:1;transform:translateY(0) scale(1);}}.pedestal{{width:100%;background:linear-gradient(to bottom,#333,#000);border-radius:20px 20px 0 0;box-shadow:0 -5px 15px rgba(255,255,255,0.1);display:flex;flex-direction:column;justify-content:flex-start;align-items:center;position:relative;padding-top:20px;}}.pedestal::after{{content:'';position:absolute;top:0;left:0;right:0;height:5px;box-shadow:0 0 15px currentColor;border-radius:20px 20px 0 0;}}.pedestal-1{{height:350px;border-top:3px solid #FFD700;color:#FFD700;}}.pedestal-2{{height:220px;border-top:3px solid #C0C0C0;color:#C0C0C0;}}.pedestal-3{{height:150px;border-top:3px solid #CD7F32;color:#CD7F32;}}.rank-num{{font-size:120px;font-weight:900;font-family:'Arial Black',sans-serif;opacity:0.2;line-height:1;}}.rank-score{{font-family:'Arial Black',sans-serif;font-size:30px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.5);margin-bottom:-20px;z-index:5;opacity:0;transform:translateY(20px);transition:all 0.5s ease-out;}}.pedestal.visible .rank-score{{opacity:1;transform:translateY(0);}}.p-card{{background:rgba(20,20,20,0.8);border-radius:15px;padding:15px;width:200px;height:auto;margin:10px;backdrop-filter:blur(5px);border:2px solid rgba(255,255,255,0.3);display:flex;flex-direction:column;align-items:center;box-shadow:0 5px 15px rgba(0,0,0,0.5);flex-shrink:0;box-sizing:border-box!important;}}.rank-1 .p-card{{border-color:#FFD700;background:rgba(40,30,0,0.9);transform:scale(1.15);margin-bottom:20px;}}.rank-2 .p-card{{border-color:#C0C0C0;}}.rank-3 .p-card{{border-color:#CD7F32;}}.p-img,.p-placeholder{{width:140px;height:140px;border-radius:50%;object-fit:cover;border:4px solid white;margin-bottom:10px;display:flex;justify-content:center;align-items:center;}}.rank-1 .p-img{{width:160px;height:160px;border-color:#FFD700;}}.p-name{{font-family:Arial;font-size:22px;font-weight:bold;color:white;margin:0;text-transform:uppercase;text-align:center;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}.rank-1 .p-name{{color:#FFD700;font-size:26px;}}.intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}.intro-text{{color:white;font-family:Arial;font-size:40px;font-weight:bold;text-transform:uppercase;letter-spacing:2px;text-shadow:0 0 20px black;}}.intro-count{{color:#E2001A;font-family:Arial;font-size:100px;font-weight:900;margin-top:10px;text-shadow:0 0 20px black;}}
+            .final-overlay{{position:fixed;top:0;left:0;width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:6000;pointer-events:none;opacity:0;transition:all 1.5s ease-in-out;}}
+            .final-overlay.stage-1-black{{background-color:black;opacity:1;}}
+            .final-overlay.stage-1-black .final-content{{transform:scale(1.5);}}
+            .final-overlay.stage-2-transparent{{background-color:transparent;opacity:1;justify-content:flex-start;padding-top:0;}}
+            .final-overlay.stage-2-transparent .final-content{{transform:scale(0.55) translateY(-30px);}}
+            .final-content{{text-align:center;transition:all 1.5s ease-in-out;}}
+            .final-logo{{width:400px;margin-bottom:20px;filter:drop-shadow(0 0 20px rgba(255,255,255,0.2));}}
+            .final-text{{font-family:'Arial Black',sans-serif;font-size:50px;color:#E2001A;text-transform:uppercase;text-shadow:0 0 20px rgba(0,0,0,0.8);margin:0;}}
+            </style>""", height=900, scrolling=False)
 
         elif cfg["session_ouverte"]:
              host = st.context.headers.get('host', 'localhost')
@@ -1297,37 +1053,7 @@ else:
                  return h
              left_html = gen_html_list(left_cands, cfg.get("candidats_images", {}), 'left')
              right_html = gen_html_list(right_cands, cfg.get("candidats_images", {}), 'right')
-             components.html(f"""
-                <style>
-                    body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
-                    .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 50px; position: fixed; top: 0; left: 0; z-index: 1000; display: flex; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-bottom: 2px solid white; }}
-                    .marquee-label {{ background: #E2001A; color: white; font-weight: 900; font-size: 18px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 1001; box-shadow: 5px 0 10px rgba(0,0,0,0.2); }}
-                    .marquee-wrapper {{ overflow: hidden; white-space: nowrap; flex-grow: 1; height: 100%; display: flex; align-items: center; }}
-                    .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; }}
-                    @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
-                    .top-section {{ width: 100%; height: 35vh; margin-top: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }}
-                    .title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 10px 0 0 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1; }}
-                    .subtitle {{ font-size: 30px; font-weight: bold; margin-top: 10px; color: white; }}
-                    .instructions {{ text-align: center; color: white; font-size: 16px; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; width: 80%; max-width: 600px; }}
-                    .bottom-section {{ width: 95%; margin: 0 auto; height: 55vh; display: flex; align-items: center; justify-content: space-between; }}
-                    .side-col {{ width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }}
-                    .center-col {{ width: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; }}
-                    .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite; }}
-                    .qr-box img {{ width: 300px; }}
-                    @keyframes pulse {{ 0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} 50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }} 100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} }}
-                    ::-webkit-scrollbar {{ display: none; }}
-                </style>
-                <div class="marquee-container"><div class="marquee-label">DERNIERS VOTANTS :</div><div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div></div>
-                <div class="top-section">{logo_html}<div class="title">VOTES OUVERTS</div><div class="subtitle">Scannez pour voter</div></div>
-                <div class="bottom-section">
-                    <div class="side-col" style="align-items: flex-start;">{left_html}</div>
-                    <div class="center-col">
-                        <div class="instructions"><p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p><p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p><p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p></div>
-                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}"></div>
-                    </div>
-                    <div class="side-col" style="align-items: flex-end;">{right_html}</div>
-                </div>
-             """, height=900)
+             components.html(f"""<style>body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}.marquee-container {{ width: 100%; background: #E2001A; color: white; height: 50px; position: fixed; top: 0; left: 0; z-index: 1000; display: flex; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-bottom: 2px solid white; }}.marquee-label {{ background: #E2001A; color: white; font-weight: 900; font-size: 18px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 1001; box-shadow: 5px 0 10px rgba(0,0,0,0.2); }}.marquee-wrapper {{ overflow: hidden; white-space: nowrap; flex-grow: 1; height: 100%; display: flex; align-items: center; }}.marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; }}@keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}.top-section {{ width: 100%; height: 35vh; margin-top: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }}.title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 10px 0 0 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1; }}.subtitle {{ font-size: 30px; font-weight: bold; margin-top: 10px; color: white; }}.instructions {{ text-align: center; color: white; font-size: 16px; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; width: 80%; max-width: 600px; }}.bottom-section {{ width: 95%; margin: 0 auto; height: 55vh; display: flex; align-items: center; justify-content: space-between; }}.side-col {{ width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }}.center-col {{ width: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; }}.qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite; }}.qr-box img {{ width: 300px; }}@keyframes pulse {{ 0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} 50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }} 100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} }}::-webkit-scrollbar {{ display: none; }}</style><div class="marquee-container"><div class="marquee-label">DERNIERS VOTANTS :</div><div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div></div><div class="top-section">{logo_html}<div class="title">VOTES OUVERTS</div><div class="subtitle">Scannez pour voter</div></div><div class="bottom-section"><div class="side-col" style="align-items: flex-start;">{left_html}</div><div class="center-col"><div class="instructions"><p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p><p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p><p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p></div><div class="qr-box"><img src="data:image/png;base64,{qr_b64}"></div></div><div class="side-col" style="align-items: flex-end;">{right_html}</div></div>""", height=900)
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.9); max-width: 800px; text-align: center;'><h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI DE VOTRE PARTICIPATION</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GRANDS GAGNANTS dans quelques instants...</h3></div></div></div>", unsafe_allow_html=True)
@@ -1343,3 +1069,4 @@ else:
         components.html(f"""<script>var doc = window.parent.document;var existing = doc.getElementById('live-container');if(existing) existing.remove();var container = doc.createElement('div');container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+                          
