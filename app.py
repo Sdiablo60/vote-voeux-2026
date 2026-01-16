@@ -198,6 +198,18 @@ st.markdown("""
     }
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
+    
+    /* CORRECTION FORCÉE POUR LES MENUS DÉROULANTS (TEST ADMIN) */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
+        background-color: white !important;
+    }
+    li[role="option"] {
+        color: black !important;
+        background-color: white !important;
+    }
+    div[data-baseweb="select"] div {
+        color: black !important;
+    }
 
 </style>
 """, unsafe_allow_html=True)
@@ -598,6 +610,9 @@ if est_admin:
                 
                 if st.button("🔴 PILOTAGE LIVE", type="primary" if st.session_state.admin_menu == "🔴 PILOTAGE LIVE" else "secondary"): 
                     st.session_state.admin_menu = "🔴 PILOTAGE LIVE"; st.rerun()
+                # NOUVEAU BOUTON MENU TEST MOBILE
+                if st.button("📱 TEST MOBILE", type="primary" if st.session_state.admin_menu == "📱 TEST MOBILE" else "secondary"): 
+                    st.session_state.admin_menu = "📱 TEST MOBILE"; st.rerun()
                 if st.button("⚙️ CONFIG", type="primary" if st.session_state.admin_menu == "⚙️ CONFIG" else "secondary"): 
                     st.session_state.admin_menu = "⚙️ CONFIG"; st.rerun()
                 if st.button("📸 MÉDIATHÈQUE", type="primary" if st.session_state.admin_menu == "📸 MÉDIATHÈQUE" else "secondary"): 
@@ -609,7 +624,6 @@ if est_admin:
                 st.divider()
                 st.markdown("""
                     <a href="/" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>
-                    <a href="/?mode=vote&test_admin=true" target="_blank" class="custom-link-btn btn-blue">📱 TESTER MOBILE (ILLIMITÉ)</a>
                 """, unsafe_allow_html=True)
                 if st.button("🔓 DÉCONNEXION"): 
                     st.session_state["auth"] = False
@@ -642,6 +656,57 @@ if est_admin:
                         st.success("Données remises à zéro !")
                         time.sleep(1)
                         st.rerun()
+            
+            # --- NOUVEAU MENU TEST MOBILE DÉDIÉ ---
+            elif menu == "📱 TEST MOBILE":
+                st.title("📱 TEST & SIMULATION")
+                st.markdown("""
+                    <div style="background-color:#e8f4f8; padding:20px; border-radius:10px; border-left:5px solid #2980b9;">
+                        <strong>Note :</strong> Ce menu permet de tester l'application mobile et de simuler des votes sans avoir à utiliser de vrais téléphones.
+                    </div>
+                    <br>
+                """, unsafe_allow_html=True)
+                
+                # Lien Test Mobile
+                st.markdown('<a href="/?mode=vote&test_admin=true" target="_blank" class="custom-link-btn btn-blue">📱 OUVRIR SIMULATEUR MOBILE (VOTE ILLIMITÉ)</a>', unsafe_allow_html=True)
+                
+                st.divider()
+                
+                # Générateur de Votes
+                st.subheader("🧪 GÉNÉRATEUR DE VOTES AUTO")
+                st.caption("Ajoute instantanément des votes aléatoires pour tester le podium.")
+                
+                c_gen_1, c_gen_2 = st.columns([2, 1])
+                with c_gen_1:
+                    nb_simu = st.number_input("Nombre de votes à générer (0-100)", min_value=1, max_value=100, value=10)
+                with c_gen_2:
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    if st.button("🚀 GÉNÉRER", type="primary", use_container_width=True):
+                        votes = load_json(VOTES_FILE, {})
+                        details = load_json(DETAILED_VOTES_FILE, [])
+                        cands = cfg["candidats"]
+                        if len(cands) >= 3:
+                            for _ in range(nb_simu):
+                                # Choisir 3 candidats au hasard
+                                choix_simu = random.sample(cands, 3)
+                                # Mettre à jour les scores (5, 3, 1)
+                                for v, p in zip(choix_simu, [5, 3, 1]):
+                                    votes[v] = votes.get(v, 0) + p
+                                # Ajouter au journal
+                                details.append({
+                                    "Utilisateur": f"Bot_{random.randint(1000,9999)}",
+                                    "Choix 1 (5pts)": choix_simu[0],
+                                    "Choix 2 (3pts)": choix_simu[1],
+                                    "Choix 3 (1pt)": choix_simu[2],
+                                    "Date": datetime.now().strftime("%H:%M:%S")
+                                })
+                            
+                            save_json(VOTES_FILE, votes)
+                            save_json(DETAILED_VOTES_FILE, details)
+                            st.success(f"✅ {nb_simu} votes générés avec succès !")
+                            time.sleep(1)
+                        else:
+                            st.error("Il faut au moins 3 participants pour générer des votes.")
 
             elif menu == "⚙️ CONFIG":
                 st.title("⚙️ CONFIGURATION")
@@ -787,42 +852,6 @@ if est_admin:
             elif menu == "📊 DATA":
                 st.title("📊 DONNÉES & RÉSULTATS")
                 
-                # --- NOUVEAU BLOC : GENERATEUR DE VOTES ---
-                st.markdown("### 🧪 Simulation / Test de Charge")
-                with st.expander("Générer des votes aléatoires"):
-                    nb_simu = st.number_input("Nombre de votes à générer", min_value=1, max_value=1000, value=10, step=1)
-                    if st.button("🚀 Générer les votes", type="primary"):
-                        votes = load_json(VOTES_FILE, {})
-                        details = load_json(DETAILED_VOTES_FILE, [])
-                        cands = cfg["candidats"]
-                        points = cfg.get("points_ponderation", [5, 3, 1])
-                        
-                        if len(cands) >= 3:
-                            for _ in range(nb_simu):
-                                # Choisir 3 candidats au hasard
-                                choix_simu = random.sample(cands, 3)
-                                # Mettre à jour les scores
-                                for v, p in zip(choix_simu, points):
-                                    votes[v] = votes.get(v, 0) + p
-                                # Ajouter au journal
-                                details.append({
-                                    "Utilisateur": f"Bot_{random.randint(1000,9999)}",
-                                    "Choix 1 (5pts)": choix_simu[0],
-                                    "Choix 2 (3pts)": choix_simu[1],
-                                    "Choix 3 (1pt)": choix_simu[2],
-                                    "Date": datetime.now().strftime("%H:%M:%S")
-                                })
-                            
-                            save_json(VOTES_FILE, votes)
-                            save_json(DETAILED_VOTES_FILE, details)
-                            st.success(f"✅ {nb_simu} votes générés avec succès !")
-                            time.sleep(1)
-                            st.rerun()
-                        else:
-                            st.error("Il faut au moins 3 participants pour générer des votes.")
-
-                st.divider()
-
                 # --- CALCULS DONNEES ---
                 votes = load_json(VOTES_FILE, {})
                 vote_counts, nb_unique_voters, rank_dist = get_advanced_stats()
@@ -904,7 +933,7 @@ if est_admin:
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # CSS SPÉCIFIQUE MOBILE ET SELECTBOX
+    # CSS SPÉCIFIQUE MOBILE ET SELECTBOX (FORCE TEXTE NOIR SUR FOND BLANC)
     st.markdown("""
         <style>
             .stApp {background-color:black !important; color:white !important;} 
@@ -912,31 +941,20 @@ elif est_utilisateur:
             .block-container {padding: 1rem !important;}
             h1, h2, h3, p, div, span, label { color: white !important; }
             
-            /* FORCE LA COULEUR NOIRE POUR LES OPTIONS DU MULTISELECT */
-            div[data-baseweb="select"] span {
-                color: black !important;
-            }
-            div[data-baseweb="menu"] li {
-                color: black !important;
-                background-color: white !important;
-            }
-            div[data-baseweb="popover"] {
-                background-color: white !important;
-            }
-            span[data-baseweb="tag"] {
-                 color: black !important;
-            }
-            /* FIN CSS MOBILE */
+            /* FORCE LA COULEUR NOIRE POUR LES MENUS DÉROULANTS */
+            li[role="option"] span { color: black !important; }
+            div[data-baseweb="select"] span { color: black !important; }
+            div[data-baseweb="menu"] li { color: black !important; background-color: white !important; }
+            div[data-baseweb="popover"] { background-color: white !important; }
+            span[data-baseweb="tag"] { color: black !important; }
         </style>
     """, unsafe_allow_html=True)
     
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
-    if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
-    if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
-
+    
     if cfg["mode_affichage"] == "photos_live":
-        if "user_pseudo" not in st.session_state or st.session_state.user_pseudo != "Anonyme": st.session_state.user_pseudo = "Anonyme"
+        if "user_pseudo" not in st.session_state: st.session_state.user_pseudo = "Anonyme"
     elif cfg["mode_affichage"] == "votes":
         if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": del st.session_state["user_pseudo"]; st.rerun()
 
@@ -979,46 +997,29 @@ elif est_utilisateur:
             if st.session_state.vote_success:
                  st.balloons()
                  st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-                 if not is_test_admin: 
-                     components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-                 else: 
-                     st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
+                 if not is_test_admin: components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                 else: st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
                  st.stop()
             
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
-            if not st.session_state.rules_accepted:
-                st.info("⚠️ **RÈGLES DU VOTE**")
-                st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
-                if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
-            else:
-                st.warning("⚠️ RAPPEL IMPORTANT : Votre vote est UNIQUE. Une fois validé, il sera définitif et impossible à modifier.")
-                
-                choix = st.multiselect("Vos 3 vidéos préférées (par ordre de préférence) :", cfg["candidats"], max_selections=3, key="widget_choix")
-                if len(choix) == 3:
-                    if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
-                        vts = load_json(VOTES_FILE, {})
-                        pts = cfg.get("points_ponderation", [5, 3, 1])
-                        for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-                        save_json(VOTES_FILE, vts)
-                        details = load_json(DETAILED_VOTES_FILE, [])
-                        details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
-                        save_json(DETAILED_VOTES_FILE, details)
-                        st.session_state.vote_success = True
-                        st.rerun()
-        
-        elif is_test_admin and cfg["mode_affichage"] == "votes":
-             st.write(f"Bonjour **{st.session_state.user_pseudo}** (Mode Test Force)")
-             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3, key="widget_choix_force")
-             if len(choix) == 3:
-                if st.button("VALIDER (MODE TEST)", type="primary"):
+            st.warning("⚠️ RAPPEL IMPORTANT : Votre vote est UNIQUE. Une fois validé, il sera définitif et impossible à modifier.")
+            choix = st.multiselect("Vos 3 vidéos préférées (par ordre de préférence) :", cfg["candidats"], max_selections=3)
+            if len(choix) == 3:
+                if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
                     vts = load_json(VOTES_FILE, {})
                     pts = cfg.get("points_ponderation", [5, 3, 1])
                     for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
                     save_json(VOTES_FILE, vts)
-                    st.balloons()
-                    st.success("Vote Test OK")
-                    st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
-                    st.stop()
+                    details = load_json(DETAILED_VOTES_FILE, [])
+                    details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1 (5pts)": choix[0], "Choix 2 (3pts)": choix[1], "Choix 3 (1pt)": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
+                    save_json(DETAILED_VOTES_FILE, details)
+                    st.session_state.vote_success = True
+                    st.rerun()
+        
+        elif is_test_admin and cfg["mode_affichage"] == "votes":
+             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+             if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
+                 st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 
 # =========================================================
@@ -1027,369 +1028,109 @@ elif est_utilisateur:
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
-    refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
-    st_autorefresh(interval=refresh_rate, key="wall_refresh")
-    
-    # --- CORRECTION FOND NOIR ---
-    # On force le fond de l'application à être NOIR pour le Mur Social
-    # Cela écrase la configuration blanche de l'Admin définie plus haut
-    st.markdown("""
-        <style>
-            .stApp {
-                background-color: black !important;
-                color: white !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-    
-    # HEADER ROUGE EN Z-INDEX MAXIMAL (FIXE)
+    st_autorefresh(interval=5000)
+    st.markdown("<style>.stApp {background-color: black !important; color: white !important;}</style>", unsafe_allow_html=True)
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
-    effects = cfg.get("screen_effects", {})
-    effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
-    inject_visual_effect(effect_name, 25, 15)
-
-    ph = st.empty()
-    
     if mode == "attente":
-        try:
-            with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
-            with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
-        except FileNotFoundError:
-            css_content = ""; js_content = "console.error('Fichiers manquants');"
-
-        logo_img_tag = ""
-        if cfg.get("logo_b64"):
-            # MODIFICATION : Taille 350px, Marge 10px
-            logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">'
-
-        # STRUCTURE ANTI-CLIGNOTEMENT: Texte dans le HTML de l'iframe + Fond noir forcé
-        html_code = f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <style>
-                body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
-                {css_content}
-                #welcome-text {{
-                    position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-                    text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5;
-                    font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none;
-                }}
-            </style>
-        </head>
-        <body>
-            <div id="welcome-text">
-                {logo_img_tag}<br>BIENVENUE
-            </div>
-            <div id="robot-bubble" class="bubble">...</div>
-            <div id="robot-container"></div>
-            
-            <script type="importmap">
-            {{ "imports": {{ "three": "https://unpkg.com/three@0.160.0/build/three.module.js" }} }}
-            </script>
-            <script type="module">
-                {js_content}
-            </script>
-        </body>
-        </html>
-        """
-        components.html(html_code, height=1000, scrolling=False)
-
+        logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px;">' if cfg.get("logo_b64") else ""
+        components.html(f"""<style>body {{ background: black; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; font-family: Arial; font-size: 50px; font-weight: bold; }}</style><div>{logo_html}</div><div style="margin-top:20px">BIENVENUE</div>""", height=900)
+    
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # CHARGEMENT DES VOTES
-            v_data = load_json(VOTES_FILE, {})
-            c_imgs = cfg.get("candidats_images", {})
+            v_data = load_json(VOTES_FILE, {}); c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
             sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
-            
             s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else 0
             rank1 = [c for c, s in v_data.items() if s == s1]
-            
             s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else 0
             rank2 = [c for c, s in v_data.items() if s == s2]
-            
             s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else 0
             rank3 = [c for c, s in v_data.items() if s == s3]
             
-            def get_podium_html(cands, score, emoji):
+            def get_podium_html(cands):
                 if not cands: return ""
                 html = ""
                 for c in cands:
-                    if c in c_imgs:
-                        img_src = f"data:image/png;base64,{c_imgs[c]}"
-                        img_tag = f"<img src='{img_src}' class='p-img'>"
-                    else:
-                        img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:50px;'>{emoji}</div>"
-                    # SCORE SUR LE PODIUM, PAS SUR LA CARTE
+                    img_tag = f"<div class='p-placeholder'>🏆</div>"
+                    if c in c_imgs: img_tag = f"<img src='data:image/png;base64,{c_imgs[c]}' class='p-img'>"
                     html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
                 return html
 
-            h1 = get_podium_html(rank1, s1, "🥇")
-            h2 = get_podium_html(rank2, s2, "🥈")
-            h3 = get_podium_html(rank3, s3, "🥉")
-            
-            # ATTENTION : DANS LE BLOC CI-DESSOUS (f-string), TOUTES LES ACCOLADES CSS/JS DOIVENT ÊTRE DOUBLÉES {{ }}
-            # SEULES LES VARIABLES PYTHON {h1}, {s1}, etc. GARDENT DES ACCOLADES SIMPLES
+            h1, h2, h3 = get_podium_html(rank1), get_podium_html(rank2), get_podium_html(rank3)
+
             components.html(f"""
-            <div id="intro-layer" class="intro-overlay">
-                <div id="intro-txt" class="intro-text"></div>
-                <div id="intro-num" class="intro-count"></div>
-            </div>
-            
-            <audio id="applause-sound" preload="auto">
-                <source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg">
-            </audio>
-
+            <div id="intro-layer" class="intro-overlay"><div id="intro-txt" class="intro-text"></div><div id="intro-num" class="intro-count"></div></div>
             <div class="podium-container">
-                <div class="column-2">
-                    <div class="winners-box rank-2" id="win-2">{h2}</div>
-                    <div class="pedestal pedestal-2">
-                        <div class="rank-score">{s2} PTS</div>
-                        <div class="rank-num">2</div>
-                    </div>
-                </div>
-
-                <div class="column-1">
-                    <div class="winners-box rank-1" id="win-1">{h1}</div>
-                    <div class="pedestal pedestal-1">
-                        <div class="rank-score">{s1} PTS</div>
-                        <div class="rank-num">1</div>
-                    </div>
-                </div>
-
-                <div class="column-3">
-                    <div class="winners-box rank-3" id="win-3">{h3}</div>
-                    <div class="pedestal pedestal-3">
-                        <div class="rank-score">{s3} PTS</div>
-                        <div class="rank-num">3</div>
-                    </div>
-                </div>
+                <div class="column-2"><div class="winners-box rank-2" id="win-2">{h2}</div><div class="pedestal pedestal-2"><div class="rank-score">{s2} PTS</div><div class="rank-num">2</div></div></div>
+                <div class="column-1"><div class="winners-box rank-1" id="win-1">{h1}</div><div class="pedestal pedestal-1"><div class="rank-score">{s1} PTS</div><div class="rank-num">1</div></div></div>
+                <div class="column-3"><div class="winners-box rank-3" id="win-3">{h3}</div><div class="pedestal pedestal-3"><div class="rank-score">{s3} PTS</div><div class="rank-num">3</div></div></div>
             </div>
-
             <script>
                 const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-                const layer = document.getElementById('intro-layer');
-                const txt = document.getElementById('intro-txt');
-                const num = document.getElementById('intro-num');
-                const w1 = document.getElementById('win-1');
-                const w2 = document.getElementById('win-2');
-                const w3 = document.getElementById('win-3');
-                const audio = document.getElementById('applause-sound');
-
-                function startConfetti() {{
-                    var script = document.createElement('script');
-                    script.src = "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
-                    script.onload = () => {{
-                        var duration = 15 * 1000;
-                        var animationEnd = Date.now() + duration;
-                        var defaults = {{ startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 }};
-                        var random = (min, max) => Math.random() * (max - min) + min;
-                        var interval = setInterval(function() {{
-                            var timeLeft = animationEnd - Date.now();
-                            if (timeLeft <= 0) {{ return clearInterval(interval); }}
-                            var particleCount = 50 * (timeLeft / duration);
-                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.1, 0.3), y: Math.random() - 0.2 }} }}));
-                            confetti(Object.assign({{}}, defaults, {{ particleCount, origin: {{ x: random(0.7, 0.9), y: Math.random() - 0.2 }} }}));
-                        }}, 250);
-                    }};
-                    document.body.appendChild(script);
-                }}
-
+                const w1=document.getElementById('win-1'), w2=document.getElementById('win-2'), w3=document.getElementById('win-3');
+                const p1=document.querySelector('.pedestal-1'), p2=document.querySelector('.pedestal-2'), p3=document.querySelector('.pedestal-3');
+                const overlay = document.getElementById('intro-layer'), txt = document.getElementById('intro-txt'), num = document.getElementById('intro-num');
                 async function countdown(seconds, message) {{
-                    layer.style.display = 'flex';
-                    layer.style.opacity = '1';
-                    txt.innerText = message;
-                    for(let i=seconds; i>0; i--) {{
-                        num.innerText = i;
-                        await wait(1000);
-                    }}
-                    layer.style.opacity = '0';
-                    await wait(500); 
-                    layer.style.display = 'none';
+                    overlay.style.opacity = '1'; txt.innerText = message;
+                    for(let i=seconds; i>0; i--) {{ num.innerText = i; await wait(1000); }}
+                    overlay.style.opacity = '0'; await wait(500);
                 }}
-
-                async function runShow() {{
-                    // 3ème place
-                    await countdown(10, "EN TROISIÈME PLACE AVEC {s3} POINTS...");
-                    w3.classList.add('visible');
-                    document.querySelector('.pedestal-3').classList.add('visible');
-                    
-                    // 2ème place
-                    await wait(2000);
-                    await countdown(10, "EN SECONDE PLACE AVEC {s2} POINTS...");
-                    w2.classList.add('visible');
-                    document.querySelector('.pedestal-2').classList.add('visible');
-                    
-                    // 1ère place
-                    await wait(2000);
-                    await countdown(10, "ET ENFIN CELUI QUE TOUT LE MONDE ATTEND... LA PREMIÈRE PLACE AVEC {s1} POINTS...");
-                    w1.classList.add('visible');
-                    document.querySelector('.pedestal-1').classList.add('visible');
-
-                    startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
+                async function run() {{
+                    await countdown(5, "3ÈME PLACE..."); w3.classList.add('visible'); p3.classList.add('visible');
+                    await wait(2000); await countdown(5, "2ÈME PLACE..."); w2.classList.add('visible'); p2.classList.add('visible');
+                    await wait(2000); await countdown(7, "LE VAINQUEUR..."); w1.classList.add('visible'); p1.classList.add('visible');
                 }}
-
-                window.parent.document.body.style.backgroundColor = "black";
-                runShow();
+                run();
             </script>
             <style>
-                body {{ margin: 0; overflow: hidden; background: black; }}
-                
-                .podium-container {{
-                    position: absolute; bottom: 0; left: 0; width: 100%; height: 100vh;
-                    display: flex; justify-content: center; align-items: flex-end;
-                    padding-bottom: 20px;
-                }}
-
-                /* COLONNES FIXES - PLUS LARGES POUR PERMETTRE LE CÔTE A CÔTE */
-                .column-2 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
+                body {{ margin: 0; background: black; overflow: hidden; }}
+                .podium-container {{ position: absolute; bottom: 0; width: 100%; height: 100vh; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 20px; }}
+                .winners-box {{ display: flex; flex-direction: row; flex-wrap: wrap-reverse; justify-content: center; align-items: flex-end; width: 300px; margin: 0 auto; gap: 5px; opacity: 0; transform: translateY(50px); transition: all 1s; }}
+                .winners-box.visible {{ opacity: 1; transform: translateY(0); }}
+                .column-2, .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 2; }}
                 .column-1 {{ width: 36%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
-                .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
-
-                /* CONTENEUR GAGNANTS - FLEX-WRAP REVERSE POUR EMPILEMENT VERS LE HAUT + WIDTH CONTRAINTE */
-                .winners-box {{
-                    display: flex; 
-                    flex-direction: row;        /* Ligne horizontale */
-                    flex-wrap: wrap-reverse;    /* Si ça dépasse, nouvelle ligne AU-DESSUS */
-                    justify-content: center;
-                    align-items: flex-end;      /* Aligne le bas des cartes */
-                    width: 300px !important;    /* LARGEUR FORCÉE POUR 2 CARTES MAX (130+10)*2 approx */
-                    max-width: 300px !important;
-                    margin: 0 auto;             /* Centré */
-                    padding-bottom: 0px;
-                    opacity: 0; transform: translateY(50px) scale(0.8); /* Caché par défaut */
-                    transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    gap: 5px;
-                }}
-                .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
-
-                /* MARCHES DU PODIUM (DESIGN IMAGE) */
-                .pedestal {{
-                    width: 100%;
-                    background: linear-gradient(to bottom, #333, #000);
-                    border-radius: 20px 20px 0 0;
-                    box-shadow: 0 -5px 15px rgba(255,255,255,0.1);
-                    display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
-                    position: relative; padding-top: 20px;
-                }}
-                /* Effet de brillance en haut */
-                .pedestal::after {{
-                    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
-                    box-shadow: 0 0 15px currentColor;
-                    border-radius: 20px 20px 0 0;
-                }}
-
-                .pedestal-1 {{ height: 350px; border-top: 3px solid #FFD700; color: #FFD700; }}
-                .pedestal-2 {{ height: 220px; border-top: 3px solid #C0C0C0; color: #C0C0C0; }}
-                .pedestal-3 {{ height: 150px; border-top: 3px solid #CD7F32; color: #CD7F32; }}
-
-                .rank-num {{
-                    font-size: 120px; font-weight: 900; font-family: 'Arial Black', sans-serif;
-                    opacity: 0.2; /* Transparence pour incruster dans le fond */
-                    line-height: 1;
-                }}
-
-                /* STYLE POUR LE SCORE SUR LE PODIUM (Caché par défaut) */
-                .rank-score {{
-                    font-family: 'Arial Black', sans-serif;
-                    font-size: 30px;
-                    font-weight: bold;
-                    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-                    margin-bottom: -20px; /* Chevauchement léger avec le numéro */
-                    z-index: 5;
-                    opacity: 0;
-                    transform: translateY(20px);
-                    transition: all 0.5s ease-out;
-                }}
-                /* Apparition du score quand le piédestal devient visible */
-                .pedestal.visible .rank-score {{
-                    opacity: 1;
-                    transform: translateY(0);
-                }}
-
-                /* CARTES GAGNANTS (Taille fixe + Zoom léger) */
-                .p-card {{ 
-                    background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 130px; /* Taille fixe */
-                    margin: 5px;
-                    backdrop-filter: blur(5px); 
-                    border: 1px solid rgba(255,255,255,0.3); 
-                    display:flex; flex-direction:column; align-items:center; 
-                    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-                    flex-shrink: 0; /* Empêche le rétrécissement */
-                }}
-                .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.15); margin-bottom: 20px; }}
+                .pedestal {{ width: 100%; background: linear-gradient(to bottom, #333, #000); border-radius: 20px 20px 0 0; box-shadow: 0 -5px 15px rgba(255,255,255,0.1); display: flex; flex-direction: column; align-items: center; padding-top: 10px; position: relative; }}
+                .pedestal-1 {{ height: 350px; border-top: 4px solid #FFD700; color: #FFD700; }}
+                .pedestal-2 {{ height: 220px; border-top: 4px solid #C0C0C0; color: #C0C0C0; }}
+                .pedestal-3 {{ height: 150px; border-top: 4px solid #CD7F32; color: #CD7F32; }}
+                .rank-num {{ font-family: 'Arial Black'; font-weight: 900; font-size: 100px; opacity: 0.2; line-height: 1; }}
+                .rank-score {{ font-family: 'Arial Black'; font-weight: bold; font-size: 30px; opacity: 0; transform: translateY(20px); transition: all 0.5s; margin-bottom: -20px; z-index: 5; text-shadow: 0 2px 5px black; }}
+                .pedestal.visible .rank-score {{ opacity: 1; transform: translateY(0); }}
+                .p-card {{ background: rgba(30,30,30,0.9); border-radius: 15px; padding: 10px; width: 130px; border: 1px solid rgba(255,255,255,0.3); display: flex; flex-direction: column; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.5); margin: 5px; flex-shrink: 0; }}
+                .rank-1 .p-card {{ border-color: #FFD700; transform: scale(1.15); margin-bottom: 20px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
-
-                .p-img, .p-placeholder {{ 
-                    width: 80px; height: 80px; /* Taille image augmentée */
-                    border-radius: 50%; 
-                    object-fit: cover; border: 3px solid white; margin-bottom: 5px; 
-                    display: flex; justify-content: center; align-items: center; 
-                }}
+                .p-img, .p-placeholder {{ width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid white; margin-bottom: 5px; display: flex; justify-content: center; align-items: center; font-size: 30px; }}
                 .rank-1 .p-img {{ width: 100px; height: 100px; border-color: #FFD700; }}
-
-                .p-name {{ font-family: Arial; font-size: 15px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
-                .rank-1 .p-name {{ color: #FFD700; font-size: 19px; }}
-                
-                /* COUNTDOWN OVERLAY (TOP OF SCREEN) */
-                .intro-overlay {{ 
-                    position: fixed; top: 15vh; /* Juste sous le header rouge */
-                    left: 0; width: 100vw; height: auto; 
-                    z-index: 5000; 
-                    display: flex; flex-direction: column; align-items: center; 
-                    text-align: center; transition: opacity 0.5s; pointer-events: none; 
-                }}
-                .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px black; }}
-                .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
+                .p-name {{ color: white; font-family: Arial; font-weight: bold; font-size: 14px; text-transform: uppercase; text-align: center; }}
+                .rank-1 .p-name {{ color: #FFD700; font-size: 18px; }}
+                .intro-overlay {{ position: fixed; top: 15vh; left: 0; width: 100%; display: flex; flex-direction: column; align-items: center; transition: opacity 0.5s; pointer-events: none; opacity: 0; }}
+                .intro-text {{ color: white; font-family: Arial; font-weight: bold; font-size: 40px; text-shadow: 0 0 20px black; }}
+                .intro-count {{ color: #E2001A; font-family: Arial; font-weight: 900; font-size: 100px; text-shadow: 0 0 20px black; margin-top: 10px; }}
             </style>
-            """, height=900, scrolling=False)
-
+            """, height=900)
         elif cfg["session_ouverte"]:
-             # --- ECRAN VOTES OUVERTS ---
              host = st.context.headers.get('host', 'localhost')
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
              
-             # --- BANDEAU DEFILANT DES VOTANTS ---
+             # BANDEAU VOTE
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
-             # On prend les 20 derniers votants pour ne pas surcharger
-             voter_names = [v['Utilisateur'] for v in recent_votes[-20:]]
-             voter_names.reverse() # Les plus récents en premier
+             voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
              voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
              
-             # --- GENERATION LISTES CANDIDATS ---
-             cands = cfg["candidats"]
-             mid = (len(cands) + 1) // 2
-             left_cands = cands[:mid]
-             right_cands = cands[mid:]
+             cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
+             left_cands = cands[:mid]; right_cands = cands[mid:]
              
              def gen_html_list(clist, imgs, align='left'):
                  h = ""
-                 # On garde le format [Image] [Texte] pour les deux côtés pour la symétrie visuelle
-                 # L'alignement du conteneur change
-                 
                  for c in clist:
                      im = '<div style="font-size:30px;">👤</div>'
                      if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid white;">'
-                     
-                     # Style pour aligner
-                     justify = "flex-start" 
-                     flex_dir = "row"       
-                     margin_side = "margin-left:15px;" 
-                     
-                     h += f"""
-                     <div style="display:flex; align-items:center; justify-content:{justify}; flex-direction:{flex_dir}; margin:10px 0; background:rgba(255,255,255,0.1); padding:10px 20px; border-radius:50px; width:220px; margin-{align}: auto;">
-                        {im}
-                        <span style="{margin_side} font-size:18px; font-weight:bold; color:white; text-transform:uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{c}</span>
-                     </div>
-                     """
+                     h += f"""<div style="display:flex; align-items:center; justify-content:flex-start; flex-direction:row; margin:10px 0; background:rgba(255,255,255,0.1); padding:10px 20px; border-radius:50px; width:220px; margin-{align}: auto;">{im}<span style="margin-left:15px; font-size:18px; font-weight:bold; color:white; text-transform:uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{c}</span></div>"""
                  return h
 
              left_html = gen_html_list(left_cands, cfg.get("candidats_images", {}), 'left')
@@ -1398,159 +1139,35 @@ else:
              components.html(f"""
                 <style>
                     body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
-                    
-                    /* BANDEAU DEFILANT */
-                    .marquee-container {{
-                        width: 100%;
-                        background: #E2001A;
-                        color: white;
-                        height: 50px;
-                        position: fixed;
-                        top: 0;
-                        left: 0;
-                        z-index: 1000;
-                        display: flex;
-                        align-items: center;
-                        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-                        border-bottom: 2px solid white;
-                    }}
-                    
-                    /* PARTIE GAUCHE STATIQUE */
-                    .marquee-label {{
-                        background: #E2001A;
-                        color: white;
-                        font-weight: 900;
-                        font-size: 18px;
-                        padding: 0 20px;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        z-index: 1001; /* Au-dessus du défilement */
-                        box-shadow: 5px 0 10px rgba(0,0,0,0.2); /* Ombre pour séparer */
-                    }}
-
-                    /* PARTIE DROITE DÉFILANTE */
-                    .marquee-wrapper {{
-                        overflow: hidden;
-                        white-space: nowrap;
-                        flex-grow: 1;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                    }}
-
-                    .marquee-content {{
-                        display: inline-block;
-                        padding-left: 100%;
-                        animation: marquee 20s linear infinite;
-                        font-weight: bold;
-                        font-size: 18px;
-                        text-transform: uppercase;
-                    }}
-                    
-                    @keyframes marquee {{
-                        0%   {{ transform: translate(0, 0); }}
-                        100% {{ transform: translate(-100%, 0); }}
-                    }}
-
-                    /* HAUT : LOGO + TITRES (Décalé vers le bas à cause du bandeau) */
-                    .top-section {{
-                        width: 100%;
-                        height: 35vh;
-                        margin-top: 60px; 
-                        display: flex; flex-direction: column; align-items: center; justify-content: center;
-                        z-index: 10;
-                    }}
+                    .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 50px; position: fixed; top: 0; left: 0; z-index: 1000; display: flex; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-bottom: 2px solid white; }}
+                    .marquee-label {{ background: #E2001A; color: white; font-weight: 900; font-size: 18px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 1001; box-shadow: 5px 0 10px rgba(0,0,0,0.2); }}
+                    .marquee-wrapper {{ overflow: hidden; white-space: nowrap; flex-grow: 1; height: 100%; display: flex; align-items: center; }}
+                    .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; }}
+                    @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
+                    .top-section {{ width: 100%; height: 35vh; margin-top: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }}
                     .title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 10px 0 0 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1; }}
                     .subtitle {{ font-size: 30px; font-weight: bold; margin-top: 10px; color: white; }}
-
-                    .instructions {{
-                        text-align: center; color: white; font-size: 16px; margin-bottom: 20px;
-                        background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px;
-                        width: 80%; max-width: 600px;
-                    }}
-
-                    /* BAS : LISTES + QR */
-                    .bottom-section {{
-                        width: 95%;
-                        margin: 0 auto;
-                        height: 55vh;
-                        display: flex; 
-                        align-items: center; /* Centre verticalement les 3 colonnes */
-                        justify-content: space-between;
-                    }}
-                    
-                    .side-col {{ 
-                        width: 30%; 
-                        height: 100%; 
-                        display: flex; flex-direction: column; justify-content: center; /* Centre la liste verticalement */
-                        overflow-y: auto;
-                    }}
-                    
-                    .center-col {{ 
-                        width: 30%; 
-                        display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    }}
-                    
-                    .qr-box {{ 
-                        background: white; 
-                        padding: 15px; 
-                        border-radius: 20px; 
-                        box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); 
-                        animation: pulse 3s infinite;
-                    }}
-                    
-                    .qr-box img {{
-                        width: 300px; /* TAILLE DU QR CODE REDUITE A 300px */
-                    }}
-                    
-                    @keyframes pulse {{
-                        0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }}
-                        50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }}
-                        100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }}
-                    }}
-
-                    /* SCROLLBAR CACHÉE */
+                    .instructions {{ text-align: center; color: white; font-size: 16px; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; width: 80%; max-width: 600px; }}
+                    .bottom-section {{ width: 95%; margin: 0 auto; height: 55vh; display: flex; align-items: center; justify-content: space-between; }}
+                    .side-col {{ width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }}
+                    .center-col {{ width: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; }}
+                    .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite; }}
+                    .qr-box img {{ width: 300px; }}
+                    @keyframes pulse {{ 0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} 50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }} 100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} }}
                     ::-webkit-scrollbar {{ display: none; }}
                 </style>
-                
-                <div class="marquee-container">
-                    <div class="marquee-label">DERNIERS VOTANTS :</div>
-                    <div class="marquee-wrapper">
-                        <div class="marquee-content">{voter_string}</div>
-                    </div>
-                </div>
-
-                <div class="top-section">
-                    {logo_html}
-                    <div class="title">VOTES OUVERTS</div>
-                    <div class="subtitle">Scannez pour voter</div>
-                </div>
-
+                <div class="marquee-container"><div class="marquee-label">DERNIERS VOTANTS :</div><div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div></div>
+                <div class="top-section">{logo_html}<div class="title">VOTES OUVERTS</div><div class="subtitle">Scannez pour voter</div></div>
                 <div class="bottom-section">
-                    <div class="side-col" style="align-items: flex-start;">
-                        {left_html}
-                    </div>
-                    
+                    <div class="side-col" style="align-items: flex-start;">{left_html}</div>
                     <div class="center-col">
-                        <div class="instructions">
-                            <p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p>
-                            <p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p>
-                            <p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p>
-                        </div>
-                        <div class="qr-box">
-                            <img src="data:image/png;base64,{qr_b64}">
-                        </div>
+                        <div class="instructions"><p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p><p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p><p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p></div>
+                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}"></div>
                     </div>
-                    
-                    <div class="side-col" style="align-items: flex-end;">
-                        {right_html}
-                    </div>
+                    <div class="side-col" style="align-items: flex-end;">{right_html}</div>
                 </div>
              """, height=900)
-
         else:
-            # MODIFICATION : Taille 350px, Marge 10px
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.9); max-width: 800px; text-align: center;'><h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI DE VOTRE PARTICIPATION</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GRANDS GAGNANTS dans quelques instants...</h3></div></div></div>", unsafe_allow_html=True)
 
@@ -1561,59 +1178,7 @@ else:
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        
-        # MODIFICATION : Taille 350px, Marge 10px pour le logo
-        center_html_content = f"""
-            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
-                <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
-                {f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}
-                <div style='background:white; padding:15px; border-radius:15px; display:inline-block;'>
-                    <img src='data:image/png;base64,{qr_b64}' style='width:250px;'>
-                </div>
-                <h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2>
-            </div>
-        """
-        components.html(f"""<script>
-            var doc = window.parent.document;
-            var existing = doc.getElementById('live-container');
-            if(existing) existing.remove();
-            var container = doc.createElement('div');
-            container.id = 'live-container'; 
-            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
-            doc.body.appendChild(container);
-            container.innerHTML = `{center_html_content}`;
-            const imgs = {img_js}; const bubbles = [];
-            const minSize = 100; const maxSize = 350;
-            var screenW = window.innerWidth || 1920;
-            var screenH = window.innerHeight || 1080;
-            imgs.forEach((src, i) => {{
-                const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-                const el = doc.createElement('img'); el.src = src;
-                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
-                let x = Math.random() * (screenW - bSize);
-                let y = Math.random() * (screenH - bSize);
-                let angle = Math.random() * Math.PI * 2;
-                let speed = 0.8 + Math.random() * 1.2;
-                let vx = Math.cos(angle) * speed;
-                let vy = Math.sin(angle) * speed;
-                container.appendChild(el); 
-                bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
-            }});
-            function animate() {{
-                screenW = window.innerWidth || 1920;
-                screenH = window.innerHeight || 1080;
-                bubbles.forEach(b => {{
-                    b.x += b.vx; b.y += b.vy;
-                    if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
-                    if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
-                    if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
-                    if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
-                    b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
-                }});
-                requestAnimationFrame(animate);
-            }}
-            animate();
-        </script>""", height=900)
-
+        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
+        components.html(f"""<script>var doc = window.parent.document;var existing = doc.getElementById('live-container');if(existing) existing.remove();var container = doc.createElement('div');container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
