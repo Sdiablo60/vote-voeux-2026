@@ -38,11 +38,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# RECUPERATION PARAMETRES URL
-est_admin = st.query_params.get("admin") == "true"
-est_utilisateur = st.query_params.get("mode") == "vote"
-is_blocked = st.query_params.get("blocked") == "true"
-is_test_admin = st.query_params.get("test_admin") == "true"
+# --- RECUPERATION PARAMETRES URL (LOGIQUE BLINDÉE) ---
+qp = st.query_params
+mode_url = qp.get("mode", "wall") # Par défaut, on va sur le mur
+admin_url = qp.get("admin", "false")
+is_blocked = qp.get("blocked") == "true"
+is_test_admin = qp.get("test_admin") == "true"
+
+est_admin = (admin_url == "true")
+# FIX CRITIQUE : On est utilisateur SEULEMENT si c'est écrit "vote" explicitement
+est_utilisateur = (mode_url == "vote")
 
 # DOSSIERS & FICHIERS
 LIVE_DIR = "galerie_live_users"
@@ -644,9 +649,11 @@ if est_admin:
                         st.session_state.admin_menu = "👥 UTILISATEURS"; st.rerun()
 
                 st.divider()
-# On ajoute ?mode=wall pour forcer l'affichage du mur et ignorer le mode vote
-st.markdown('<a href="?mode=wall" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
-
+                # BOUTON MODIFIÉ : FORCE L'URL WALL
+                host_url = st.context.headers.get("host", "")
+                full_url = f"https://{host_url}/?mode=wall"
+                st.markdown(f'<a href="{full_url}" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
+                
                 if st.button("🔓 DÉCONNEXION"): 
                     st.session_state["auth"] = False
                     st.session_state["session_active"] = False
