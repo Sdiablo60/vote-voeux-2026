@@ -1031,21 +1031,18 @@ else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # Refresh auto : 5s si podium, sinon 4s
+    # Refresh auto
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    # --- CORRECTION FOND NOIR ---
+    # --- CSS GLOBAL MUR ---
     st.markdown("""
         <style>
-            .stApp {
-                background-color: black !important;
-                color: white !important;
-            }
+            .stApp { background-color: black !important; color: white !important; }
         </style>
     """, unsafe_allow_html=True)
     
-    # HEADER ROUGE
+    # HEADER
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
@@ -1094,10 +1091,9 @@ else:
         """
         components.html(html_code, height=1000, scrolling=False)
 
-    # --- MODE VOTES (PODIUM ou OUVERT/FERMÉ) ---
+    # --- MODE VOTES (PODIUM ou STANDARD) ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # CHARGEMENT DES VOTES
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1207,25 +1203,22 @@ else:
                 }}
 
                 async function runShow() {{
-                    // 3ème place
-                    await countdown(10, "EN TROISIÈME PLACE AVEC {s3} POINTS...");
+                    await countdown(5, "EN TROISIÈME PLACE...");
                     w3.classList.add('visible');
                     document.querySelector('.pedestal-3').classList.add('visible');
                     
-                    // 2ème place
                     await wait(2000);
-                    await countdown(10, "EN SECONDE PLACE AVEC {s2} POINTS...");
+                    await countdown(5, "EN SECONDE PLACE...");
                     w2.classList.add('visible');
                     document.querySelector('.pedestal-2').classList.add('visible');
                     
-                    // 1ère place
                     await wait(2000);
-                    await countdown(10, "ET ENFIN CELUI QUE TOUT LE MONDE ATTEND... LA PREMIÈRE PLACE AVEC {s1} POINTS...");
+                    await countdown(7, "ET LE VAINQUEUR EST...");
                     w1.classList.add('visible');
                     document.querySelector('.pedestal-1').classList.add('visible');
 
                     startConfetti();
-                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play failed due to browser policy"); }}
+                    try {{ audio.currentTime = 0; audio.play(); }} catch(e) {{ console.log("Audio play blocked"); }}
                 }}
 
                 window.parent.document.body.style.backgroundColor = "black";
@@ -1240,29 +1233,26 @@ else:
                     padding-bottom: 20px;
                 }}
 
-                /* COLONNES FIXES */
                 .column-2 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-right: -20px; z-index: 2; }}
                 .column-1 {{ width: 36%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; z-index: 3; }}
                 .column-3 {{ width: 32%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; margin-left: -20px; z-index: 2; }}
 
-                /* CONTENEUR GAGNANTS - LARGEUR CORRIGÉE POUR LE 2x2 */
+                /* CONTENEUR GAGNANTS - FIXE POUR 2 CARTES CÔTE A CÔTE */
                 .winners-box {{
                     display: flex; 
                     flex-direction: row;        
-                    flex-wrap: wrap-reverse;    /* IMPORTANT: Empile vers le haut */
+                    flex-wrap: wrap-reverse; /* Empile vers le haut */
                     justify-content: center;
                     align-items: flex-end;      
-                    width: 350px !important;    /* Assez large pour 2 cartes de 150px + marges */
-                    max-width: 350px !important;
+                    width: 330px !important;  /* Calcul précis : 150(card) + 10(margin) * 2 = 320px minimum */
                     margin: 0 auto;             
                     padding-bottom: 0px;
                     opacity: 0; transform: translateY(50px) scale(0.8);
                     transition: all 1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                    gap: 10px; /* Espace entre les cartes */
                 }}
                 .winners-box.visible {{ opacity: 1; transform: translateY(0) scale(1); }}
 
-                /* MARCHES DU PODIUM */
+                /* MARCHES */
                 .pedestal {{
                     width: 100%;
                     background: linear-gradient(to bottom, #333, #000);
@@ -1271,63 +1261,43 @@ else:
                     display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
                     position: relative; padding-top: 20px;
                 }}
-                .pedestal::after {{
-                    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px;
-                    box-shadow: 0 0 15px currentColor;
-                    border-radius: 20px 20px 0 0;
-                }}
-
+                .pedestal::after {{ content: ''; position: absolute; top: 0; left: 0; right: 0; height: 5px; box-shadow: 0 0 15px currentColor; border-radius: 20px 20px 0 0; }}
                 .pedestal-1 {{ height: 350px; border-top: 3px solid #FFD700; color: #FFD700; }}
                 .pedestal-2 {{ height: 220px; border-top: 3px solid #C0C0C0; color: #C0C0C0; }}
                 .pedestal-3 {{ height: 150px; border-top: 3px solid #CD7F32; color: #CD7F32; }}
 
-                .rank-num {{
-                    font-size: 120px; font-weight: 900; font-family: 'Arial Black', sans-serif;
-                    opacity: 0.2; line-height: 1;
-                }}
-
-                .rank-score {{
-                    font-family: 'Arial Black', sans-serif;
-                    font-size: 30px; font-weight: bold;
-                    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-                    margin-bottom: -20px; z-index: 5;
-                    opacity: 0; transform: translateY(20px); transition: all 0.5s ease-out;
-                }}
+                .rank-num {{ font-size: 120px; font-weight: 900; font-family: 'Arial Black', sans-serif; opacity: 0.2; line-height: 1; }}
+                .rank-score {{ font-family: 'Arial Black', sans-serif; font-size: 30px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.5); margin-bottom: -20px; z-index: 5; opacity: 0; transform: translateY(20px); transition: all 0.5s ease-out; }}
                 .pedestal.visible .rank-score {{ opacity: 1; transform: translateY(0); }}
 
-                /* CARTES GAGNANTS - AGRANDIES */
+                /* CARTES GAGNANTS */
                 .p-card {{ 
                     background: rgba(20,20,20,0.8); border-radius: 15px; padding: 10px; 
-                    width: 150px; /* Taille augmentée */
-                    margin: 0; /* Géré par le gap du conteneur */
+                    width: 150px; /* Taille fixe */
+                    height: auto;
+                    margin: 5px; /* Espace entre les cartes */
                     backdrop-filter: blur(5px); 
                     border: 1px solid rgba(255,255,255,0.3); 
                     display:flex; flex-direction:column; align-items:center; 
                     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
                     flex-shrink: 0; 
+                    box-sizing: border-box !important; /* CRUCIAL pour que le padding ne casse pas la largeur */
                 }}
                 .rank-1 .p-card {{ border-color: #FFD700; background: rgba(40,30,0,0.9); transform: scale(1.15); margin-bottom: 20px; }}
                 .rank-2 .p-card {{ border-color: #C0C0C0; }}
                 .rank-3 .p-card {{ border-color: #CD7F32; }}
 
                 .p-img, .p-placeholder {{ 
-                    width: 100px; height: 100px; /* Photos agrandies */
-                    border-radius: 50%; 
-                    object-fit: cover; border: 3px solid white; margin-bottom: 5px; 
+                    width: 100px; height: 100px; 
+                    border-radius: 50%; object-fit: cover; border: 3px solid white; margin-bottom: 5px; 
                     display: flex; justify-content: center; align-items: center; 
                 }}
                 .rank-1 .p-img {{ width: 120px; height: 120px; border-color: #FFD700; }}
 
-                .p-name {{ font-family: Arial; font-size: 16px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .p-name {{ font-family: Arial; font-size: 16px; font-weight: bold; color: white; margin: 0; text-transform: uppercase; text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }}
                 .rank-1 .p-name {{ color: #FFD700; font-size: 20px; }}
                 
-                /* COUNTDOWN OVERLAY */
-                .intro-overlay {{ 
-                    position: fixed; top: 15vh; left: 0; width: 100vw; height: auto; 
-                    z-index: 5000; 
-                    display: flex; flex-direction: column; align-items: center; 
-                    text-align: center; transition: opacity 0.5s; pointer-events: none; 
-                }}
+                .intro-overlay {{ position: fixed; top: 15vh; left: 0; width: 100vw; z-index: 5000; display: flex; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.5s; pointer-events: none; }}
                 .intro-text {{ color: white; font-family: Arial; font-size: 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 20px black; }}
                 .intro-count {{ color: #E2001A; font-family: Arial; font-size: 100px; font-weight: 900; margin-top: 10px; text-shadow: 0 0 20px black; }}
             </style>
@@ -1340,16 +1310,13 @@ else:
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
              
-             # --- BANDEAU DEFILANT DES VOTANTS ---
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
              voter_names = [v['Utilisateur'] for v in recent_votes[-20:]]
              voter_names.reverse()
              voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
              
-             cands = cfg["candidats"]
-             mid = (len(cands) + 1) // 2
-             left_cands = cands[:mid]
-             right_cands = cands[mid:]
+             cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
+             left_cands = cands[:mid]; right_cands = cands[mid:]
              
              def gen_html_list(clist, imgs, align='left'):
                  h = ""
@@ -1371,87 +1338,29 @@ else:
              components.html(f"""
                 <style>
                     body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
-                    
-                    /* BANDEAU DEFILANT */
-                    .marquee-container {{
-                        width: 100%; background: #E2001A; color: white; height: 50px;
-                        position: fixed; top: 0; left: 0; z-index: 1000;
-                        display: flex; align-items: center;
-                        box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-bottom: 2px solid white;
-                    }}
-                    .marquee-label {{
-                        background: #E2001A; color: white; font-weight: 900; font-size: 18px;
-                        padding: 0 20px; height: 100%; display: flex; align-items: center;
-                        z-index: 1001; box-shadow: 5px 0 10px rgba(0,0,0,0.2);
-                    }}
-                    .marquee-wrapper {{
-                        overflow: hidden; white-space: nowrap; flex-grow: 1;
-                        height: 100%; display: flex; align-items: center;
-                    }}
-                    .marquee-content {{
-                        display: inline-block; padding-left: 100%;
-                        animation: marquee 20s linear infinite;
-                        font-weight: bold; font-size: 18px; text-transform: uppercase;
-                    }}
-                    @keyframes marquee {{
-                        0%   {{ transform: translate(0, 0); }}
-                        100% {{ transform: translate(-100%, 0); }}
-                    }}
-
-                    /* HAUT : LOGO + TITRES */
-                    .top-section {{
-                        width: 100%; height: 35vh; margin-top: 60px; 
-                        display: flex; flex-direction: column; align-items: center; justify-content: center;
-                        z-index: 10;
-                    }}
+                    .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 50px; position: fixed; top: 0; left: 0; z-index: 1000; display: flex; align-items: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); border-bottom: 2px solid white; }}
+                    .marquee-label {{ background: #E2001A; color: white; font-weight: 900; font-size: 18px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 1001; box-shadow: 5px 0 10px rgba(0,0,0,0.2); }}
+                    .marquee-wrapper {{ overflow: hidden; white-space: nowrap; flex-grow: 1; height: 100%; display: flex; align-items: center; }}
+                    .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; }}
+                    @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
+                    .top-section {{ width: 100%; height: 35vh; margin-top: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }}
                     .title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 10px 0 0 0; text-transform: uppercase; letter-spacing: 3px; line-height: 1; }}
                     .subtitle {{ font-size: 30px; font-weight: bold; margin-top: 10px; color: white; }}
-
-                    .instructions {{
-                        text-align: center; color: white; font-size: 16px; margin-bottom: 20px;
-                        background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px;
-                        width: 80%; max-width: 600px;
-                    }}
-
-                    /* BAS : LISTES + QR */
-                    .bottom-section {{
-                        width: 95%; margin: 0 auto; height: 55vh;
-                        display: flex; align-items: center; justify-content: space-between;
-                    }}
+                    .instructions {{ text-align: center; color: white; font-size: 16px; margin-bottom: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 15px; width: 80%; max-width: 600px; }}
+                    .bottom-section {{ width: 95%; margin: 0 auto; height: 55vh; display: flex; align-items: center; justify-content: space-between; }}
                     .side-col {{ width: 30%; height: 100%; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; }}
                     .center-col {{ width: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; }}
-                    .qr-box {{ 
-                        background: white; padding: 15px; border-radius: 20px; 
-                        box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite;
-                    }}
+                    .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite; }}
                     .qr-box img {{ width: 300px; }}
-                    @keyframes pulse {{
-                        0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }}
-                        50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }}
-                        100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }}
-                    }}
+                    @keyframes pulse {{ 0% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} 50% {{ box-shadow: 0 0 60px rgba(226, 0, 26, 0.7); }} 100% {{ box-shadow: 0 0 30px rgba(226, 0, 26, 0.3); }} }}
                     ::-webkit-scrollbar {{ display: none; }}
                 </style>
-                
-                <div class="marquee-container">
-                    <div class="marquee-label">DERNIERS VOTANTS :</div>
-                    <div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div>
-                </div>
-
-                <div class="top-section">
-                    {logo_html}
-                    <div class="title">VOTES OUVERTS</div>
-                    <div class="subtitle">Scannez pour voter</div>
-                </div>
-
+                <div class="marquee-container"><div class="marquee-label">DERNIERS VOTANTS :</div><div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div></div>
+                <div class="top-section">{logo_html}<div class="title">VOTES OUVERTS</div><div class="subtitle">Scannez pour voter</div></div>
                 <div class="bottom-section">
                     <div class="side-col" style="align-items: flex-start;">{left_html}</div>
                     <div class="center-col">
-                        <div class="instructions">
-                            <p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p>
-                            <p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p>
-                            <p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p>
-                        </div>
+                        <div class="instructions"><p style="margin:5px 0;"><strong>3 choix par préférence :</strong></p><p style="margin:5px 0;">🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)</p><p style="color: #ff4b4b; font-weight: bold; margin-top: 10px;">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</p></div>
                         <div class="qr-box"><img src="data:image/png;base64,{qr_b64}"></div>
                     </div>
                     <div class="side-col" style="align-items: flex-end;">{right_html}</div>
@@ -1462,7 +1371,6 @@ else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             ph.markdown(f"<div class='full-screen-center' style='position:fixed; top:0; left:0; width:100vw; height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index: 2;'><div style='display:flex; flex-direction:column; align-items:center; justify-content:center;'>{logo_html}<div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.9); max-width: 800px; text-align: center;'><h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI DE VOTRE PARTICIPATION</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GRANDS GAGNANTS dans quelques instants...</h3></div></div></div>", unsafe_allow_html=True)
 
-    # --- MODE PHOTOS LIVE ---
     elif mode == "photos_live":
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
@@ -1470,58 +1378,13 @@ else:
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        
-        center_html_content = f"""
-            <div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'>
-                <h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>
-                {f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}
-                <div style='background:white; padding:15px; border-radius:15px; display:inline-block;'>
-                    <img src='data:image/png;base64,{qr_b64}' style='width:250px;'>
-                </div>
-                <h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2>
-            </div>
-        """
+        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:100; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8);'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
         components.html(f"""<script>
             var doc = window.parent.document;
             var existing = doc.getElementById('live-container');
             if(existing) existing.remove();
             var container = doc.createElement('div');
-            container.id = 'live-container'; 
-            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';
-            doc.body.appendChild(container);
-            container.innerHTML = `{center_html_content}`;
-            const imgs = {img_js}; const bubbles = [];
-            const minSize = 150; const maxSize = 450;
-            var screenW = window.innerWidth || 1920;
-            var screenH = window.innerHeight || 1080;
-            imgs.forEach((src, i) => {{
-                const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;
-                const el = doc.createElement('img'); el.src = src;
-                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';
-                let x = Math.random() * (screenW - bSize);
-                let y = Math.random() * (screenH - bSize);
-                let angle = Math.random() * Math.PI * 2;
-                let speed = 0.8 + Math.random() * 1.2;
-                let vx = Math.cos(angle) * speed;
-                let vy = Math.sin(angle) * speed;
-                container.appendChild(el); 
-                bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});
-            }});
-            function animate() {{
-                screenW = window.innerWidth || 1920;
-                screenH = window.innerHeight || 1080;
-                bubbles.forEach(b => {{
-                    b.x += b.vx; b.y += b.vy;
-                    if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}
-                    if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}
-                    if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}
-                    if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}
-                    b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';
-                }});
-                requestAnimationFrame(animate);
-            }}
-            animate();
-        </script>""", height=900)
-
+            container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
