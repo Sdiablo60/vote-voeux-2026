@@ -36,8 +36,8 @@ Image.MAX_IMAGE_PIXELS = None
 
 # CONFIGURATION PAGE
 st.set_page_config(
-    page_title="Régie Master", 
-    layout="wide", 
+    page_title="Régie Master",
+    layout="wide",
     initial_sidebar_state="expanded"
 )
 
@@ -56,6 +56,7 @@ VOTERS_FILE = "voters.json"
 PARTICIPANTS_FILE = "participants.json"
 DETAILED_VOTES_FILE = "detailed_votes.json"
 
+# Création des dossiers si inexistants
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
@@ -74,13 +75,25 @@ st.markdown("""
     [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
     
     .social-header { 
-        position: fixed; top: 0; left: 0; width: 100%; height: 12vh; 
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 12vh; 
         background: #E2001A !important; 
-        display: flex; align-items: center; justify-content: center; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
         z-index: 999999 !important; /* Priorité maximale */
         border-bottom: 5px solid white; 
     }
-    .social-title { color: white !important; font-size: 40px !important; font-weight: bold; margin: 0; text-transform: uppercase; }
+    .social-title { 
+        color: white !important; 
+        font-size: 40px !important; 
+        font-weight: bold; 
+        margin: 0; 
+        text-transform: uppercase; 
+    }
 
     /* STOP SCROLLING ULTIME (Global) */
     html, body, [data-testid="stAppViewContainer"] {
@@ -95,26 +108,59 @@ st.markdown("""
     ::-webkit-scrollbar { display: none; }
     
     /* Boutons Généraux */
-    button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
-    button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
-    button[kind="primary"]:hover { background-color: #C20015 !important; }
+    button[kind="secondary"] { 
+        color: #333 !important; 
+        border-color: #333 !important; 
+    }
+    button[kind="primary"] { 
+        color: white !important; 
+        background-color: #E2001A !important; 
+        border: none; 
+    }
+    button[kind="primary"]:hover { 
+        background-color: #C20015 !important; 
+    }
     
     /* Login Box */
     .login-container {
-        max-width: 400px; margin: 100px auto; padding: 40px;
-        background: #f8f9fa; border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd;
+        max-width: 400px; 
+        margin: 100px auto; 
+        padding: 40px;
+        background: #f8f9fa; 
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+        text-align: center; 
+        border: 1px solid #ddd;
     }
-    .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
-    .stTextInput input { text-align: center; font-size: 18px; }
+    .login-title { 
+        color: #E2001A; 
+        font-size: 24px; 
+        font-weight: bold; 
+        margin-bottom: 20px; 
+        text-transform: uppercase; 
+    }
+    .stTextInput input { 
+        text-align: center; 
+        font-size: 18px; 
+    }
     
     /* Sidebar */
-    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
+    section[data-testid="stSidebar"] { 
+        background-color: #f0f2f6 !important; 
+    }
     section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px;
+        background-color: #E2001A !important; 
+        width: 100%; 
+        border-radius: 5px; 
+        margin-bottom: 5px;
     }
     section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important;
+        background-color: #333333 !important; 
+        width: 100%; 
+        border-radius: 5px; 
+        margin-bottom: 5px; 
+        border: none !important; 
+        color: white !important;
     }
     
     /* STYLE DES BOUTONS D'EXPORT */
@@ -146,11 +192,13 @@ st.markdown("""
         box-sizing: border-box !important;
         line-height: 1.5 !important;
     }
-    a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; }
+    a.custom-link-btn:hover { 
+        transform: scale(1.02); 
+        opacity: 0.9; 
+    }
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
 
-    /* Header Social (Visible uniquement sur le Mur via HTML, caché ici pour Admin via JS si besoin, mais géré par le mode) */
 </style>
 """, unsafe_allow_html=True)
 
