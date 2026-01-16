@@ -171,7 +171,7 @@ st.markdown("""
         display: block !important; 
         text-align: center !important; 
         padding: 12px 20px !important; 
-        border-radius: 8px !important;
+        border-radius: 8px !important; 
         text-decoration: none !important; 
         font-weight: bold !important; 
         margin-bottom: 10px !important;
@@ -188,6 +188,7 @@ st.markdown("""
     .btn-red { background-color: #E2001A !important; }
     .btn-blue { background-color: #2980b9 !important; }
     
+    /* CORRECTION FORCÉE POUR LES MENUS DÉROULANTS (TEST ADMIN) */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
         background-color: white !important;
     }
@@ -505,8 +506,7 @@ if PDF_AVAILABLE:
 # --- INIT SESSION ---
 if "config" not in st.session_state:
     st.session_state.config = load_json(CONFIG_FILE, default_config)
-
-# =========================================================
+    # =========================================================
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
@@ -809,16 +809,19 @@ if est_admin:
                 if selected_user:
                     st.markdown(f"### ✏️ Édition de : **{selected_user}**")
                     with st.container(border=True):
-                        # Protection du compte admin
                         if selected_user == "admin":
-                            st.warning("⚠️ Le compte Super Admin ne peut pas être renommé ou supprimé. Vous pouvez seulement changer son mot de passe.")
+                            st.warning("⚠️ Le compte Super Admin ne peut pas être renommé ou supprimé.")
                         
-                        # Formulaire
                         user_data = users_db[selected_user]
                         c_edit_1, c_edit_2 = st.columns(2)
                         new_pwd_edit = c_edit_1.text_input("Nouveau mot de passe", value=user_data["pwd"], type="password")
-                        current_role_idx = ["Assistant", "Régie", "Client", "Super Admin"].index(user_data.get("role", "Régie")) if user_data.get("role") in ["Assistant", "Régie", "Client", "Super Admin"] else 1
-                        new_role_edit = c_edit_2.selectbox("Rôle", ["Assistant", "Régie", "Client"], index=current_role_idx, disabled=(selected_user=="admin"))
+                        
+                        roles_list = ["Assistant", "Régie", "Client"]
+                        current_role_val = user_data.get("role", "Régie")
+                        if current_role_val in roles_list: idx_role = roles_list.index(current_role_val)
+                        else: idx_role = 0
+                            
+                        new_role_edit = c_edit_2.selectbox("Rôle", roles_list, index=idx_role, disabled=(selected_user=="admin"))
                         
                         st.write("Permissions :")
                         current_perms = user_data.get("perms", [])
@@ -834,8 +837,7 @@ if est_admin:
                         
                         if col_save.button("💾 Mettre à jour", type="primary", use_container_width=True):
                             new_perms_list = []
-                            if selected_user == "admin":
-                                new_perms_list = ["all"]
+                            if selected_user == "admin": new_perms_list = ["all"]
                             else:
                                 if p_pilot_e: new_perms_list.append("pilotage")
                                 if p_conf_e: new_perms_list.append("config")
@@ -868,8 +870,7 @@ if est_admin:
                     
                     if st.button("Créer l'utilisateur", key="btn_create"):
                         if new_u and new_p:
-                            if new_u in users_db:
-                                st.error("Cet utilisateur existe déjà.")
+                            if new_u in users_db: st.error("Cet utilisateur existe déjà.")
                             else:
                                 perms_list = []
                                 if p_pilot: perms_list.append("pilotage")
@@ -881,7 +882,7 @@ if est_admin:
                                 save_json(USERS_FILE, users_db)
                                 st.success(f"Utilisateur {new_u} créé !"); time.sleep(1); st.rerun()
                         else: st.error("Remplissez l'identifiant et le mot de passe.")
-# =========================================================
+                            # =========================================================
 # 2. APPLICATION MOBILE (Vote)
 # =========================================================
 elif est_utilisateur:
@@ -970,8 +971,7 @@ elif est_utilisateur:
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
-
-# =========================================================
+        # =========================================================
 # 3. MUR SOCIAL
 # =========================================================
 else:
@@ -1069,4 +1069,3 @@ else:
         components.html(f"""<script>var doc = window.parent.document;var existing = doc.getElementById('live-container');if(existing) existing.remove();var container = doc.createElement('div');container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;';doc.body.appendChild(container);container.innerHTML = `{center_html_content}`;const imgs = {img_js}; const bubbles = [];const minSize = 150; const maxSize = 450;var screenW = window.innerWidth || 1920;var screenH = window.innerHeight || 1080;imgs.forEach((src, i) => {{const bSize = Math.floor(Math.random() * (maxSize - minSize + 1)) + minSize;const el = doc.createElement('img'); el.src = src;el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; will-change:transform; z-index:50;';let x = Math.random() * (screenW - bSize);let y = Math.random() * (screenH - bSize);let angle = Math.random() * Math.PI * 2;let speed = 0.8 + Math.random() * 1.2;let vx = Math.cos(angle) * speed;let vy = Math.sin(angle) * speed;container.appendChild(el); bubbles.push({{el, x: x, y: y, vx, vy, size: bSize}});}});function animate() {{screenW = window.innerWidth || 1920;screenH = window.innerHeight || 1080;bubbles.forEach(b => {{b.x += b.vx; b.y += b.vy;if(b.x <= 0) {{ b.x=0; b.vx *= -1; }}if(b.x + b.size >= screenW) {{ b.x=screenW-b.size; b.vx *= -1; }}if(b.y <= 0) {{ b.y=0; b.vy *= -1; }}if(b.y + b.size >= screenH) {{ b.y=screenH-b.size; b.vy *= -1; }}b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)';}});requestAnimationFrame(animate);}}animate();</script>""", height=900)
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-                          
