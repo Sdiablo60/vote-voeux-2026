@@ -115,22 +115,22 @@ st.markdown("""
     
     [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
     
-    .social-header { 
+.social-header { 
         position: fixed; 
         top: 0; 
         left: 0; 
         width: 100%; 
-        height: 12vh; 
+        height: 8vh;  /* <--- MODIFIÉ : 8% au lieu de 12% */
         background: #E2001A !important; 
         display: flex; 
         align-items: center; 
         justify-content: center; 
         z-index: 999999 !important; 
-        border-bottom: 5px solid white; 
+        border-bottom: 3px solid white; /* Bordure un peu plus fine */
     }
     .social-title { 
         color: white !important; 
-        font-size: 40px !important; 
+        font-size: 30px !important; /* <--- MODIFIÉ : Plus petit pour rentrer dans 8vh */
         font-weight: bold; 
         margin: 0; 
         text-transform: uppercase; 
@@ -1182,3 +1182,4 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
