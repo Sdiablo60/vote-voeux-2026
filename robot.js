@@ -8,9 +8,9 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue ! ✨", "Installez-vous.", "Prêts ?"],
+    attente: ["Bienvenue !", "Prêts ?"],
     vote_off: ["Votes CLOS !"],
-    photos: ["Photos ! 📸", "Souriez !", "On partage !"],
+    photos: ["Photos ! 📸", "Souriez !"],
     danse: ["Dancefloor ! 💃"],
     explosion: ["Boum !"],
     cache_cache: ["Coucou !"]
@@ -31,9 +31,9 @@ function getUniqueMessage(category) {
 const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" },
-    { time: 4.0, text: "Je calibre l'écran... 📐", action: "look_around" },
-    { time: 7.0, text: "Le cadre est bon cette fois ? 🟥", action: "surprise" },
-    { time: 10.0, text: "Zone validée !", action: "wave" }
+    { time: 4.0, text: "Calibrage écran... 📐", action: "look_around" },
+    { time: 7.0, text: "Je touche les bords ! 🟥", action: "surprise" },
+    { time: 10.0, text: "Zone validée.", action: "wave" }
 ];
 
 if (container) {
@@ -42,10 +42,11 @@ if (container) {
 }
 
 function initRobot(container) {
-    // Reset CSS
+    // --- 1. RESET CSS FORCE ---
+    // Indispensable pour que le canvas touche les bords du moniteur
     document.body.style.margin = "0";
     document.body.style.padding = "0";
-    document.body.style.overflow = "hidden"; 
+    document.body.style.overflow = "hidden";
     
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -56,9 +57,9 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA FIXE
+    // CAMÉRA STANDARD (Z=14)
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 14); // Z=14
+    camera.position.set(0, 0, 14); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -73,48 +74,34 @@ function initRobot(container) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE DE DEBUG (CALIBRAGE VISUEL) ---
+    // --- STEP 1 : CADRE 100% ÉCRAN ---
     // =========================================================
     let updateDebugBorder = () => {}; 
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        // Ligne rouge épaisse
         const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
         updateDebugBorder = () => {
-            const dist = camera.position.z; 
+            const dist = camera.position.z; // 14
             const vFOV = THREE.MathUtils.degToRad(camera.fov); 
             
-            // Calcul des limites physiques de l'écran à Z=0
+            // Calcul exact des limites visibles à Z=0
             const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
             const visibleWidth = visibleHeight * camera.aspect;
 
-            const halfW = visibleWidth / 2;
-            const halfH = visibleHeight / 2;
-
-            // --- RÉGLAGES DE MARGES (UNITÉS 3D) ---
-            // On enlève un peu en haut pour passer SOUS le titre rouge
-            const marginTop = 1.8; 
-            // On enlève un tout petit peu en bas pour ne pas être collé au bas de l'écran
-            const marginBottom = 0.2; 
-            // On prend 99% de la largeur pour être sûr que ça rentre
-            const marginSide = 0.1; 
-
-            // Coordonnées du cadre
-            const topY = halfH - marginTop;
-            const botY = -halfH + marginBottom;
-            const leftX = -halfW + marginSide;
-            const rightX = halfW - marginSide;
+            // Facteur 0.99 pour voir le trait juste AVANT qu'il ne sorte de l'écran
+            const w = (visibleWidth / 2) * 0.99;
+            const h = (visibleHeight / 2) * 0.99;
 
             const points = [
-                new THREE.Vector3(leftX, topY, 0),   // Haut Gauche
-                new THREE.Vector3(rightX, topY, 0),  // Haut Droite
-                new THREE.Vector3(rightX, botY, 0),  // Bas Droite
-                new THREE.Vector3(leftX, botY, 0),   // Bas Gauche
-                new THREE.Vector3(leftX, topY, 0)    // Fermer
+                new THREE.Vector3(-w, h, 0),  // Haut Gauche
+                new THREE.Vector3(w, h, 0),   // Haut Droite
+                new THREE.Vector3(w, -h, 0),  // Bas Droite
+                new THREE.Vector3(-w, -h, 0), // Bas Gauche
+                new THREE.Vector3(-w, h, 0)   // Fermeture
             ];
             borderGeo.setFromPoints(points);
         };
@@ -160,10 +147,9 @@ function initRobot(container) {
 
     // --- ANIMATION ---
     let time = 0;
-    // On centre le robot verticalement un peu plus bas (Y=-1)
-    let targetPosition = new THREE.Vector3((config.mode === 'attente' ? -15 : 0), -1, 0); 
+    let startX = (config.mode === 'attente') ? -15 : 0;
+    let targetPosition = new THREE.Vector3(startX, -1, 0); 
     robotGroup.position.copy(targetPosition);
-    
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let introIndex = 0; let nextEventTime = 0; let bubbleTimeout = null;
 
@@ -173,7 +159,6 @@ function initRobot(container) {
     function pickNewTarget() { 
         const aspect = width / height; 
         const vW = 7 * aspect; 
-        // Robot reste dans une zone sûre au centre
         const safeMax = vW * 0.7; 
         const x = (Math.random()>0.5?1:-1) * (2 + Math.random()*(safeMax-2));
         targetPosition.set(x, -1 + (Math.random()-0.5)*2, 0); 
@@ -225,7 +210,7 @@ function initRobot(container) {
     window.addEventListener('resize', () => {
         width = window.innerWidth; height = window.innerHeight;
         renderer.setSize(width, height); camera.aspect = width / height; camera.updateProjectionMatrix();
-        if(config.mode === 'photos') updateDebugBorder();
+        if(config.mode === 'photos') updateDebugBorder(); 
     });
     animate();
 }
