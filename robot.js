@@ -54,6 +54,8 @@ const introScript = [
 ];
 
 if (container) {
+    // Nettoyage préventif
+    while(container.firstChild) container.removeChild(container.firstChild);
     try { initRobot(container); } catch (e) { console.error(e); }
 }
 
@@ -76,7 +78,7 @@ function initRobot(container) {
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // Lumière d'ambiance simple pour voir le robot
+    // --- LUMIÈRES BASIQUES (Juste pour voir le robot) ---
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
     scene.add(ambientLight);
     
@@ -84,13 +86,9 @@ function initRobot(container) {
     directionalLight.position.set(5, 10, 7);
     scene.add(directionalLight);
 
-    const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
-    explosionLight.position.set(0, 0, 5);
-    scene.add(explosionLight);
-
     // --- ROBOT GÉOMÉTRIQUE ---
     const robotGroup = new THREE.Group();
-    robotGroup.scale.set(0.7, 0.7, 0.7); // Un peu plus gros maintenant qu'il est seul
+    robotGroup.scale.set(0.7, 0.7, 0.7); // Taille ajustée
     
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1, metalness: 0.5 });
@@ -102,8 +100,6 @@ function initRobot(container) {
         mesh.position.set(x, y, z);
         mesh.userData.origPos = new THREE.Vector3(x, y, z);
         mesh.userData.origRot = new THREE.Euler(0, 0, 0);
-        mesh.userData.velocity = new THREE.Vector3();
-        mesh.userData.rotVelocity = new THREE.Vector3();
         if(parent) parent.add(mesh);
         return mesh;
     }
@@ -131,23 +127,35 @@ function initRobot(container) {
     const rightArm = createPart(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat, 0.8, -0.8, 0, robotGroup);
     rightArm.rotation.z = -0.15; rightArm.userData.origRot.z = -0.15;
 
-    const parts = [head, body, leftArm, rightArm];
     scene.add(robotGroup);
 
     // --- LOGIQUE GÉNÉRALE ---
     let time = 0;
     let startX = (config.mode === 'attente') ? -15 : 0;
-    let targetPosition = new THREE.Vector3(startX, -1, 0); // Position Y un peu plus basse pour centrer
+    let targetPosition = new THREE.Vector3(startX, -1, 0); 
     robotGroup.position.copy(targetPosition);
+    
+    // État initial
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
-    let introIndex = 0; let nextEventTime = 0; let bubbleTimeout = null;
+    let introIndex = 0; 
+    let nextEventTime = 0; 
+    let bubbleTimeout = null;
 
     function smoothRotate(object, axis, targetValue, speed) { object.rotation[axis] += (targetValue - object.rotation[axis]) * speed; }
-    function showBubble(text, duration) { if(!bubble) return; if (bubbleTimeout) { clearTimeout(bubbleTimeout); bubbleTimeout = null; } bubble.innerText = text; bubble.style.opacity = 1; if(duration) bubbleTimeout = setTimeout(() => { if(bubble) bubble.style.opacity = 0; }, duration); }
+    
+    function showBubble(text, duration) { 
+        if(!bubble) return; 
+        if (bubbleTimeout) { clearTimeout(bubbleTimeout); bubbleTimeout = null; } 
+        bubble.innerText = text; 
+        bubble.style.opacity = 1; 
+        if(duration) bubbleTimeout = setTimeout(() => { if(bubble) bubble.style.opacity = 0; }, duration); 
+    }
+    
     function hideBubble() { if(bubble) bubble.style.opacity = 0; }
     
     function pickNewTarget() { 
-        const aspect = width / height; const vW = 7 * aspect; 
+        const aspect = width / height; 
+        const vW = 7 * aspect; 
         const side = Math.random() > 0.5 ? 1 : -1; 
         const safeMin = 2; const safeMax = vW * 0.7; 
         let x = side * (safeMin + Math.random() * (safeMax - safeMin)); 
@@ -155,45 +163,19 @@ function initRobot(container) {
         targetPosition.set(x, y, 0); 
     }
 
-    // --- ACTIONS ROBOT ---
-    function startExplosion() {
-        robotState = 'exploding'; const msg = getUniqueMessage('explosion'); showBubble(msg, 3500);
-        if (Math.abs(robotGroup.position.x) > 6) robotGroup.position.x = (robotGroup.position.x > 0) ? 5 : -5;
-        setTimeout(() => {
-            explosionLight.intensity = 5; setTimeout(() => { explosionLight.intensity = 0; }, 200);
-            parts.forEach(part => {
-                part.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4);
-                part.userData.rotVelocity.set(Math.random()*0.2, Math.random()*0.2, Math.random()*0.2);
-            });
-            setTimeout(() => {
-                robotState = 'reassembling';
-                setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 2000);
-            }, 3000);
-        }, 1000);
-    }
-
-    function startDance() {
-        if (config.mode !== 'photos') { startSpeaking(); return; }
-        robotState = 'dancing'; targetPosition.copy(robotGroup.position);
-        const msg = getUniqueMessage('danse'); showBubble(msg, 4000);
-        setTimeout(() => { if (robotState === 'dancing') { hideBubble(); robotState = 'moving'; pickNewTarget(); } }, 6000);
-    }
-
     function startSpeaking() {
-        robotState = 'speaking'; targetPosition.copy(robotGroup.position);
-        const msg = getUniqueMessage(config.mode); showBubble(msg, 4000);
+        robotState = 'speaking'; 
+        targetPosition.copy(robotGroup.position); // S'arrête pour parler
+        const msg = getUniqueMessage(config.mode); 
+        showBubble(msg, 4000);
         nextEventTime = time + 3 + Math.random() * 5;
-        setTimeout(() => { if (robotState === 'speaking') { hideBubble(); robotState = 'moving'; pickNewTarget(); } }, 4000);
-    }
-
-    function startTeleport() {
-        robotState = 'teleporting'; showBubble(getUniqueMessage('cache_cache'), 1500);
-        setTimeout(() => {
-            robotGroup.visible = false; pickNewTarget(); robotGroup.position.copy(targetPosition);
-            setTimeout(() => {
-                robotGroup.visible = true; robotState = 'moving';
-            }, 1000);
-        }, 500);
+        setTimeout(() => { 
+            if (robotState === 'speaking') { 
+                hideBubble(); 
+                robotState = 'moving'; 
+                pickNewTarget(); 
+            } 
+        }, 4000);
     }
 
     // --- ANIMATION LOOP ---
@@ -227,46 +209,11 @@ function initRobot(container) {
             if (robotGroup.position.distanceTo(targetPosition) < 0.5) pickNewTarget();
             
             if (time > nextEventTime) {
+                // Comportement simple : Parle ou bouge
                 const rand = Math.random();
-                if (rand < 0.12) startTeleport(); 
-                else if (rand < 0.22) startExplosion(); 
-                else if (rand < 0.35) startDance();
-                else startSpeaking(); 
+                if (rand < 0.4) startSpeaking(); 
+                else pickNewTarget();
             }
-        }
-        
-        else if (robotState === 'dancing') {
-            const d = time * 10;
-            robotGroup.position.y = -1 + Math.abs(Math.sin(d))*0.5;
-            robotGroup.rotation.z = Math.sin(d*0.5)*0.2;
-            leftArm.rotation.z = Math.PI - 0.5 + Math.sin(d)*0.5;
-            rightArm.rotation.z = -Math.PI + 0.5 - Math.sin(d)*0.5;
-            head.rotation.y = Math.sin(d*2)*0.3;
-        }
-
-        else if (robotState === 'exploding') {
-            let isMoving = false;
-            parts.forEach(part => {
-                if (part.userData.velocity.lengthSq() > 0) {
-                    isMoving = true;
-                    part.position.add(part.userData.velocity);
-                    part.rotation.x += part.userData.rotVelocity.x;
-                    part.rotation.y += part.userData.rotVelocity.y;
-                    part.rotation.z += part.userData.rotVelocity.z;
-                    part.userData.velocity.multiplyScalar(0.95);
-                }
-            });
-            if (!isMoving) robotGroup.position.x += (Math.random()-0.5) * 0.1;
-        }
-        
-        else if (robotState === 'reassembling') {
-            parts.forEach(part => {
-                part.position.lerp(part.userData.origPos, 0.08);
-                part.rotation.x += (part.userData.origRot.x - part.rotation.x) * 0.08;
-                part.rotation.y += (part.userData.origRot.y - part.rotation.y) * 0.08;
-                part.rotation.z += (part.userData.origRot.z - part.rotation.z) * 0.08;
-                part.userData.velocity.set(0,0,0);
-            });
         }
 
         else if (robotState === 'speaking') {
@@ -275,11 +222,17 @@ function initRobot(container) {
             mouth.scale.set(1, 1 + Math.sin(time * 20) * 0.2, 1); 
         }
 
+        // Bulle de texte qui suit la tête
         if(bubble && bubble.style.opacity == 1) {
-            const headPos = robotGroup.position.clone(); if(robotState !== 'exploding') headPos.y += 0.8; headPos.project(camera);
-            const x = (headPos.x * .5 + .5) * width; const y = (headPos.y * -.5 + .5) * height;
-            const bubbleW = 250; const safeX = Math.max(bubbleW/2 + 20, Math.min(width - bubbleW/2 - 20, x));
-            bubble.style.left = safeX + 'px'; bubble.style.top = Math.max(50, y - 80) + 'px';
+            const headPos = robotGroup.position.clone(); 
+            headPos.y += 0.8; 
+            headPos.project(camera);
+            const x = (headPos.x * .5 + .5) * width; 
+            const y = (headPos.y * -.5 + .5) * height;
+            const bubbleW = 250; 
+            const safeX = Math.max(bubbleW/2 + 20, Math.min(width - bubbleW/2 - 20, x));
+            bubble.style.left = safeX + 'px'; 
+            bubble.style.top = Math.max(50, y - 80) + 'px';
         }
 
         renderer.render(scene, camera);
