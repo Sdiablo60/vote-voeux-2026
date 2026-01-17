@@ -34,8 +34,8 @@ function getUniqueMessage(category) {
 const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" },
-    { time: 4.0, text: "Je scanne les bords... 📐", action: "look_around" },
-    { time: 7.0, text: "Je suis en plein écran ! 🟥", action: "surprise" },
+    { time: 4.0, text: "Je sors de la boite... 📦", action: "look_around" },
+    { time: 7.0, text: "Ah ! Je suis libre ! 🟥", action: "surprise" },
     { time: 10.0, text: "On valide ?", action: "wave" }
 ];
 
@@ -46,23 +46,33 @@ if (container) {
 
 function initRobot(container) {
     // =========================================================
-    // --- CORRECTION CRITIQUE : FORCER LE PLEIN ÉCRAN ---
+    // --- STEP 0 : L'ÉVASION (FORCE LE PLEIN ÉCRAN) ---
     // =========================================================
-    // On déplace le conteneur pour qu'il soit fils direct du body
-    // Cela le sort de la "boite" du QR Code
+    // 1. On déplace le conteneur dans le BODY pour sortir de la carte QR
     if (container.parentElement !== document.body) {
         document.body.appendChild(container);
+        console.log("Robot déplacé vers le body !");
     }
 
-    // On force les styles pour garantir la superposition totale
-    container.style.position = 'fixed';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.width = '100vw'; // Largeur fenêtre
-    container.style.height = '100vh'; // Hauteur fenêtre
-    container.style.zIndex = '9999'; // Au-dessus de tout pour le test (on baissera après)
-    container.style.pointerEvents = 'none'; // Permet de cliquer au travers (sur le QR code)
-    container.style.background = 'transparent';
+    // 2. On écrase tous les styles précédents pour garantir le plein écran
+    // Utilisation de vw/vh pour ignorer les parents
+    container.style.cssText = `
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 9999 !important;
+        pointer-events: none !important;
+        background: transparent !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        transform: none !important;
+    `;
+    
+    // 3. Reset du body aussi
+    document.body.style.margin = "0";
+    document.body.style.overflow = "hidden";
     // =========================================================
 
     let width = window.innerWidth;
@@ -87,14 +97,14 @@ function initRobot(container) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE (MÉTHODE RAYCAST) ---
+    // --- STEP 1 : CADRE (RAYCASTING) ---
     // =========================================================
     let updateDebugBorder = () => {}; 
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        // Ligne Rouge Épaisse
-        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4 });
+        // Ligne très épaisse pour être sûr de la voir
+        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
@@ -107,18 +117,30 @@ function initRobot(container) {
         }
 
         updateDebugBorder = () => {
-            // Haut ajusté par la variable
+            // Recalcul des dimensions après le déplacement du conteneur
+            const aspect = window.innerWidth / window.innerHeight;
+            camera.aspect = aspect;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
             const topNDC = 1.0 - (TOP_OFFSET_PERCENT * 2);
 
-            const pTL = getPointAtZ0(-1.0, topNDC, camera); 
-            const pTR = getPointAtZ0(1.0, topNDC, camera);  
-            const pBR = getPointAtZ0(1.0, -1.0, camera);    
-            const pBL = getPointAtZ0(-1.0, -1.0, camera);   
+            // On recule un tout petit peu les bords (0.99) pour être sûr qu'ils soient dans le cadre
+            const side = 0.99;
+            const bottom = -0.99;
+
+            const pTL = getPointAtZ0(-side, topNDC, camera); 
+            const pTR = getPointAtZ0(side, topNDC, camera);  
+            const pBR = getPointAtZ0(side, bottom, camera);    
+            const pBL = getPointAtZ0(-side, bottom, camera);   
 
             const points = [pTL, pTR, pBR, pBL, pTL];
             borderGeo.setFromPoints(points);
         };
-        updateDebugBorder(); 
+        // Appel immédiat
+        updateDebugBorder();
+        // Appel différé pour être sûr que le DOM est à jour
+        setTimeout(updateDebugBorder, 100);
     }
     // =========================================================
 
@@ -171,20 +193,10 @@ function initRobot(container) {
     function showBubble(text, dur) { if(!bubble) return; if(bubbleTimeout) clearTimeout(bubbleTimeout); bubble.innerText = text; bubble.style.opacity = 1; if(dur) bubbleTimeout = setTimeout(() => bubble.style.opacity=0, dur); }
     
     function pickNewTarget() { 
-        // Calcul des limites pour le robot
         const borderRight = getPointAtZ0(1.0, 0, camera).x;
         const safeMax = borderRight - 2.5; 
         const x = (Math.random()>0.5?1:-1) * (1.5 + Math.random()*(safeMax-1.5));
         targetPosition.set(x, -1 + (Math.random()-0.5)*2, 0); 
-    }
-
-    // Fonction utilitaire indispensable ici aussi
-    function getPointAtZ0(ndcX, ndcY, camera) {
-        const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
-        vector.unproject(camera);
-        vector.sub(camera.position).normalize();
-        const distance = -camera.position.z / vector.z;
-        return new THREE.Vector3().copy(camera.position).add(vector.multiplyScalar(distance));
     }
 
     function animate() {
@@ -222,8 +234,8 @@ function initRobot(container) {
 
         if(bubble && bubble.style.opacity == 1) {
             const pos = robotGroup.position.clone(); pos.y += 0.8; pos.project(camera);
-            const x = (pos.x * .5 + .5) * width; const y = (pos.y * -.5 + .5) * height;
-            bubble.style.left = Math.max(150, Math.min(width-150, x)) + 'px';
+            const x = (pos.x * .5 + .5) * window.innerWidth; const y = (pos.y * -.5 + .5) * window.innerHeight;
+            bubble.style.left = Math.max(150, Math.min(window.innerWidth-150, x)) + 'px';
             bubble.style.top = Math.max(50, y - 80) + 'px';
         }
 
