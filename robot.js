@@ -6,12 +6,12 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue ! ✨", "Installez-vous.", "La soirée va être belle !", "Prêts pour le show ?", "Coucou la technique ! 👷"],
-    vote_off: ["Les votes sont CLOS ! 🛑", "Le podium arrive... 🏆", "Suspens... 😬"],
-    photos: ["Photos ! 📸", "Souriez !", "Vous êtes beaux !", "Selfie time ! 🤳"],
-    danse: ["Dancefloor ! 💃", "Je sens le rythme ! 🎵", "Allez DJ ! 🔊"],
-    explosion: ["Surchauffe ! 🔥", "J'ai perdu la tête... 🤯", "Oups..."],
-    cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie ! ⚡"]
+    attente: ["Bienvenue ! ✨", "Installez-vous.", "Ravi de vous voir !", "La soirée va être belle !", "Prêts pour le show ?", "J'adore l'ambiance !", "Coucou la technique ! 👷"],
+    vote_off: ["Les votes sont CLOS ! 🛑", "Les jeux sont faits.", "Le podium arrive... 🏆", "Suspens... 😬", "La régie gère ! ⚡"],
+    photos: ["Photos ! 📸", "Souriez !", "On partage ! 📲", "Vous êtes beaux !", "Selfie time ! 🤳"],
+    danse: ["Dancefloor ! 💃", "Je sens le rythme ! 🎵", "Regardez-moi ! 🤖", "On se bouge ! 🙌", "Allez DJ ! 🔊"],
+    explosion: ["Surchauffe ! 🔥", "J'ai perdu la tête... 🤯", "Rassemblement... 🧲", "Oups..."],
+    cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie ! ⚡", "Je suis rapide ! 🚀"]
 };
 
 const usedMessages = {};
@@ -30,7 +30,8 @@ const introScript = [
     { time: 1.0, action: "enter_stage" },
     { time: 4.0, text: "C'est calme ici... 🤔", action: "look_around" },
     { time: 7.0, text: "OH ! BONJOUR ! 😳", action: "surprise" },
-    { time: 10.0, text: "Bienvenue ! ✨", action: "wave" }
+    { time: 10.0, text: "Bienvenue au " + config.titre + " ! ✨", action: "wave" },
+    { time: 14.0, text: "Prêts pour la soirée ? 🎉", action: "ask" }
 ];
 
 if (container) { initRobot(container); }
@@ -44,24 +45,21 @@ function initRobot(container) {
     container.style.zIndex = '10'; container.style.pointerEvents = 'none';
     
     const scene = new THREE.Scene();
-    
-    // Caméra reculée pour voir toute la scène
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 14); 
+    camera.position.set(0, 0, 12); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // Lumière FORTE pour bien voir les spots gris
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
+    // Lumière forte pour voir les boîtiers gris
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
     scene.add(ambientLight);
     
-    // Lumière directionnelle pour donner du volume aux boîtiers
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight.position.set(5, 5, 10);
-    scene.add(dirLight);
+    const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
+    explosionLight.position.set(0, 0, 5);
+    scene.add(explosionLight);
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
@@ -92,6 +90,7 @@ function initRobot(container) {
     const rightArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
     rightArm.position.set(0.8, -0.8, 0); rightArm.rotation.z = -0.15;
 
+    // Parts pour explosion
     [head, body, leftArm, rightArm].forEach(p => {
         p.userData = { origPos: p.position.clone(), origRot: p.rotation.clone(), velocity: new THREE.Vector3(), rotVelocity: new THREE.Vector3() };
         if(p!==head && p!==body) robotGroup.add(p);
@@ -100,121 +99,259 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- CONSTRUCTION DES SPOTS 3D (Visibles et positionnés) ---
+    // --- CONSTRUCTION DU SPOT 3D (TAILLE RÉDUITE & COULEURS VIVES) ---
     const stageSpots = [];
     
-    // Matériau GRIS CLAIR pour bien voir le corps du spot
-    const housingMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, roughness: 0.4, metalness: 0.5 });
-    // Matériau des volets
-    const barnMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide });
+    // Gris très clair pour le boîtier (visible sur noir)
+    const spotCaseMat = new THREE.MeshStandardMaterial({ color: 0xDDDDDD, roughness: 0.4, metalness: 0.5 });
+    const barnDoorMat = new THREE.MeshStandardMaterial({ color: 0x666666, side: THREE.DoubleSide });
 
-    function createStageLight(x, y, colorInt, isBottom) {
-        const group = new THREE.Group();
-        group.position.set(x, y, 1); 
-
-        // 1. Support (U)
-        const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 16, Math.PI), housingMat);
-        bracket.rotation.z = isBottom ? 0 : Math.PI;
-        group.add(bracket);
-
-        // 2. Corps du spot (Cylindre + Boite)
-        const bodyGroup = new THREE.Group();
-        group.add(bodyGroup);
+    function createDetailedSpotFixture(color, xPos, yPos, isBottom) {
+        const pivotGroup = new THREE.Group();
+        pivotGroup.position.set(xPos, yPos, 0); 
         
-        const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), housingMat);
-        box.position.z = 0.3;
-        bodyGroup.add(box);
+        // TAILLE REDUITE (0.3 au lieu de 0.6)
+        const scale = 0.5; 
 
-        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32), housingMat);
-        cyl.rotation.x = Math.PI/2;
-        cyl.position.z = -0.2;
-        bodyGroup.add(cyl);
+        // 1. Support
+        const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5 * scale, 0.05 * scale, 8, 16, Math.PI), spotCaseMat);
+        bracket.rotation.z = isBottom ? 0 : Math.PI;
+        pivotGroup.add(bracket);
 
-        // 3. Lentille Colorée (Toujours brillante)
-        const lensGeo = new THREE.CircleGeometry(0.35, 32);
-        const lensMat = new THREE.MeshBasicMaterial({ color: colorInt }); 
+        const bodyGroup = new THREE.Group();
+        pivotGroup.add(bodyGroup);
+
+        // 2. Boîtier Arrière
+        const rearBox = new THREE.Mesh(new THREE.BoxGeometry(0.6 * scale, 0.6 * scale, 0.8 * scale), spotCaseMat);
+        rearBox.position.z = 0.4 * scale;
+        bodyGroup.add(rearBox);
+
+        // 3. Cylindre Avant
+        const frontCyl = new THREE.Mesh(new THREE.CylinderGeometry(0.4 * scale, 0.4 * scale, 0.6 * scale, 32), spotCaseMat);
+        frontCyl.rotation.x = Math.PI / 2;
+        frontCyl.position.z = -0.3 * scale;
+        bodyGroup.add(frontCyl);
+
+        // 4. Lentille (VIVE : Utilise MeshBasicMaterial avec la couleur du spot)
+        const lensGeo = new THREE.CircleGeometry(0.35 * scale, 32);
+        const lensMat = new THREE.MeshBasicMaterial({ color: color }); // Toujours coloré
         const lens = new THREE.Mesh(lensGeo, lensMat);
-        lens.position.set(0, 0, -0.51);
+        lens.position.set(0, 0, -0.61 * scale);
         bodyGroup.add(lens);
 
-        // 4. Volets (Barn Doors)
-        const doorGeo = new THREE.PlaneGeometry(0.6, 0.3);
-        const topDoor = new THREE.Mesh(doorGeo, barnMat);
-        topDoor.position.set(0, 0.45, -0.5); topDoor.rotation.x = Math.PI/4;
-        bodyGroup.add(topDoor);
+        // 5. Volets (Barn Doors)
+        const doorGeo = new THREE.PlaneGeometry(0.6 * scale, 0.4 * scale);
+        const topDoor = new THREE.Mesh(doorGeo, barnDoorMat);
+        topDoor.position.set(0, 0.45 * scale, -0.6 * scale); topDoor.rotation.x = Math.PI/3; bodyGroup.add(topDoor);
         
-        const botDoor = new THREE.Mesh(doorGeo, barnMat);
-        botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4;
-        bodyGroup.add(botDoor);
+        const botDoor = new THREE.Mesh(doorGeo, barnDoorMat);
+        botDoor.position.set(0, -0.45 * scale, -0.6 * scale); botDoor.rotation.x = -Math.PI/3; bodyGroup.add(botDoor);
 
-        // 5. Faisceau (Beam)
-        const beamGeo = new THREE.ConeGeometry(0.6, 20, 32, 1, true);
-        beamGeo.translate(0, -10, 0); 
+        const leftDoor = new THREE.Mesh(doorGeo, barnDoorMat);
+        leftDoor.position.set(-0.45 * scale, 0, -0.6 * scale); leftDoor.rotation.y = -Math.PI/3; leftDoor.rotation.z = Math.PI/2; bodyGroup.add(leftDoor);
+
+        const rightDoor = new THREE.Mesh(doorGeo, barnDoorMat);
+        rightDoor.position.set(0.45 * scale, 0, -0.6 * scale); rightDoor.rotation.y = Math.PI/3; rightDoor.rotation.z = Math.PI/2; bodyGroup.add(rightDoor);
+
+        // 6. Faisceau Volumétrique (PLUS FIN)
+        const beamGeo = new THREE.ConeGeometry(0.4, 15, 32, 1, true); // Rayon réduit à 0.4
+        beamGeo.translate(0, -7.5, 0); 
         beamGeo.rotateX(-Math.PI / 2);
-        
         const beamMat = new THREE.MeshBasicMaterial({ 
-            color: colorInt, 
+            color: color, 
             transparent: true, 
-            opacity: 0.15, // Visible
-            side: THREE.DoubleSide,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false
+            opacity: 0, // Eteint au début
+            blending: THREE.AdditiveBlending, 
+            depthWrite: false, 
+            side: THREE.DoubleSide 
         });
         const beam = new THREE.Mesh(beamGeo, beamMat);
-        beam.position.z = -0.6;
+        beam.position.z = -0.65 * scale;
         bodyGroup.add(beam);
 
-        // 6. Lumière réelle
-        const light = new THREE.SpotLight(colorInt, 10);
-        light.angle = 0.3;
-        light.penumbra = 0.2;
+        // 7. Lumière Réelle
+        const light = new THREE.SpotLight(color, 0);
+        light.angle = 0.2; // Angle réduit
+        light.penumbra = 0.5; 
         light.distance = 50;
         bodyGroup.add(light); bodyGroup.add(light.target);
+        
+        const targetObj = new THREE.Object3D();
+        scene.add(targetObj);
+        light.target = targetObj;
 
-        scene.add(group);
-
-        // Orientation vers le centre (0,0,0)
-        bodyGroup.lookAt(0, 0, 0);
-        light.target.position.set(0,0,0);
+        scene.add(pivotGroup);
 
         return { 
-            group, beam, light, 
-            baseIntensity: 10,
-            timeOff: Math.random() * 100
+            pivot: pivotGroup, body: bodyGroup, light: light, beam: beam, lens: lens, targetObj: targetObj,
+            baseColor: new THREE.Color(color), isOn: false, intensity: 0, mode: 'fixed', targetPos: new THREE.Vector3(), nextToggle: Math.random() * 5
         };
     }
 
-    // --- POSITIONS CORRIGÉES (Y=4.0 et Y=-4.0) ---
-    // HAUT (Jaune, Cyan, Vert, Orange)
-    stageSpots.push(createStageLight(-7, 4.0, 0xFFFF00, false));
-    stageSpots.push(createStageLight(-2.5, 4.0, 0x00FFFF, false));
-    stageSpots.push(createStageLight(2.5, 4.0, 0x00FF00, false));
-    stageSpots.push(createStageLight(7, 4.0, 0xFFA500, false));
+    // Création des spots (Couleurs vives)
+    const colors = [0xff0000, 0x00ff00, 0x0088ff, 0xffaa00, 0x00ffff, 0xff00ff];
+    
+    // POSITIONS RESSERRÉES (3.5 au lieu de 6.0)
+    // HAUT
+    [-6, -2, 2, 6].forEach((x, i) => stageSpots.push(createDetailedSpotFixture(colors[i%colors.length], x, 3.5, false)));
+    // BAS
+    [-4, 0, 4].forEach((x, i) => stageSpots.push(createDetailedSpotFixture(colors[(i+2)%colors.length], x, -3.5, true)));
 
-    // BAS (Vert, Cyan, Orange, Bleu)
-    stageSpots.push(createStageLight(-7, -4.0, 0x00FF00, true));
-    stageSpots.push(createStageLight(-2.5, -4.0, 0x00FFFF, true));
-    stageSpots.push(createStageLight(2.5, -4.0, 0xFFA500, true));
-    stageSpots.push(createStageLight(7, -4.0, 0x0088FF, true));
+    // --- PARTICULES ---
+    const particleCount = 200; // Un peu moins de fumée
+    const particlesGeo = new THREE.BufferGeometry();
+    const posArray = new Float32Array(particleCount * 3);
+    const colorArray = new Float32Array(particleCount * 3);
+    const scaleArray = new Float32Array(particleCount);
+    const velocityArray = []; 
+    const baseColor = new THREE.Color(0xaaaaaa); const sparkColor = new THREE.Color(0xffaa00); 
 
-    // --- ANIMATION ---
+    for(let i=0; i<particleCount; i++) {
+        posArray[i*3] = 9999; posArray[i*3+1] = 9999; posArray[i*3+2] = 9999;
+        scaleArray[i] = 0; velocityArray.push({x:0, y:0, z:0, life:0});
+    }
+    particlesGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    particlesGeo.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+    particlesGeo.setAttribute('scale', new THREE.BufferAttribute(scaleArray, 1));
+    
+    const particleMat = new THREE.PointsMaterial({
+        vertexColors: true, size: 0.6, transparent: true, opacity: 0.8, depthWrite: false,
+        map: (function(){ const c = document.createElement('canvas'); c.width=32; c.height=32; const ctx = c.getContext('2d'); const g = ctx.createRadialGradient(16,16,0, 16,16,16); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle=g; ctx.fillRect(0,0,32,32); const t = new THREE.Texture(c); t.needsUpdate=true; return t; })()
+    });
+    const particleSystem = new THREE.Points(particlesGeo, particleMat);
+    scene.add(particleSystem);
+
+    function triggerSmoke(x, y, z, isExplosion = false) {
+        const pPos = particleSystem.geometry.attributes.position.array;
+        const pCol = particleSystem.geometry.attributes.color.array;
+        const pScl = particleSystem.geometry.attributes.scale.array;
+        for(let i=0; i<particleCount; i++) {
+            pPos[i*3] = x + (Math.random()-0.5); pPos[i*3+1] = y + (Math.random()-0.5); pPos[i*3+2] = z + (Math.random()-0.5);
+            const isSpark = isExplosion && Math.random() < 0.3; const c = isSpark ? sparkColor : baseColor;
+            pCol[i*3] = c.r; pCol[i*3+1] = c.g; pCol[i*3+2] = c.b; pScl[i] = Math.random() * 0.8 + 0.2;
+            let speed = isExplosion ? 0.2 : 0.05; velocityArray[i] = { x: (Math.random()-0.5)*speed, y: (Math.random()-0.5)*speed + (isExplosion ? 0.05 : 0.02), z: (Math.random()-0.5)*speed, life: 1.0 };
+        }
+        particleSystem.geometry.attributes.position.needsUpdate = true; particleSystem.geometry.attributes.color.needsUpdate = true; particleSystem.geometry.attributes.scale.needsUpdate = true;
+    }
+    function updateParticles() {
+        const pPos = particleSystem.geometry.attributes.position.array; const pScl = particleSystem.geometry.attributes.scale.array; let active = false;
+        for(let i=0; i<particleCount; i++) {
+            if (velocityArray[i].life > 0) { active = true; pPos[i*3] += velocityArray[i].x; pPos[i*3+1] += velocityArray[i].y; pPos[i*3+2] += velocityArray[i].z; velocityArray[i].life -= 0.015; pScl[i] = velocityArray[i].life; if(velocityArray[i].life <= 0) pPos[i*3] = 9999; }
+        }
+        if(active) { particleSystem.geometry.attributes.position.needsUpdate = true; particleSystem.geometry.attributes.scale.needsUpdate = true; }
+    }
+
+    // --- LOGIQUE GÉNÉRALE ---
     let time = 0;
-    let targetPos = new THREE.Vector3(4, 0, 0);
+    let startX = (config.mode === 'attente') ? -15 : 4.0;
+    let targetPosition = new THREE.Vector3(startX, 0, 0); robotGroup.position.copy(targetPosition);
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
-    let nextEvent = 0;
+    let introIndex = 0; let nextEventTime = 0; let bubbleTimeout = null;
 
+    function smoothRotate(object, axis, targetValue, speed) { object.rotation[axis] += (targetValue - object.rotation[axis]) * speed; }
+    function showBubble(text, duration) { if(!bubble) return; if (bubbleTimeout) { clearTimeout(bubbleTimeout); bubbleTimeout = null; } bubble.innerText = text; bubble.style.opacity = 1; if(duration) bubbleTimeout = setTimeout(() => { if(bubble) bubble.style.opacity = 0; }, duration); }
+    function hideBubble() { if(bubble) bubble.style.opacity = 0; }
+    
+    function pickNewTarget() { 
+        const aspect = width / height; const vW = 7 * aspect; 
+        const side = Math.random() > 0.5 ? 1 : -1; 
+        const safeMin = 4.2; const safeMax = vW * 0.55; 
+        let x = side * (safeMin + Math.random() * (safeMax - safeMin)); 
+        let y = (Math.random() - 0.5) * 4.0; 
+        targetPosition.set(x, y, 0); 
+    }
+
+    // --- ACTIONS ROBOT ---
+    function startExplosion() {
+        robotState = 'exploding'; const msg = getUniqueMessage('explosion'); showBubble(msg, 3500);
+        if (Math.abs(robotGroup.position.x) > 6) robotGroup.position.x = (robotGroup.position.x > 0) ? 5 : -5;
+        setTimeout(() => {
+            explosionLight.intensity = 5; setTimeout(() => { explosionLight.intensity = 0; }, 200);
+            triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z, true);
+            parts.forEach(part => {
+                part.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4);
+                part.userData.rotVelocity.set(Math.random()*0.2, Math.random()*0.2, Math.random()*0.2);
+            });
+            setTimeout(() => {
+                robotState = 'reassembling';
+                setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 2000);
+            }, 3000);
+        }, 1000);
+    }
+
+    function startDance() {
+        if (config.mode !== 'photos') { startSpeaking(); return; }
+        robotState = 'dancing'; targetPosition.copy(robotGroup.position);
+        const msg = getUniqueMessage('danse'); showBubble(msg, 4000);
+        setTimeout(() => { if (robotState === 'dancing') { hideBubble(); robotState = 'moving'; pickNewTarget(); } }, 6000);
+    }
+
+    function startSpeaking() {
+        robotState = 'speaking'; targetPosition.copy(robotGroup.position);
+        const msg = getUniqueMessage(config.mode); showBubble(msg, 4000);
+        nextEventTime = time + 3 + Math.random() * 5;
+        setTimeout(() => { if (robotState === 'speaking') { hideBubble(); robotState = 'moving'; pickNewTarget(); } }, 4000);
+    }
+
+    function startTeleport() {
+        robotState = 'teleporting'; showBubble(getUniqueMessage('cache_cache'), 1500);
+        triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z, false);
+        setTimeout(() => {
+            robotGroup.visible = false; pickNewTarget(); robotGroup.position.copy(targetPosition);
+            setTimeout(() => {
+                triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z, false);
+                robotGroup.visible = true; robotState = 'moving';
+            }, 1000);
+        }, 500);
+    }
+
+    // --- ANIMATION LOOP ---
     function animate() {
         requestAnimationFrame(animate);
-        time += 0.015;
+        time += 0.015; 
+        updateParticles();
 
-        // Animation des Spots
-        stageSpots.forEach(s => {
-            const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8; // Scintillement
-            s.beam.material.opacity = 0.15 * pulse;
-            s.light.intensity = s.baseIntensity * pulse;
+        // GESTION DES SPOTS
+        let activeCount = 0;
+        stageSpots.forEach(s => { if(s.isOn) activeCount++; });
+
+        stageSpots.forEach((s) => {
+            if (time > s.nextToggle) {
+                if (s.isOn) {
+                    s.isOn = false; 
+                    s.nextToggle = time + Math.random() * 2 + 1;
+                } else {
+                    if (activeCount < 3 && Math.random() > 0.5) {
+                        s.isOn = true;
+                        s.mode = (Math.random() > 0.7) ? 'track' : 'fixed'; 
+                        if(s.mode === 'fixed') s.targetPos.set((Math.random()-0.5)*12, (Math.random()-0.5)*6, -2);
+                        s.nextToggle = time + Math.random() * 3 + 2; 
+                    } else {
+                        s.nextToggle = time + 0.5; 
+                    }
+                }
+            }
+            const targetInt = s.isOn ? 30 : 0;
+            const targetOp = s.isOn ? 0.08 : 0; // Faisceau un peu plus visible
+            s.intensity += (targetInt - s.intensity) * 0.1;
+            s.light.intensity = s.intensity;
+            s.beam.material.opacity = targetOp * (s.intensity / 30);
+            
+            // Lentille toujours colorée mais plus brillante si allumée
+            const baseCol = s.baseColor;
+            s.lens.material.color.setRGB(
+                baseCol.r * (s.isOn ? 1.5 : 0.5),
+                baseCol.g * (s.isOn ? 1.5 : 0.5),
+                baseCol.b * (s.isOn ? 1.5 : 0.5)
+            );
+
+            const realTarget = (s.mode === 'track') ? robotGroup.position : s.targetPos;
+            s.body.lookAt(realTarget); 
+            s.light.target.position.lerp(realTarget, 0.1);
+            s.light.target.updateMatrixWorld();
         });
 
-        // Robot
+        // Logique Robot
         if (robotState === 'intro') {
             if (introIndex < introScript.length) {
                 const step = introScript[introIndex];
@@ -229,39 +366,61 @@ function initRobot(container) {
                 }
             } else if (time > 22) { robotState = 'moving'; pickNewTarget(); nextEventTime = time + 3; }
             if (introIndex > 0 && introIndex < 3) robotGroup.position.lerp(targetPosition, 0.02);
-        } 
+        }
         
         else if (robotState === 'moving') {
             robotGroup.position.y += Math.sin(time * 2) * 0.002;
-            robotGroup.position.lerp(targetPos, 0.02);
-            smoothRotate(robotGroup, 'y', (targetPos.x - robotGroup.position.x) * 0.05, 0.05);
-            smoothRotate(robotGroup, 'z', -(targetPos.x - robotGroup.position.x) * 0.03, 0.05);
+            robotGroup.position.lerp(targetPosition, 0.02);
+            smoothRotate(robotGroup, 'y', (targetPosition.x - robotGroup.position.x) * 0.05, 0.05);
+            smoothRotate(robotGroup, 'z', -(targetPosition.x - robotGroup.position.x) * 0.03, 0.05);
             
-            if (robotGroup.position.distanceTo(targetPos) < 0.5) pickNewTarget();
+            if (robotGroup.position.distanceTo(targetPosition) < 0.5) pickNewTarget();
             
-            if (time > nextEvent) {
+            if (time > nextEventTime) {
                 const rand = Math.random();
-                if (rand < 0.12) { robotState = 'teleporting'; showBubble(getUniqueMessage('cache_cache'), 1500); setTimeout(() => { robotGroup.visible = false; pickNewTarget(); robotGroup.position.copy(targetPos); setTimeout(() => { robotGroup.visible = true; robotState = 'moving'; }, 1000); }, 500); }
-                else if (rand < 0.22) { robotState = 'exploding'; showBubble(getUniqueMessage('explosion'), 3500); if (Math.abs(robotGroup.position.x) > 6) robotGroup.position.x = 0; setTimeout(() => { parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4); }); setTimeout(() => { robotState = 'reassembling'; setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 2000); }, 3000); }, 1000); }
-                else startSpeaking();
+                if (rand < 0.12) startTeleport(); 
+                else if (rand < 0.22) startExplosion(); 
+                else if (rand < 0.35) startDance();
+                else startSpeaking(); 
             }
         }
         
-        else if (robotState === 'exploding') {
-            parts.forEach(part => {
-                part.position.add(part.userData.velocity);
-                part.rotation.x += 0.1;
-                part.userData.velocity.multiplyScalar(0.95);
-            });
+        else if (robotState === 'dancing') {
+            const d = time * 10;
+            robotGroup.position.y = Math.abs(Math.sin(d))*0.5 - 0.5;
+            robotGroup.rotation.z = Math.sin(d*0.5)*0.2;
+            leftArm.rotation.z = Math.PI - 0.5 + Math.sin(d)*0.5;
+            rightArm.rotation.z = -Math.PI + 0.5 - Math.sin(d)*0.5;
+            head.rotation.y = Math.sin(d*2)*0.3;
         }
+
+        else if (robotState === 'exploding') {
+            let isMoving = false;
+            parts.forEach(part => {
+                if (part.userData.velocity.lengthSq() > 0) {
+                    isMoving = true;
+                    part.position.add(part.userData.velocity);
+                    part.rotation.x += part.userData.rotVelocity.x;
+                    part.rotation.y += part.userData.rotVelocity.y;
+                    part.rotation.z += part.userData.rotVelocity.z;
+                    part.userData.velocity.multiplyScalar(0.95);
+                }
+            });
+            if (!isMoving) robotGroup.position.x += (Math.random()-0.5) * 0.1;
+        }
+        
         else if (robotState === 'reassembling') {
             parts.forEach(part => {
                 part.position.lerp(part.userData.origPos, 0.08);
                 part.rotation.x += (part.userData.origRot.x - part.rotation.x) * 0.08;
+                part.rotation.y += (part.userData.origRot.y - part.rotation.y) * 0.08;
+                part.rotation.z += (part.userData.origRot.z - part.rotation.z) * 0.08;
+                part.userData.velocity.set(0,0,0);
             });
         }
+
         else if (robotState === 'speaking') {
-            robotGroup.position.lerp(targetPos, 0.001); 
+            robotGroup.position.lerp(targetPosition, 0.001); 
             smoothRotate(robotGroup, 'y', 0, 0.05); 
             mouth.scale.set(1, 1 + Math.sin(time * 20) * 0.2, 1); 
         }
@@ -269,17 +428,12 @@ function initRobot(container) {
         if(bubble && bubble.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); if(robotState !== 'exploding') headPos.y += 0.8; headPos.project(camera);
             const x = (headPos.x * .5 + .5) * width; const y = (headPos.y * -.5 + .5) * height;
-            bubble.style.left = Math.max(150, Math.min(width - 150, x)) + 'px';
-            bubble.style.top = Math.max(50, y - 80) + 'px';
+            const bubbleW = 250; const safeX = Math.max(bubbleW/2 + 20, Math.min(width - bubbleW/2 - 20, x));
+            bubble.style.left = safeX + 'px'; bubble.style.top = Math.max(50, y - 80) + 'px';
         }
 
         renderer.render(scene, camera);
     }
-
-    function smoothRotate(object, axis, targetValue, speed) { object.rotation[axis] += (targetValue - object.rotation[axis]) * speed; }
-    function showBubble(text, duration) { bubble.innerText = text; bubble.style.opacity = 1; setTimeout(() => bubble.style.opacity = 0, duration); }
-    function startSpeaking() { robotState = 'speaking'; targetPos.copy(robotGroup.position); showBubble(getUniqueMessage(config.mode), 4000); nextEvent = time + 3 + Math.random() * 5; setTimeout(() => { if (robotState === 'speaking') { bubble.style.opacity = 0; robotState = 'moving'; pickNewTarget(); } }, 4000); }
-    function pickNewTarget() { const side = Math.random() > 0.5 ? 1 : -1; targetPos.set(side * (3.5 + Math.random() * 2), (Math.random() - 0.5) * 3, 0); }
 
     window.addEventListener('resize', () => {
         width = window.innerWidth; height = window.innerHeight;
