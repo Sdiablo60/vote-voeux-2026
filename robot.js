@@ -53,7 +53,7 @@ function initRobot(container) {
 
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- ROBOT ---
+    // --- ROBOT CONSTRUCTION ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
@@ -65,9 +65,16 @@ function initRobot(container) {
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat);
     face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     
+    // YEUX
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat);
     eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
+
+    // BOUCHE (RÉINTÉGRÉE)
+    const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat);
+    mouth.position.set(0, -0.15, 1.05);
+    mouth.rotation.z = Math.PI; // Sourire
+    head.add(mouth);
 
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat);
     body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
@@ -77,7 +84,7 @@ function initRobot(container) {
     const rightArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
     rightArm.position.set(0.8, -0.8, 0); rightArm.rotation.z = -0.15;
 
-    // SAUVEGARDE DES POSITIONS D'ORIGINE POUR LA RECONSTRUCTION
+    // SAUVEGARDE ET GROUPAGE
     const parts = [head, body, leftArm, rightArm];
     parts.forEach(p => {
         p.userData = { 
@@ -121,7 +128,7 @@ function initRobot(container) {
             s.g.lookAt(robotGroup.position);
         });
 
-        // États du Robot
+        // États Robot
         if (robotState === 'intro') {
             const step = introScript[introIdx];
             if (step && time >= step.time) {
@@ -143,15 +150,14 @@ function initRobot(container) {
 
             if(time > nextEvt) {
                 const r = Math.random();
-                if(r < 0.15) { // Lancement Explosion
+                if(r < 0.15) { 
                     robotState = 'exploding'; showBubble(getUniqueMessage('explosion'), 3000);
                     parts.forEach(p => {
                         p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4);
                         p.userData.rotVel.set(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1);
                     });
-                    // On attend 3 secondes avant de reconstruire
                     setTimeout(() => { robotState = 'reassembling'; }, 3000);
-                } else if(r < 0.3) { // Teleport
+                } else if(r < 0.3) { 
                     robotGroup.visible = false; showBubble(getUniqueMessage('cache_cache'), 1500);
                     setTimeout(() => { robotGroup.position.set((Math.random()-0.5)*10, (Math.random()-0.5)*5, 0); robotGroup.visible = true; robotState = 'moving'; }, 1000);
                 } else {
@@ -161,30 +167,22 @@ function initRobot(container) {
             }
         }
         else if (robotState === 'exploding') {
-            // Les pièces s'éparpillent
             parts.forEach(p => {
                 p.position.add(p.userData.velocity);
-                p.rotation.x += p.userData.rotVel.x;
-                p.rotation.y += p.userData.rotVel.y;
-                p.userData.velocity.multiplyScalar(0.98); // Ralentissement progressif
+                p.rotation.x += p.userData.rotVel.x; p.rotation.y += p.userData.rotVel.y;
+                p.userData.velocity.multiplyScalar(0.98);
             });
         }
         else if (robotState === 'reassembling') {
-            // Retour fluide aux positions d'origine
             let finished = true;
             parts.forEach(p => {
                 p.position.lerp(p.userData.origPos, 0.1);
                 p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1;
                 p.rotation.y += (p.userData.origRot.y - p.rotation.y) * 0.1;
                 p.rotation.z += (p.userData.origRot.z - p.rotation.z) * 0.1;
-                
                 if (p.position.distanceTo(p.userData.origPos) > 0.01) finished = false;
             });
-            
-            if(finished) {
-                robotState = 'moving';
-                nextEvt = time + 2;
-            }
+            if(finished) { robotState = 'moving'; nextEvt = time + 2; }
         }
 
         // Bulle
