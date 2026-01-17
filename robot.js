@@ -4,55 +4,62 @@ const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
-// --- RÉGLAGES DE COMPORTEMENT ---
+// --- PARAMÈTRES DE STRUCTURE ---
 const LIMITE_HAUTE_Y = 6.53; 
 const DUREE_LECTURE = 7000; 
-const VITESSE_MOUVEMENT = 0.007; // Encore un peu plus doux pour la taille
-const TEMPS_PAUSE_MIN = 5000; 
-const ECHELLE_BOT = 0.6; // Taille augmentée (était 0.45)
+const VITESSE_MOUVEMENT = 0.008; 
+const ECHELLE_BOT = 0.6; 
 
-// --- STYLE CSS ---
+// --- STYLE CSS (Bulles et Nuages) ---
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
         position: fixed; padding: 15px 20px; color: black; font-family: 'Arial', sans-serif;
         font-weight: bold; font-size: 19px; text-align: center; z-index: 2147483647;
-        pointer-events: none; transition: opacity 0.5s, transform 0.3s; max-width: 280px;
-        display: flex; align-items: center; justify-content: center;
+        pointer-events: none; transition: opacity 0.5; transform: scale(0.9); max-width: 280px;
     }
     .bubble-speech { background: white; border-radius: 20px; border: 3px solid #E2001A; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
     .bubble-speech::after { content: ''; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid #E2001A; }
     .bubble-thought { background: white; border-radius: 50%; border: 3px solid #00ffff; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
     .bubble-thought::before { content: ''; position: absolute; bottom: -10px; left: 30%; width: 15px; height: 15px; background: white; border: 2px solid #00ffff; border-radius: 50%; }
-    .bubble-thought::after { content: ''; position: absolute; bottom: -22px; left: 20%; width: 8px; height: 8px; background: white; border: 2px solid #00ffff; border-radius: 50%; }
 `;
 document.head.appendChild(style);
 
-// --- DICTIONNAIRE ---
+// --- SCRIPT D'INTRODUCTION THÉÂTRALE (Mur Accueil uniquement) ---
+const introScript = [
+    { time: 1, text: "Euh... C'est quoi cet endroit ? 🧐", type: "thought" },
+    { time: 5, text: "Je ne reconnais pas ces serveurs... 💾", type: "thought" },
+    { time: 9, text: "Attendez une seconde...", type: "speech" },
+    { time: 12, text: "OH ! Mais vous êtes là ! 😳 Bonjour !", type: "speech", action: "surprise" },
+    { time: 16, text: "Pourquoi vous êtes tous réunis ce soir ? 🤔", type: "speech" },
+    { time: 20, text: "Bip Bip... Un appel ? 📞", type: "speech" },
+    { time: 23, text: "Allô ? La régie ? Oui c'est moi.", type: "speech" },
+    { time: 27, text: "SÉRIEUX ?! Je vais être l'animateur ce soir ? 🤩", type: "speech" },
+    { time: 31, text: "OK ! On va passer une soirée de folie ! ✨", type: "speech" }
+];
+
+// --- DICTIONNAIRE DE PHRASES (Mode Animateur) ---
 const MESSAGES_BAG = {
     attente: [
-        "Bienvenue à tous ! ✨", "Ravi de vous voir pour le " + config.titre + " !",
-        "Est-ce que tout le monde est bien installé ? 🤔", "Hé la régie ! Tout est prêt ? 🚀",
-        "Je sens une énergie incroyable ici ! ⚡", "Vous êtes magnifiques vus d'ici !",
-        "Régie, vous pouvez m'envoyer un petit café... virtuel ? ☕"
+        "N'oubliez pas, je suis votre animateur attitré ! 🤖", "Hé la régie, mon micro est bien branché ?",
+        "Je sens que cette soirée va être légendaire ! ✨", "N'hésitez pas à scanner le QR code pour interagir !",
+        "Je suis en train de scanner votre enthousiasme : 100% !"
     ],
     vote_off: [
-        "Les votes sont CLOS ! 🛑", "Suspens... Calcul en cours... 🧮",
-        "La régie ! Ne faites pas durer le plaisir ! ⏳", "C'est serré ! Mon processeur chauffe !"
+        "Les votes sont clos ! En tant qu'animateur, je sens monter le suspense... 😬",
+        "La régie me dit dans l'oreillette que les résultats arrivent !",
+        "Qui va décrocher la victoire ce soir ? 🏆"
     ],
     photos: [
-        "Ouistiti ! 📸 Souriez !", "Hé la régie, envoyez des photos ! 📲",
-        "Selfie time ! ✨", "Clic-clac ! J'adore cette photo ! 😍"
+        "En tant qu'animateur, je veux voir tous vos sourires sur ce mur ! 📸",
+        "Envoyez vos photos, je les analyse en temps réel ! 📲",
+        "Quel photographe ce public ! ✨"
     ],
     reflexions: [
-        "Est-ce que j'ai bien éteint ma borne ? 🔋", "Calcul de la trajectoire d'une mouche virtuelle...",
-        "Plus de RAM... Il me faut plus de RAM...", "Je me demande si vous me voyez en 4K ? 🤔",
-        "Analyse de l'ambiance : 98% de bonheur détecté."
+        "J'espère que mon costume en métal est bien repassé. ✨", "Animateur... ça paye bien en Gigaoctets ?",
+        "La régie a l'air stressée, je vais faire une blague tout à l'heure. 🔧"
     ],
-    toctoc: ["Toc ! Toc ! Y'a quelqu'un derrière la vitre ? 🚪", "Toc ! Toc ! Vous m'entendez ? ✨"],
-    blagues: ["Pourquoi les robots ne sont jamais fatigués ? Parce qu'ils ont des batteries ! 🦾", "Ma boisson préférée ? Le jus de douille ! 🔩"],
-    explosion: ["Surchauffe ! 🔥", "Oups, j'ai perdu la tête ! 🤯"],
-    cache_cache: ["Coucou ! 👋", "Me revoilà ! 🚀"]
+    toctoc: ["Toc ! Toc ! Est-ce que le son passe bien ? 🔊", "Toc ! Toc ! C'est moi, votre robot préféré !"]
 };
 
 const usedMessages = {};
@@ -80,7 +87,7 @@ function initRobot(container) {
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
-    scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+    scene.add(new THREE.AmbientLight(0xffffff, 2.5));
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
@@ -93,7 +100,6 @@ function initRobot(container) {
     head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat);
     face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
-    
     const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI);
     const eyeL = new THREE.Mesh(eyeGeo, neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
@@ -102,17 +108,13 @@ function initRobot(container) {
 
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat);
     body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
-    
     const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
     leftArm.position.set(-0.8, -0.8, 0); leftArm.rotation.z = 0.15;
     const rightArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
     rightArm.position.set(0.8, -0.8, 0); rightArm.rotation.z = -0.15;
 
     const parts = [head, body, leftArm, rightArm];
-    parts.forEach(p => {
-        p.userData = { origPos: p.position.clone(), origRot: p.rotation.clone(), velocity: new THREE.Vector3(), rotVel: new THREE.Vector3() };
-        robotGroup.add(p);
-    });
+    parts.forEach(p => { robotGroup.add(p); p.userData.origPos = p.position.clone(); p.userData.origRot = p.rotation.clone(); p.userData.velocity = new THREE.Vector3(); });
     scene.add(robotGroup);
 
     // --- SPOTS ---
@@ -129,24 +131,23 @@ function initRobot(container) {
     // --- LOGIQUE ANIMATION ---
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
-    let targetPos = new THREE.Vector3(5, 2, -3); // Démarre un peu loin
+    let targetPos = new THREE.Vector3(-12, 0, -3); // Commence hors écran
 
     function showBubble(text, type = 'speech') { 
         if(!bubble) return; 
-        bubble.innerText = text;
-        bubble.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
-        bubble.style.opacity = 1; 
-        setTimeout(() => { if(bubble) bubble.style.opacity = 0; }, DUREE_LECTURE); 
+        bubble.innerText = text; bubble.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
+        bubble.style.opacity = 1; bubble.style.transform = "scale(1)";
+        setTimeout(() => { if(bubble) bubble.style.opacity = 0; bubble.style.transform = "scale(0.9)"; }, DUREE_LECTURE); 
     }
 
     function pickNewTarget() {
         const side = Math.random() > 0.5 ? 1 : -1;
         const x = side * (4.5 + Math.random() * 3); 
         const y = (Math.random() - 0.5) * 6; 
-        const z = (Math.random() * 5) - 3; // Profondeur entre -3 et 2
+        const z = (Math.random() * 5) - 3;
         targetPos.set(x, y, z);
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
-        nextMoveTime = Date.now() + TEMPS_PAUSE_MIN + Math.random() * 4000;
+        nextMoveTime = Date.now() + 6000;
     }
 
     function animate() {
@@ -160,41 +161,41 @@ function initRobot(container) {
         });
 
         if (robotState === 'intro') {
-            const introScript = [{ time: 1, text: "Bonjour !" }, { time: 5, text: "Oh, vous êtes là !" }, { time: 9, text: "Bienvenue au " + config.titre }];
-            if (introIdx < introScript.length && time > introScript[introIdx].time) { showBubble(introScript[introIdx].text); introIdx++; }
-            if(time > 15) { robotState = 'moving'; pickNewTarget(); nextEvt = time + 5; }
-            robotGroup.position.lerp(new THREE.Vector3(4, 1, 0), VITESSE_MOUVEMENT);
+            const step = introScript[introIdx];
+            if (step && time >= step.time) {
+                showBubble(step.text, step.type);
+                if(step.action === "surprise") { targetPos.set(0, 0, 7); } // Se rapproche d'un coup
+                introIdx++;
+            }
+            if(introIdx === 1) targetPos.set(-4, 2, -2); // Entre doucement
+            if(time > 35) { robotState = 'moving'; pickNewTarget(); nextEvt = time + 10; }
+            robotGroup.position.lerp(targetPos, 0.015);
         } 
         else if (robotState === 'moving' || robotState === 'approaching' || robotState === 'thinking') {
             if (Date.now() > nextMoveTime || robotState === 'approaching') {
                 robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
             }
-            
             robotGroup.rotation.y = Math.sin(time)*0.2;
 
             if(robotGroup.position.distanceTo(targetPos) < 0.5 && robotState !== 'thinking') {
                 if (robotState === 'approaching') {
-                    // Toc Toc : mouvement de tête
                     head.rotation.x = Math.sin(time*20) * 0.2; 
                     setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 4000);
-                } else if (Date.now() > nextMoveTime) {
-                    pickNewTarget(); 
-                }
+                } else if (Date.now() > nextMoveTime) { pickNewTarget(); }
             }
 
             if(time > nextEvt) {
                 const r = Math.random();
-                if(r < 0.08) { // EXPLOSION
+                if(r < 0.08) { // Explosion
                     robotState = 'exploding'; showBubble(getUniqueMessage('explosion'));
-                    parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4); p.userData.rotVel.set(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1); });
+                    parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4));
                     setTimeout(() => { robotState = 'reassembling'; }, 3500);
-                } else if(r < 0.18) { // RÉFLEXION
+                } else if(r < 0.18) { // Réflexion
                     robotState = 'thinking'; targetPos.copy(robotGroup.position);
                     showBubble(getUniqueMessage('reflexions'), 'thought');
-                    setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 6000);
-                } else if(r < 0.35) { // TOC TOC (S'APPROCHE TRÈS PRÈS)
-                    robotState = 'approaching'; 
-                    targetPos.set((Math.random()-0.5)*2, (Math.random()-0.5)*2, 8); // Z=8 pour être très proche
+                    setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 7000);
+                } else if(r < 0.35) { // Toc Toc
+                    robotState = 'approaching'; targetPos.set((Math.random()-0.5)*2, (Math.random()-0.5)*2, 8);
                     showBubble(getUniqueMessage('toctoc'));
                 } else {
                     showBubble(getUniqueMessage(config.mode));
@@ -203,7 +204,7 @@ function initRobot(container) {
             }
         }
         else if (robotState === 'exploding') {
-            parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += p.userData.rotVel.x; p.userData.velocity.multiplyScalar(0.98); });
+            parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.05; p.userData.velocity.multiplyScalar(0.98); });
         }
         else if (robotState === 'reassembling') {
             let finished = true;
@@ -211,16 +212,12 @@ function initRobot(container) {
             if(finished) { robotState = 'moving'; nextEvt = time + 2; pickNewTarget(); }
         }
 
-        // Bulle (Calcul précis au-dessus de la tête)
         if(bubble && bubble.style.opacity == 1) {
-            const headPos = robotGroup.position.clone(); 
-            // On ajuste la hauteur de la bulle selon la proximité (Z)
-            headPos.y += 1.3 + (robotGroup.position.z * 0.05); 
-            headPos.project(camera);
+            const headPos = robotGroup.position.clone(); headPos.y += 1.3 + (robotGroup.position.z * 0.05); headPos.project(camera);
             const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
             const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
             bubble.style.left = (bX - bubble.offsetWidth / 2) + 'px';
-            bubble.style.top = (bY - bubble.offsetHeight - 20) + 'px';
+            bubble.style.top = (bY - bubble.offsetHeight - 25) + 'px';
             if(parseFloat(bubble.style.top) < 140) bubble.style.top = '140px';
         }
         renderer.render(scene, camera);
