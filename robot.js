@@ -43,15 +43,14 @@ function initRobot(container) {
     container.style.zIndex = '1'; container.style.pointerEvents = 'none';
     
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000); 
-    scene.fog = new THREE.FogExp2(0x000000, 0.01); // Brouillard léger pour fondre le sol
+    scene.background = new THREE.Color(0x000000); // Fond noir propre
+    scene.fog = new THREE.FogExp2(0x000000, 0.02); // Brouillard standard
     
-    // CAMÉRA
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 400);
-    // On se place à hauteur d'homme (Y=4) mais assez reculé (Z=45)
-    camera.position.set(0, 4, 45); 
-    // On regarde vers le haut (Y=6) pour cadrer la source sous le titre
-    camera.lookAt(0, 6, 0); 
+    // CAMÉRA : RETOUR AUX BASES
+    // Position classique : ni trop près, ni trop loin, bien en face.
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 150);
+    camera.position.set(0, 3, 22); 
+    camera.lookAt(0, 1, 0); // Regarde le robot
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setSize(width, height);
@@ -59,44 +58,39 @@ function initRobot(container) {
     container.appendChild(renderer.domElement);
 
     // --- LUMIÈRES ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
     scene.add(ambientLight);
     
-    // Spot Visage Robot (Lumière de face très forte)
-    const spotFace = new THREE.SpotLight(0xffffff, 50);
-    spotFace.position.set(0, 10, 50); 
-    spotFace.angle = 0.5;
-    spotFace.penumbra = 0.2;
-    scene.add(spotFace);
+    const spotTop = new THREE.SpotLight(0xffffff, 10);
+    spotTop.position.set(0, 15, 10);
+    scene.add(spotTop);
 
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
     scene.add(explosionLight);
 
-    // --- LE SOL (INFINI) ---
-    const floorY = -12;
+    // --- LE SOL ---
+    const floorY = -6; // Hauteur standard
     
-    const grid = new THREE.GridHelper(3000, 400, 0x666666, 0x222222);
+    // Grille classique bien visible
+    const grid = new THREE.GridHelper(100, 50, 0x666666, 0x222222);
     grid.position.y = floorY;
     scene.add(grid);
     
     const floorPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(3000, 3000), 
+        new THREE.PlaneGeometry(200, 200), 
         new THREE.MeshBasicMaterial({ color: 0x050505 }) 
     );
     floorPlane.rotation.x = -Math.PI / 2;
     floorPlane.position.y = floorY - 0.1;
     scene.add(floorPlane);
 
-    // --- ROBOT (STAR DU SHOW) ---
+    // --- ROBOT (POSITION FIXE AU CENTRE) ---
     const robotGroup = new THREE.Group();
-    robotGroup.scale.set(2.2, 2.2, 2.2); // Très Grand
-    // Position initiale : Très en avant (Z=22), bien devant le plan des lasers
-    robotGroup.position.set(0, floorY + 7.5, 22); 
-    spotFace.target = robotGroup;
+    robotGroup.scale.set(1.1, 1.1, 1.1); // Taille normale
+    robotGroup.position.set(0, -2, 0); // RETOUR AU CENTRE
 
-    // Matériaux optimisés pour la lumière
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, emissive: 0x222222 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
     const greyMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
@@ -131,17 +125,16 @@ function initRobot(container) {
     const parts = [head, body, leftArm, rightArm];
 
     // =========================================================
-    // --- SYSTÈME LASER (SOLID BEAMS) ---
+    // --- SYSTÈME LASER ---
     // =========================================================
     
-    // SOURCE HAUTE (18) : Pour être collée à la barre rouge
-    const hubY = 18; 
+    // Hauteur 10 : Visible en haut de l'écran avec ce cadrage
+    const hubY = 10; 
     const laserHub = new THREE.Group();
     laserHub.position.set(0, hubY, 0);
     scene.add(laserHub);
 
-    // Cache technique (cylindre noir en haut)
-    const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(2, 0.5, 2, 32), new THREE.MeshBasicMaterial({color: 0x000000}));
+    const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 0.5, 1, 32), new THREE.MeshBasicMaterial({color: 0x111111}));
     laserHub.add(hubMesh);
 
     const lasers = [];
@@ -150,109 +143,96 @@ function initRobot(container) {
     for(let i=0; i<20; i++) { 
         const color = colors[Math.floor(Math.random()*colors.length)];
         
-        // 1. CŒUR DU FAISCEAU (Le "Fil" blanc)
-        // Opaque à 100% pour ne pas faire "plastique transparent"
-        const coreGeo = new THREE.CylinderGeometry(0.08, 0.08, 1, 8, 1, true); 
+        // Faisceaux "Gras" et visibles
+        const coreGeo = new THREE.CylinderGeometry(0.06, 0.06, 1, 6, 1, true); 
         coreGeo.translate(0, 0.5, 0); coreGeo.rotateX(Math.PI / 2); 
         const coreMat = new THREE.MeshBasicMaterial({ 
-            color: 0xFFFFFF, 
-            transparent: false, // SOLIDE
-            blending: THREE.AdditiveBlending // Mélange lumineux
+            color: 0xFFFFFF, transparent: true, opacity: 0.9, 
+            blending: THREE.AdditiveBlending, depthWrite: false
         });
         const beamCore = new THREE.Mesh(coreGeo, coreMat);
         scene.add(beamCore);
 
-        // 2. HALO DU FAISCEAU (La couleur autour)
-        // Large et semi-transparent pour l'effet "Glow"
-        const glowGeo = new THREE.CylinderGeometry(0.4, 1.0, 1, 8, 1, true); 
+        const glowGeo = new THREE.CylinderGeometry(0.3, 0.8, 1, 8, 1, true); 
         glowGeo.translate(0, 0.5, 0); glowGeo.rotateX(Math.PI / 2); 
         const glowMat = new THREE.MeshBasicMaterial({ 
-            color: color, 
-            transparent: true, 
-            opacity: 0.4, // Suffisant pour colorer sans cacher le fond
-            blending: THREE.AdditiveBlending, 
-            depthWrite: false, 
-            side: THREE.DoubleSide
+            color: color, transparent: true, opacity: 0.5, 
+            blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
         });
         const beamGlow = new THREE.Mesh(glowGeo, glowMat);
         scene.add(beamGlow);
 
-        // 3. IMPACT SOL
-        const dotCoreGeo = new THREE.CircleGeometry(1.0, 32); 
+        // Impact au sol
+        const dotCoreGeo = new THREE.CircleGeometry(0.8, 16); 
         const dotCoreMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 1.0, blending: THREE.AdditiveBlending });
         const dotCore = new THREE.Mesh(dotCoreGeo, dotCoreMat);
         dotCore.rotation.x = -Math.PI / 2; dotCore.position.y = floorY + 0.06;
         scene.add(dotCore);
 
-        const dotGlowGeo = new THREE.CircleGeometry(3.0, 32); 
+        const dotGlowGeo = new THREE.CircleGeometry(2.5, 32); 
         const dotGlowMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false });
         const dotGlow = new THREE.Mesh(dotGlowGeo, dotGlowMat);
         dotGlow.rotation.x = -Math.PI / 2;
         scene.add(dotGlow);
 
-        // Init positions larges
+        // Positionnement initial autour du robot (Rayon > 8)
         let startX, startZ;
         do {
-            startX = (Math.random()-0.5) * 120;
-            startZ = (Math.random()-0.5) * 80;
-        } while (Math.abs(startX) < 20);
+            startX = (Math.random()-0.5) * 60;
+            startZ = (Math.random()-0.5) * 40;
+        } while (Math.abs(startX) < 8 && Math.abs(startZ) < 5);
 
         lasers.push({
             beamCore, beamGlow, dotCore, dotGlow,
-            color: color,
             currentPos: new THREE.Vector3(startX, floorY + 0.05, startZ),
             targetPos: new THREE.Vector3(startX, floorY + 0.05, startZ),
-            speed: 0.02 + Math.random() * 0.03, 
-            strobeSpeed: 8 + Math.random() * 15,
-            strobeOffset: Math.random() * 100,
-            isActive: false
+            speed: 0.02 + Math.random() * 0.02,
+            isActive: false // Éteint au début
         });
     }
 
     // --- ANIMATION ---
     let time = 0;
-    // Cible Initiale : En avant (Z=22)
-    let targetPos = new THREE.Vector3(0, floorY + 7.5, 22); 
-    let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
-    let nextEvent = 0;
+    let robotState = (config.mode === 'attente') ? 'intro' : 'idle';
+    let nextEvent = time + 3;
     let introIndex = 0;
 
     function animate() {
         requestAnimationFrame(animate);
         time += 0.01;
 
-        // --- LASERS (ON/OFF RAPIDE) ---
+        // --- LASERS (Calmes et limités) ---
         const maxActive = 8;
         const currentActive = lasers.filter(l => l.isActive).length;
 
         lasers.forEach((l) => {
-            // Logique d'activation
+            // Gestion ON/OFF
             if(Math.random() > 0.99) { 
                 if(l.isActive) l.isActive = false;
                 else if(currentActive < maxActive) {
                     l.isActive = true;
-                    // Nouvelle cible aléatoire
+                    // Nouvelle cible aléatoire autour du robot
                     let tx, tz;
-                    do { 
-                        tx = (Math.random()-0.5) * 200; 
-                        tz = (Math.random()-0.5) * 150;
-                    } while (Math.abs(tx) < 30); // Zone Robot préservée
+                    do {
+                        tx = (Math.random()-0.5) * 80;
+                        tz = (Math.random()-0.5) * 50;
+                    } while (Math.abs(tx) < 8 && Math.abs(tz) < 5);
                     l.targetPos.set(tx, floorY+0.05, tz);
                 }
             }
 
-            // Gestion Opacité (Flash)
+            // Fondu Opacité
             const targetOp = l.isActive ? 1.0 : 0.0;
-            // Interpolation rapide
-            l.beamCore.material.opacity += (targetOp - l.beamCore.material.opacity) * 0.1;
-            l.beamGlow.material.opacity = l.beamCore.material.opacity * 0.4;
-            l.dotCore.material.opacity = l.beamCore.material.opacity;
-            l.dotGlow.material.opacity = l.beamCore.material.opacity * 0.6;
+            const currentOp = l.beamGlow.material.opacity;
+            const newOp = currentOp + (targetOp - currentOp) * 0.05;
 
-            // Mouvement
+            l.beamCore.material.opacity = newOp;
+            l.beamGlow.material.opacity = newOp * 0.5;
+            l.dotCore.material.opacity = newOp;
+            l.dotGlow.material.opacity = newOp * 0.6;
+
             l.currentPos.lerp(l.targetPos, l.speed);
 
-            // Mise à jour visuelle
             l.dotCore.position.copy(l.currentPos); l.dotCore.position.y = floorY + 0.06;
             l.dotGlow.position.copy(l.currentPos); l.dotGlow.position.y = floorY + 0.05;
             
@@ -264,53 +244,42 @@ function initRobot(container) {
             l.beamCore.scale.z = dist; l.beamGlow.scale.z = dist;
         });
 
-        // --- ROBOT (SUPER MOBILE) ---
+        // --- ROBOT (CENTRAL) ---
         if (robotState === 'intro') {
-            const script = [{t:0, a:"hide"}, {t:1, a:"enter"}, {t:4, a:"look"}, {t:7, a:"surprise"}, {t:10, a:"wave"}];
+            const script = [{t:0, a:"hide"}, {t:1, a:"enter"}, {t:4, a:"wave"}];
             if (introIndex < script.length) {
-                if (time * 2 >= script[introIndex].t) { 
+                if (time >= script[introIndex].t) {
                     const act = script[introIndex].a;
-                    if(act=="hide") robotGroup.position.set(-60, floorY+7.5, 22);
-                    if(act=="enter") targetPos.set(0, floorY+7.5, 22);
-                    if(act=="look") { smoothRotate(robotGroup, 'y', -0.5, 0.05); }
-                    if(act=="surprise") { robotGroup.position.y += 1.5; head.rotation.x = -0.4; }
+                    if(act=="hide") robotGroup.position.x = -30;
+                    if(act=="enter") robotGroup.position.x = 0; // Retour centre direct
                     if(act=="wave") rightArm.rotation.z = Math.PI - 0.5;
                     introIndex++;
                 }
-            } else if (time * 2 > 15) { robotState = 'moving'; pickNewTarget(); nextEvent = time + 3; }
-            if(introIndex>0) robotGroup.position.lerp(targetPos, 0.04);
+            } else if (time > 10) { robotState = 'idle'; nextEvent = time + 2; }
+            if(introIndex>0 && introIndex<2) robotGroup.position.lerp(new THREE.Vector3(0, -2, 0), 0.05);
         }
-        else if (robotState === 'moving') {
-            robotGroup.position.y = (floorY + 7.5) + Math.sin(time*4)*0.2;
-            robotGroup.position.lerp(targetPos, 0.03);
-            
-            // Regarde la caméra (0, 5, 55)
-            robotGroup.lookAt(0, 5, 55); 
-            
-            if(robotGroup.position.distanceTo(targetPos)<2.0) pickNewTarget();
+        else if (robotState === 'idle') {
+            // Flottement sur place
+            robotGroup.position.y = -2 + Math.sin(time*3)*0.1;
+            robotGroup.position.x = Math.sin(time)*0.5; // Léger balancement gauche/droite
             
             if(time > nextEvent) {
-                const r = Math.random();
-                if(r < 0.6) { 
-                    robotState='speaking'; 
-                    showBubble(getUniqueMessage(config.mode), 4000); 
-                    setTimeout(()=>{robotState='moving';pickNewTarget();}, 4000); 
-                } else {
-                    pickNewTarget();
-                }
-                nextEvent = time + 3 + Math.random()*2;
+                // PARLE SOUVENT
+                robotState='speaking'; 
+                showBubble(getUniqueMessage(config.mode), 3000); 
+                setTimeout(()=>{ robotState='idle'; }, 3000);
+                nextEvent = time + 5 + Math.random()*3;
             }
         }
         else if (robotState === 'speaking') {
-            mouth.scale.set(1, 1+Math.sin(time*25)*0.5, 1);
-            robotGroup.lookAt(0, 5, 55); // Reste face caméra
+            robotGroup.position.y = -2 + Math.abs(Math.sin(time*10))*0.1; // Saute un peu
+            mouth.scale.set(1, 1+Math.sin(time*20)*0.3, 1);
         }
-        
         else if (robotState === 'exploding') { parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.1; p.userData.velocity.multiplyScalar(0.95); }); }
         else if (robotState === 'reassembling') { parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x *= 0.9; }); }
 
         if(bubble && bubble.style.opacity == 1) {
-            const pos = robotGroup.position.clone(); pos.y += 5.0; 
+            const pos = robotGroup.position.clone(); pos.y += 2.5; 
             pos.project(camera);
             const x = (pos.x * .5 + .5) * width; const y = (pos.y * -.5 + .5) * height;
             bubble.style.left = Math.max(100, Math.min(width-100, x)) + 'px';
@@ -321,17 +290,6 @@ function initRobot(container) {
 
     function smoothRotate(obj, axis, target, speed) { obj.rotation[axis] += (target - obj.rotation[axis]) * speed; }
     function showBubble(txt, dur) { bubble.innerText = txt; bubble.style.opacity = 1; setTimeout(() => bubble.style.opacity=0, dur); }
-    
-    function pickNewTarget() { 
-        // Zone de déplacement : Devant et Large
-        // X: -40 à 40
-        // Z: 10 à 30 (Très proche caméra)
-        targetPos.set(
-            (Math.random()-0.5) * 80, 
-            floorY + 7.5, 
-            10 + Math.random() * 20 
-        ); 
-    }
 
     window.addEventListener('resize', () => {
         width = window.innerWidth; height = window.innerHeight;
