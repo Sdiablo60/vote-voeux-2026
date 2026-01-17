@@ -6,7 +6,7 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue ! ✨", "Installez-vous.", "La soirée va être belle !", "Prêts pour le show ?", "Coucou la technique ! 👷"],
+    attente: ["Bienvenue ! ✨", "Installez-vous.", "La soirée va être belle !", "Prêts pour le show !", "Coucou la technique ! 👷"],
     vote_off: ["Les votes sont CLOS ! 🛑", "Le podium arrive... 🏆", "Suspens... 😬"],
     photos: ["Photos ! 📸", "Souriez !", "Vous êtes beaux !", "Selfie time ! 🤳"],
     danse: ["Dancefloor ! 💃", "Je sens le rythme ! 🎵", "Allez DJ ! 🔊"],
@@ -14,12 +14,13 @@ const MESSAGES_BAG = {
     cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie ! ⚡"]
 };
 
+// --- INIT SÉCURISÉE ---
 if (container) {
     while(container.firstChild) container.removeChild(container.firstChild);
     try {
         initRobot(container);
     } catch (e) {
-        console.error("CRASH:", e);
+        console.error("ERREUR CRITIQUE:", e);
     }
 }
 
@@ -34,6 +35,27 @@ function getUniqueMessage(category) {
 }
 const usedMessages = {};
 
+// --- FONCTION: GESTIONNAIRE DE TEXTURE VOLUMÉTRIQUE ---
+// Crée un dégradé du blanc (opaque) au noir (transparent) pour le faisceau
+function createVolumetricTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 32; canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    // Dégradé vertical along the beam
+    const gradient = ctx.createLinearGradient(0, 0, 0, 128);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');   // Source intense
+    gradient.addColorStop(0.1, 'rgba(255, 255, 255, 0.6)'); // Diminue rapidement
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)'); // Reste une traînée
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.0)');   // Disparition totale
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 32, 128);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
+    return texture;
+}
+const volumetricTexture = createVolumetricTexture();
+
+
 function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -44,32 +66,33 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA (Z=18)
+    // Caméra
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 150);
-    camera.position.set(0, 0, 18); 
+    camera.position.set(0, 2, 16); // Légèrement surélevée
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; // Meilleur rendu des lumières
+    renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
 
-    // LUMIÈRES
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
+    // Lumières d'ambiance (subtiles pour laisser la place au spot)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); 
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight.position.set(0, 10, 10);
-    scene.add(dirLight);
-    const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
-    explosionLight.position.set(0, 0, 5);
-    scene.add(explosionLight);
+    
+    // Petite lumière de contre pour détacher le robot du fond
+    const rimLight = new THREE.DirectionalLight(0xaaaaaa, 2.0);
+    rimLight.position.set(0, 5, -10);
+    scene.add(rimLight);
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.1 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    const greyMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+    const greyMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.6 });
     
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat);
     head.scale.set(1.4, 1.0, 0.75);
@@ -100,90 +123,100 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- TOTEMS DJ ---
-    const standMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.5 });
+    // ==================================================================================
+    // --- LE SPOT UNIQUE ET RÉALISTE ---
+    // ==================================================================================
     
-    function createTotem(xPos) {
-        const group = new THREE.Group();
-        group.position.set(xPos, -9, -2);
-        const col = new THREE.Mesh(new THREE.BoxGeometry(0.8, 20, 0.8), standMat);
-        col.position.y = 10; group.add(col);
-        const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.2, 1.5), standMat);
-        base.position.y = 0.1; group.add(base);
-        scene.add(group);
-        return group;
-    }
-    const leftTotem = createTotem(-16);
-    const rightTotem = createTotem(16);
+    const SPOT_COLOR = 0x0088ff; // Un bleu électrique réaliste
 
-    // --- SPOTS & FAISCEAUX SIMPLE (Cône) ---
-    const stageSpots = [];
-    const housingMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.5, roughness: 0.5, emissive: 0x222222 });
-    const barnMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide });
-    const centerTarget = new THREE.Vector3(0,0,0);
+    // Matériaux du spot
+    const housingDarkMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.3 });
+    const housingGreyMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.6, roughness: 0.4 });
+    // Matériau de la lentille : Basic pour qu'elle brille toujours
+    const lensMat = new THREE.MeshBasicMaterial({ color: SPOT_COLOR }); 
 
-    function createSpot(parent, yLocal, colorInt, isBottom) {
-        const spotGroup = new THREE.Group();
-        spotGroup.position.set(0, yLocal, 0.5); 
-        spotGroup.scale.set(0.6, 0.6, 0.6);
+    // Conteneur principal du spot (permet de le positionner et l'orienter facilement)
+    const mainSpotGroup = new THREE.Group();
+    // Positionnement : En haut à gauche, en avant
+    mainSpotGroup.position.set(-8, 10, 8); 
+    scene.add(mainSpotGroup);
 
-        const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 16, Math.PI), housingMat);
-        bracket.rotation.z = isBottom ? 0 : Math.PI; 
-        bracket.rotation.y = Math.PI / 2; spotGroup.add(bracket);
-        
-        const bodyGroup = new THREE.Group(); spotGroup.add(bodyGroup);
-        const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), housingMat);
-        box.position.z = -0.3; bodyGroup.add(box);
-        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32), housingMat);
-        cyl.rotation.x = Math.PI/2; cyl.position.z = 0.2; bodyGroup.add(cyl);
-        const lens = new THREE.Mesh(new THREE.CircleGeometry(0.35, 32), new THREE.MeshBasicMaterial({ color: colorInt }));
-        lens.position.set(0, 0, 0.51); bodyGroup.add(lens);
-        
-        const topDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), barnMat); topDoor.position.set(0, 0.45, 0.5); topDoor.rotation.x = -Math.PI/4; bodyGroup.add(topDoor);
-        const botDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), barnMat); botDoor.position.set(0, -0.45, 0.5); botDoor.rotation.x = Math.PI/4; bodyGroup.add(botDoor);
+    // 1. Le Corps du Projecteur (Modèle 3D détaillé)
+    const fixtureBody = new THREE.Group();
+    mainSpotGroup.add(fixtureBody);
 
-        // FAISCEAU SIMPLE (Cône géométrique)
-        const beamLen = 40;
-        // ConeGeometry(radius, height, segments, heightSegments, openEnded)
-        const beamGeo = new THREE.ConeGeometry(0.5, beamLen, 32, 1, true);
-        beamGeo.translate(0, -beamLen/2, 0); 
-        beamGeo.rotateX(-Math.PI / 2); // Pointe vers Z-
-        
-        const beamMat = new THREE.MeshBasicMaterial({ 
-            color: colorInt, 
-            transparent: true, 
-            opacity: 0.3, 
-            side: THREE.DoubleSide, 
-            depthWrite: false,
-            blending: THREE.AdditiveBlending 
-        });
-        const beam = new THREE.Mesh(beamGeo, beamMat);
-        beam.position.z = 0.55; 
-        beam.rotation.y = Math.PI; // Retourne le cone pour qu'il pointe vers Z+ (avant)
-        bodyGroup.add(beam);
+    // Lyre de support (U-bracket)
+    const yoke = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.1, 16, 32, Math.PI), housingGreyMat);
+    yoke.rotation.y = Math.PI / 2; 
+    fixtureBody.add(yoke);
 
-        const light = new THREE.SpotLight(colorInt, 10);
-        light.angle = 0.4; light.distance = 60; light.decay = 1.5;
-        light.position.set(0, 0, 0.5);
-        bodyGroup.add(light);
-        
-        const targetObj = new THREE.Object3D();
-        scene.add(targetObj); targetObj.position.copy(centerTarget);
-        light.target = targetObj;
+    // Boîtier principal (Cylindre allongé avec détails)
+    const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 1.5, 32), housingDarkMat);
+    housing.rotation.x = Math.PI / 2; // Orienté vers Z
+    fixtureBody.add(housing);
 
-        parent.add(spotGroup);
-        const worldTarget = new THREE.Vector3(0,0,0);
-        parent.worldToLocal(worldTarget); 
-        bodyGroup.lookAt(worldTarget);
+    // Arrière du boîtier (Ventilation)
+    const backCap = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.6, 0.2, 32), housingGreyMat);
+    backCap.rotation.x = Math.PI / 2; backCap.position.z = -0.85;
+    fixtureBody.add(backCap);
 
-        return { body: spotGroup, beam, light, baseIntensity: 10, timeOff: Math.random() * 100 };
-    }
+    // La Lentille (Brillante)
+    const lensGeo = new THREE.CircleGeometry(0.55, 32);
+    const lensMesh = new THREE.Mesh(lensGeo, lensMat);
+    lensMesh.position.z = 0.76; // Juste au bout du boîtier
+    fixtureBody.add(lensMesh);
 
-    // --- PLACEMENT ---
-    stageSpots.push(createSpot(leftTotem, 15, 0xFFFF00, false));
-    stageSpots.push(createSpot(leftTotem, 5, 0x00FFFF, true));
-    stageSpots.push(createSpot(rightTotem, 15, 0x00FF00, false));
-    stageSpots.push(createSpot(rightTotem, 5, 0xFFA500, true));
+    // Volets coupe-flux (Barndoors) pour le réalisme
+    const barnDoorGeo = new THREE.PlaneGeometry(1.2, 0.5);
+    const barnDoorMat = new THREE.MeshStandardMaterial({ color: 0x111111, side: THREE.DoubleSide });
+    const topBarn = new THREE.Mesh(barnDoorGeo, barnDoorMat);
+    topBarn.position.set(0, 0.8, 0.9); topBarn.rotation.x = Math.PI/3; fixtureBody.add(topBarn);
+    const botBarn = new THREE.Mesh(barnDoorGeo, barnDoorMat);
+    botBarn.position.set(0, -0.8, 0.9); botBarn.rotation.x = -Math.PI/3; fixtureBody.add(botBarn);
+
+    // 2. Le Faisceau Volumétrique (The Realistic Beam)
+    const beamLength = 60;
+    // Cône tronqué : démarre à la taille de la lentille (0.55) et s'élargit (3.0)
+    const beamGeo = new THREE.CylinderGeometry(0.55, 3.0, beamLength, 64, 1, true);
+    // Décale le pivot au sommet pour que la rotation et la texture partent du bon endroit
+    beamGeo.translate(0, -beamLength / 2, 0); 
+    beamGeo.rotateX(-Math.PI / 2); // Pointe vers Z+
+
+    const beamMat = new THREE.MeshBasicMaterial({
+        color: SPOT_COLOR,
+        transparent: true,
+        opacity: 0.6, // Intensité globale
+        alphaMap: volumetricTexture, // Le dégradé magique
+        blending: THREE.AdditiveBlending, // Lumière qui s'additionne
+        depthWrite: false, // Empêche les bugs d'occlusion
+        side: THREE.DoubleSide
+    });
+    const volumetricBeam = new THREE.Mesh(beamGeo, beamMat);
+    volumetricBeam.position.z = 0.8; // Départ juste devant la lentille
+    // Inverse Z pour que la texture dégradée soit dans le bon sens (opaque -> transparent)
+    volumetricBeam.scale.z = -1; 
+    fixtureBody.add(volumetricBeam);
+
+    // 3. La Lumière Réelle (Pour éclairer le robot)
+    const actualLight = new THREE.SpotLight(SPOT_COLOR, 50); // Haute intensité
+    actualLight.angle = 0.4; // Angle correspondant à peu près au faisceau
+    actualLight.penumbra = 0.5; // Bords doux
+    actualLight.decay = 1.5; // Atténuation réaliste
+    actualLight.distance = 100;
+    actualLight.position.set(0, 0, 0.8); // Source à la lentille
+    
+    const lightTarget = new THREE.Object3D();
+    scene.add(lightTarget); lightTarget.position.set(0, 0, 0); // Cible le centre
+    actualLight.target = lightTarget;
+    fixtureBody.add(actualLight);
+
+    // ORIENTATION FINALE
+    // Le groupe fixtureBody contient tout (corps, lentille, faisceau, lumière) orienté vers Z+.
+    // On lui dit de regarder la cible (le centre).
+    fixtureBody.lookAt(lightTarget.position);
+
+    // ==================================================================================
+
 
     // --- ANIMATION ---
     let time = 0;
@@ -196,11 +229,10 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015;
 
-        stageSpots.forEach(s => {
-            const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8;
-            s.beam.material.opacity = 0.3 * pulse;
-            s.light.intensity = s.baseIntensity * pulse;
-        });
+        // Animation subtile du spot unique (respiration)
+        const pulse = Math.sin(time * 2) * 0.1 + 0.9;
+        volumetricBeam.material.opacity = 0.6 * pulse;
+        actualLight.intensity = 50 * pulse;
 
         if (robotState === 'intro') {
             const script = [{t:0, a:"hide"}, {t:1, a:"enter"}, {t:4, a:"look"}, {t:7, a:"surprise"}, {t:10, a:"wave"}];
