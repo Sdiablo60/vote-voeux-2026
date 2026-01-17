@@ -1,8 +1,21 @@
 import * as THREE from 'three';
 
+// --- INITIALISATION SÉCURISÉE ---
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
+
+// Si le conteneur n'existe pas, on arrête tout pour éviter les crashs
+if (!container) {
+    console.error("Erreur critique : Le conteneur #robot-container est introuvable.");
+} else {
+    try {
+        initRobot(container);
+    } catch (e) {
+        console.error("Erreur lors de l'initialisation 3D :", e);
+        container.innerHTML = "<div style='color:red; text-align:center; padding-top:20px;'>Erreur graphique 3D. Vérifiez la console (F12).</div>";
+    }
+}
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
@@ -33,49 +46,53 @@ const introScript = [
     { time: 10.0, text: "Bienvenue ! ✨", action: "wave" }
 ];
 
-// Lancement sécurisé
-if (container) { 
-    try {
-        initRobot(container); 
-    } catch(e) {
-        console.error("Erreur Robot:", e);
-    }
-}
-
 function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
     
-    container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
-    container.style.width = '100%'; container.style.height = '100%';
-    container.style.zIndex = '10'; container.style.pointerEvents = 'none';
+    // Force le style pour être sûr qu'il prend tout l'écran
+    container.style.position = 'fixed'; 
+    container.style.top = '0'; 
+    container.style.left = '0';
+    container.style.width = '100%'; 
+    container.style.height = '100%';
+    container.style.zIndex = '1'; // Juste au dessus du fond noir
+    container.style.pointerEvents = 'none';
     
     const scene = new THREE.Scene();
+    // Pas de fond défini ici, on laisse le CSS "background: black" de App.py gérer le fond
     
-    // Caméra positionnée pour bien voir
+    // CAMÉRA : Position reculée (Z=16) pour garantir que tout est dans le champ
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 12); 
+    camera.position.set(0, 0, 16); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // LUMIERE AMBIANTE FORTE
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
+    // --- LUMIÈRES ---
+    // Lumière ambiante très forte pour garantir la visibilité des objets gris
+    const ambientLight = new THREE.AmbientLight(0xffffff, 3.5); 
     scene.add(ambientLight);
     
+    // Lumière ponctuelle pour donner du relief
+    const frontLight = new THREE.PointLight(0xffffff, 1, 100);
+    frontLight.position.set(0, 0, 10);
+    scene.add(frontLight);
+
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
     scene.add(explosionLight);
 
-    // --- ROBOT ---
+    // --- ROBOT (Clap-E) ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
-    const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
-    const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    const greyMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
+    // Matériaux simples et efficaces
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
+    const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
+    const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Yeux brillants
+    const greyMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
     
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat);
     head.scale.set(1.4, 1.0, 0.75);
@@ -106,21 +123,24 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- CONSTRUCTION DES SPOTS ---
+    // --- CONSTRUCTION DES SPOTS (LUMINOSITÉ AMÉLIORÉE) ---
     const stageSpots = [];
     
-    // Matériau VISIBLE (Gris clair + émissif)
+    // Matériau du boîtier : Gris clair + Emissive (brille un peu tout seul pour être vu)
     const housingMat = new THREE.MeshStandardMaterial({ 
-        color: 0xCCCCCC, 
+        color: 0xDDDDDD, 
         roughness: 0.4, 
         metalness: 0.5,
-        emissive: 0x222222 // Légère lueur pour ne pas être noir total
+        emissive: 0x333333, // Astuce : émet sa propre lumière grise pour ne jamais être noir
+        emissiveIntensity: 0.5
     });
-    const barnMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide });
+    
+    const barnMat = new THREE.MeshStandardMaterial({ color: 0x444444, side: THREE.DoubleSide });
 
     function createStageLight(x, y, colorInt, isBottom) {
         const group = new THREE.Group();
-        group.position.set(x, y, 1); 
+        // Z=0 pour être sur le même plan que le robot (ou légèrement derrière selon besoin)
+        group.position.set(x, y, 0); 
 
         // 1. Support
         const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 16, Math.PI), housingMat);
@@ -140,9 +160,9 @@ function initRobot(container) {
         cyl.position.z = -0.2;
         bodyGroup.add(cyl);
 
-        // 3. Lentille
+        // 3. Lentille (VIVE et Brillante)
         const lensGeo = new THREE.CircleGeometry(0.35, 32);
-        const lensMat = new THREE.MeshBasicMaterial({ color: colorInt }); // Couleur vive
+        const lensMat = new THREE.MeshBasicMaterial({ color: colorInt }); // Basic ne dépend pas de la lumière -> Toujours visible
         const lens = new THREE.Mesh(lensGeo, lensMat);
         lens.position.set(0, 0, -0.51);
         bodyGroup.add(lens);
@@ -157,21 +177,21 @@ function initRobot(container) {
         botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4;
         bodyGroup.add(botDoor);
 
-        // 5. DOUBLE FAISCEAU
-        // A. Coeur (Fin, Opaque)
-        const coreGeo = new THREE.ConeGeometry(0.2, 20, 32, 1, true);
-        coreGeo.translate(0, -10, 0); coreGeo.rotateX(-Math.PI / 2);
+        // 5. FAISCEAU VOLUMÉTRIQUE (Double couche pour effet "Laser")
+        // Couche interne (dense)
+        const coreGeo = new THREE.ConeGeometry(0.15, 25, 32, 1, true);
+        coreGeo.translate(0, -12.5, 0); coreGeo.rotateX(-Math.PI / 2);
         const coreMat = new THREE.MeshBasicMaterial({ 
-            color: colorInt, transparent: true, opacity: 0.5, 
+            color: colorInt, transparent: true, opacity: 0.6, 
             side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
         });
         const beamCore = new THREE.Mesh(coreGeo, coreMat);
         beamCore.position.z = -0.6;
         bodyGroup.add(beamCore);
 
-        // B. Halo (Large, Diffus)
-        const glowGeo = new THREE.ConeGeometry(0.6, 20, 32, 1, true);
-        glowGeo.translate(0, -10, 0); glowGeo.rotateX(-Math.PI / 2);
+        // Couche externe (halo)
+        const glowGeo = new THREE.ConeGeometry(0.5, 25, 32, 1, true);
+        glowGeo.translate(0, -12.5, 0); glowGeo.rotateX(-Math.PI / 2);
         const glowMat = new THREE.MeshBasicMaterial({ 
             color: colorInt, transparent: true, opacity: 0.15, 
             side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
@@ -180,40 +200,41 @@ function initRobot(container) {
         beamGlow.position.z = -0.6;
         bodyGroup.add(beamGlow);
 
-        // 6. Lumière réelle
-        const light = new THREE.SpotLight(colorInt, 10);
+        // 6. Lumière réelle (SpotLight)
+        const light = new THREE.SpotLight(colorInt, 20); // Intensité augmentée
         light.angle = 0.3;
         light.penumbra = 0.2;
-        light.distance = 50;
+        light.distance = 60;
         bodyGroup.add(light); bodyGroup.add(light.target);
 
         scene.add(group);
 
-        // Orientation
+        // Orientation vers le centre (0,0,0)
         bodyGroup.lookAt(0, 0, 0);
         light.target.position.set(0,0,0);
 
         return { 
             group, beamCore, beamGlow, light, 
-            baseIntensity: 10,
+            baseIntensity: 20,
             timeOff: Math.random() * 100
         };
     }
 
-    // --- POSITIONS (Resserrées) ---
+    // --- POSITIONS HAUT/BAS (Ajustées pour ne pas être hors champ) ---
+    // Y=4.5 (Haut) et Y=-4.5 (Bas) -> Idéal pour une caméra en Z=16
     const colors = [0xFFFF00, 0x00FFFF, 0x00FF00, 0xFFA500, 0xFF00FF, 0x0088FF];
     
-    // HAUT (Y=4.0)
-    stageSpots.push(createStageLight(-7, 4.0, colors[0], false));
-    stageSpots.push(createStageLight(-2.5, 4.0, colors[1], false));
-    stageSpots.push(createStageLight(2.5, 4.0, colors[2], false));
-    stageSpots.push(createStageLight(7, 4.0, colors[3], false));
+    // HAUT
+    stageSpots.push(createStageLight(-8, 4.5, colors[0], false));
+    stageSpots.push(createStageLight(-3, 4.5, colors[1], false));
+    stageSpots.push(createStageLight(3, 4.5, colors[2], false));
+    stageSpots.push(createStageLight(8, 4.5, colors[3], false));
 
-    // BAS (Y=-4.0)
-    stageSpots.push(createStageLight(-7, -4.0, colors[2], true));
-    stageSpots.push(createStageLight(-2.5, -4.0, colors[4], true));
-    stageSpots.push(createStageLight(2.5, -4.0, colors[3], true));
-    stageSpots.push(createStageLight(7, -4.0, colors[5], true));
+    // BAS
+    stageSpots.push(createStageLight(-8, -4.5, colors[2], true));
+    stageSpots.push(createStageLight(-3, -4.5, colors[4], true));
+    stageSpots.push(createStageLight(3, -4.5, colors[3], true));
+    stageSpots.push(createStageLight(8, -4.5, colors[5], true));
 
     // --- ANIMATION ---
     let time = 0;
@@ -225,15 +246,15 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015;
 
-        // Animation Spots
+        // Animation Spots (Pulsation)
         stageSpots.forEach(s => {
-            const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8;
-            if(s.beamCore) s.beamCore.material.opacity = 0.5 * pulse;
+            const pulse = Math.sin(time * 2 + s.timeOff) * 0.2 + 0.8;
+            if(s.beamCore) s.beamCore.material.opacity = 0.6 * pulse;
             if(s.beamGlow) s.beamGlow.material.opacity = 0.15 * pulse;
             if(s.light) s.light.intensity = s.baseIntensity * pulse;
         });
 
-        // Logique Robot
+        // Robot
         if (robotState === 'intro') {
             if (introIndex < introScript.length) {
                 const step = introScript[introIndex];
