@@ -4,28 +4,47 @@ const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
-// --- PARAMÈTRES DE BORDURE ---
+// --- PARAMÈTRES ---
 const LIMITE_HAUTE_Y = 6.53; 
+const DUREE_LECTURE = 6000; // 6 secondes pour lire tranquillement
 
-// --- DICTIONNAIRE DE PHRASES PAR MUR ---
+// --- DICTIONNAIRE DE PHRASES ENRICHI ---
 const MESSAGES_BAG = {
     attente: [ // 🏠 ACCUEIL
-        "Bienvenue ! ✨", "Installez-vous.", "Ravi de vous voir !", 
-        "La soirée va être belle !", "Prêts pour le show ?", "Coucou la technique ! 👷"
+        "Bienvenue à tous ! ✨", 
+        "Ravi de vous voir pour le " + config.titre + " !",
+        "Est-ce que tout le monde est bien installé ? 🤔",
+        "Hé la régie ! Tout est prêt pour le décollage ? 🚀",
+        "Je parie que la soirée va être mémorable !",
+        "Dites, vous trouvez que j'ai pris du poids ? C'est ma mise à jour... 🤖",
+        "Prêts pour le show ? Tapez dans vos mains ! (Ah non, je n'entends rien...)",
+        "Coucou la technique ! Vous avez pensé à mon huile ? 👷",
+        "Regardez-moi dans les yeux... je suis magnifique, n'est-ce pas ?"
     ],
     vote_off: [ // 🔒 VOTES CLOS
-        "Les votes sont CLOS ! 🛑", "Les jeux sont faits.", 
-        "Le podium arrive... 🏆", "Suspens... 😬", "La régie gère ! ⚡"
+        "Les votes sont CLOS ! 🛑", 
+        "Suspens... Les chiffres remontent vers mon processeur... 🧮",
+        "La régie ! On attend les résultats, ne faites pas durer le plaisir ! ⏳",
+        "Qui va monter sur le podium selon vous ? 🤔",
+        "C'était serré, mon ventilateur s'est emballé pendant le calcul !",
+        "Le suspense est insoutenable... comme une batterie à 1% ! 😬"
     ],
     photos: [ // 📸 PHOTOS LIVE
-        "Ouistiti ! 📸", "Souriez !", "On partage vos sourires ! 📲", 
-        "Vous êtes beaux !", "Selfie time ! 🤳", "Clic-clac !"
+        "Ouistiti ! 📸 Souriez pour l'éternité !",
+        "Hé la régie, envoyez des photos ! On veut voir les sourires ! 📲",
+        "Vous êtes beaucoup plus photogéniques que mon code source ! ✨",
+        "Selfie time ! N'oubliez pas mon meilleur profil !",
+        "Regardez ce mur, c'est une véritable galerie d'art ! ✨",
+        "Clic-clac ! J'adore cette photo, qui est-ce ? 😍"
     ],
     explosion: [
-        "Surchauffe ! 🔥", "J'ai perdu la tête... 🤯", "Rassemblement... 🧲", "Oups..."
+        "Surchauffe système ! Trop d'émotions ! 🔥", 
+        "J'ai perdu la tête... littéralement ! 🤯", 
+        "Oups, j'ai dû rater un point-virgule dans mon code ! 💻"
     ],
     cache_cache: [
-        "Coucou ! 👋", "Me revoilà !", "Magie ! ⚡", "Je suis rapide ! 🚀"
+        "Coucou ! 👋 Je suis plus rapide que la fibre !", 
+        "Me revoilà ! Vous m'avez manqué pendant ces 0.5 secondes ! 🚀"
     ]
 };
 
@@ -40,14 +59,14 @@ function getUniqueMessage(category) {
     return msg;
 }
 
-// --- SCRIPT D'INTRODUCTION (UNIQUEMENT POUR L'ACCUEIL) ---
+// --- SCRIPT D'INTRODUCTION (Accueil uniquement) ---
 const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" }, 
     { time: 4.0, text: "C'est calme ici... 🤔", action: "look_around" }, 
-    { time: 7.0, text: "OH ! BONJOUR ! 😳", action: "surprise" }, 
+    { time: 7.0, text: "OH ! BONJOUR ! 😳 Vous êtes nombreux !", action: "surprise" }, 
     { time: 10.0, text: "Bienvenue au " + config.titre + " ! ✨", action: "wave" },
-    { time: 14.0, text: "Prêts pour la soirée ? 🎉", action: "ask" }
+    { time: 14.0, text: "Prêts pour une soirée de folie ? 🎉", action: "ask" }
 ];
 
 if (container) {
@@ -68,7 +87,7 @@ function initRobot(container) {
 
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- ROBOT CONSTRUCTION ---
+    // --- ROBOT ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
@@ -113,14 +132,13 @@ function initRobot(container) {
     }
     [-6, -2, 2, 6].forEach((x, i) => stageSpots.push(createSpot([0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], x, LIMITE_HAUTE_Y)));
 
-    // --- LOGIQUE ÉTATS ---
-    // Si on est sur Accueil -> Intro. Sinon -> On commence direct à bouger au centre.
+    // --- ANIMATION ---
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let time = 0, introIdx = 0, nextEvt = 0;
     let targetPos = (robotState === 'intro') ? new THREE.Vector3(-15, 0, 0) : new THREE.Vector3(0, 0, 0);
     robotGroup.position.copy(targetPos);
 
-    function showBubble(text, duration) { 
+    function showBubble(text, duration = DUREE_LECTURE) { 
         if(!bubble) return; 
         bubble.innerText = text; bubble.style.opacity = 1; 
         setTimeout(() => { if(bubble) bubble.style.opacity = 0; }, duration); 
@@ -130,16 +148,17 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015;
 
+        // Spots Update
         stageSpots.forEach(s => {
             if(time > s.nextToggle) { s.isOn = !s.isOn; s.nextToggle = time + Math.random()*3 + 1; }
-            s.beam.material.opacity += ((s.isOn ? 0.15 : 0) - s.beam.material.opacity) * 0.1;
+            s.beam.material.opacity += ((s.isOn ? 0.12 : 0) - s.beam.material.opacity) * 0.1;
             s.g.lookAt(robotGroup.position);
         });
 
         if (robotState === 'intro') {
             const step = introScript[introIdx];
             if (step && time >= step.time) {
-                if(step.text) showBubble(step.text, 3500);
+                if(step.text) showBubble(step.text);
                 if(step.action === "enter_stage") targetPos.set(4, 0, 0);
                 if(step.action === "surprise") { robotGroup.position.z = 4; robotGroup.position.y = 0.5; }
                 introIdx++;
@@ -147,30 +166,41 @@ function initRobot(container) {
             if(introIdx === introScript.length) { robotState = 'moving'; nextEvt = time + 5; }
             robotGroup.position.lerp(targetPos, 0.03);
         } 
-        else if (robotState === 'moving') {
+        else if (robotState === 'moving' || robotState === 'approaching') {
             robotGroup.position.lerp(targetPos, 0.02);
             robotGroup.rotation.y = Math.sin(time)*0.2;
+
             if(robotGroup.position.distanceTo(targetPos) < 0.5) {
-                targetPos.set((Math.random()-0.5)*12, (Math.random()-0.5)*5, 0);
-                if(targetPos.y > LIMITE_HAUTE_Y - 2) targetPos.y = LIMITE_HAUTE_Y - 3;
+                if (robotState === 'approaching') {
+                    // Après s'être approché, il recule un peu
+                    robotState = 'moving';
+                    targetPos.set((Math.random()-0.5)*10, (Math.random()-0.5)*5, 0);
+                } else {
+                    targetPos.set((Math.random()-0.5)*12, (Math.random()-0.5)*5, 0);
+                    if(targetPos.y > LIMITE_HAUTE_Y - 2) targetPos.y = LIMITE_HAUTE_Y - 3;
+                }
             }
 
             if(time > nextEvt) {
                 const r = Math.random();
-                if(r < 0.12) { 
-                    robotState = 'exploding'; showBubble(getUniqueMessage('explosion'), 3000);
+                if(r < 0.10) { // EXPLOSION
+                    robotState = 'exploding'; showBubble(getUniqueMessage('explosion'));
                     parts.forEach(p => {
                         p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4);
                         p.userData.rotVel.set(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1);
                     });
                     setTimeout(() => { robotState = 'reassembling'; }, 3000);
-                } else if(r < 0.25) { 
-                    robotGroup.visible = false; showBubble(getUniqueMessage('cache_cache'), 1500);
+                } else if(r < 0.20) { // CACHE-CACHE
+                    robotGroup.visible = false; showBubble(getUniqueMessage('cache_cache'));
                     setTimeout(() => { robotGroup.position.set((Math.random()-0.5)*10, (Math.random()-0.5)*5, 0); robotGroup.visible = true; robotState = 'moving'; }, 1000);
+                } else if(r < 0.40) { // RAPPROCHEMENT PUBLIC
+                    robotState = 'approaching';
+                    targetPos.set(0, 0, 5); // Il vient très près de la caméra
+                    showBubble(getUniqueMessage(config.mode));
                 } else {
-                    showBubble(getUniqueMessage(config.mode), 4000);
+                    showBubble(getUniqueMessage(config.mode));
                 }
-                nextEvt = time + 10;
+                nextEvt = time + 12; // Temps entre les interactions allongé
             }
         }
         else if (robotState === 'exploding') {
@@ -186,6 +216,7 @@ function initRobot(container) {
             if(finished) { robotState = 'moving'; nextEvt = time + 2; }
         }
 
+        // Bulle Position
         if(bubble && bubble.style.opacity == 1) {
             const p = robotGroup.position.clone(); if(robotState !== 'exploding') p.y += 1.2; p.project(camera);
             bubble.style.left = (p.x * 0.5 + 0.5) * window.innerWidth + 'px';
