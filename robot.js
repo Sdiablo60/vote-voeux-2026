@@ -43,12 +43,12 @@ function initRobot(container) {
     container.style.zIndex = '1'; container.style.pointerEvents = 'none';
     
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000000, 0.02); 
+    scene.fog = new THREE.FogExp2(0x000000, 0.015); // Brouillard léger
     
-    // CAMÉRA : Positionnée plus loin pour écraser la perspective
+    // CAMÉRA
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 300);
     camera.position.set(0, 3, 35); 
-    camera.lookAt(0, -5, 0); // Regarde vers le bas
+    camera.lookAt(0, -6, 0); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -56,30 +56,26 @@ function initRobot(container) {
     container.appendChild(renderer.domElement);
 
     // --- LUMIÈRES ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
     scene.add(ambientLight);
     
-    // Spot Robot
     const spotRobot = new THREE.SpotLight(0xffffff, 15);
     spotRobot.position.set(0, 15, 10);
-    spotRobot.angle = 0.3;
-    spotRobot.penumbra = 0.5;
+    spotRobot.angle = 0.4;
     scene.add(spotRobot);
 
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
     scene.add(explosionLight);
 
-    // --- LE SOL (POSITION BASSE) ---
-    // On descend le sol très bas pour que la ligne d'horizon descende
+    // --- LE SOL ---
     const floorY = -12;
-    
-    const grid = new THREE.GridHelper(150, 50, 0x444444, 0x111111);
+    const grid = new THREE.GridHelper(200, 50, 0x555555, 0x111111);
     grid.position.y = floorY;
     scene.add(grid);
     
     const floorPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(400, 400),
+        new THREE.PlaneGeometry(500, 500),
         new THREE.MeshBasicMaterial({ color: 0x020202 }) 
     );
     floorPlane.rotation.x = -Math.PI / 2;
@@ -88,8 +84,8 @@ function initRobot(container) {
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
-    robotGroup.scale.set(1.1, 1.1, 1.1); // Robot bien visible
-    robotGroup.position.y = floorY + 4.5; // Ajusté au nouveau sol
+    robotGroup.scale.set(1.1, 1.1, 1.1); 
+    robotGroup.position.y = floorY + 4.5;
     spotRobot.target = robotGroup;
 
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
@@ -127,78 +123,75 @@ function initRobot(container) {
     const parts = [head, body, leftArm, rightArm];
 
     // =========================================================
-    // --- SYSTÈME LASER CHAOTIQUE ---
+    // --- SYSTÈME LASER "FAT BEAM" ---
     // =========================================================
     
-    // Source positionnée plus bas pour éviter le titre
     const hubY = 10; 
     const laserHub = new THREE.Group();
     laserHub.position.set(0, hubY, 0);
     scene.add(laserHub);
 
-    // Cache source
-    const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 0.2, 1, 16), new THREE.MeshBasicMaterial({color: 0x050505}));
+    const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.5, 1, 32), new THREE.MeshBasicMaterial({color: 0x111111}));
     laserHub.add(hubMesh);
 
     const lasers = [];
-    // Couleurs plus variées
-    const colors = [0x00FF00, 0x00FFFF, 0x0000FF, 0xFF00FF, 0xFFFF00, 0xFF0000, 0xFFFFFF];
+    // Palette plus lumineuse
+    const colors = [0x00FF00, 0x00FFFF, 0x0055FF, 0xFF00FF, 0xFFFF00, 0xFF3300, 0xFFFFFF];
 
-    // 24 Lasers indépendants
+    // 24 Lasers
     for(let i=0; i<24; i++) { 
         const color = colors[Math.floor(Math.random()*colors.length)];
         
         // --- 1. LE FAISCEAU ---
-        // Cœur fin
-        const coreGeo = new THREE.CylinderGeometry(0.015, 0.015, 1, 6, 1, true); 
+        // Cœur (Fil blanc intense) - Épaissi x2
+        const coreGeo = new THREE.CylinderGeometry(0.04, 0.04, 1, 6, 1, true); 
         coreGeo.translate(0, 0.5, 0); coreGeo.rotateX(Math.PI / 2); 
         const coreMat = new THREE.MeshBasicMaterial({ 
-            color: 0xFFFFFF, transparent: true, opacity: 0, // Commence éteint
+            color: 0xFFFFFF, transparent: true, opacity: 0.8,
             blending: THREE.AdditiveBlending, depthWrite: false
         });
         const beamCore = new THREE.Mesh(coreGeo, coreMat);
         scene.add(beamCore);
 
-        // Halo Large
-        const glowGeo = new THREE.CylinderGeometry(0.04, 0.15, 1, 8, 1, true); 
+        // Halo (Couleur large) - Épaissi x3 pour bien voir
+        const glowGeo = new THREE.CylinderGeometry(0.15, 0.5, 1, 8, 1, true); 
         glowGeo.translate(0, 0.5, 0); glowGeo.rotateX(Math.PI / 2); 
         const glowMat = new THREE.MeshBasicMaterial({ 
-            color: color, transparent: true, opacity: 0, // Commence éteint
+            color: color, transparent: true, opacity: 0.2, // Base visible
             blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
         });
         const beamGlow = new THREE.Mesh(glowGeo, glowMat);
         scene.add(beamGlow);
 
-        // --- 2. L'IMPACT AU SOL (PLUS PETIT) ---
-        // Point brillant
-        const dotCoreGeo = new THREE.CircleGeometry(0.2, 16); // Tout petit
-        const dotCoreMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0, blending: THREE.AdditiveBlending });
+        // --- 2. L'IMPACT AU SOL ---
+        // Cœur
+        const dotCoreGeo = new THREE.CircleGeometry(0.6, 16); 
+        const dotCoreMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
         const dotCore = new THREE.Mesh(dotCoreGeo, dotCoreMat);
-        dotCore.rotation.x = -Math.PI / 2;
+        dotCore.rotation.x = -Math.PI / 2; dotCore.position.y = floorY + 0.06;
         scene.add(dotCore);
 
         // Halo Sol
-        const dotGlowGeo = new THREE.CircleGeometry(0.8, 32); // Réduit drastiquement (était 2.5)
+        const dotGlowGeo = new THREE.CircleGeometry(1.8, 32); 
         const dotGlowMat = new THREE.MeshBasicMaterial({ 
-            color: color, transparent: true, opacity: 0, 
+            color: color, transparent: true, opacity: 0.5, 
             blending: THREE.AdditiveBlending, depthWrite: false 
         });
         const dotGlow = new THREE.Mesh(dotGlowGeo, dotGlowMat);
         dotGlow.rotation.x = -Math.PI / 2;
         scene.add(dotGlow);
 
-        // Initialisation position aléatoire
-        const startX = (Math.random()-0.5) * 50;
-        const startZ = (Math.random()-0.5) * 30;
+        const startX = (Math.random()-0.5) * 60;
+        const startZ = (Math.random()-0.5) * 40;
 
         lasers.push({
             beamCore, beamGlow, dotCore, dotGlow,
             color: color,
             currentPos: new THREE.Vector3(startX, floorY + 0.05, startZ),
             targetPos: new THREE.Vector3(startX, floorY + 0.05, startZ),
-            speed: 0.05 + Math.random() * 0.1, // Vitesse de déplacement
-            isOn: Math.random() > 0.5, // État initial
-            timer: Math.random() * 100
+            speed: 0.03 + Math.random() * 0.05, 
+            strobeSpeed: 10 + Math.random() * 20, // Vitesse de clignotement unique
+            strobeOffset: Math.random() * 100
         });
     }
 
@@ -213,55 +206,51 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.01;
 
-        // --- LOGIQUE LASER CHAOS ---
+        // --- LOGIQUE LASER ---
         lasers.forEach((l) => {
-            // 1. GESTION DU STROBOSCOPE / CLIGNOTEMENT
-            // On change d'état (ON/OFF) aléatoirement
-            if(Math.random() > 0.96) {
-                l.isOn = !l.isOn;
-                // Parfois on change de cible quand on clignote
+            // 1. STROBOSCOPE "VIVANT"
+            // Une onde sinusoïdale rapide + du bruit
+            let flash = Math.sin(time * l.strobeSpeed + l.strobeOffset); 
+            // On redresse pour avoir des pics positifs (0 à 1)
+            flash = (flash + 1) / 2; 
+            // On accentue les pics pour faire "flash"
+            flash = Math.pow(flash, 3); 
+
+            // Intensité minimale (0.1) pour qu'ils ne disparaissent jamais totalement
+            // Intensité max (flash)
+            const visibility = 0.1 + flash * 0.9;
+
+            l.beamCore.material.opacity = visibility * 0.9;
+            l.beamGlow.material.opacity = visibility * 0.3; // Halo toujours un peu transparent
+            l.dotCore.material.opacity = visibility;
+            l.dotGlow.material.opacity = visibility * 0.5;
+
+            // 2. MOUVEMENT CHAOS
+            // Changement de cible aléatoire
+            if (l.currentPos.distanceTo(l.targetPos) < 1) {
                 l.targetPos.set(
-                    (Math.random()-0.5) * 60, // Largeur aléatoire
+                    (Math.random()-0.5) * 80, 
                     floorY + 0.05,
-                    (Math.random()-0.5) * 40 // Profondeur aléatoire
+                    (Math.random()-0.5) * 50
                 );
             }
-
-            // Gestion de l'opacité (Transition douce ou flash)
-            const targetOpacity = l.isOn ? 1 : 0;
-            const currentOpacity = l.beamGlow.material.opacity;
-            // Lerp pour l'opacité
-            const newOpacity = currentOpacity + (targetOpacity - currentOpacity) * 0.1;
-
-            l.beamCore.material.opacity = newOpacity * 0.9;
-            l.beamGlow.material.opacity = newOpacity * 0.25; // Halo transparent
-            l.dotCore.material.opacity = newOpacity * 0.9;
-            l.dotGlow.material.opacity = newOpacity * 0.5;
-
-            // 2. MOUVEMENT (Interpolation vers la cible aléatoire)
             l.currentPos.lerp(l.targetPos, l.speed);
 
-            // Mise à jour positions objets
-            l.dotCore.position.copy(l.currentPos);
-            l.dotCore.position.y += 0.01; // Anti z-fighting
-            l.dotGlow.position.copy(l.currentPos);
+            // Mise à jour positions
+            l.dotCore.position.copy(l.currentPos); l.dotCore.position.y = floorY + 0.06;
+            l.dotGlow.position.copy(l.currentPos); l.dotGlow.position.y = floorY + 0.05;
             
-            // Orientation Faisceaux
+            // Orientation
             const source = new THREE.Vector3(0, hubY, 0);
-            
-            l.beamCore.position.copy(source);
-            l.beamCore.lookAt(l.dotCore.position);
-            
-            l.beamGlow.position.copy(source);
-            l.beamGlow.lookAt(l.dotGlow.position);
+            l.beamCore.position.copy(source); l.beamCore.lookAt(l.dotCore.position);
+            l.beamGlow.position.copy(source); l.beamGlow.lookAt(l.dotGlow.position);
             
             // Étirement
             const dist = source.distanceTo(l.dotCore.position);
-            l.beamCore.scale.z = dist;
-            l.beamGlow.scale.z = dist;
+            l.beamCore.scale.z = dist; l.beamGlow.scale.z = dist;
         });
 
-        // ROBOT (Suivi et Animation)
+        // ROBOT
         if (robotState === 'intro') {
             const script = [{t:0, a:"hide"}, {t:1, a:"enter"}, {t:4, a:"look"}, {t:7, a:"surprise"}, {t:10, a:"wave"}];
             if (introIndex < script.length) {
