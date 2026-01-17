@@ -163,19 +163,19 @@ function initRobot(container) {
         return { group, beam, light, baseIntensity: 10, timeOff: Math.random() * 100 };
     }
 
-    // --- NOUVELLE DISPOSITION : 4 SPOTS (2 Gauche, 2 Droite) ---
-    // Positions X: -9 (Bord Gauche), 9 (Bord Droit)
-    // Positions Y: 6.5 (Haut), -6.5 (Bas)
+    // --- NOUVELLE DISPOSITION : 4 SPOTS SUR LES BORDS ---
+    // On augmente X pour les pousser sur les côtés (±13)
+    // On réduit Y pour les recentrer verticalement et éviter les bandes (±3)
     
     // GAUCHE HAUT (Jaune)
-    stageSpots.push(createSpot(-9, 6.5, 0xFFFF00, false));
-    // DROITE HAUT (Vert)
-    stageSpots.push(createSpot(9, 6.5, 0x00FF00, false));
-    
+    stageSpots.push(createSpot(-13, 3, 0xFFFF00, false));
     // GAUCHE BAS (Cyan)
-    stageSpots.push(createSpot(-9, -6.5, 0x00FFFF, true));
+    stageSpots.push(createSpot(-13, -3, 0x00FFFF, true));
+    
+    // DROITE HAUT (Vert)
+    stageSpots.push(createSpot(13, 3, 0x00FF00, false));
     // DROITE BAS (Orange)
-    stageSpots.push(createSpot(9, -6.5, 0xFFA500, true));
+    stageSpots.push(createSpot(13, -3, 0xFFA500, true));
 
     // --- ANIMATION ---
     let time = 0;
