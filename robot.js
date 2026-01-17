@@ -57,12 +57,15 @@ function initRobot(container) {
     container.appendChild(renderer.domElement);
 
     // --- LUMIÈRES ---
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
     scene.add(ambientLight);
     
-    const spotTop = new THREE.SpotLight(0xffffff, 5);
-    spotTop.position.set(0, 15, 5);
-    scene.add(spotTop);
+    // Spot puissant dédié au robot pour qu'il reste visible
+    const spotRobot = new THREE.SpotLight(0xffffff, 12);
+    spotRobot.position.set(0, 15, 8);
+    spotRobot.angle = 0.4;
+    spotRobot.penumbra = 0.5;
+    scene.add(spotRobot);
 
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
@@ -86,6 +89,7 @@ function initRobot(container) {
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(1.0, 1.0, 1.0); 
     robotGroup.position.y = floorY + 4; 
+    spotRobot.target = robotGroup; // Le spot suit le robot
 
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
@@ -122,10 +126,11 @@ function initRobot(container) {
     const parts = [head, body, leftArm, rightArm];
 
     // =========================================================
-    // --- SYSTÈME LASER "DOUBLE COUCHE" (Core + Glow) ---
+    // --- SYSTÈME LASER STROBOSCOPIQUE ---
     // =========================================================
     
-    const hubY = 16; 
+    // CORRECTION 1 : Source abaissée pour ne pas être cachée par le titre
+    const hubY = 11; 
     const laserHub = new THREE.Group();
     laserHub.position.set(0, hubY, 0);
     scene.add(laserHub);
@@ -142,69 +147,59 @@ function initRobot(container) {
         
         // --- 1. LE FAISCEAU ---
         
-        // A. Cœur Blanc (Fin et intense)
+        // A. Cœur Blanc
         const coreGeo = new THREE.CylinderGeometry(0.02, 0.02, 1, 8, 1, true); 
-        coreGeo.translate(0, 0.5, 0); 
-        coreGeo.rotateX(Math.PI / 2); 
+        coreGeo.translate(0, 0.5, 0); coreGeo.rotateX(Math.PI / 2); 
         const coreMat = new THREE.MeshBasicMaterial({ 
-            color: 0xFFFFFF, // Blanc pur
-            transparent: true, opacity: 0.9, 
+            color: 0xFFFFFF, transparent: true, opacity: 0.8, // Opacité de base
             blending: THREE.AdditiveBlending, depthWrite: false
         });
         const beamCore = new THREE.Mesh(coreGeo, coreMat);
         scene.add(beamCore);
 
-        // B. Halo Coloré (Large et transparent)
+        // B. Halo Coloré (CORRECTION 2 : Plus transparent pour voir le robot)
         const glowGeo = new THREE.CylinderGeometry(0.08, 0.25, 1, 8, 1, true); 
-        glowGeo.translate(0, 0.5, 0); 
-        glowGeo.rotateX(Math.PI / 2); 
+        glowGeo.translate(0, 0.5, 0); glowGeo.rotateX(Math.PI / 2); 
         const glowMat = new THREE.MeshBasicMaterial({ 
-            color: color, // Couleur du laser
-            transparent: true, opacity: 0.3, 
+            color: color, transparent: true, 
+            opacity: 0.15, // Beaucoup plus transparent par défaut
             blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
         });
         const beamGlow = new THREE.Mesh(glowGeo, glowMat);
         scene.add(beamGlow);
 
-
         // --- 2. L'IMPACT AU SOL ---
-
-        // A. Point Chaud (Petit disque blanc)
+        // A. Point Chaud
         const dotCoreGeo = new THREE.CircleGeometry(0.4, 16);
-        const dotCoreMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.9 });
+        const dotCoreMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
         const dotCore = new THREE.Mesh(dotCoreGeo, dotCoreMat);
-        dotCore.rotation.x = -Math.PI / 2;
-        dotCore.position.y = floorY + 0.06; // Au dessus du halo
+        dotCore.rotation.x = -Math.PI / 2; dotCore.position.y = floorY + 0.06;
         scene.add(dotCore);
 
-        // B. Halo Sol (Grand disque coloré flou)
-        // Astuce : on utilise un disque avec peu de segments pour un effet "digital" ou beaucoup pour un cercle
+        // B. Halo Sol
         const dotGlowGeo = new THREE.CircleGeometry(2.5, 32);
         const dotGlowMat = new THREE.MeshBasicMaterial({ 
-            color: color, 
-            transparent: true, opacity: 0.4, 
+            color: color, transparent: true, opacity: 0.4, 
             blending: THREE.AdditiveBlending, depthWrite: false 
         });
         const dotGlow = new THREE.Mesh(dotGlowGeo, dotGlowMat);
-        dotGlow.rotation.x = -Math.PI / 2;
-        dotGlow.position.y = floorY + 0.05; 
+        dotGlow.rotation.x = -Math.PI / 2; dotGlow.position.y = floorY + 0.05; 
         scene.add(dotGlow);
 
         lasers.push({
-            beamCore: beamCore,
-            beamGlow: beamGlow,
-            dotCore: dotCore,
-            dotGlow: dotGlow,
+            beamCore, beamGlow, dotCore, dotGlow,
             angleBase: (Math.PI * 2 / 24) * i,
             radiusMax: 10 + Math.random() * 20,
             speed: 0.2 + Math.random() * 0.3,
-            offset: Math.random() * 10
+            offset: Math.random() * 10,
+            // Facteur aléatoire pour le stroboscope
+            strobeOffset: Math.random() * Math.PI * 2
         });
     }
 
     // --- ANIMATION ---
     let time = 0;
-    let targetPos = new THREE.Vector3(4, floorY + 3.5, 0);
+    let targetPos = new THREE.Vector3(4, floorY + 4, 0);
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let nextEvent = 0;
     let introIndex = 0;
@@ -213,39 +208,50 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.01;
 
-        // ANIMATION LASERS
+        // ANIMATION LASERS STROBOSCOPIQUES
         lasers.forEach((l, idx) => {
+            // Mouvement
             const r = l.radiusMax + Math.sin(time * l.speed + l.offset) * 8;
             const a = l.angleBase + time * 0.15; 
-
             const x = Math.cos(a) * r;
             const z = Math.sin(a) * r * 0.6; 
 
-            // 1. Déplacer les impacts
+            // --- CORRECTION 3 & 4 : STROBOSCOPE ET TAILLE FIXE ---
+            // On calcule un facteur "flash" qui change brutalement
+            // Utilisation de Math.pow pour rendre le clignotement plus sec
+            let flash = Math.sin(time * 15 + l.strobeOffset) * 0.5 + 0.5;
+            flash = Math.pow(flash, 5); // Rend le flash très court et intense
+            
+            // Ajout d'un chaos aléatoire pour que ça ne soit pas trop régulier
+            if(Math.random() > 0.92) flash = 0.0; // Parfois éteint
+            if(Math.random() > 0.98) flash = 1.0; // Parfois Flash Max
+
+            // Application du flash sur l'OPACITÉ (pas la taille)
+            // Le halo du faisceau varie de quasi invisible (0.05) à visible (0.3)
+            l.beamGlow.material.opacity = 0.05 + flash * 0.25;
+            // Le coeur varie aussi
+            l.beamCore.material.opacity = 0.2 + flash * 0.8;
+
+            // Impacts au sol : On ne change PRESQUE PAS la taille (scale), juste l'opacité
             l.dotCore.position.set(x, floorY + 0.06, z);
             l.dotGlow.position.set(x, floorY + 0.05, z);
             
-            // Scintillement du point chaud
-            const flash = 0.8 + Math.sin(time * 10 + idx) * 0.2;
-            l.dotCore.scale.setScalar(flash * 0.5); // Le cœur reste petit
-            l.dotGlow.scale.setScalar(flash); // Le halo pulse
+            l.dotCore.material.opacity = 0.2 + flash * 0.8;
+            l.dotGlow.material.opacity = 0.1 + flash * 0.5;
             
-            // 2. Orienter les faisceaux
+            // Variation de taille très subtile pour le côté "vivant"
+            const subtleScale = 1.0 + flash * 0.1;
+            l.dotGlow.scale.setScalar(2.5 * subtleScale);
+            l.dotCore.scale.setScalar(0.4 * subtleScale);
+            
+            // Orientation et étirement
             const source = new THREE.Vector3(0, hubY, 0);
-            
-            l.beamCore.position.copy(source);
-            l.beamCore.lookAt(l.dotCore.position);
-            
-            l.beamGlow.position.copy(source);
-            l.beamGlow.lookAt(l.dotGlow.position);
-            
-            // 3. Étirer
+            l.beamCore.position.copy(source); l.beamCore.lookAt(l.dotCore.position);
+            l.beamGlow.position.copy(source); l.beamGlow.lookAt(l.dotGlow.position);
             const dist = source.distanceTo(l.dotCore.position);
-            l.beamCore.scale.z = dist; 
-            l.beamGlow.scale.z = dist;
+            l.beamCore.scale.z = dist; l.beamGlow.scale.z = dist;
         });
 
-        // Rotation du hub
         laserHub.rotation.y = time * -0.1;
 
         // ROBOT
