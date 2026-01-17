@@ -1007,23 +1007,46 @@ else:
     # On nettoie le titre pour le JS
     safe_title = cfg['titre_mur'].replace("'", "\\'")
     
+   # Préparation du logo pour le robot
+    logo_data = cfg.get("logo_b64", "")
+    
     # Injection des variables pour le JS
     js_config = f"""
     <script>
         window.robotConfig = {{
             mode: '{robot_mode}',
-            titre: '{safe_title}'
+            titre: '{safe_title}',
+            logo: '{logo_data}'
         }};
     </script>
     """
     
     # --- IMPORT MAP CORRIGÉE (Pour THREE.JS) ---
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
-
+    
     if mode == "attente":
-        logo_img_tag = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}#welcome-text {{ position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-family: Arial, sans-serif; z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; pointer-events: none; }}</style></head><body>{js_config}<div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div><div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
-        components.html(html_code, height=1000, scrolling=False)
+        logo_img_tag = f'<img src="data:image/png;base64,{logo_data}" style="width:300px; margin-bottom:10px;">' if logo_data else ""
+        html_code = f"""
+        <!DOCTYPE html><html><head><style>
+            body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
+            {css_content}
+            #welcome-text {{ 
+                position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); 
+                text-align: center; color: white; font-family: Arial, sans-serif; 
+                z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; 
+                pointer-events: none; 
+                transition: all 1s ease-in-out; /* Pour une transition fluide du texte */
+            }}
+        </style></head>
+        <body>
+            {js_config}
+            <div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div>
+            <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
+            <div id="robot-container" style="z-index: 10; pointer-events: none;"></div>
+            {import_map}
+            <script type="module">{js_content}</script>
+        </body></html>"""
+        components.html(html_code, height=1000, scrolling=False))
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
@@ -1141,5 +1164,6 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
 
 
