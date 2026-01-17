@@ -1,13 +1,20 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🔴 CORRECTION MANUELLE VERTICALE (FORCE BRUTE) 🔴
+// 🔴 RÉGLAGE ASCENSEUR (Y) 🔴
 // =========================================================
-// Mettez une valeur positive pour FORCER le trait à remonter.
-// Essayez 0.5 pour commencer.
-// Si c'est trop haut, baissez (0.3). Si trop bas, montez (0.8).
-const FORCE_MONTEE = 0.001; 
+// 0 = Milieu de l'écran.
+// 5.0 = Haut de l'écran (Visible).
+// 6.5 = Bordure extrême du haut.
+//
+// CONSIGNES :
+// 1. Lancez avec 5.0 -> Vous verrez la ligne.
+// 2. Si elle est trop basse : Augmentez (ex: 5.5, 6.0, 6.2...)
+// 3. Si elle est trop haute : Diminuez (ex: 4.5)
+const POSITION_Y_LIGNE = 5.0; 
 
+// Largeur (1.0 = normal)
+const FACTEUR_LARGEUR = 1.0; 
 // =========================================================
 
 if (document.readyState === 'loading') {
@@ -49,27 +56,27 @@ function initThreeJS(canvas) {
 
     // CADRE ROUGE
     const borderGeo = new THREE.BufferGeometry();
-    const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4 });
+    const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
     const borderLine = new THREE.LineLoop(borderGeo, borderMat);
     scene.add(borderLine);
 
     function updateBorder() {
+        // --- CALCUL DES LIMITES POUR LA LARGEUR ---
         const dist = camera.position.z;
         const vFOV = THREE.MathUtils.degToRad(camera.fov);
-        
         const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
         const visibleWidth = visibleHeight * camera.aspect;
-
-        const halfH = visibleHeight / 2;
         const halfW = visibleWidth / 2;
 
-        // CALCUL : On prend le haut de l'écran et on AJOUTE votre force de montée
-        // Si FORCE_MONTEE = 0.5, on remonte le trait de 0.5 unités virtuelles au-dessus du "top" mathématique.
-        const yTop = halfH + FORCE_MONTEE; 
+        // --- POSITIONNEMENT MANUEL (ASCENSEUR) ---
+        // On utilise directement votre chiffre
+        const yTop = POSITION_Y_LIGNE;
         
-        const yBottom = -halfH + 0.5; // On remonte un peu le bas aussi pour qu'il soit visible
-        const xRight = halfW;   
-        const xLeft = -halfW;   
+        // Le bas est symétrique ou forcé vers le bas (-6.0)
+        const yBottom = -6.0; 
+        
+        const xRight = halfW * FACTEUR_LARGEUR;   
+        const xLeft = -xRight;   
 
         const points = [
             new THREE.Vector3(xLeft, yTop, 0),
