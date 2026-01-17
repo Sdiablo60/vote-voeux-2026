@@ -6,7 +6,7 @@ import * as THREE from 'three';
 
 // On remonte le trait (0.1 était trop bas, 0.0 était caché).
 // 0.035 devrait le placer pile dans la zone noire, collé au titre.
-const MARGE_HAUT = 0.035; 
+const MARGE_HAUT = 0.015; 
 
 // On garde la largeur qui semblait bonne (sinon mettez 0.98)
 const FACTEUR_LARGEUR = 1.0; 
