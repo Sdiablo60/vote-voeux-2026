@@ -8,46 +8,82 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 const LIMITE_HAUTE_Y = 6.53; 
 const DUREE_LECTURE = 7000; 
 
-// --- DICTIONNAIRE GÉANT ET INTELLIGENT ---
+// --- INJECTION DU STYLE CSS POUR LES BULLES ET NUAGES ---
+const style = document.createElement('style');
+style.innerHTML = `
+    .robot-bubble-base {
+        position: fixed;
+        padding: 15px 20px;
+        color: black;
+        font-family: 'Arial', sans-serif;
+        font-weight: bold;
+        font-size: 18px;
+        text-align: center;
+        z-index: 2147483647;
+        pointer-events: none;
+        transition: opacity 0.5s, transform 0.3s;
+        max-width: 250px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    /* Style Bulle Parole */
+    .bubble-speech {
+        background: white;
+        border-radius: 20px;
+        border: 3px solid #E2001A;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    .bubble-speech::after {
+        content: ''; position: absolute; bottom: -15px; left: 50%;
+        transform: translateX(-50%);
+        border-left: 10px solid transparent; border-right: 10px solid transparent;
+        border-top: 15px solid #E2001A;
+    }
+    /* Style Nuage Réflexion */
+    .bubble-thought {
+        background: white;
+        border-radius: 50%;
+        border: 3px solid #00ffff;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        filter: drop-shadow(5px 5px 0px rgba(0,255,255,0.1));
+    }
+    .bubble-thought::before {
+        content: ''; position: absolute; bottom: -10px; left: 30%;
+        width: 15px; height: 15px; background: white; border: 2px solid #00ffff; border-radius: 50%;
+    }
+    .bubble-thought::after {
+        content: ''; position: absolute; bottom: -22px; left: 20%;
+        width: 8px; height: 8px; background: white; border: 2px solid #00ffff; border-radius: 50%;
+    }
+`;
+document.head.appendChild(style);
+
+// --- DICTIONNAIRE DE PHRASES ---
 const MESSAGES_BAG = {
     attente: [
         "Bienvenue à tous ! ✨", "Ravi de vous voir pour le " + config.titre + " !",
         "Est-ce que tout le monde est bien installé ? 🤔", "Hé la régie ! Tout est prêt pour le décollage ? 🚀",
-        "Je parie que la soirée va être mémorable !", "Dites, vous trouvez que j'ai pris du poids ? C'est ma mise à jour... 🤖",
-        "Coucou la technique ! Vous avez pensé à mon huile ? 👷", "Regardez-moi dans les yeux... je suis magnifique, non ?",
-        "Je sens une énergie incroyable dans cette salle ! ⚡", "Régie ! Envoyez un peu de musique pour mes circuits !",
-        "Si je bug, ne m'en voulez pas, je suis encore en version bêta... 😅", "Quelqu'un a le code Wi-Fi ? C'est pour un ami... 📶"
+        "Coucou la technique ! Vous avez pensé à mon huile ? 👷", "Je sens une énergie incroyable ici ! ⚡"
     ],
     vote_off: [
-        "Les votes sont CLOS ! 🛑 Plus rien ne bouge.", "Suspens... Les chiffres remontent vers mon processeur... 🧮",
-        "La régie ! On attend les résultats, ne faites pas durer le plaisir ! ⏳", "Qui va monter sur le podium selon vous ? 🤔",
-        "C'était serré ! Mon ventilateur s'est emballé pendant le calcul !", "Le suspense est insoutenable... comme une batterie à 1% ! 😬",
-        "Mes calculs sont formels : le gagnant est... ah, on me dit d'attendre. 🤐", "Vérification des votes en cours... Pas de triche, je vous surveille ! 👀"
+        "Les votes sont CLOS ! 🛑 Plus rien ne bouge.", "Suspens... Calcul en cours... 🧮",
+        "La régie ! Ne faites pas durer le plaisir ! ⏳", "Le suspense est insoutenable... 😬"
     ],
     photos: [
-        "Ouistiti ! 📸 Souriez pour l'éternité !", "Hé la régie, envoyez des photos ! On veut voir les sourires ! 📲",
-        "Vous êtes beaucoup plus photogéniques que mon code source ! ✨", "Selfie time ! N'oubliez pas mon meilleur profil !",
-        "Regardez ce mur, c'est une véritable galerie d'art ! ✨", "Clic-clac ! J'adore cette photo, qui est-ce ? 😍",
-        "Mon capteur optique détecte beaucoup de bonheur ici ! 🌈", "Encore une photo ! La régie, on ne s'arrête pas !"
+        "Ouistiti ! 📸 Souriez !", "Hé la régie, envoyez des photos ! 📲",
+        "Selfie time ! N'oubliez pas mon meilleur profil !", "Clic-clac ! J'adore cette photo ! 😍"
     ],
-    toctoc: [
-        "Toc ! Toc ! Y'a quelqu'un derrière cette vitre ? 🚪", "Toc ! Toc ! C'est le robot de la soirée !",
-        "Toc ! Toc ! Est-ce que mon écran est propre ? ✨", "Toc ! Toc ! Vous m'entendez quand je fais ça ?"
+    reflexions: [ // ☁️ PHRASES POUR LE MODE NUAGE
+        "Chargement du module 'Humour' : 45%...", "Est-ce que j'ai bien éteint ma borne de recharge ? 🔋",
+        "01101000 01100101 01101100 01101100 01101111...", "Calcul de la trajectoire d'une mouche virtuelle...",
+        "Si je cligne des yeux, est-ce que je prends une photo ?", "J'espère que mon profil droit est le meilleur.",
+        "Plus de RAM... Il me faut plus de RAM..."
     ],
-    blagues: [
-        "Pourquoi les robots n'ont-ils jamais peur ? Parce qu'ils ont des nerfs d'acier ! 🦾",
-        "Que dit un robot qui a fini sa soupe ? J'en veux un r'octet ! 🥣",
-        "Quelle est la boisson préférée des robots ? Le jus de douille ! 🔩",
-        "Régie, vous savez pourquoi mon code est parfait ? Parce qu'il n'a pas de bugs, il a des 'fonctionnalités imprévues' !"
-    ],
-    explosion: [
-        "Surchauffe système ! Trop d'émotions ! 🔥", "J'ai perdu la tête... littéralement ! 🤯", 
-        "Oups, j'ai dû rater un point-virgule dans mon code ! 💻"
-    ],
-    cache_cache: [
-        "Coucou ! 👋 Je suis plus rapide que la fibre !", "Me revoilà ! Vous m'avez manqué ? 🚀",
-        "Hop ! On ne me voit plus... et hop ! Me revoici ! ✨"
-    ]
+    toctoc: ["Toc ! Toc ! Y'a quelqu'un ? 🚪", "Toc ! Toc ! Est-ce que mon écran est propre ? ✨"],
+    blagues: ["Pourquoi les robots n'ont jamais peur ? Nerfs d'acier ! 🦾", "Ma boisson préférée ? Le jus de douille ! 🔩"],
+    explosion: ["Surchauffe ! 🔥", "J'ai perdu la tête ! 🤯"],
+    cache_cache: ["Coucou ! 👋", "Me revoilà ! 🚀"]
 };
 
 const usedMessages = {};
@@ -60,16 +96,7 @@ function getUniqueMessage(category) {
     return msg;
 }
 
-// --- SCRIPT D'INTRODUCTION ---
-const introScript = [
-    { time: 0.0, action: "hide_start" },
-    { time: 1.0, action: "enter_stage" }, 
-    { time: 4.0, text: "C'est calme ici... 🤔", action: "look_around" }, 
-    { time: 7.0, text: "OH ! BONJOUR ! 😳 Vous êtes nombreux !", action: "surprise" }, 
-    { time: 10.0, text: "Bienvenue au " + config.titre + " ! ✨", action: "wave" },
-    { time: 14.0, text: "Prêts pour la soirée ? 🎉", action: "ask" }
-];
-
+// --- INITIALISATION ---
 if (container) {
     container.style.cssText = "position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:2147483647; pointer-events:none;";
     initRobot(container);
@@ -100,10 +127,10 @@ function initRobot(container) {
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat);
     face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     
-    const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat);
-    eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
+    // YEUX ET BOUCHE
+    const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI);
+    const eyeL = new THREE.Mesh(eyeGeo, neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
-
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat);
     mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
 
@@ -133,24 +160,26 @@ function initRobot(container) {
     }
     [-6, -2, 2, 6].forEach((x, i) => stageSpots.push(createSpot([0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], x, LIMITE_HAUTE_Y)));
 
-    // --- ANIMATION ET LOGIQUE DE ZONE ---
+    // --- LOGIQUE ANIMATION ---
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
-    let time = 0, introIdx = 0, nextEvt = 0;
-    let targetPos = (robotState === 'intro') ? new THREE.Vector3(-15, 0, 0) : new THREE.Vector3(5, 2, 0);
+    let time = 0, nextEvt = 0, introIdx = 0;
+    let targetPos = new THREE.Vector3(5, 2, 0);
+    let bubbleType = 'speech'; // 'speech' ou 'thought'
 
-    function showBubble(text, duration = DUREE_LECTURE) { 
+    function showBubble(text, type = 'speech') { 
         if(!bubble) return; 
-        bubble.innerText = text; bubble.style.opacity = 1; 
-        setTimeout(() => { if(bubble) bubble.style.opacity = 0; }, duration); 
+        bubble.innerText = text;
+        bubble.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
+        bubble.style.opacity = 1; 
+        setTimeout(() => { if(bubble) bubble.style.opacity = 0; }, DUREE_LECTURE); 
     }
 
-    // FONCTION CRITIQUE : Évite le centre (X: -3.5 à 3.5 / Y: -3 à 3)
     function pickNewTarget() {
         const side = Math.random() > 0.5 ? 1 : -1;
-        const x = side * (4 + Math.random() * 3); // X sera soit < -4 soit > 4
-        const y = (Math.random() - 0.5) * 8; 
+        const x = side * (4.5 + Math.random() * 3); 
+        const y = (Math.random() - 0.5) * 6; 
         targetPos.set(x, y, 0);
-        if(targetPos.y > LIMITE_HAUTE_Y - 2) targetPos.y = LIMITE_HAUTE_Y - 3;
+        if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
     }
 
     function animate() {
@@ -163,59 +192,50 @@ function initRobot(container) {
             s.g.lookAt(robotGroup.position);
         });
 
+        // Intro Logic
         if (robotState === 'intro') {
-            const step = introScript[introIdx];
-            if (step && time >= step.time) {
-                if(step.text) showBubble(step.text);
-                if(step.action === "enter_stage") targetPos.set(5, 2, 0); // Arrive sur le côté
-                if(step.action === "surprise") { robotGroup.position.z = 4; }
+            const introScript = [
+                { time: 1, action: "enter", text: "Bonjour !" },
+                { time: 4, action: "look", text: "Oh, vous êtes là !" },
+                { time: 7, action: "wave", text: "Bienvenue au " + config.titre }
+            ];
+            if (introIdx < introScript.length && time > introScript[introIdx].time) {
+                showBubble(introScript[introIdx].text);
                 introIdx++;
             }
-            if(introIdx === introScript.length) { robotState = 'moving'; pickNewTarget(); nextEvt = time + 5; }
-            robotGroup.position.lerp(targetPos, 0.03);
+            if(time > 12) { robotState = 'moving'; pickNewTarget(); nextEvt = time + 5; }
+            robotGroup.position.lerp(new THREE.Vector3(4, 1, 0), 0.02);
         } 
-        else if (robotState === 'moving' || robotState === 'approaching') {
+        else if (robotState === 'moving' || robotState === 'approaching' || robotState === 'thinking') {
             robotGroup.position.lerp(targetPos, 0.02);
             robotGroup.rotation.y = Math.sin(time)*0.2;
 
-            if(robotGroup.position.distanceTo(targetPos) < 0.5) {
+            if(robotGroup.position.distanceTo(targetPos) < 0.5 && robotState !== 'thinking') {
                 if (robotState === 'approaching') {
-                    // Action "Toc Toc"
-                    head.rotation.x = Math.sin(time*20) * 0.2; // Toque
-                    robotState = 'moving';
-                    setTimeout(() => pickNewTarget(), 3000);
-                } else {
-                    pickNewTarget();
-                }
+                    head.rotation.x = Math.sin(time*20) * 0.2; 
+                    setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 3000);
+                } else { pickNewTarget(); }
             }
 
             if(time > nextEvt) {
                 const r = Math.random();
                 if(r < 0.10) { // EXPLOSION
                     robotState = 'exploding'; showBubble(getUniqueMessage('explosion'));
-                    parts.forEach(p => {
-                        p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4);
-                        p.userData.rotVel.set(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1);
-                    });
+                    parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4); p.userData.rotVel.set(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1); });
                     setTimeout(() => { robotState = 'reassembling'; }, 3500);
-                } else if(r < 0.20) { // TÉLÉPORTATION / CACHE-CACHE
-                    robotGroup.visible = false; showBubble(getUniqueMessage('cache_cache'), 2000);
-                    setTimeout(() => { 
-                        pickNewTarget();
-                        robotGroup.position.copy(targetPos);
-                        robotGroup.visible = true; 
-                        robotState = 'moving'; 
-                    }, 1500);
-                } else if(r < 0.40) { // TOC TOC (S'APPROCHE)
+                } else if(r < 0.25) { // RÉFLEXION (NUAGE)
+                    robotState = 'thinking';
+                    targetPos.copy(robotGroup.position); // S'arrête pour réfléchir
+                    showBubble(getUniqueMessage('reflexions'), 'thought');
+                    setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 5000);
+                } else if(r < 0.45) { // TOC TOC
                     robotState = 'approaching';
-                    targetPos.set((Math.random()-0.5)*4, (Math.random()-0.5)*3, 7); // Vient devant
+                    targetPos.set((Math.random()-0.5)*3, (Math.random()-0.5)*2, 7);
                     showBubble(getUniqueMessage('toctoc'));
-                } else if(r < 0.55) { // BLAGUE
-                    showBubble(getUniqueMessage('blagues'));
                 } else {
                     showBubble(getUniqueMessage(config.mode));
                 }
-                nextEvt = time + 14; 
+                nextEvt = time + 15; 
             }
         }
         else if (robotState === 'exploding') {
@@ -223,21 +243,24 @@ function initRobot(container) {
         }
         else if (robotState === 'reassembling') {
             let finished = true;
-            parts.forEach(p => {
-                p.position.lerp(p.userData.origPos, 0.1);
-                p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1;
-                if (p.position.distanceTo(p.userData.origPos) > 0.01) finished = false;
-            });
+            parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1; if (p.position.distanceTo(p.userData.origPos) > 0.01) finished = false; });
             if(finished) { robotState = 'moving'; nextEvt = time + 2; }
         }
 
-        // Bulle Position avec sécurité bords
+        // --- POSITIONNEMENT BULLE (TOUJOURS AU DESSUS DE LA TÊTE) ---
         if(bubble && bubble.style.opacity == 1) {
-            const p = robotGroup.position.clone(); if(robotState !== 'exploding') p.y += 1.2; p.project(camera);
-            let bX = (p.x * 0.5 + 0.5) * window.innerWidth;
-            let bY = (p.y * -0.5 + 0.5) * window.innerHeight;
-            bubble.style.left = Math.min(Math.max(bX, 150), window.innerWidth - 150) + 'px';
-            bubble.style.top = (bY < 130 ? 140 : bY) + 'px';
+            const headPos = robotGroup.position.clone();
+            if(robotState !== 'exploding') headPos.y += 1.3; // On monte au dessus de la tête en 3D
+            headPos.project(camera);
+            
+            const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
+            const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
+
+            bubble.style.left = (bX - bubble.offsetWidth / 2) + 'px';
+            bubble.style.top = (bY - bubble.offsetHeight - 20) + 'px'; // -20 pour laisser un petit espace
+            
+            // Sécurité Bordure Haute
+            if(parseFloat(bubble.style.top) < 140) bubble.style.top = '140px';
         }
         renderer.render(scene, camera);
     }
