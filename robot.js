@@ -7,10 +7,7 @@ const bubble = document.getElementById('robot-bubble');
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
 // --- RÉGLAGE DE LA BORDURE HAUTE ---
-// 0.0 = Tout en haut de l'écran
-// 0.15 = Descend de 15% (Pour passer sous le titre "Concours Vidéo")
-// Ajustez ce chiffre si le trait n'est pas bien placé par rapport au titre
-const TOP_OFFSET_PERCENT = 0;
+const TOP_OFFSET_PERCENT = 0.18; 
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
@@ -38,7 +35,7 @@ const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" },
     { time: 4.0, text: "Je scanne les bords... 📐", action: "look_around" },
-    { time: 7.0, text: "Normalement c'est parfait ! 🟥", action: "surprise" },
+    { time: 7.0, text: "Je suis en plein écran ! 🟥", action: "surprise" },
     { time: 10.0, text: "On valide ?", action: "wave" }
 ];
 
@@ -48,17 +45,28 @@ if (container) {
 }
 
 function initRobot(container) {
-    // RESET CSS FORCE
-    document.body.style.margin = "0";
-    document.body.style.padding = "0";
-    document.body.style.overflow = "hidden";
-    
+    // =========================================================
+    // --- CORRECTION CRITIQUE : FORCER LE PLEIN ÉCRAN ---
+    // =========================================================
+    // On déplace le conteneur pour qu'il soit fils direct du body
+    // Cela le sort de la "boite" du QR Code
+    if (container.parentElement !== document.body) {
+        document.body.appendChild(container);
+    }
+
+    // On force les styles pour garantir la superposition totale
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '100vw'; // Largeur fenêtre
+    container.style.height = '100vh'; // Hauteur fenêtre
+    container.style.zIndex = '9999'; // Au-dessus de tout pour le test (on baissera après)
+    container.style.pointerEvents = 'none'; // Permet de cliquer au travers (sur le QR code)
+    container.style.background = 'transparent';
+    // =========================================================
+
     let width = window.innerWidth;
     let height = window.innerHeight;
-    
-    container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
-    container.style.width = '100%'; container.style.height = '100%';
-    container.style.zIndex = '10'; container.style.pointerEvents = 'none';
     
     const scene = new THREE.Scene();
     
@@ -79,41 +87,35 @@ function initRobot(container) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE INFAILLIBLE (MÉTHODE RAYCAST) ---
+    // --- STEP 1 : CADRE (MÉTHODE RAYCAST) ---
     // =========================================================
     let updateDebugBorder = () => {}; 
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
+        // Ligne Rouge Épaisse
+        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
-        // Fonction utilitaire pour trouver le point 3D au bord de l'écran à Z=0
         function getPointAtZ0(ndcX, ndcY, camera) {
-            // NDC (Normalized Device Coordinates) : -1 à +1
             const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
             vector.unproject(camera);
             vector.sub(camera.position).normalize();
             const distance = -camera.position.z / vector.z;
-            const pos = new THREE.Vector3().copy(camera.position).add(vector.multiplyScalar(distance));
-            return pos; // Retourne le point exact sur le plan Z=0
+            return new THREE.Vector3().copy(camera.position).add(vector.multiplyScalar(distance));
         }
 
         updateDebugBorder = () => {
-            // On calcule les 4 coins exacts de l'écran
-            // Haut Gauche (-1, 1) -> Haut Droite (1, 1) etc.
-            
-            // Pour le haut, on applique l'offset (1.0 = tout en haut, -1.0 = tout en bas)
-            // 1.0 - (Offset * 2) car l'espace NDC va de 1 à -1 (taille 2)
+            // Haut ajusté par la variable
             const topNDC = 1.0 - (TOP_OFFSET_PERCENT * 2);
 
-            const pTL = getPointAtZ0(-1.0, topNDC, camera); // Haut Gauche (Ajusté)
-            const pTR = getPointAtZ0(1.0, topNDC, camera);  // Haut Droite (Ajusté)
-            const pBR = getPointAtZ0(1.0, -1.0, camera);    // Bas Droite
-            const pBL = getPointAtZ0(-1.0, -1.0, camera);   // Bas Gauche
+            const pTL = getPointAtZ0(-1.0, topNDC, camera); 
+            const pTR = getPointAtZ0(1.0, topNDC, camera);  
+            const pBR = getPointAtZ0(1.0, -1.0, camera);    
+            const pBL = getPointAtZ0(-1.0, -1.0, camera);   
 
-            const points = [pTL, pTR, pBR, pBL, pTL]; // Boucle
+            const points = [pTL, pTR, pBR, pBL, pTL];
             borderGeo.setFromPoints(points);
         };
         updateDebugBorder(); 
@@ -158,7 +160,6 @@ function initRobot(container) {
 
     // --- ANIMATION ---
     let time = 0;
-    // On centre le robot (Y = -1 pour être un peu plus bas que le milieu exact)
     let startX = (config.mode === 'attente') ? -15 : 0;
     let targetPosition = new THREE.Vector3(startX, -1, 0); 
     robotGroup.position.copy(targetPosition);
@@ -170,17 +171,14 @@ function initRobot(container) {
     function showBubble(text, dur) { if(!bubble) return; if(bubbleTimeout) clearTimeout(bubbleTimeout); bubble.innerText = text; bubble.style.opacity = 1; if(dur) bubbleTimeout = setTimeout(() => bubble.style.opacity=0, dur); }
     
     function pickNewTarget() { 
-        // Calcul des limites pour le robot (basé sur la méthode getPointAtZ0)
-        // On récupère le bord droit de l'écran à Z=0
+        // Calcul des limites pour le robot
         const borderRight = getPointAtZ0(1.0, 0, camera).x;
-        // On garde une marge de sécurité (le robot ne va pas coller au bord)
         const safeMax = borderRight - 2.5; 
-        
         const x = (Math.random()>0.5?1:-1) * (1.5 + Math.random()*(safeMax-1.5));
         targetPosition.set(x, -1 + (Math.random()-0.5)*2, 0); 
     }
 
-    // Copie de la fonction getPointAtZ0 pour l'utiliser dans pickNewTarget
+    // Fonction utilitaire indispensable ici aussi
     function getPointAtZ0(ndcX, ndcY, camera) {
         const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
         vector.unproject(camera);
