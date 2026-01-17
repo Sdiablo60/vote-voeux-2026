@@ -33,7 +33,14 @@ const introScript = [
     { time: 10.0, text: "Bienvenue ! ✨", action: "wave" }
 ];
 
-if (container) { initRobot(container); }
+// Lancement sécurisé
+if (container) { 
+    try {
+        initRobot(container); 
+    } catch(e) {
+        console.error("Erreur Robot:", e);
+    }
+}
 
 function initRobot(container) {
     let width = window.innerWidth;
@@ -45,23 +52,18 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA RECULÉE (Z=14)
+    // Caméra positionnée pour bien voir
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 14); 
+    camera.position.set(0, 0, 12); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // ECLAIRAGE DE LA SCENE (Pour voir le matériel)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 3.0); // Très lumineux pour les gris
+    // LUMIERE AMBIANTE FORTE
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
     scene.add(ambientLight);
-    
-    // Lumière de face pour faire briller les boîtiers
-    const frontLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    frontLight.position.set(0, 0, 10);
-    scene.add(frontLight);
     
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
@@ -88,6 +90,8 @@ function initRobot(container) {
 
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat);
     body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
+    const belt = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.03, 16, 32), greyMat);
+    belt.rotation.x = Math.PI/2; body.add(belt);
     
     const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
     leftArm.position.set(-0.8, -0.8, 0); leftArm.rotation.z = 0.15;
@@ -102,20 +106,17 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- CONSTRUCTION DES SPOTS "HIGH VOLTAGE" ---
+    // --- CONSTRUCTION DES SPOTS ---
     const stageSpots = [];
     
-    // Matériau GRIS ARGENT CLAIR (Visible sur noir)
+    // Matériau VISIBLE (Gris clair + émissif)
     const housingMat = new THREE.MeshStandardMaterial({ 
-        color: 0xE0E0E0, // Gris très clair
-        roughness: 0.3, 
-        metalness: 0.7,
-        emissive: 0x333333, // Légère auto-illumination pour être sûr d'être vu
-        emissiveIntensity: 0.2
+        color: 0xCCCCCC, 
+        roughness: 0.4, 
+        metalness: 0.5,
+        emissive: 0x222222 // Légère lueur pour ne pas être noir total
     });
-    
-    // Matériau NOIR MÉTAL (Volets)
-    const barnMat = new THREE.MeshStandardMaterial({ color: 0x222222, side: THREE.DoubleSide, metalness: 0.5 });
+    const barnMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide });
 
     function createStageLight(x, y, colorInt, isBottom) {
         const group = new THREE.Group();
@@ -126,7 +127,7 @@ function initRobot(container) {
         bracket.rotation.z = isBottom ? 0 : Math.PI;
         group.add(bracket);
 
-        // 2. Corps du spot
+        // 2. Corps
         const bodyGroup = new THREE.Group();
         group.add(bodyGroup);
         
@@ -139,9 +140,9 @@ function initRobot(container) {
         cyl.position.z = -0.2;
         bodyGroup.add(cyl);
 
-        // 3. Lentille (VIVE)
+        // 3. Lentille
         const lensGeo = new THREE.CircleGeometry(0.35, 32);
-        const lensMat = new THREE.MeshBasicMaterial({ color: colorInt }); // Basic = Auto-illuminé
+        const lensMat = new THREE.MeshBasicMaterial({ color: colorInt }); // Couleur vive
         const lens = new THREE.Mesh(lensGeo, lensMat);
         lens.position.set(0, 0, -0.51);
         bodyGroup.add(lens);
@@ -156,63 +157,59 @@ function initRobot(container) {
         botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4;
         bodyGroup.add(botDoor);
 
-        // 5. DOUBLE FAISCEAU (Core + Glow)
-        
-        // A. Cœur du faisceau (Fin et intense)
-        const coreGeo = new THREE.ConeGeometry(0.25, 20, 32, 1, true);
+        // 5. DOUBLE FAISCEAU
+        // A. Coeur (Fin, Opaque)
+        const coreGeo = new THREE.ConeGeometry(0.2, 20, 32, 1, true);
         coreGeo.translate(0, -10, 0); coreGeo.rotateX(-Math.PI / 2);
         const coreMat = new THREE.MeshBasicMaterial({ 
-            color: colorInt, 
-            transparent: true, opacity: 0.4, // Assez opaque
+            color: colorInt, transparent: true, opacity: 0.5, 
             side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
         });
         const beamCore = new THREE.Mesh(coreGeo, coreMat);
         beamCore.position.z = -0.6;
         bodyGroup.add(beamCore);
 
-        // B. Halo du faisceau (Large et diffus)
-        const glowGeo = new THREE.ConeGeometry(0.7, 20, 32, 1, true);
+        // B. Halo (Large, Diffus)
+        const glowGeo = new THREE.ConeGeometry(0.6, 20, 32, 1, true);
         glowGeo.translate(0, -10, 0); glowGeo.rotateX(-Math.PI / 2);
         const glowMat = new THREE.MeshBasicMaterial({ 
-            color: colorInt, 
-            transparent: true, opacity: 0.1, // Plus transparent
+            color: colorInt, transparent: true, opacity: 0.15, 
             side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false
         });
         const beamGlow = new THREE.Mesh(glowGeo, glowMat);
         beamGlow.position.z = -0.6;
         bodyGroup.add(beamGlow);
 
-        // 6. Lumière réelle (SpotLight)
-        const light = new THREE.SpotLight(colorInt, 15);
+        // 6. Lumière réelle
+        const light = new THREE.SpotLight(colorInt, 10);
         light.angle = 0.3;
         light.penumbra = 0.2;
-        light.distance = 60;
-        light.decay = 1.5;
+        light.distance = 50;
         bodyGroup.add(light); bodyGroup.add(light.target);
 
         scene.add(group);
 
-        // Orientation vers le centre (0,0,0)
+        // Orientation
         bodyGroup.lookAt(0, 0, 0);
         light.target.position.set(0,0,0);
 
         return { 
             group, beamCore, beamGlow, light, 
-            baseIntensity: 15,
+            baseIntensity: 10,
             timeOff: Math.random() * 100
         };
     }
 
-    // --- POSITIONS (Y=4.0 et Y=-4.0) ---
+    // --- POSITIONS (Resserrées) ---
     const colors = [0xFFFF00, 0x00FFFF, 0x00FF00, 0xFFA500, 0xFF00FF, 0x0088FF];
     
-    // HAUT
+    // HAUT (Y=4.0)
     stageSpots.push(createStageLight(-7, 4.0, colors[0], false));
     stageSpots.push(createStageLight(-2.5, 4.0, colors[1], false));
     stageSpots.push(createStageLight(2.5, 4.0, colors[2], false));
     stageSpots.push(createStageLight(7, 4.0, colors[3], false));
 
-    // BAS
+    // BAS (Y=-4.0)
     stageSpots.push(createStageLight(-7, -4.0, colors[2], true));
     stageSpots.push(createStageLight(-2.5, -4.0, colors[4], true));
     stageSpots.push(createStageLight(2.5, -4.0, colors[3], true));
@@ -228,17 +225,15 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015;
 
-        // Animation des Spots (Pulsation Complexe)
+        // Animation Spots
         stageSpots.forEach(s => {
-            // Variation lente + scintillement rapide
-            const pulse = (Math.sin(time * 2 + s.timeOff) * 0.3 + 0.7) + (Math.random() * 0.1); 
-            
-            s.beamCore.material.opacity = 0.4 * pulse; // Le cœur reste dense
-            s.beamGlow.material.opacity = 0.15 * pulse; // Le halo vibre
-            s.light.intensity = s.baseIntensity * pulse;
+            const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8;
+            if(s.beamCore) s.beamCore.material.opacity = 0.5 * pulse;
+            if(s.beamGlow) s.beamGlow.material.opacity = 0.15 * pulse;
+            if(s.light) s.light.intensity = s.baseIntensity * pulse;
         });
 
-        // Robot
+        // Logique Robot
         if (robotState === 'intro') {
             if (introIndex < introScript.length) {
                 const step = introScript[introIndex];
