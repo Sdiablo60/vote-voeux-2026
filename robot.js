@@ -6,7 +6,7 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue ! ✨", "Installez-vous.", "La soirée va être belle !", "Prêts pour le show !", "Coucou la technique ! 👷"],
+    attente: ["Bienvenue ! ✨", "Installez-vous.", "La soirée va être belle !", "Prêts pour le show ?", "Coucou la technique ! 👷"],
     vote_off: ["Les votes sont CLOS ! 🛑", "Le podium arrive... 🏆", "Suspens... 😬"],
     photos: ["Photos ! 📸", "Souriez !", "Vous êtes beaux !", "Selfie time ! 🤳"],
     danse: ["Dancefloor ! 💃", "Je sens le rythme ! 🎵", "Allez DJ ! 🔊"],
@@ -14,13 +14,15 @@ const MESSAGES_BAG = {
     cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie ! ⚡"]
 };
 
-// --- INIT SÉCURISÉE ---
+// --- PROTECTION CONTRE LES CRASHS ---
 if (container) {
+    // On vide le conteneur au cas où
     while(container.firstChild) container.removeChild(container.firstChild);
     try {
         initRobot(container);
     } catch (e) {
-        console.error("ERREUR CRITIQUE:", e);
+        console.error("ERREUR FATALE:", e);
+        container.innerHTML = `<div style="color:red;padding:20px;text-align:center;">Erreur d'affichage 3D : ${e.message}</div>`;
     }
 }
 
@@ -35,27 +37,6 @@ function getUniqueMessage(category) {
 }
 const usedMessages = {};
 
-// --- FONCTION: GESTIONNAIRE DE TEXTURE VOLUMÉTRIQUE ---
-// Crée un dégradé du blanc (opaque) au noir (transparent) pour le faisceau
-function createVolumetricTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 32; canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    // Dégradé vertical along the beam
-    const gradient = ctx.createLinearGradient(0, 0, 0, 128);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');   // Source intense
-    gradient.addColorStop(0.1, 'rgba(255, 255, 255, 0.6)'); // Diminue rapidement
-    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.1)'); // Reste une traînée
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.0)');   // Disparition totale
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 32, 128);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-    return texture;
-}
-const volumetricTexture = createVolumetricTexture();
-
-
 function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -66,33 +47,32 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // Caméra
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 150);
-    camera.position.set(0, 2, 16); // Légèrement surélevée
+    // Caméra positionnée pour voir large
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+    camera.position.set(0, 0, 15); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping; // Meilleur rendu des lumières
-    renderer.toneMappingExposure = 1.0;
     container.appendChild(renderer.domElement);
 
-    // Lumières d'ambiance (subtiles pour laisser la place au spot)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); 
+    // Lumières de base
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
     scene.add(ambientLight);
-    
-    // Petite lumière de contre pour détacher le robot du fond
-    const rimLight = new THREE.DirectionalLight(0xaaaaaa, 2.0);
-    rimLight.position.set(0, 5, -10);
-    scene.add(rimLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+    const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
+    explosionLight.position.set(0, 0, 5);
+    scene.add(explosionLight);
 
-    // --- ROBOT ---
+    // --- ROBOT (Géométrie Procédurale) ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(0.45, 0.45, 0.45);
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.1 });
+    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    const greyMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.6 });
+    const greyMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
     
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat);
     head.scale.set(1.4, 1.0, 0.75);
@@ -123,100 +103,73 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // ==================================================================================
-    // --- LE SPOT UNIQUE ET RÉALISTE ---
-    // ==================================================================================
+    // =========================================================
+    // --- LE SPOT UNIQUE (Style Cinéma/Laser) ---
+    // =========================================================
     
-    const SPOT_COLOR = 0x0088ff; // Un bleu électrique réaliste
+    const spotGroup = new THREE.Group();
+    // Position : Haut Gauche, pointant vers le bas-droite
+    spotGroup.position.set(-7, 6, 2); 
+    scene.add(spotGroup);
 
-    // Matériaux du spot
-    const housingDarkMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.3 });
-    const housingGreyMat = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.6, roughness: 0.4 });
-    // Matériau de la lentille : Basic pour qu'elle brille toujours
-    const lensMat = new THREE.MeshBasicMaterial({ color: SPOT_COLOR }); 
+    // Matériaux Spot
+    const housingMat = new THREE.MeshStandardMaterial({ 
+        color: 0x222222, // Noir Mat
+        roughness: 0.2,
+        metalness: 0.8 
+    });
+    const lensMat = new THREE.MeshBasicMaterial({ color: 0x00FF00 }); // Vert Laser Brillant
 
-    // Conteneur principal du spot (permet de le positionner et l'orienter facilement)
-    const mainSpotGroup = new THREE.Group();
-    // Positionnement : En haut à gauche, en avant
-    mainSpotGroup.position.set(-8, 10, 8); 
-    scene.add(mainSpotGroup);
+    // 1. Corps du Spot (Cylindre)
+    const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.5, 1.5, 32), housingMat);
+    housing.rotation.x = Math.PI / 2; // Orienté horizontalement
+    spotGroup.add(housing);
 
-    // 1. Le Corps du Projecteur (Modèle 3D détaillé)
-    const fixtureBody = new THREE.Group();
-    mainSpotGroup.add(fixtureBody);
+    // 2. Lentille (Disque brillant devant)
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.48, 32), lensMat);
+    lens.position.z = 0.76; // Devant le cylindre
+    spotGroup.add(lens);
 
-    // Lyre de support (U-bracket)
-    const yoke = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.1, 16, 32, Math.PI), housingGreyMat);
-    yoke.rotation.y = Math.PI / 2; 
-    fixtureBody.add(yoke);
-
-    // Boîtier principal (Cylindre allongé avec détails)
-    const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 1.5, 32), housingDarkMat);
-    housing.rotation.x = Math.PI / 2; // Orienté vers Z
-    fixtureBody.add(housing);
-
-    // Arrière du boîtier (Ventilation)
-    const backCap = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.6, 0.2, 32), housingGreyMat);
-    backCap.rotation.x = Math.PI / 2; backCap.position.z = -0.85;
-    fixtureBody.add(backCap);
-
-    // La Lentille (Brillante)
-    const lensGeo = new THREE.CircleGeometry(0.55, 32);
-    const lensMesh = new THREE.Mesh(lensGeo, lensMat);
-    lensMesh.position.z = 0.76; // Juste au bout du boîtier
-    fixtureBody.add(lensMesh);
-
-    // Volets coupe-flux (Barndoors) pour le réalisme
-    const barnDoorGeo = new THREE.PlaneGeometry(1.2, 0.5);
-    const barnDoorMat = new THREE.MeshStandardMaterial({ color: 0x111111, side: THREE.DoubleSide });
-    const topBarn = new THREE.Mesh(barnDoorGeo, barnDoorMat);
-    topBarn.position.set(0, 0.8, 0.9); topBarn.rotation.x = Math.PI/3; fixtureBody.add(topBarn);
-    const botBarn = new THREE.Mesh(barnDoorGeo, barnDoorMat);
-    botBarn.position.set(0, -0.8, 0.9); botBarn.rotation.x = -Math.PI/3; fixtureBody.add(botBarn);
-
-    // 2. Le Faisceau Volumétrique (The Realistic Beam)
-    const beamLength = 60;
-    // Cône tronqué : démarre à la taille de la lentille (0.55) et s'élargit (3.0)
-    const beamGeo = new THREE.CylinderGeometry(0.55, 3.0, beamLength, 64, 1, true);
-    // Décale le pivot au sommet pour que la rotation et la texture partent du bon endroit
-    beamGeo.translate(0, -beamLength / 2, 0); 
-    beamGeo.rotateX(-Math.PI / 2); // Pointe vers Z+
+    // 3. Faisceau Volumétrique (Laser Beam)
+    // Cône très long, semi-transparent
+    const beamGeo = new THREE.ConeGeometry(0.5, 40, 32, 1, true); // (rayon, hauteur...)
+    beamGeo.translate(0, -20, 0); // Décalage pour que le sommet soit à l'origine
+    beamGeo.rotateX(-Math.PI / 2); // Pointe vers l'avant (Z+)
 
     const beamMat = new THREE.MeshBasicMaterial({
-        color: SPOT_COLOR,
+        color: 0x00FF00, // Vert Laser
         transparent: true,
-        opacity: 0.6, // Intensité globale
-        alphaMap: volumetricTexture, // Le dégradé magique
-        blending: THREE.AdditiveBlending, // Lumière qui s'additionne
-        depthWrite: false, // Empêche les bugs d'occlusion
-        side: THREE.DoubleSide
+        opacity: 0.25, // Transparence effet fumée
+        side: THREE.DoubleSide,
+        depthWrite: false, // Permet de voir à travers sans bug
+        blending: THREE.AdditiveBlending // Effet lumineux
     });
-    const volumetricBeam = new THREE.Mesh(beamGeo, beamMat);
-    volumetricBeam.position.z = 0.8; // Départ juste devant la lentille
-    // Inverse Z pour que la texture dégradée soit dans le bon sens (opaque -> transparent)
-    volumetricBeam.scale.z = -1; 
-    fixtureBody.add(volumetricBeam);
-
-    // 3. La Lumière Réelle (Pour éclairer le robot)
-    const actualLight = new THREE.SpotLight(SPOT_COLOR, 50); // Haute intensité
-    actualLight.angle = 0.4; // Angle correspondant à peu près au faisceau
-    actualLight.penumbra = 0.5; // Bords doux
-    actualLight.decay = 1.5; // Atténuation réaliste
-    actualLight.distance = 100;
-    actualLight.position.set(0, 0, 0.8); // Source à la lentille
     
-    const lightTarget = new THREE.Object3D();
-    scene.add(lightTarget); lightTarget.position.set(0, 0, 0); // Cible le centre
-    actualLight.target = lightTarget;
-    fixtureBody.add(actualLight);
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.z = 0.8; // Départ du faisceau
+    spotGroup.add(beam);
 
-    // ORIENTATION FINALE
-    // Le groupe fixtureBody contient tout (corps, lentille, faisceau, lumière) orienté vers Z+.
-    // On lui dit de regarder la cible (le centre).
-    fixtureBody.lookAt(lightTarget.position);
+    // 4. Lyre de support (Déco)
+    const yoke = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.05, 8, 16, Math.PI), housingMat);
+    yoke.rotation.y = Math.PI / 2;
+    spotGroup.add(yoke);
 
-    // ==================================================================================
+    // 5. Lumière réelle (SpotLight)
+    const light = new THREE.SpotLight(0x00FF00, 20);
+    light.angle = 0.3;
+    light.penumbra = 0.2;
+    light.distance = 50;
+    light.decay = 1.0;
+    light.position.set(0, 0, 0.8);
+    spotGroup.add(light);
+    
+    // Cible de la lumière (Le Robot au centre)
+    const target = new THREE.Object3D();
+    scene.add(target);
+    light.target = target;
 
+    // Orientation initiale vers le centre
+    spotGroup.lookAt(0, 0, 0);
 
     // --- ANIMATION ---
     let time = 0;
@@ -229,11 +182,7 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015;
 
-        // Animation subtile du spot unique (respiration)
-        const pulse = Math.sin(time * 2) * 0.1 + 0.9;
-        volumetricBeam.material.opacity = 0.6 * pulse;
-        actualLight.intensity = 50 * pulse;
-
+        // Animation douce du robot
         if (robotState === 'intro') {
             const script = [{t:0, a:"hide"}, {t:1, a:"enter"}, {t:4, a:"look"}, {t:7, a:"surprise"}, {t:10, a:"wave"}];
             if (introIndex < script.length) {
