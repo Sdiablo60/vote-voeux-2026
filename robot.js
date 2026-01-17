@@ -4,14 +4,14 @@ const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
-// --- TEXTES ---
+// --- TEXTES ÉTENDUS ---
 const MESSAGES_BAG = {
     attente: ["Bienvenue ! ✨", "Installez-vous.", "Ravi de vous voir !", "La soirée va être belle !", "Prêts pour le show ?", "J'adore l'ambiance !", "Coucou la technique ! 👷"],
     vote_off: ["Les votes sont CLOS ! 🛑", "Les jeux sont faits.", "Le podium arrive... 🏆", "Suspens... 😬", "La régie gère ! ⚡"],
     photos: ["Photos ! 📸", "Souriez !", "On partage ! 📲", "Vous êtes beaux !", "Selfie time ! 🤳"],
-    danse: ["Dancefloor ! 💃", "Je sens le rythme ! 🎵", "Regardez-moi ! 🤖", "On se bouge ! 🙌", "Allez DJ ! 🔊"],
-    explosion: ["Surchauffe ! 🔥", "J'ai perdu la tête... 🤯", "Rassemblement... 🧲", "Oups..."],
-    cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie ! ⚡", "Je suis rapide ! 🚀"]
+    danse: ["Dancefloor ! 💃", "Je sens le rythme ! 🎵", "Regardez-moi ! 🤖", "On se bouge ! 🙌"],
+    explosion: ["Surchauffe ! 🔥", "J'ai perdu la tête... 🤯", "Rassemblement... 🧲"],
+    cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie ! ⚡"]
 };
 
 const usedMessages = {};
@@ -19,7 +19,6 @@ function getUniqueMessage(category) {
     if (!usedMessages[category]) usedMessages[category] = [];
     if (usedMessages[category].length >= MESSAGES_BAG[category].length) usedMessages[category] = [];
     let available = MESSAGES_BAG[category].filter(m => !usedMessages[category].includes(m));
-    if(available.length === 0) available = MESSAGES_BAG[category];
     let msg = available[Math.floor(Math.random() * available.length)];
     usedMessages[category].push(msg);
     return msg;
@@ -32,7 +31,7 @@ function initRobot(container) {
     let height = window.innerHeight;
     const scene = new THREE.Scene();
     
-    // Caméra à Z=12 pour avoir du recul
+    // Caméra à Z=12 (Reculée)
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 12); 
 
@@ -41,8 +40,7 @@ function initRobot(container) {
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // LUMIERE D'AMBIANCE FORTE (Pour voir les spots gris)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); 
     scene.add(ambientLight);
 
     // --- ROBOT ---
@@ -71,87 +69,47 @@ function initRobot(container) {
     robotGroup.add(head, body, leftArm, rightArm);
     scene.add(robotGroup);
 
-    // --- SPOTS 3D (VISIBLE ET REPOSITIONNÉS) ---
+    // --- SPOTS 3D (RÉALISTES) ---
     const stageSpots = [];
-    
-    // MATERIAU CLAIR (Gris Argent) pour être visible sur fond noir
-    const spotMat = new THREE.MeshStandardMaterial({ 
-        color: 0xC0C0C0, // Gris clair / Argent
-        metalness: 0.6, 
-        roughness: 0.3 
-    });
-    
-    // Matériau Noir pour l'intérieur des volets
-    const darkMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    // Matériau gris clair
+    const spotMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8, roughness: 0.2 });
 
     function createSpot(x, y, isBottom) {
         const group = new THREE.Group();
-        // Z=1 pour être un peu devant le plan zéro, mais derrière le robot (si robot z=0)
-        // Le robot bouge en Z, donc on met les spots en retrait ou au même niveau
-        group.position.set(x, y, 0); 
+        group.position.set(x, y, 2); 
 
+        // Boîtier
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), spotMat);
+        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.5, 16), spotMat);
+        cyl.rotation.x = Math.PI/2; cyl.position.z = -0.4;
+        
+        // Volets
+        const door = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.3), spotMat);
+        door.position.set(0, 0.4, -0.6); door.rotation.x = Math.PI/4;
+        
         const bodySpot = new THREE.Group();
+        bodySpot.add(box, cyl, door);
         group.add(bodySpot);
 
-        // Boîtier Principal (Visible)
-        const box = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.8), spotMat);
-        
-        // Cylindre avant
-        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.5, 32), spotMat);
-        cyl.rotation.x = Math.PI/2; cyl.position.z = -0.5;
-        
-        // Volets (Barn Doors) - Gris extérieur, Noir intérieur
-        const doorGeo = new THREE.BoxGeometry(0.6, 0.05, 0.6);
-        
-        const topDoor = new THREE.Mesh(doorGeo, spotMat);
-        topDoor.position.set(0, 0.5, -0.8); topDoor.rotation.x = Math.PI/3;
-        
-        const botDoor = new THREE.Mesh(doorGeo, spotMat);
-        botDoor.position.set(0, -0.5, -0.8); botDoor.rotation.x = -Math.PI/3;
-
-        bodySpot.add(box, cyl, topDoor, botDoor);
-
-        // Faisceau Volumétrique (Beam)
+        // Faisceau
         const beam = new THREE.Mesh(
-            new THREE.ConeGeometry(0.8, 20, 32, 1, true), // Cône long
-            new THREE.MeshBasicMaterial({ 
-                color: 0xffffff, 
-                transparent: true, 
-                opacity: 0, 
-                blending: THREE.AdditiveBlending, 
-                depthWrite: false,
-                side: THREE.DoubleSide
-            })
+            new THREE.ConeGeometry(0.7, 15, 32, 1, true),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
         );
-        beam.translateY(-10); // Décale le cône
-        beam.rotateX(-Math.PI/2); // Pointe vers l'avant
+        beam.translateY(-7.5); beam.rotateX(-Math.PI/2);
         bodySpot.add(beam);
 
-        // Lumière réelle
         const light = new THREE.SpotLight(0xffffff, 0);
-        light.angle = 0.5; 
-        light.penumbra = 0.4; 
-        light.distance = 60;
-        group.add(light); 
-        group.add(light.target); // Nécessaire
+        light.angle = 0.4; light.penumbra = 0.3; group.add(light, light.target);
         
         scene.add(group);
-        
-        return { 
-            group, bodySpot, light, beam, 
-            nextChange: Math.random() * 5, 
-            isOn: false, 
-            tracking: false 
-        };
+        return { group, bodySpot, light, beam, nextChange: Math.random() * 5, isOn: false };
     }
 
-    // --- POSITIONS AJUSTEES (DANS L'ECRAN) ---
-    // Y = 4.2 pour le HAUT (descendu)
-    // Y = -4.0 pour le BAS (remonté)
-    const posX = [-6, -2, 2, 6];
-    
-    posX.forEach(x => stageSpots.push(createSpot(x, 4.2, false))); // HAUT
-    posX.forEach(x => stageSpots.push(createSpot(x, -4.0, true))); // BAS
+    // Positions (Y=6 et Y=-6)
+    const pos = [-7, -3.5, 3.5, 7];
+    pos.forEach(x => stageSpots.push(createSpot(x, 6, false)));
+    pos.forEach(x => stageSpots.push(createSpot(x, -6, true)));
 
     // --- LOGIQUE ANIMATION ---
     let time = 0;
@@ -166,34 +124,17 @@ function initRobot(container) {
         // Gestion Spots
         stageSpots.forEach((s, i) => {
             if (time > s.nextChange) {
-                // Aléatoire : Allumé ou Eteint
-                s.isOn = Math.random() > 0.6; // 40% chance d'être allumé
-                
-                // Couleur aléatoire
-                const hue = Math.random();
-                s.light.color.setHSL(hue, 1, 0.5);
+                s.isOn = !s.isOn;
+                s.light.color.setHSL(Math.random(), 1, 0.6);
                 s.beam.material.color.copy(s.light.color);
-                
-                s.nextChange = time + Math.random() * 3 + 1; // Durée état
-                s.tracking = Math.random() > 0.7; // 30% chance de suivre le robot
+                s.nextChange = time + Math.random() * 3 + 1;
+                s.tracking = Math.random() > 0.7; 
             }
-
-            // Transition douce lumière
-            const targetInt = s.isOn ? 30 : 0;
+            const targetInt = s.isOn ? 25 : 0;
             s.light.intensity += (targetInt - s.light.intensity) * 0.1;
+            s.beam.material.opacity = (s.light.intensity / 25) * 0.15;
             
-            // Opacité du faisceau liée à l'intensité (plus visible maintenant 0.2 max)
-            s.beam.material.opacity = (s.light.intensity / 30) * 0.15;
-            
-            // Orientation
-            let lookAtPos;
-            if (s.tracking) {
-                lookAtPos = robotGroup.position;
-            } else {
-                // Position "Repos" : pointe vers le centre ou un peu au hasard
-                lookAtPos = new THREE.Vector3(s.group.position.x * 0.5, 0, 0);
-            }
-            
+            let lookAtPos = s.tracking ? robotGroup.position : new THREE.Vector3(s.group.position.x, 0, 0);
             s.bodySpot.lookAt(lookAtPos);
             s.light.target.position.copy(lookAtPos);
         });
@@ -201,12 +142,9 @@ function initRobot(container) {
         // Mouvements Robot
         if (robotState === 'moving') {
             robotGroup.position.lerp(targetPos, 0.02);
-            robotGroup.position.y += Math.sin(time*2)*0.002; // Flottement
-
             if (robotGroup.position.distanceTo(targetPos) < 0.5) {
                 const side = Math.random() > 0.5 ? 1 : -1;
-                // Reste sur les cotés (Zone > 3.5 ou < -3.5)
-                targetPos.set(side * (3.5 + Math.random() * 2), (Math.random() - 0.5) * 3, 0);
+                targetPos.set(side * (4.5 + Math.random() * 2), (Math.random() - 0.5) * 4, 0);
             }
             if (time > nextEvent) {
                 const msg = getUniqueMessage(config.mode === 'photos' && Math.random() > 0.5 ? 'danse' : config.mode);
@@ -216,13 +154,12 @@ function initRobot(container) {
             mouth.scale.y = 1 + Math.sin(time * 20) * 0.2;
         }
 
-        // Bulle position (anti-coupe)
+        // Bulle position
         if (bubble && bubble.style.opacity == 1) {
             const vector = robotGroup.position.clone(); vector.y += 1; vector.project(camera);
             const x = (vector.x * .5 + .5) * width;
-            // Marges de sécurité pour la bulle
             bubble.style.left = Math.max(150, Math.min(width - 150, x)) + 'px';
-            bubble.style.top = Math.max(50, ((vector.y * -.5 + .5) * height - 100)) + 'px';
+            bubble.style.top = ((vector.y * -.5 + .5) * height - 80) + 'px';
         }
 
         renderer.render(scene, camera);
