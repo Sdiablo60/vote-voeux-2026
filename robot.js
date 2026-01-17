@@ -45,7 +45,7 @@ function initRobot(container) {
     
     // CAMÉRA
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 14); 
+    camera.position.set(0, 0, 16); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -101,7 +101,26 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- CONSTRUCTION DES SPOTS (Corriger Faisceau & Taille) ---
+    // --- STRUCTURE MÉTALLIQUE (Portique DJ) ---
+    const trussMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.2 });
+    const trussGroup = new THREE.Group();
+    trussGroup.position.z = -1; // Derrière le robot
+
+    // Barres horizontales (Haut et Bas)
+    const hBarTop = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 28, 16), trussMat);
+    hBarTop.rotation.z = Math.PI / 2; hBarTop.position.y = 6.0; trussGroup.add(hBarTop);
+    const hBarBot = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 28, 16), trussMat);
+    hBarBot.rotation.z = Math.PI / 2; hBarBot.position.y = -4.7; trussGroup.add(hBarBot);
+
+    // Barres verticales (Gauche et Droite)
+    const vBarLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 11, 16), trussMat);
+    vBarLeft.position.set(-13, 0.65, 0); trussGroup.add(vBarLeft);
+    const vBarRight = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 11, 16), trussMat);
+    vBarRight.position.set(13, 0.65, 0); trussGroup.add(vBarRight);
+
+    scene.add(trussGroup);
+
+    // --- SPOTS & FAISCEAUX ---
     const stageSpots = [];
     const housingMat = new THREE.MeshStandardMaterial({ 
         color: 0xCCCCCC, metalness: 0.5, roughness: 0.5, emissive: 0x222222 
@@ -111,11 +130,9 @@ function initRobot(container) {
     function createSpot(x, y, colorInt, isBottom) {
         const group = new THREE.Group();
         group.position.set(x, y, 0);
-        
-        // 1. RÉDUCTION DE LA TAILLE GLOBALE (60%)
         group.scale.set(0.6, 0.6, 0.6);
 
-        // Support
+        // Support (Fixation au portique)
         const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 16, Math.PI), housingMat);
         bracket.rotation.z = isBottom ? 0 : Math.PI;
         group.add(bracket);
@@ -137,19 +154,19 @@ function initRobot(container) {
         const topDoor = new THREE.Mesh(doorGeo, barnMat); topDoor.position.set(0, 0.45, -0.5); topDoor.rotation.x = Math.PI/4; bodyGroup.add(topDoor);
         const botDoor = new THREE.Mesh(doorGeo, barnMat); botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4; bodyGroup.add(botDoor);
 
-        // --- FAISCEAU UNIQUE ET PROPRE ---
-        // Le rayon du cone (0.35) correspond exactement à la lentille
-        const beamLen = 30;
-        const beamGeo = new THREE.ConeGeometry(0.35, beamLen, 32, 1, true);
+        // --- FAISCEAU UNIQUE & NET (Cylindre fin) ---
+        const beamLen = 40;
+        // Utilisation d'un cylindre très fin pour un faisceau net "laser"
+        const beamGeo = new THREE.CylinderGeometry(0.05, 0.35, beamLen, 32, 1, true);
         beamGeo.translate(0, -beamLen/2, 0); 
         beamGeo.rotateX(-Math.PI / 2);
         
         const beamMat = new THREE.MeshBasicMaterial({ 
-            color: colorInt, transparent: true, opacity: 0.3, 
+            color: colorInt, transparent: true, opacity: 0.5, 
             side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false 
         });
         const beam = new THREE.Mesh(beamGeo, beamMat);
-        beam.position.z = -0.52; // Colle à la lentille
+        beam.position.z = -0.52; 
         bodyGroup.add(beam);
 
         // Lumière
@@ -165,20 +182,11 @@ function initRobot(container) {
         return { group, beam, light, baseIntensity: 10, timeOff: Math.random() * 100 };
     }
 
-    // --- PLACEMENT 4 SPOTS ---
-    // X = 13 (Bords)
-    // Y = 5.8 (Haut, collé sous le titre)
-    // Y = -4.5 (Bas)
-    
-    // GAUCHE HAUT (Jaune)
-    stageSpots.push(createSpot(-13, 5.8, 0xFFFF00, false));
-    // GAUCHE BAS (Cyan)
-    stageSpots.push(createSpot(-13, -4.5, 0x00FFFF, true));
-    
-    // DROITE HAUT (Vert)
-    stageSpots.push(createSpot(13, 5.8, 0x00FF00, false));
-    // DROITE BAS (Orange)
-    stageSpots.push(createSpot(13, -4.5, 0xFFA500, true));
+    // Positions des 4 spots sur le portique
+    stageSpots.push(createSpot(-13, 5.8, 0xFFFF00, false)); // Gauche Haut
+    stageSpots.push(createSpot(-13, -4.5, 0x00FFFF, true));  // Gauche Bas
+    stageSpots.push(createSpot(13, 5.8, 0x00FF00, false));  // Droite Haut
+    stageSpots.push(createSpot(13, -4.5, 0xFFA500, true));   // Droite Bas
 
     // --- ANIMATION ---
     let time = 0;
@@ -194,7 +202,7 @@ function initRobot(container) {
         // Spots
         stageSpots.forEach(s => {
             const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8;
-            s.beam.material.opacity = 0.25 * pulse; 
+            s.beam.material.opacity = 0.5 * pulse; // Opacité augmentée pour le faisceau fin
             s.light.intensity = s.baseIntensity * pulse;
         });
 
