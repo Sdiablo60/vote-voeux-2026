@@ -6,11 +6,17 @@ const bubble = document.getElementById('robot-bubble');
 // --- CONFIGURATION ---
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
+// --- RÉGLAGE DE LA BORDURE HAUTE ---
+// 0.0 = Tout en haut de l'écran
+// 0.15 = Descend de 15% (Pour passer sous le titre "Concours Vidéo")
+// Ajustez ce chiffre si le trait n'est pas bien placé par rapport au titre
+const TOP_OFFSET_PERCENT = 0.18; 
+
 // --- TEXTES ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue !", "Installez-vous.", "Prêts ?"],
+    attente: ["Bienvenue !", "Prêts ?"],
     vote_off: ["Votes CLOS !"],
-    photos: ["Photos ! 📸", "Souriez !", "On partage !"],
+    photos: ["Photos ! 📸", "Souriez !"],
     danse: ["Dancefloor ! 💃"],
     explosion: ["Boum !"],
     cache_cache: ["Coucou !"]
@@ -31,9 +37,9 @@ function getUniqueMessage(category) {
 const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" },
-    { time: 4.0, text: "Je vérifie les bords... 📐", action: "look_around" },
-    { time: 7.0, text: "Gauche et Droite ok ? 🟥", action: "surprise" },
-    { time: 10.0, text: "On peut commencer !", action: "wave" }
+    { time: 4.0, text: "Je scanne les bords... 📐", action: "look_around" },
+    { time: 7.0, text: "Normalement c'est parfait ! 🟥", action: "surprise" },
+    { time: 10.0, text: "On valide ?", action: "wave" }
 ];
 
 if (container) {
@@ -42,7 +48,7 @@ if (container) {
 }
 
 function initRobot(container) {
-    // Reset CSS pour garantir le plein écran
+    // RESET CSS FORCE
     document.body.style.margin = "0";
     document.body.style.padding = "0";
     document.body.style.overflow = "hidden";
@@ -56,7 +62,7 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA STANDARD (Z=14)
+    // CAMÉRA
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 14); 
 
@@ -73,54 +79,41 @@ function initRobot(container) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE DE DEBUG (CALIBRAGE MANUEL) ---
+    // --- STEP 1 : CADRE INFAILLIBLE (MÉTHODE RAYCAST) ---
     // =========================================================
     let updateDebugBorder = () => {}; 
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        // Ligne rouge bien épaisse
         const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
+        // Fonction utilitaire pour trouver le point 3D au bord de l'écran à Z=0
+        function getPointAtZ0(ndcX, ndcY, camera) {
+            // NDC (Normalized Device Coordinates) : -1 à +1
+            const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
+            vector.unproject(camera);
+            vector.sub(camera.position).normalize();
+            const distance = -camera.position.z / vector.z;
+            const pos = new THREE.Vector3().copy(camera.position).add(vector.multiplyScalar(distance));
+            return pos; // Retourne le point exact sur le plan Z=0
+        }
+
         updateDebugBorder = () => {
-            const dist = camera.position.z; 
-            const vFOV = THREE.MathUtils.degToRad(camera.fov); 
+            // On calcule les 4 coins exacts de l'écran
+            // Haut Gauche (-1, 1) -> Haut Droite (1, 1) etc.
             
-            // Hauteur et Largeur théoriques totales à Z=0
-            const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
-            const visibleWidth = visibleHeight * camera.aspect;
+            // Pour le haut, on applique l'offset (1.0 = tout en haut, -1.0 = tout en bas)
+            // 1.0 - (Offset * 2) car l'espace NDC va de 1 à -1 (taille 2)
+            const topNDC = 1.0 - (TOP_OFFSET_PERCENT * 2);
 
-            const halfW = visibleWidth / 2;
-            const halfH = visibleHeight / 2;
+            const pTL = getPointAtZ0(-1.0, topNDC, camera); // Haut Gauche (Ajusté)
+            const pTR = getPointAtZ0(1.0, topNDC, camera);  // Haut Droite (Ajusté)
+            const pBR = getPointAtZ0(1.0, -1.0, camera);    // Bas Droite
+            const pBL = getPointAtZ0(-1.0, -1.0, camera);   // Bas Gauche
 
-            // --- RÉGLAGES DE CALIBRAGE ---
-            // 1.0 = Bord exact de l'écran. 
-            // Si vous voyez du noir, c'est que c'est < 1.0.
-            const widthFactor = 1.0; 
-            
-            // Décalage du HAUT (en unités 3D) pour passer sous le titre rouge
-            // Augmentez cette valeur pour descendre la ligne du haut
-            const offsetTop = 2.0; 
-
-            // Décalage du BAS (en unités 3D) pour être au dessus du footer
-            // Augmentez pour remonter la ligne du bas
-            const offsetBottom = 0.5;
-
-            // Calcul des coordonnées du cadre
-            const xLeft = -halfW * widthFactor;
-            const xRight = halfW * widthFactor;
-            const yTop = halfH - offsetTop;
-            const yBottom = -halfH + offsetBottom;
-
-            const points = [
-                new THREE.Vector3(xLeft, yTop, 0),   // Haut Gauche
-                new THREE.Vector3(xRight, yTop, 0),  // Haut Droite
-                new THREE.Vector3(xRight, yBottom, 0), // Bas Droite
-                new THREE.Vector3(xLeft, yBottom, 0),  // Bas Gauche
-                new THREE.Vector3(xLeft, yTop, 0)    // Fermer la boucle
-            ];
+            const points = [pTL, pTR, pBR, pBL, pTL]; // Boucle
             borderGeo.setFromPoints(points);
         };
         updateDebugBorder(); 
@@ -165,7 +158,7 @@ function initRobot(container) {
 
     // --- ANIMATION ---
     let time = 0;
-    // Robot centré par défaut
+    // On centre le robot (Y = -1 pour être un peu plus bas que le milieu exact)
     let startX = (config.mode === 'attente') ? -15 : 0;
     let targetPosition = new THREE.Vector3(startX, -1, 0); 
     robotGroup.position.copy(targetPosition);
@@ -177,11 +170,23 @@ function initRobot(container) {
     function showBubble(text, dur) { if(!bubble) return; if(bubbleTimeout) clearTimeout(bubbleTimeout); bubble.innerText = text; bubble.style.opacity = 1; if(dur) bubbleTimeout = setTimeout(() => bubble.style.opacity=0, dur); }
     
     function pickNewTarget() { 
-        const aspect = width / height; 
-        const vW = 7 * aspect; 
-        const safeMax = vW * 0.7; 
-        const x = (Math.random()>0.5?1:-1) * (2 + Math.random()*(safeMax-2));
+        // Calcul des limites pour le robot (basé sur la méthode getPointAtZ0)
+        // On récupère le bord droit de l'écran à Z=0
+        const borderRight = getPointAtZ0(1.0, 0, camera).x;
+        // On garde une marge de sécurité (le robot ne va pas coller au bord)
+        const safeMax = borderRight - 2.5; 
+        
+        const x = (Math.random()>0.5?1:-1) * (1.5 + Math.random()*(safeMax-1.5));
         targetPosition.set(x, -1 + (Math.random()-0.5)*2, 0); 
+    }
+
+    // Copie de la fonction getPointAtZ0 pour l'utiliser dans pickNewTarget
+    function getPointAtZ0(ndcX, ndcY, camera) {
+        const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
+        vector.unproject(camera);
+        vector.sub(camera.position).normalize();
+        const distance = -camera.position.z / vector.z;
+        return new THREE.Vector3().copy(camera.position).add(vector.multiplyScalar(distance));
     }
 
     function animate() {
