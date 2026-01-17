@@ -45,7 +45,7 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA RECULÉE (Z=14) pour voir toute la scène
+    // CAMÉRA RECULÉE (Z=14) pour voir toute la scène (Haut et Bas)
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 14); 
 
