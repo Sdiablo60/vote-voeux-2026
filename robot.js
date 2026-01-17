@@ -4,15 +4,29 @@ const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
-// --- PARAMÈTRES ---
+// --- PARAMÈTRES DE BORDURE ---
 const LIMITE_HAUTE_Y = 6.53; 
 
+// --- DICTIONNAIRE DE PHRASES PAR MUR ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue ! ✨", "Ravi de vous voir !", "La soirée va être belle !", "Prêts pour le show ?", "Coucou la technique ! 👷"],
-    vote_off: ["Les votes sont CLOS ! 🛑", "Les jeux sont faits.", "Le podium arrive... 🏆", "Calcul des scores... 🧮", "La régie gère ! ⚡"],
-    photos: ["Ouistiti ! 📸", "Souriez !", "On partage vos sourires ! 📲", "Vous êtes magnifiques !", "Selfie time ! ✨"],
-    explosion: ["Surchauffe système ! 🔥", "J'ai perdu la tête... 🤯", "Oups, erreur de calcul !", "Rassemblement immédiat ! 🧲"],
-    cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie ! ⚡", "Je suis rapide ! 🚀"]
+    attente: [ // 🏠 ACCUEIL
+        "Bienvenue ! ✨", "Installez-vous.", "Ravi de vous voir !", 
+        "La soirée va être belle !", "Prêts pour le show ?", "Coucou la technique ! 👷"
+    ],
+    vote_off: [ // 🔒 VOTES CLOS
+        "Les votes sont CLOS ! 🛑", "Les jeux sont faits.", 
+        "Le podium arrive... 🏆", "Suspens... 😬", "La régie gère ! ⚡"
+    ],
+    photos: [ // 📸 PHOTOS LIVE
+        "Ouistiti ! 📸", "Souriez !", "On partage vos sourires ! 📲", 
+        "Vous êtes beaux !", "Selfie time ! 🤳", "Clic-clac !"
+    ],
+    explosion: [
+        "Surchauffe ! 🔥", "J'ai perdu la tête... 🤯", "Rassemblement... 🧲", "Oups..."
+    ],
+    cache_cache: [
+        "Coucou ! 👋", "Me revoilà !", "Magie ! ⚡", "Je suis rapide ! 🚀"
+    ]
 };
 
 const usedMessages = {};
@@ -26,6 +40,7 @@ function getUniqueMessage(category) {
     return msg;
 }
 
+// --- SCRIPT D'INTRODUCTION (UNIQUEMENT POUR L'ACCUEIL) ---
 const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" }, 
@@ -65,16 +80,12 @@ function initRobot(container) {
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat);
     face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     
-    // YEUX
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat);
     eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
 
-    // BOUCHE (RÉINTÉGRÉE)
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat);
-    mouth.position.set(0, -0.15, 1.05);
-    mouth.rotation.z = Math.PI; // Sourire
-    head.add(mouth);
+    mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
 
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat);
     body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
@@ -84,15 +95,9 @@ function initRobot(container) {
     const rightArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
     rightArm.position.set(0.8, -0.8, 0); rightArm.rotation.z = -0.15;
 
-    // SAUVEGARDE ET GROUPAGE
     const parts = [head, body, leftArm, rightArm];
     parts.forEach(p => {
-        p.userData = { 
-            origPos: p.position.clone(), 
-            origRot: p.rotation.clone(), 
-            velocity: new THREE.Vector3(),
-            rotVel: new THREE.Vector3()
-        };
+        p.userData = { origPos: p.position.clone(), origRot: p.rotation.clone(), velocity: new THREE.Vector3(), rotVel: new THREE.Vector3() };
         robotGroup.add(p);
     });
     scene.add(robotGroup);
@@ -108,8 +113,12 @@ function initRobot(container) {
     }
     [-6, -2, 2, 6].forEach((x, i) => stageSpots.push(createSpot([0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], x, LIMITE_HAUTE_Y)));
 
-    // --- ANIMATION ---
-    let time = 0, targetPos = new THREE.Vector3(-15, 0, 0), robotState = 'intro', introIdx = 0, nextEvt = 0;
+    // --- LOGIQUE ÉTATS ---
+    // Si on est sur Accueil -> Intro. Sinon -> On commence direct à bouger au centre.
+    let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
+    let time = 0, introIdx = 0, nextEvt = 0;
+    let targetPos = (robotState === 'intro') ? new THREE.Vector3(-15, 0, 0) : new THREE.Vector3(0, 0, 0);
+    robotGroup.position.copy(targetPos);
 
     function showBubble(text, duration) { 
         if(!bubble) return; 
@@ -121,14 +130,12 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015;
 
-        // Spots
         stageSpots.forEach(s => {
             if(time > s.nextToggle) { s.isOn = !s.isOn; s.nextToggle = time + Math.random()*3 + 1; }
             s.beam.material.opacity += ((s.isOn ? 0.15 : 0) - s.beam.material.opacity) * 0.1;
             s.g.lookAt(robotGroup.position);
         });
 
-        // États Robot
         if (robotState === 'intro') {
             const step = introScript[introIdx];
             if (step && time >= step.time) {
@@ -150,14 +157,14 @@ function initRobot(container) {
 
             if(time > nextEvt) {
                 const r = Math.random();
-                if(r < 0.15) { 
+                if(r < 0.12) { 
                     robotState = 'exploding'; showBubble(getUniqueMessage('explosion'), 3000);
                     parts.forEach(p => {
                         p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4);
                         p.userData.rotVel.set(Math.random()*0.1, Math.random()*0.1, Math.random()*0.1);
                     });
                     setTimeout(() => { robotState = 'reassembling'; }, 3000);
-                } else if(r < 0.3) { 
+                } else if(r < 0.25) { 
                     robotGroup.visible = false; showBubble(getUniqueMessage('cache_cache'), 1500);
                     setTimeout(() => { robotGroup.position.set((Math.random()-0.5)*10, (Math.random()-0.5)*5, 0); robotGroup.visible = true; robotState = 'moving'; }, 1000);
                 } else {
@@ -167,29 +174,20 @@ function initRobot(container) {
             }
         }
         else if (robotState === 'exploding') {
-            parts.forEach(p => {
-                p.position.add(p.userData.velocity);
-                p.rotation.x += p.userData.rotVel.x; p.rotation.y += p.userData.rotVel.y;
-                p.userData.velocity.multiplyScalar(0.98);
-            });
+            parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += p.userData.rotVel.x; p.userData.velocity.multiplyScalar(0.98); });
         }
         else if (robotState === 'reassembling') {
             let finished = true;
             parts.forEach(p => {
                 p.position.lerp(p.userData.origPos, 0.1);
                 p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1;
-                p.rotation.y += (p.userData.origRot.y - p.rotation.y) * 0.1;
-                p.rotation.z += (p.userData.origRot.z - p.rotation.z) * 0.1;
                 if (p.position.distanceTo(p.userData.origPos) > 0.01) finished = false;
             });
             if(finished) { robotState = 'moving'; nextEvt = time + 2; }
         }
 
-        // Bulle
         if(bubble && bubble.style.opacity == 1) {
-            const p = robotGroup.position.clone(); 
-            if(robotState !== 'exploding') p.y += 1.2; 
-            p.project(camera);
+            const p = robotGroup.position.clone(); if(robotState !== 'exploding') p.y += 1.2; p.project(camera);
             bubble.style.left = (p.x * 0.5 + 0.5) * window.innerWidth + 'px';
             let bY = (p.y * -0.5 + 0.5) * window.innerHeight;
             bubble.style.top = (bY < 120 ? 130 : bY) + 'px';
