@@ -5,7 +5,7 @@ import * as THREE from 'three';
 // =========================================================
 // 0.05 = On descend de 5% seulement.
 // PLUS LE CHIFFRE EST PETIT, PLUS LE TRAIT MONTE.
-const HAUTEUR_TITRE_POURCENTAGE = 0.005; 
+const HAUTEUR_TITRE_POURCENTAGE = 0.001; 
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', launchCalibrationOnly);
