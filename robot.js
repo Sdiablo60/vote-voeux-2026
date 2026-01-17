@@ -20,6 +20,7 @@ if (container) {
         initRobot(container);
     } catch (e) {
         console.error("ERREUR 3D:", e);
+        container.innerHTML = `<div style='color:red;text-align:center;padding-top:20px'>Erreur 3D: ${e.message}</div>`;
     }
 }
 
@@ -102,7 +103,7 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- CONSTRUCTION DES SPOTS CORRIGÉE ---
+    // --- CONSTRUCTION DES SPOTS ---
     const stageSpots = [];
     const housingMat = new THREE.MeshStandardMaterial({ 
         color: 0xCCCCCC, metalness: 0.5, roughness: 0.5, emissive: 0x222222 
@@ -135,13 +136,9 @@ function initRobot(container) {
         const topDoor = new THREE.Mesh(doorGeo, barnMat); topDoor.position.set(0, 0.45, -0.5); topDoor.rotation.x = Math.PI/4; bodyGroup.add(topDoor);
         const botDoor = new THREE.Mesh(doorGeo, barnMat); botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4; bodyGroup.add(botDoor);
 
-        // --- CORRECTION FAISCEAU ---
-        // On décale l'origine du cone pour qu'il commence APRES la lentille
-        // Le cylindre finit à z = -0.5. Donc le faisceau doit commencer à z = -0.6
-        
+        // --- FAISCEAU ---
         const beamLen = 25;
         const beamGeo = new THREE.ConeGeometry(0.4, beamLen, 32, 1, true);
-        // Translation: On déplace le cône pour que sa pointe soit à l'origine (0,0,0) locale, puis on l'étend vers le bas
         beamGeo.translate(0, -beamLen/2, 0); 
         beamGeo.rotateX(-Math.PI / 2);
         
@@ -150,33 +147,35 @@ function initRobot(container) {
             side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false 
         });
         const beam = new THREE.Mesh(beamGeo, beamMat);
-        // Positionnement précis DEVANT la lentille (-0.55)
         beam.position.z = -0.55; 
         bodyGroup.add(beam);
 
-        // Lumière (pour l'effet sur le robot)
+        // Lumière
         const light = new THREE.SpotLight(colorInt, 10);
         light.angle = 0.3; light.distance = 50; light.decay = 1;
-        // La lumière part aussi de devant la lentille
         light.position.set(0, 0, -0.5);
         bodyGroup.add(light); bodyGroup.add(light.target);
 
         scene.add(group);
         bodyGroup.lookAt(0, 0, 0); 
-        light.target.position.set(0, 0, 10); // Cible vers l'avant/centre
+        light.target.position.set(0, 0, 10); 
 
         return { group, beam, light, baseIntensity: 10, timeOff: Math.random() * 100 };
     }
 
-    // --- POSITIONS CORRIGÉES (ÉCARTÉES VERS LES BORDS) ---
-    // Y = 6.5 pour le HAUT (au lieu de 3.5) -> Colle au bord haut
-    // Y = -6.5 pour le BAS (au lieu de -3.5) -> Colle au bord bas
-    const colors = [0xFFFF00, 0x00FFFF, 0x00FF00, 0xFFA500];
+    // --- NOUVELLE DISPOSITION : 4 SPOTS (2 Gauche, 2 Droite) ---
+    // Positions X: -9 (Bord Gauche), 9 (Bord Droit)
+    // Positions Y: 6.5 (Haut), -6.5 (Bas)
     
-    // HAUT
-    [-8, -3, 3, 8].forEach((x, i) => stageSpots.push(createSpot(x, 6.5, colors[i%4], false)));
-    // BAS
-    [-8, -3, 3, 8].forEach((x, i) => stageSpots.push(createSpot(x, -6.5, colors[(i+2)%4], true)));
+    // GAUCHE HAUT (Jaune)
+    stageSpots.push(createSpot(-9, 6.5, 0xFFFF00, false));
+    // DROITE HAUT (Vert)
+    stageSpots.push(createSpot(9, 6.5, 0x00FF00, false));
+    
+    // GAUCHE BAS (Cyan)
+    stageSpots.push(createSpot(-9, -6.5, 0x00FFFF, true));
+    // DROITE BAS (Orange)
+    stageSpots.push(createSpot(9, -6.5, 0xFFA500, true));
 
     // --- ANIMATION ---
     let time = 0;
@@ -192,7 +191,7 @@ function initRobot(container) {
         // Spots
         stageSpots.forEach(s => {
             const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8;
-            s.beam.material.opacity = 0.25 * pulse; // Opacité ajustée
+            s.beam.material.opacity = 0.25 * pulse; 
             s.light.intensity = s.baseIntensity * pulse;
         });
 
