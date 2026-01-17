@@ -45,7 +45,7 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA RECULÉE (Z=14) pour voir toute la scène (Haut et Bas)
+    // Caméra reculée pour voir toute la scène
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 14); 
 
@@ -54,13 +54,14 @@ function initRobot(container) {
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
-    // LUMIERE D'AMBIANCE (Pour voir les spots gris)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
+    // Lumière FORTE pour bien voir les spots gris
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0); 
     scene.add(ambientLight);
     
-    const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
-    explosionLight.position.set(0, 0, 5);
-    scene.add(explosionLight);
+    // Lumière directionnelle pour donner du volume aux boîtiers
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    dirLight.position.set(5, 5, 10);
+    scene.add(dirLight);
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
@@ -83,6 +84,8 @@ function initRobot(container) {
 
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat);
     body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
+    const belt = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.03, 16, 32), greyMat);
+    belt.rotation.x = Math.PI/2; body.add(belt);
     
     const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
     leftArm.position.set(-0.8, -0.8, 0); leftArm.rotation.z = 0.15;
@@ -97,18 +100,20 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- CONSTRUCTION DES SPOTS (STYLE IMAGE DE REFERENCE) ---
+    // --- CONSTRUCTION DES SPOTS 3D (Visibles et positionnés) ---
     const stageSpots = [];
     
-    // Matériau du boîtier (Gris Argenté)
-    const housingMat = new THREE.MeshStandardMaterial({ color: 0xAAAAAA, roughness: 0.3, metalness: 0.6 });
-    
+    // Matériau GRIS CLAIR pour bien voir le corps du spot
+    const housingMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, roughness: 0.4, metalness: 0.5 });
+    // Matériau des volets
+    const barnMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide });
+
     function createStageLight(x, y, colorInt, isBottom) {
         const group = new THREE.Group();
-        group.position.set(x, y, 1); // Z=1 pour être derrière le robot mais devant le fond
+        group.position.set(x, y, 1); 
 
         // 1. Support (U)
-        const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.08, 8, 16, Math.PI), housingMat);
+        const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 16, Math.PI), housingMat);
         bracket.rotation.z = isBottom ? 0 : Math.PI;
         group.add(bracket);
 
@@ -116,67 +121,81 @@ function initRobot(container) {
         const bodyGroup = new THREE.Group();
         group.add(bodyGroup);
         
-        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.4, 0.8, 32), housingMat);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), housingMat);
+        box.position.z = 0.3;
+        bodyGroup.add(box);
+
+        const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32), housingMat);
         cyl.rotation.x = Math.PI/2;
+        cyl.position.z = -0.2;
         bodyGroup.add(cyl);
 
-        // 3. Lentille Colorée (Brillante)
-        const lensGeo = new THREE.CircleGeometry(0.42, 32);
-        const lensMat = new THREE.MeshBasicMaterial({ color: colorInt }); // Toujours la couleur vive
+        // 3. Lentille Colorée (Toujours brillante)
+        const lensGeo = new THREE.CircleGeometry(0.35, 32);
+        const lensMat = new THREE.MeshBasicMaterial({ color: colorInt }); 
         const lens = new THREE.Mesh(lensGeo, lensMat);
-        lens.position.set(0, 0, 0.41);
+        lens.position.set(0, 0, -0.51);
         bodyGroup.add(lens);
 
-        // 4. Faisceau (Beam) - Très visible
-        const beamGeo = new THREE.ConeGeometry(0.5, 25, 32, 1, true);
-        beamGeo.translate(0, -12.5, 0); 
+        // 4. Volets (Barn Doors)
+        const doorGeo = new THREE.PlaneGeometry(0.6, 0.3);
+        const topDoor = new THREE.Mesh(doorGeo, barnMat);
+        topDoor.position.set(0, 0.45, -0.5); topDoor.rotation.x = Math.PI/4;
+        bodyGroup.add(topDoor);
+        
+        const botDoor = new THREE.Mesh(doorGeo, barnMat);
+        botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4;
+        bodyGroup.add(botDoor);
+
+        // 5. Faisceau (Beam)
+        const beamGeo = new THREE.ConeGeometry(0.6, 20, 32, 1, true);
+        beamGeo.translate(0, -10, 0); 
         beamGeo.rotateX(-Math.PI / 2);
         
         const beamMat = new THREE.MeshBasicMaterial({ 
             color: colorInt, 
             transparent: true, 
-            opacity: 0.15, // Assez visible
+            opacity: 0.15, // Visible
             side: THREE.DoubleSide,
-            blending: THREE.AdditiveBlending, // Effet lumière
+            blending: THREE.AdditiveBlending,
             depthWrite: false
         });
         const beam = new THREE.Mesh(beamGeo, beamMat);
-        beam.position.z = 0.45;
+        beam.position.z = -0.6;
         bodyGroup.add(beam);
 
-        // 5. Lumière réelle (SpotLight)
+        // 6. Lumière réelle
         const light = new THREE.SpotLight(colorInt, 10);
-        light.angle = 0.2;
-        light.penumbra = 0.5;
-        light.distance = 40;
+        light.angle = 0.3;
+        light.penumbra = 0.2;
+        light.distance = 50;
         bodyGroup.add(light); bodyGroup.add(light.target);
 
         scene.add(group);
 
-        // Orientation : Regarde vers le centre (0,0,0)
+        // Orientation vers le centre (0,0,0)
         bodyGroup.lookAt(0, 0, 0);
         light.target.position.set(0,0,0);
 
         return { 
             group, beam, light, 
             baseIntensity: 10,
-            flickerSpeed: Math.random() * 0.1 + 0.05,
             timeOff: Math.random() * 100
         };
     }
 
-    // --- POSITIONS & COULEURS (SELON IMAGE) ---
-    // HAUT (Y=7) - Couleurs: Jaune, Cyan, Vert, Orange
-    stageSpots.push(createStageLight(-9, 7, 0xFFFF00, false));
-    stageSpots.push(createStageLight(-3, 7, 0x00FFFF, false));
-    stageSpots.push(createStageLight(3, 7, 0x00FF00, false));
-    stageSpots.push(createStageLight(9, 7, 0xFFA500, false));
+    // --- POSITIONS CORRIGÉES (Y=4.0 et Y=-4.0) ---
+    // HAUT (Jaune, Cyan, Vert, Orange)
+    stageSpots.push(createStageLight(-7, 4.0, 0xFFFF00, false));
+    stageSpots.push(createStageLight(-2.5, 4.0, 0x00FFFF, false));
+    stageSpots.push(createStageLight(2.5, 4.0, 0x00FF00, false));
+    stageSpots.push(createStageLight(7, 4.0, 0xFFA500, false));
 
-    // BAS (Y=-7) - Couleurs: Vert, Cyan, Orange, Bleu
-    stageSpots.push(createStageLight(-9, -7, 0x00FF00, true));
-    stageSpots.push(createStageLight(-3, -7, 0x00FFFF, true));
-    stageSpots.push(createStageLight(3, -7, 0xFFA500, true));
-    stageSpots.push(createStageLight(9, -7, 0x0088FF, true));
+    // BAS (Vert, Cyan, Orange, Bleu)
+    stageSpots.push(createStageLight(-7, -4.0, 0x00FF00, true));
+    stageSpots.push(createStageLight(-2.5, -4.0, 0x00FFFF, true));
+    stageSpots.push(createStageLight(2.5, -4.0, 0xFFA500, true));
+    stageSpots.push(createStageLight(7, -4.0, 0x0088FF, true));
 
     // --- ANIMATION ---
     let time = 0;
@@ -188,9 +207,9 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.015;
 
-        // Animation des Spots (Pulsation légère)
+        // Animation des Spots
         stageSpots.forEach(s => {
-            const pulse = Math.sin(time * 2 + s.timeOff) * 0.3 + 0.7; // 0.4 à 1.0
+            const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8; // Scintillement
             s.beam.material.opacity = 0.15 * pulse;
             s.light.intensity = s.baseIntensity * pulse;
         });
@@ -222,47 +241,25 @@ function initRobot(container) {
             
             if (time > nextEvent) {
                 const rand = Math.random();
-                if (rand < 0.12) startTeleport(); 
-                else if (rand < 0.22) startExplosion(); 
-                else if (rand < 0.35) startDance();
-                else startSpeaking(); 
+                if (rand < 0.12) { robotState = 'teleporting'; showBubble(getUniqueMessage('cache_cache'), 1500); setTimeout(() => { robotGroup.visible = false; pickNewTarget(); robotGroup.position.copy(targetPos); setTimeout(() => { robotGroup.visible = true; robotState = 'moving'; }, 1000); }, 500); }
+                else if (rand < 0.22) { robotState = 'exploding'; showBubble(getUniqueMessage('explosion'), 3500); if (Math.abs(robotGroup.position.x) > 6) robotGroup.position.x = 0; setTimeout(() => { parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4); }); setTimeout(() => { robotState = 'reassembling'; setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 2000); }, 3000); }, 1000); }
+                else startSpeaking();
             }
         }
         
-        else if (robotState === 'dancing') {
-            const d = time * 10;
-            robotGroup.position.y = Math.abs(Math.sin(d))*0.5 - 0.5;
-            robotGroup.rotation.z = Math.sin(d*0.5)*0.2;
-            leftArm.rotation.z = Math.PI - 0.5 + Math.sin(d)*0.5;
-            rightArm.rotation.z = -Math.PI + 0.5 - Math.sin(d)*0.5;
-            head.rotation.y = Math.sin(d*2)*0.3;
-        }
-
         else if (robotState === 'exploding') {
-            let isMoving = false;
             parts.forEach(part => {
-                if (part.userData.velocity.lengthSq() > 0) {
-                    isMoving = true;
-                    part.position.add(part.userData.velocity);
-                    part.rotation.x += part.userData.rotVelocity.x;
-                    part.rotation.y += part.userData.rotVelocity.y;
-                    part.rotation.z += part.userData.rotVelocity.z;
-                    part.userData.velocity.multiplyScalar(0.95);
-                }
+                part.position.add(part.userData.velocity);
+                part.rotation.x += 0.1;
+                part.userData.velocity.multiplyScalar(0.95);
             });
-            if (!isMoving) robotGroup.position.x += (Math.random()-0.5) * 0.1;
         }
-        
         else if (robotState === 'reassembling') {
             parts.forEach(part => {
                 part.position.lerp(part.userData.origPos, 0.08);
                 part.rotation.x += (part.userData.origRot.x - part.rotation.x) * 0.08;
-                part.rotation.y += (part.userData.origRot.y - part.rotation.y) * 0.08;
-                part.rotation.z += (part.userData.origRot.z - part.rotation.z) * 0.08;
-                part.userData.velocity.set(0,0,0);
             });
         }
-
         else if (robotState === 'speaking') {
             robotGroup.position.lerp(targetPos, 0.001); 
             smoothRotate(robotGroup, 'y', 0, 0.05); 
@@ -281,24 +278,13 @@ function initRobot(container) {
 
     function smoothRotate(object, axis, targetValue, speed) { object.rotation[axis] += (targetValue - object.rotation[axis]) * speed; }
     function showBubble(text, duration) { bubble.innerText = text; bubble.style.opacity = 1; setTimeout(() => bubble.style.opacity = 0, duration); }
-    function pickNewTarget() { const side = Math.random() > 0.5 ? 1 : -1; targetPos.set(side * (4.2 + Math.random() * 2), (Math.random() - 0.5) * 4, 0); }
-    
-    function startExplosion() {
-        robotState = 'exploding'; showBubble(getUniqueMessage('explosion'), 3500);
-        if (Math.abs(robotGroup.position.x) > 6) robotGroup.position.x = (robotGroup.position.x > 0) ? 5 : -5;
-        setTimeout(() => {
-            explosionLight.intensity = 5; setTimeout(() => { explosionLight.intensity = 0; }, 200);
-            parts.forEach(part => {
-                part.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4);
-                part.userData.rotVelocity.set(Math.random()*0.2, Math.random()*0.2, Math.random()*0.2);
-            });
-            setTimeout(() => { robotState = 'reassembling'; setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 2000); }, 3000);
-        }, 1000);
-    }
-    function startDance() { if (config.mode !== 'photos') { startSpeaking(); return; } robotState = 'dancing'; targetPos.copy(robotGroup.position); showBubble(getUniqueMessage('danse'), 4000); setTimeout(() => { if (robotState === 'dancing') { bubble.style.opacity = 0; robotState = 'moving'; pickNewTarget(); } }, 6000); }
     function startSpeaking() { robotState = 'speaking'; targetPos.copy(robotGroup.position); showBubble(getUniqueMessage(config.mode), 4000); nextEvent = time + 3 + Math.random() * 5; setTimeout(() => { if (robotState === 'speaking') { bubble.style.opacity = 0; robotState = 'moving'; pickNewTarget(); } }, 4000); }
-    function startTeleport() { robotState = 'teleporting'; showBubble(getUniqueMessage('cache_cache'), 1500); setTimeout(() => { robotGroup.visible = false; pickNewTarget(); robotGroup.position.copy(targetPos); setTimeout(() => { robotGroup.visible = true; robotState = 'moving'; }, 1000); }, 500); }
+    function pickNewTarget() { const side = Math.random() > 0.5 ? 1 : -1; targetPos.set(side * (3.5 + Math.random() * 2), (Math.random() - 0.5) * 3, 0); }
 
-    window.addEventListener('resize', () => { width = window.innerWidth; height = window.innerHeight; renderer.setSize(width, height); camera.aspect = width / height; camera.updateProjectionMatrix(); });
+    window.addEventListener('resize', () => {
+        width = window.innerWidth; height = window.innerHeight;
+        renderer.setSize(width, height); camera.aspect = width / height; camera.updateProjectionMatrix();
+    });
+
     animate();
 }
