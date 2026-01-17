@@ -1,11 +1,7 @@
 import * as THREE from 'three';
 
-// On ignore le container HTML existant qui est piégé.
-// On va en créer un nouveau dynamiquement.
-
-// --- CONFIGURATION ---
+// On récupère la config, mais on ignore le conteneur HTML qui nous piège
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
-const TOP_OFFSET_PERCENT = 0.18; // Marge du haut pour le titre
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
@@ -17,61 +13,60 @@ const MESSAGES_BAG = {
     cache_cache: ["Coucou !"]
 };
 
-// --- CRÉATION FORCEE DU CALQUE (GHOST LAYER) ---
-function createFullscreenLayer() {
-    const layerId = 'robot-ghost-layer';
-    let layer = document.getElementById(layerId);
-    
-    if (!layer) {
-        layer = document.createElement('div');
-        layer.id = layerId;
-        // On l'ajoute tout à la fin du body, hors de toute structure existante
-        document.body.appendChild(layer);
+// --- INIT : ON S'ATTACHE AU BODY DIRECTEMENT ---
+// On lance le robot dès que possible
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', launchOverlayRobot);
+} else {
+    launchOverlayRobot();
+}
+
+function launchOverlayRobot() {
+    // 1. Nettoyage : On supprime l'ancien container piégé s'il existe
+    const oldContainer = document.getElementById('robot-container');
+    if (oldContainer) oldContainer.style.display = 'none'; // On le cache
+
+    // 2. Création de notre propre toile (Canvas)
+    // On vérifie si elle existe déjà pour ne pas la dupliquer
+    let canvas = document.getElementById('robot-canvas-overlay');
+    if (!canvas) {
+        canvas = document.createElement('canvas');
+        canvas.id = 'robot-canvas-overlay';
+        document.body.appendChild(canvas); // ON LE COLLE SUR LE BODY DIRECTEMENT
     }
 
-    // Styles incompressibles pour garantir le plein écran
-    layer.style.cssText = `
+    // 3. Styles CSS forcés (Impossible d'être piégé ici)
+    canvas.style.cssText = `
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
         width: 100vw !important;
         height: 100vh !important;
-        z-index: 2147483647 !important; /* Maximum possible */
-        pointer-events: none !important;
+        z-index: 999999 !important; /* Tout en haut */
+        pointer-events: none !important; /* Clics traversants */
         background: transparent !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-        padding: 0 !important;
+        display: block !important;
     `;
 
-    return layer;
+    // 4. Initialisation 3D sur ce canvas
+    initThreeJS(canvas);
 }
 
-// On lance le processus
-const ghostContainer = createFullscreenLayer();
-initRobot(ghostContainer);
-
-
-// --- LE CODE DU ROBOT ---
-function initRobot(container) {
+function initThreeJS(canvas) {
     let width = window.innerWidth;
     let height = window.innerHeight;
-    
+
     const scene = new THREE.Scene();
     
     // CAMÉRA
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 14); 
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    // RENDERER (On utilise notre canvas forcé)
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
-    // Important : on s'assure que le fond est transparent
-    renderer.setClearColor(0x000000, 0); 
-    
-    // On vide le container avant d'ajouter le canvas
-    while (container.firstChild) container.removeChild(container.firstChild);
-    container.appendChild(renderer.domElement);
+    renderer.setClearColor(0x000000, 0); // Transparent
 
     // LUMIÈRES
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
@@ -81,17 +76,21 @@ function initRobot(container) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE ROUGE (SUR LE GHOST LAYER) ---
+    // --- STEP 1 : CADRE ROUGE (TEST FINAL) ---
     // =========================================================
-    let updateDebugBorder = () => {}; 
+    // Réglage : 0.18 = Laisser de la place en haut pour le titre
+    const TOP_OFFSET_PERCENT = 0.18; 
+
+    // Variable globale pour la mise à jour
+    let updateBorderFunc = () => {};
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        // Ligne très épaisse (4px)
         const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
+        // Fonction mathématique de projection inverse
         function getPointAtZ0(ndcX, ndcY, camera) {
             const vector = new THREE.Vector3(ndcX, ndcY, 0.5);
             vector.unproject(camera);
@@ -100,15 +99,10 @@ function initRobot(container) {
             return new THREE.Vector3().copy(camera.position).add(vector.multiplyScalar(distance));
         }
 
-        updateDebugBorder = () => {
-            // Re-forcer la taille du renderer au cas où
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-
+        updateBorderFunc = () => {
             const topNDC = 1.0 - (TOP_OFFSET_PERCENT * 2);
-            // On utilise 0.995 pour être sûr de voir le trait
-            const limit = 0.995; 
+            // On utilise 0.99 pour être sûr d'être visible
+            const limit = 0.99; 
 
             const pTL = getPointAtZ0(-limit, topNDC, camera); 
             const pTR = getPointAtZ0(limit, topNDC, camera);  
@@ -118,7 +112,7 @@ function initRobot(container) {
             const points = [pTL, pTR, pBR, pBL, pTL];
             borderGeo.setFromPoints(points);
         };
-        updateDebugBorder(); 
+        updateBorderFunc();
     }
     // =========================================================
 
@@ -158,6 +152,23 @@ function initRobot(container) {
 
     scene.add(robotGroup);
 
+    // BULLE DE TEXTE (Recréée dynamiquement aussi pour éviter les pièges)
+    let bubbleOverlay = document.getElementById('robot-bubble-overlay');
+    if (!bubbleOverlay) {
+        bubbleOverlay = document.createElement('div');
+        bubbleOverlay.id = 'robot-bubble-overlay';
+        bubbleOverlay.style.cssText = `
+            position: fixed; opacity: 0; background: white; color: black;
+            padding: 15px 25px; border-radius: 30px; font-family: sans-serif; font-weight: bold; font-size: 18px;
+            pointer-events: none; z-index: 1000000; box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: opacity 0.3s;
+        `;
+        // Petite flèche de bulle
+        const arrow = document.createElement('div');
+        arrow.style.cssText = "position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid white;";
+        bubbleOverlay.appendChild(arrow);
+        document.body.appendChild(bubbleOverlay);
+    }
+
     // --- ANIMATION ---
     let time = 0;
     // Position : Centré horizontalement, un peu bas (-1)
@@ -168,21 +179,29 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.02;
         
-        // Petit mouvement de vie pour confirmer qu'il marche
+        // Mouvement de vie
         robotGroup.position.y = -1 + Math.sin(time) * 0.1;
-        robotGroup.rotation.y = Math.sin(time * 0.5) * 0.1;
+        
+        // Suivi Bulle
+        if(bubbleOverlay && bubbleOverlay.style.opacity == 1) {
+            const headPos = robotGroup.position.clone(); 
+            headPos.y += 0.8; 
+            headPos.project(camera);
+            const x = (headPos.x * .5 + .5) * window.innerWidth; 
+            const y = (headPos.y * -.5 + .5) * window.innerHeight;
+            bubbleOverlay.style.left = (x - bubbleOverlay.offsetWidth / 2) + 'px';
+            bubbleOverlay.style.top = (y - 80) + 'px';
+        }
 
         renderer.render(scene, camera);
     }
 
-    // Gestion redimensionnement
     window.addEventListener('resize', () => {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        renderer.setSize(width, height);
-        camera.aspect = width / height;
+        width = window.innerWidth; height = window.innerHeight;
+        renderer.setSize(width, height); 
+        camera.aspect = width / height; 
         camera.updateProjectionMatrix();
-        if(config.mode === 'photos') updateDebugBorder();
+        if(config.mode === 'photos') updateBorderFunc();
     });
 
     animate();
