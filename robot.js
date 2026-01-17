@@ -6,7 +6,7 @@ import * as THREE from 'three';
 // Mettez une valeur positive pour FORCER le trait à remonter.
 // Essayez 0.5 pour commencer.
 // Si c'est trop haut, baissez (0.3). Si trop bas, montez (0.8).
-const FORCE_MONTEE = 0.5; 
+const FORCE_MONTEE = 0.9; 
 
 // =========================================================
 
