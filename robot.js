@@ -6,7 +6,7 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue ! ✨", "Installez-vous.", "La soirée va être belle !", "Prêts pour le show !", "Coucou la technique ! 👷"],
+    attente: ["Bienvenue ! ✨", "Installez-vous.", "La soirée va être belle !", "Prêts pour le show ?", "Coucou la technique ! 👷"],
     vote_off: ["Les votes sont CLOS ! 🛑", "Le podium arrive... 🏆", "Suspens... 😬"],
     photos: ["Photos ! 📸", "Souriez !", "Vous êtes beaux !", "Selfie time ! 🤳"],
     danse: ["Dancefloor ! 💃", "Je sens le rythme ! 🎵", "Allez DJ ! 🔊"],
@@ -44,9 +44,9 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA RECULÉE POUR BIEN CADRER LES BORDS (Z=19)
+    // CAMÉRA (Z=18)
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 150);
-    camera.position.set(0, 0, 19); 
+    camera.position.set(0, 0, 18); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -62,17 +62,6 @@ function initRobot(container) {
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
     scene.add(explosionLight);
-
-    // --- TEXTURE FONDU ---
-    const canvas = document.createElement('canvas');
-    canvas.width = 32; canvas.height = 64;
-    const ctx = canvas.getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, 64);
-    grad.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)'); 
-    grad.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)'); 
-    grad.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)'); 
-    ctx.fillStyle = grad; ctx.fillRect(0, 0, 32, 64);
-    const beamFadeTexture = new THREE.CanvasTexture(canvas);
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
@@ -116,26 +105,18 @@ function initRobot(container) {
     
     function createTotem(xPos) {
         const group = new THREE.Group();
-        group.position.set(xPos, -9, -2); // Posé au sol
-        
-        // Colonne (Structure truss)
+        group.position.set(xPos, -9, -2);
         const col = new THREE.Mesh(new THREE.BoxGeometry(0.8, 20, 0.8), standMat);
-        col.position.y = 10; 
-        group.add(col);
-        
-        // Base
+        col.position.y = 10; group.add(col);
         const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.2, 1.5), standMat);
-        base.position.y = 0.1;
-        group.add(base);
-
+        base.position.y = 0.1; group.add(base);
         scene.add(group);
         return group;
     }
-
     const leftTotem = createTotem(-16);
     const rightTotem = createTotem(16);
 
-    // --- SPOTS & FAISCEAUX CORRIGÉS ---
+    // --- SPOTS & FAISCEAUX SIMPLE (Cône) ---
     const stageSpots = [];
     const housingMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.5, roughness: 0.5, emissive: 0x222222 });
     const barnMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide });
@@ -143,71 +124,54 @@ function initRobot(container) {
 
     function createSpot(parent, yLocal, colorInt, isBottom) {
         const spotGroup = new THREE.Group();
-        // Attaché au totem
         spotGroup.position.set(0, yLocal, 0.5); 
         spotGroup.scale.set(0.6, 0.6, 0.6);
 
-        // Support
         const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 16, Math.PI), housingMat);
         bracket.rotation.z = isBottom ? 0 : Math.PI; 
-        // Rotation du support pour qu'il tienne le spot correctement
-        bracket.rotation.y = Math.PI / 2;
-        spotGroup.add(bracket);
+        bracket.rotation.y = Math.PI / 2; spotGroup.add(bracket);
         
-        const bodyGroup = new THREE.Group(); 
-        spotGroup.add(bodyGroup);
-
-        // Corps (Inversion Z pour lookAt correct)
+        const bodyGroup = new THREE.Group(); spotGroup.add(bodyGroup);
         const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), housingMat);
-        box.position.z = -0.3; // Arrière
-        bodyGroup.add(box);
-        
+        box.position.z = -0.3; bodyGroup.add(box);
         const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32), housingMat);
-        cyl.rotation.x = Math.PI/2; cyl.position.z = 0.2; // Avant
-        bodyGroup.add(cyl);
-        
+        cyl.rotation.x = Math.PI/2; cyl.position.z = 0.2; bodyGroup.add(cyl);
         const lens = new THREE.Mesh(new THREE.CircleGeometry(0.35, 32), new THREE.MeshBasicMaterial({ color: colorInt }));
-        lens.position.set(0, 0, 0.51); // Tout devant (Z positif)
-        bodyGroup.add(lens);
+        lens.position.set(0, 0, 0.51); bodyGroup.add(lens);
         
         const topDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), barnMat); topDoor.position.set(0, 0.45, 0.5); topDoor.rotation.x = -Math.PI/4; bodyGroup.add(topDoor);
         const botDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), barnMat); botDoor.position.set(0, -0.45, 0.5); botDoor.rotation.x = Math.PI/4; bodyGroup.add(botDoor);
 
-        // FAISCEAU FONDU
+        // FAISCEAU SIMPLE (Cône géométrique)
         const beamLen = 40;
-        // Cone ouvert en bas
-        const beamGeo = new THREE.CylinderGeometry(0.35, 3.0, beamLen, 32, 1, true);
-        beamGeo.translate(0, beamLen/2, 0); // Vers le haut (Y+)
-        beamGeo.rotateX(Math.PI / 2); // Vers l'avant (Z+)
+        // ConeGeometry(radius, height, segments, heightSegments, openEnded)
+        const beamGeo = new THREE.ConeGeometry(0.5, beamLen, 32, 1, true);
+        beamGeo.translate(0, -beamLen/2, 0); 
+        beamGeo.rotateX(-Math.PI / 2); // Pointe vers Z-
         
         const beamMat = new THREE.MeshBasicMaterial({ 
             color: colorInt, 
             transparent: true, 
-            opacity: 0.6, 
-            alphaMap: beamFadeTexture, 
+            opacity: 0.3, 
             side: THREE.DoubleSide, 
             depthWrite: false,
             blending: THREE.AdditiveBlending 
         });
         const beam = new THREE.Mesh(beamGeo, beamMat);
-        beam.position.z = 0.52; // Devant la lentille
+        beam.position.z = 0.55; 
+        beam.rotation.y = Math.PI; // Retourne le cone pour qu'il pointe vers Z+ (avant)
         bodyGroup.add(beam);
 
-        // Lumière réelle
         const light = new THREE.SpotLight(colorInt, 10);
         light.angle = 0.4; light.distance = 60; light.decay = 1.5;
-        light.position.set(0, 0, 0.5); // Devant la lentille
+        light.position.set(0, 0, 0.5);
         bodyGroup.add(light);
         
         const targetObj = new THREE.Object3D();
         scene.add(targetObj); targetObj.position.copy(centerTarget);
         light.target = targetObj;
 
-        // Attachement et Orientation
         parent.add(spotGroup);
-        
-        // C'est ICI que la magie opère : On calcule la position locale du centre (0,0,0) par rapport au totem
-        // Et on dit au corps du spot de regarder ce point. Comme on a construit le spot en Z+, ça marchera !
         const worldTarget = new THREE.Vector3(0,0,0);
         parent.worldToLocal(worldTarget); 
         bodyGroup.lookAt(worldTarget);
@@ -215,11 +179,9 @@ function initRobot(container) {
         return { body: spotGroup, beam, light, baseIntensity: 10, timeOff: Math.random() * 100 };
     }
 
-    // --- PLACEMENT SUR LES TOTEMS (Y local par rapport au sol -9) ---
-    // Haut : Y=15 (Monde Y=6) | Bas : Y=5 (Monde Y=-4)
+    // --- PLACEMENT ---
     stageSpots.push(createSpot(leftTotem, 15, 0xFFFF00, false));
     stageSpots.push(createSpot(leftTotem, 5, 0x00FFFF, true));
-    
     stageSpots.push(createSpot(rightTotem, 15, 0x00FF00, false));
     stageSpots.push(createSpot(rightTotem, 5, 0xFFA500, true));
 
@@ -236,7 +198,7 @@ function initRobot(container) {
 
         stageSpots.forEach(s => {
             const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8;
-            s.beam.material.opacity = 0.6 * pulse;
+            s.beam.material.opacity = 0.3 * pulse;
             s.light.intensity = s.baseIntensity * pulse;
         });
 
