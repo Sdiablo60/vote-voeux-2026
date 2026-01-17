@@ -7,7 +7,7 @@ import * as THREE from 'three';
 // 1. HAUTEUR DU CADRE
 // 0.0 = Le robot pense que le haut de l'écran est le haut de la fenêtre.
 // Si le Python a bien marché, 0.0 devrait être parfait (collé au titre rouge).
-const MARGE_HAUT = 0.0; 
+const MARGE_HAUT = 0.2; 
 
 // 2. LARGEUR DU CADRE
 // 1.0 = Toute la largeur. Si vous voyez les traits verticaux sur les bords, c'est bon.
