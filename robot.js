@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🔴 NOUVEAU RÉGLAGE : 8% (Synchronisé avec app.py) 🔴
+// 🔴 RÉGLAGE DE HAUTEUR 🔴
 // =========================================================
-const HAUTEUR_TITRE_POURCENTAGE = 0.08; 
+// 0.05 = On descend de 5% seulement.
+// PLUS LE CHIFFRE EST PETIT, PLUS LE TRAIT MONTE.
+const HAUTEUR_TITRE_POURCENTAGE = 0.05; 
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', launchCalibrationOnly);
@@ -42,7 +44,7 @@ function initThreeJS(canvas) {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x000000, 0);
 
-    // CADRE ROUGE SEUL
+    // CADRE ROUGE
     const borderGeo = new THREE.BufferGeometry();
     const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4 });
     const borderLine = new THREE.LineLoop(borderGeo, borderMat);
@@ -58,7 +60,7 @@ function initThreeJS(canvas) {
         const halfH = visibleHeight / 2;
         const halfW = visibleWidth / 2;
 
-        // CALCUL : On descend de 8% seulement
+        // CALCUL : On descend du haut (halfH) de X %
         const yTop = halfH - (visibleHeight * HAUTEUR_TITRE_POURCENTAGE);
         
         const yBottom = -halfH; 
