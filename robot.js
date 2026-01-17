@@ -43,9 +43,9 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA
+    // CAMÉRA RECULÉE POUR VOIR LES PIEDS EN ENTIER
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 16); 
+    camera.position.set(0, 0, 17); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -55,11 +55,9 @@ function initRobot(container) {
     // LUMIÈRES
     const ambientLight = new THREE.AmbientLight(0xffffff, 2.5); 
     scene.add(ambientLight);
-    
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
     dirLight.position.set(0, 10, 10);
     scene.add(dirLight);
-
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
     scene.add(explosionLight);
@@ -101,38 +99,49 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- STRUCTURE MÉTALLIQUE (Portique DJ) ---
-    const trussMat = new THREE.MeshStandardMaterial({ color: 0x444444, metalness: 0.8, roughness: 0.2 });
-    const trussGroup = new THREE.Group();
-    trussGroup.position.z = -1; // Derrière le robot
+    // --- NOUVEAUX SUPPORTS DJ (Stands Verticaux) ---
+    const trussMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.1 });
 
-    // Barres horizontales (Haut et Bas)
-    const hBarTop = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 28, 16), trussMat);
-    hBarTop.rotation.z = Math.PI / 2; hBarTop.position.y = 6.0; trussGroup.add(hBarTop);
-    const hBarBot = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 28, 16), trussMat);
-    hBarBot.rotation.z = Math.PI / 2; hBarBot.position.y = -4.7; trussGroup.add(hBarBot);
+    function createDJStand(xPos) {
+        const standGroup = new THREE.Group();
+        // Positionner le pied au sol (Y=-7 environ) et sur le côté
+        standGroup.position.set(xPos, -7, -2); 
 
-    // Barres verticales (Gauche et Droite)
-    const vBarLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 11, 16), trussMat);
-    vBarLeft.position.set(-13, 0.65, 0); trussGroup.add(vBarLeft);
-    const vBarRight = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 11, 16), trussMat);
-    vBarRight.position.set(13, 0.65, 0); trussGroup.add(vBarRight);
+        // Pilier central
+        const height = 15;
+        const pillarGeo = new THREE.CylinderGeometry(0.25, 0.25, height, 16);
+        const pillar = new THREE.Mesh(pillarGeo, trussMat);
+        pillar.position.y = height / 2; // Pour que la base soit à 0
+        standGroup.add(pillar);
 
-    scene.add(trussGroup);
+        // Base lourde au sol
+        const baseGeo = new THREE.CylinderGeometry(0.8, 0.9, 0.3, 32);
+        const base = new THREE.Mesh(baseGeo, trussMat);
+        base.position.y = 0.15;
+        standGroup.add(base);
+
+        scene.add(standGroup);
+        return standGroup; // On retourne le groupe pour y attacher les spots
+    }
+
+    // Création des deux stands
+    const leftStand = createDJStand(-13);
+    const rightStand = createDJStand(13);
 
     // --- SPOTS & FAISCEAUX ---
     const stageSpots = [];
-    const housingMat = new THREE.MeshStandardMaterial({ 
-        color: 0xCCCCCC, metalness: 0.5, roughness: 0.5, emissive: 0x222222 
-    });
+    const housingMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.5, roughness: 0.5, emissive: 0x222222 });
     const barnMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide });
+    const centerTarget = new THREE.Vector3(0,0,0);
 
-    function createSpot(x, y, colorInt, isBottom) {
+    // Fonction modifiée : on attache le spot à un "parentStand" au lieu de la scène
+    function createSpot(parentStand, yLocalPos, colorInt, isBottom) {
         const group = new THREE.Group();
-        group.position.set(x, y, 0);
+        // Position relative au stand : attaché au pilier, à la hauteur yLocalPos
+        group.position.set(0, yLocalPos, 0.3); 
         group.scale.set(0.6, 0.6, 0.6);
 
-        // Support (Fixation au portique)
+        // Support (Fixation au pilier)
         const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 16, Math.PI), housingMat);
         bracket.rotation.z = isBottom ? 0 : Math.PI;
         group.add(bracket);
@@ -150,43 +159,41 @@ function initRobot(container) {
         lens.position.set(0, 0, -0.51); bodyGroup.add(lens);
 
         // Volets
-        const doorGeo = new THREE.PlaneGeometry(0.6, 0.3);
-        const topDoor = new THREE.Mesh(doorGeo, barnMat); topDoor.position.set(0, 0.45, -0.5); topDoor.rotation.x = Math.PI/4; bodyGroup.add(topDoor);
-        const botDoor = new THREE.Mesh(doorGeo, barnMat); botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4; bodyGroup.add(botDoor);
+        const topDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), barnMat); topDoor.position.set(0, 0.45, -0.5); topDoor.rotation.x = Math.PI/4; bodyGroup.add(topDoor);
+        const botDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), barnMat); botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4; bodyGroup.add(botDoor);
 
-        // --- FAISCEAU UNIQUE & NET (Cylindre fin) ---
+        // Faisceau fin
         const beamLen = 40;
-        // Utilisation d'un cylindre très fin pour un faisceau net "laser"
         const beamGeo = new THREE.CylinderGeometry(0.05, 0.35, beamLen, 32, 1, true);
-        beamGeo.translate(0, -beamLen/2, 0); 
-        beamGeo.rotateX(-Math.PI / 2);
-        
-        const beamMat = new THREE.MeshBasicMaterial({ 
-            color: colorInt, transparent: true, opacity: 0.5, 
-            side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false 
-        });
+        beamGeo.translate(0, -beamLen/2, 0); beamGeo.rotateX(-Math.PI / 2);
+        const beamMat = new THREE.MeshBasicMaterial({ color: colorInt, transparent: true, opacity: 0.5, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
         const beam = new THREE.Mesh(beamGeo, beamMat);
-        beam.position.z = -0.52; 
-        bodyGroup.add(beam);
+        beam.position.z = -0.52; bodyGroup.add(beam);
 
         // Lumière
         const light = new THREE.SpotLight(colorInt, 10);
-        light.angle = 0.3; light.distance = 50; light.decay = 1;
+        light.angle = 0.3; light.distance = 60; light.decay = 1;
         light.position.set(0, 0, -0.5);
-        bodyGroup.add(light); bodyGroup.add(light.target);
+        bodyGroup.add(light); 
+        // La cible doit être dans la scène globale pour fonctionner correctement
+        scene.add(light.target); light.target.position.copy(centerTarget);
 
-        scene.add(group);
-        bodyGroup.lookAt(0, 0, 0); 
-        light.target.position.set(0, 0, 10); 
+        // ATTACHER LE SPOT AU STAND
+        parentStand.add(group);
+        
+        // Orienter le corps vers le centre (nécessite une astuce car il est dans un groupe)
+        bodyGroup.lookAt(parentStand.worldToLocal(centerTarget.clone()));
 
         return { group, beam, light, baseIntensity: 10, timeOff: Math.random() * 100 };
     }
 
-    // Positions des 4 spots sur le portique
-    stageSpots.push(createSpot(-13, 5.8, 0xFFFF00, false)); // Gauche Haut
-    stageSpots.push(createSpot(-13, -4.5, 0x00FFFF, true));  // Gauche Bas
-    stageSpots.push(createSpot(13, 5.8, 0x00FF00, false));  // Droite Haut
-    stageSpots.push(createSpot(13, -4.5, 0xFFA500, true));   // Droite Bas
+    // --- PLACEMENT SUR LES STANDS ---
+    // Hauteurs relatives sur le pilier (le pilier fait 15 de haut, de Y=0 à Y=15)
+    // Haut : environ 13 | Bas : environ 4
+    stageSpots.push(createSpot(leftStand, 13, 0xFFFF00, false)); // Gauche Haut
+    stageSpots.push(createSpot(leftStand, 4, 0x00FFFF, true));   // Gauche Bas
+    stageSpots.push(createSpot(rightStand, 13, 0x00FF00, false)); // Droite Haut
+    stageSpots.push(createSpot(rightStand, 4, 0xFFA500, true));   // Droite Bas
 
     // --- ANIMATION ---
     let time = 0;
@@ -202,7 +209,7 @@ function initRobot(container) {
         // Spots
         stageSpots.forEach(s => {
             const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8;
-            s.beam.material.opacity = 0.5 * pulse; // Opacité augmentée pour le faisceau fin
+            s.beam.material.opacity = 0.5 * pulse;
             s.light.intensity = s.baseIntensity * pulse;
         });
 
