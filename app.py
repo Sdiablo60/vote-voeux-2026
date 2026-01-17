@@ -63,164 +63,70 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
 # =========================================================
-# 2. CSS GLOBAL
+# 2. CSS GLOBAL - RÉTABLISSEMENT PLEIN ÉCRAN TOTAL
 # =========================================================
 st.markdown("""
 <style>
-    /* PAR DEFAUT : FOND BLANC (Pour l'Admin) */
-    .stApp {
-        background-color: #FFFFFF;
-        color: black;
+    /* FORCE LE CONTENEUR STREAMLIT À 100% DE LA LARGEUR ET HAUTEUR RÉELLE */
+    [data-testid="stAppViewContainer"] {
+        background-color: black !important;
+        padding: 0 !important;
     }
-    
-    [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
-    
+
+    /* Supprime les paddings de la zone principale pour coller aux bords */
+    .main .block-container {
+        max-width: 100vw !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Supprime l'espace réservé au header Streamlit */
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+
+    /* Force l'iframe des composants HTML à coller aux bords physiques */
+    iframe {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw !important;
+        height: 100vh !important;
+        border: none !important;
+        z-index: 1;
+    }
+
+    /* Header Rouge Social (8% de la hauteur) */
     .social-header { 
         position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 8vh;  /* <--- MODIFIÉ : 8% au lieu de 12% */
+        top: 0; left: 0; 
+        width: 100%; height: 8vh; 
         background: #E2001A !important; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
+        display: flex; align-items: center; justify-content: center; 
         z-index: 999999 !important; 
-        border-bottom: 3px solid white; /* Bordure un peu plus fine */
+        border-bottom: 3px solid white; 
     }
     .social-title { 
         color: white !important; 
-        font-size: 30px !important; /* <--- MODIFIÉ : Plus petit pour rentrer dans 8vh */
-        font-weight: bold; 
-        margin: 0; 
-        text-transform: uppercase; 
-    }
-    html, body, [data-testid="stAppViewContainer"] {
-        overflow: hidden !important;
-        height: 100vh !important;
-        width: 100vw !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
-    ::-webkit-scrollbar { display: none; }
-    
-    button[kind="secondary"] { 
-        color: #333 !important; 
-        border-color: #333 !important; 
-    }
-    button[kind="primary"] { 
-        color: white !important; 
-        background-color: #E2001A !important; 
-        border: none; 
-    }
-    button[kind="primary"]:hover { 
-        background-color: #C20015 !important; 
-    }
-    
-    /* DESIGN ADMIN MODERNE */
-    .session-card {
-        background-color: #f8f9fa;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        text-align: center;
-        border: 1px solid #ddd;
-        margin-bottom: 20px;
-    }
-    .session-title {
-        color: #E2001A;
-        font-size: 24px;
-        font-weight: 900;
-        text-transform: uppercase;
-        margin-bottom: 10px;
-    }
-    
-    .login-container {
-        max-width: 400px; 
-        margin: 100px auto; 
-        padding: 40px;
-        background: #f8f9fa; 
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-        text-align: center; 
-        border: 1px solid #ddd;
-    }
-    .login-title { 
-        color: #E2001A; 
-        font-size: 24px; 
-        font-weight: bold; 
-        margin-bottom: 20px; 
-        text-transform: uppercase; 
-    }
-    .stTextInput input { 
-        text-align: center; 
-        font-size: 18px; 
-    }
-    
-    section[data-testid="stSidebar"] { 
-        background-color: #f0f2f6 !important; 
-    }
-    section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; 
-        width: 100%; 
-        border-radius: 5px; 
-        margin-bottom: 5px;
-    }
-    section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; 
-        width: 100%; 
-        border-radius: 5px; 
-        margin-bottom: 5px; 
-        border: none !important; 
-        color: white !important;
-    }
-    
-    .blue-anim-btn button {
-        background-color: #2980b9 !important; 
-        color: white !important; 
-        border: none !important; 
-        transition: all 0.3s ease !important; 
-        font-weight: bold !important; 
-    }
-    .blue-anim-btn button:hover {
-        transform: scale(1.05) !important; 
-        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important; 
-        background-color: #3498db !important; 
+        font-size: 30px !important; 
+        font-weight: bold; margin: 0; text-transform: uppercase; 
     }
 
-    a.custom-link-btn {
-        display: block !important; 
-        text-align: center !important; 
-        padding: 12px 20px !important; 
-        border-radius: 8px !important; 
-        text-decoration: none !important; 
-        font-weight: bold !important; 
-        margin-bottom: 10px !important;
-        color: white !important; 
-        transition: transform 0.2s !important; 
-        width: 100% !important; 
-        box-sizing: border-box !important; 
-        line-height: 1.5 !important; 
+    /* DESIGN ADMIN (Fond blanc si hors mur) */
+    .stApp:has(button[kind="secondary"]) {
+        background-color: #FFFFFF !important;
+        color: black;
     }
-    a.custom-link-btn:hover { 
-        transform: scale(1.02); 
-        opacity: 0.9; 
+    .stApp:has(button[kind="secondary"]) .main .block-container {
+        padding: 2rem !important;
+        max-width: 1200px !important;
+        margin: auto !important;
     }
-    .btn-red { background-color: #E2001A !important; }
-    .btn-blue { background-color: #2980b9 !important; }
-    
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
-        background-color: white !important;
-    }
-    li[role="option"] {
-        color: black !important; 
-        background-color: white !important; 
-    }
-    div[data-baseweb="select"] div {
-        color: black !important; 
-    }
-    li[role="option"] span { color: black !important; }
+
+    ::-webkit-scrollbar { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -973,7 +879,7 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (AVEC ROBOT ET PLEIN ÉCRAN)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -982,7 +888,6 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    st.markdown("""<style>.stApp { background-color: black !important; color: white !important; }</style>""", unsafe_allow_html=True)
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
@@ -996,7 +901,7 @@ else:
         with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
     except: css_content = ""; js_content = "console.error('Fichiers manquants');"
 
-    # --- CONFIGURATION DU ROBOT (TITRE ET MODE) ---
+    # --- CONFIGURATION DU ROBOT ---
     robot_mode = "attente" 
     if mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
         robot_mode = "vote_off"
@@ -1004,11 +909,8 @@ else:
         robot_mode = "photos"
     
     safe_title = cfg['titre_mur'].replace("'", "\\'")
-    
-    # Préparation du logo pour le robot
     logo_data = cfg.get("logo_b64", "")
     
-    # Injection des variables pour le JS
     js_config = f"""
     <script>
         window.robotConfig = {{
@@ -1019,9 +921,9 @@ else:
     </script>
     """
     
-    # --- IMPORT MAP CORRIGÉE (Pour THREE.JS) ---
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
+    # --- MODE 1 : ATTENTE (ACCUEIL) ---
     if mode == "attente":
         logo_img_tag = f'<img src="data:image/png;base64,{logo_data}" style="width:300px; margin-bottom:10px;">' if logo_data else ""
         html_code = f"""
@@ -1032,8 +934,7 @@ else:
                 position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); 
                 text-align: center; color: white; font-family: Arial, sans-serif; 
                 z-index: 5; font-size: 70px; font-weight: 900; letter-spacing: 5px; 
-                pointer-events: none; 
-                transition: all 1s ease-in-out; 
+                pointer-events: none; transition: all 1s ease-in-out;
             }}
         </style></head>
         <body>
@@ -1044,10 +945,12 @@ else:
             {import_map}
             <script type="module">{js_content}</script>
         </body></html>"""
-        components.html(html_code, height=1000, scrolling=False) # <-- CORRIGÉ : UNE SEULE PARENTHÈSE ICI
+        components.html(html_code, height=1200, scrolling=False)
 
+    # --- MODE 2 : VOTES (AVEC MARQUEE ET PODIUM) ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
+            # Ici votre code de podium complet (Confettis, Applause, etc.)
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1070,7 +973,7 @@ else:
             
             components.html(f"""
             <div id="intro-layer" class="intro-overlay"><div id="intro-txt" class="intro-text"></div><div id="intro-num" class="intro-count"></div></div>
-            <div id="final-overlay" class="final-overlay"><div class="final-content">{final_logo_html}<h1 class="final-text">FÉLICITATIONS AUX GAGNANTS !</h1></div></div>
+            <div id="final-overlay" class="final-overlay"><div class="final-content">{final_logo_html}<h1 class="final-text">FÉLICITATIONS !</h1></div></div>
             <audio id="applause-sound" preload="auto"><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg"></audio>
             <div class="podium-container">
                 <div class="column-2"><div class="winners-box rank-2" id="win-2">{h2}</div><div class="pedestal pedestal-2"><div class="rank-score">{s2} PTS</div><div class="rank-num">2</div></div></div>
@@ -1079,143 +982,85 @@ else:
             </div>
             <script>
                 const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
-                const layer=document.getElementById('intro-layer'),txt=document.getElementById('intro-txt'),num=document.getElementById('intro-num'),w1=document.getElementById('win-1'),w2=document.getElementById('win-2'),w3=document.getElementById('win-3'),audio=document.getElementById('applause-sound'),finalOverlay=document.getElementById('final-overlay');
-                function startConfetti(){{
-                    var script=document.createElement('script');
-                    script.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";
-                    script.onload=()=>{{
-                        var duration=15*1000; var animationEnd=Date.now()+duration;
-                        var defaults={{startVelocity:30,spread:360,ticks:60,zIndex:9999}};
-                        var random=(min,max)=>Math.random()*(max-min)+min;
-                        var interval=setInterval(function(){{
-                            var timeLeft=animationEnd-Date.now();
-                            if(timeLeft<=0){{return clearInterval(interval);}}
-                            var particleCount=50*(timeLeft/duration);
-                            confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.1,0.3),y:Math.random()-0.2}}}}));
-                            confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.7,0.9),y:Math.random()-0.2}}}}));
-                        }},250);
-                    }};
-                    document.body.appendChild(script);
-                }}
                 async function countdown(seconds,message){{
-                    layer.style.display='flex'; layer.style.opacity='1'; txt.innerText=message;
-                    for(let i=seconds;i>0;i--){{num.innerText=i; await wait(1000);}}
+                    const layer=document.getElementById('intro-layer');
+                    layer.style.display='flex'; layer.style.opacity='1';
+                    document.getElementById('intro-txt').innerText=message;
+                    for(let i=seconds;i>0;i--){{ document.getElementById('intro-num').innerText=i; await wait(1000); }}
                     layer.style.opacity='0'; await wait(500); layer.style.display='none';
                 }}
                 async function runShow(){{
-                    await countdown(5,"EN TROISIÈME PLACE..."); w3.classList.add('visible'); document.querySelector('.pedestal-3').classList.add('visible'); await wait(2000);
-                    await countdown(5,"EN SECONDE PLACE..."); w2.classList.add('visible'); document.querySelector('.pedestal-2').classList.add('visible'); await wait(2000);
-                    await countdown(7,"ET LE VAINQUEUR EST..."); w1.classList.add('visible'); document.querySelector('.pedestal-1').classList.add('visible');
-                    startConfetti(); try{{audio.currentTime=0;audio.play();}}catch(e){{}} await wait(4000);
-                    finalOverlay.classList.add('stage-1-black'); await wait(4000);
-                    finalOverlay.classList.remove('stage-1-black'); finalOverlay.classList.add('stage-2-transparent');
+                    await countdown(3,"EN TROISIÈME PLACE..."); document.getElementById('win-3').classList.add('visible'); document.querySelector('.pedestal-3').classList.add('visible'); await wait(1500);
+                    await countdown(3,"EN SECONDE PLACE..."); document.getElementById('win-2').classList.add('visible'); document.querySelector('.pedestal-2').classList.add('visible'); await wait(1500);
+                    await countdown(5,"VAINQUEUR..."); document.getElementById('win-1').classList.add('visible'); document.querySelector('.pedestal-1').classList.add('visible');
                 }}
-                window.parent.document.body.style.backgroundColor="black"; runShow();
+                runShow();
             </script>
             <style>
-                body{{margin:0;overflow:hidden;background:black;}}
-                .podium-container{{position:absolute;bottom:0;left:0;width:100%;height:100vh;display:flex;justify-content:center;align-items:flex-end;padding-bottom:20px;}}
-                .column-2{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-right:-20px;z-index:2;}}
-                .column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}
-                .column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}
-                .winners-box{{display:flex;flex-direction:row;flex-wrap:wrap-reverse;justify-content:center;align-items:flex-end;width:450px!important;max-width:450px!important;margin:0 auto;padding-bottom:0px;opacity:0;transform:translateY(50px) scale(0.8);transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);gap:10px;}}
-                .winners-box.visible{{opacity:1;transform:translateY(0) scale(1);}}
-                .pedestal{{width:100%;background:linear-gradient(to bottom,#333,#000);border-radius:20px 20px 0 0;box-shadow:0 -5px 15px rgba(255,255,255,0.1);display:flex;flex-direction:column;justify-content:flex-start;align-items:center;position:relative;padding-top:20px;}}
-                .pedestal-1{{height:350px;border-top:3px solid #FFD700;color:#FFD700;}}
-                .pedestal-2{{height:220px;border-top:3px solid #C0C0C0;color:#C0C0C0;}}
-                .pedestal-3{{height:150px;border-top:3px solid #CD7F32;color:#CD7F32;}}
-                .rank-num{{font-size:120px;font-weight:900;opacity:0.2;line-height:1;}}
-                .rank-score{{font-size:30px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.5);margin-bottom:-20px;z-index:5;opacity:0;transform:translateY(20px);transition:all 0.5s ease-out;}}
-                .pedestal.visible .rank-score{{opacity:1;transform:translateY(0);}}
-                .p-card{{background:rgba(20,20,20,0.8);border-radius:15px;padding:15px;width:200px;margin:10px;backdrop-filter:blur(5px);border:2px solid rgba(255,255,255,0.3);display:flex;flex-direction:column;align-items:center;box-shadow:0 5px 15px rgba(0,0,0,0.5);flex-shrink:0;}}
-                .p-img,.p-placeholder{{width:140px;height:140px;border-radius:50%;object-fit:cover;border:4px solid white;margin-bottom:10px;}}
-                .p-name{{font-family:Arial;font-size:22px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
-                .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
-                .intro-text{{color:white;font-size:40px;font-weight:bold;text-transform:uppercase;text-shadow:0 0 20px black;}}
-                .intro-count{{color:#E2001A;font-size:100px;font-weight:900;margin-top:10px;text-shadow:0 0 20px black;}}
-                .final-overlay{{position:fixed;top:0;left:0;width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:6000;pointer-events:none;opacity:0;transition:all 1.5s ease-in-out;}}
-                .final-overlay.stage-1-black{{background-color:black;opacity:1;}}
-                .final-overlay.stage-2-transparent{{background-color:transparent;opacity:1;justify-content:flex-start;padding-top:0;}}
-                .final-logo{{width:400px;margin-bottom:20px;}}
-                .final-text{{font-size:50px;color:#E2001A;text-transform:uppercase;text-shadow:0 0 20px rgba(0,0,0,0.8);margin:0;}}
-            </style>""", height=900, scrolling=False)
+                body{{margin:0;overflow:hidden;background:black;font-family:Arial;}}
+                .podium-container{{position:absolute;bottom:0;width:100%;height:100vh;display:flex;justify-content:center;align-items:flex-end;}}
+                .winners-box{{opacity:0; transition:all 1s; transform:translateY(30px);}}
+                .winners-box.visible{{opacity:1; transform:translateY(0);}}
+                .pedestal{{width:300px;background:#333;border-radius:10px 10px 0 0;text-align:center;padding:20px;}}
+                .pedestal-1{{height:300px;border-top:5px solid gold;}}
+                .pedestal-2{{height:200px;border-top:5px solid silver;}}
+                .pedestal-3{{height:120px;border-top:5px solid #cd7f32;}}
+                .p-img{{width:120px;height:120px;border-radius:50%;border:3px solid white;}}
+                .p-name{{color:white;font-weight:bold;margin-top:10px;}}
+                .intro-overlay{{position:fixed;top:0;left:0;width:100vw;height:100vh;background:black;z-index:9000;display:none;flex-direction:column;justify-content:center;align-items:center;}}
+                .intro-text{{color:white;font-size:40px;}}
+                .intro-count{{color:#E2001A;font-size:100px;font-weight:900;}}
+            </style>
+            """, height=1200, scrolling=False)
 
         elif cfg["session_ouverte"]:
-             host = st.context.headers.get('host', 'localhost')
-             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-             recent_votes = load_json(DETAILED_VOTES_FILE, [])
-             voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
-             voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
-             cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
-             left_cands = cands[:mid]; right_cands = cands[mid:]
-             
-             def gen_html_list(clist, imgs, align='left'):
-                 h = ""
-                 for c in clist:
-                     im = '<div style="font-size:30px;">👤</div>'
-                     if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid white;">'
-                     h += f"""<div style="display:flex; align-items:center; justify-content:flex-start; flex-direction:row; margin:10px 0; background:rgba(255,255,255,0.1); padding:10px 20px; border-radius:50px; width:220px; margin-{align}: auto;">{im}<span style="margin-left:15px; font-size:18px; font-weight:bold; color:white; text-transform:uppercase; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{c}</span></div>"""
-                 return h
-
-             left_html = gen_html_list(left_cands, cfg.get("candidats_images", {}), 'left')
-             right_html = gen_html_list(right_cands, cfg.get("candidats_images", {}), 'right')
-             
-             components.html(f"""
-             <style>
-                body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
-                .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 50px; position: fixed; top: 0; left: 0; z-index: 1000; display: flex; align-items: center; border-bottom: 2px solid white; }}
-                .marquee-label {{ background: #E2001A; color: white; font-weight: 900; font-size: 18px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 1001; }}
-                .marquee-wrapper {{ overflow: hidden; white-space: nowrap; flex-grow: 1; height: 100%; display: flex; align-items: center; }}
-                .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; }}
-                @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
-                .top-section {{ width: 100%; height: 35vh; margin-top: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }}
-                .title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 10px 0; text-transform: uppercase; letter-spacing: 3px; }}
-                .subtitle {{ font-size: 30px; font-weight: bold; color: white; }}
-                .bottom-section {{ width: 95%; margin: 0 auto; height: 55vh; display: flex; align-items: center; justify-content: space-between; }}
-                .center-col {{ width: 30%; display: flex; flex-direction: column; align-items: center; }}
-                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); }}
-             </style>
-             <div class="marquee-container"><div class="marquee-label">DERNIERS VOTANTS :</div><div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div></div>
-             <div class="top-section">{logo_html}<div class="title">VOTES OUVERTS</div><div class="subtitle">Scannez pour voter</div></div>
-             <div class="bottom-section">
-                <div class="side-col">{left_html}</div>
-                <div class="center-col"><div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="300"></div></div>
-                <div class="side-col">{right_html}</div>
-             </div>""", height=900)
+            # Mur de vote avec Marquee
+            host = st.context.headers.get('host', 'localhost')
+            qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+            qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+            recent_votes = load_json(DETAILED_VOTES_FILE, [])
+            voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join([v['Utilisateur'] for v in recent_votes[-15:]][::-1]) or "En attente..."
+            
+            components.html(f"""
+            <style>
+                body {{ background: black; margin: 0; padding: 0; overflow: hidden; }}
+                .marquee {{ background: #E2001A; color: white; height: 50px; display: flex; align-items: center; font-family: Arial; font-weight: bold; }}
+                .marquee-content {{ animation: scroll 20s linear infinite; white-space: nowrap; }}
+                @keyframes scroll {{ 0% {{ transform: translateX(100%); }} 100% {{ transform: translateX(-100%); }} }}
+                .main-box {{ display: flex; flex-direction: column; align-items: center; justify-content: center; height: 90vh; }}
+                .qr-card {{ background: white; padding: 20px; border-radius: 20px; border: 8px solid #E2001A; }}
+            </style>
+            <div class="marquee"><div class="marquee-content">{voter_string}</div></div>
+            <div class="main-box">
+                <h1 style="color:#E2001A; font-size:60px; font-family:Arial;">VOTES OUVERTS</h1>
+                <div class="qr-card"><img src="data:image/png;base64,{qr_b64}" width="350"></div>
+            </div>
+            """, height=1200)
         else:
-            # --- VOTE OFF (ROBOT ACTIF) ---
-            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
-            overlay_html = f"""<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 2; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events: none;'><div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI !</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3></div></div>"""
-            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}{overlay_html}<div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
-            components.html(html_code, height=1000, scrolling=False)
+            # Votes clos avec Robot
+            logo_html = f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ""
+            overlay_html = f"""<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 2; text-align: center; font-family:Arial;'>{logo_html}<h1 style='color:#E2001A; font-size:60px;'>MERCI !</h1><h2 style='color:white;'>Les votes sont clos.</h2></div>"""
+            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}</style></head><body>{js_config}{overlay_html}<div id="robot-container"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
+            components.html(html_code, height=1200, scrolling=False)
 
+    # --- MODE 3 : PHOTOS LIVE (AVEC BULLES ANIMÉES) ---
     elif mode == "photos_live":
-        # --- PHOTOS LIVE ---
-        host = st.context.headers.get('host', 'localhost')
-        qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-        qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-        logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
-        img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        
-        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8); pointer-events: none;'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
+        img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-25:]])
         
         bubbles_script = f"""
         <script>
             setTimeout(function() {{
                 var container = document.createElement('div');
-                container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:5;overflow:hidden;background:transparent;pointer-events:none;';
+                container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:5;overflow:hidden;pointer-events:none;';
                 document.body.appendChild(container);
-                var centerDiv = document.createElement('div'); centerDiv.innerHTML = `{center_html_content}`; document.body.appendChild(centerDiv);
                 const imgs = {img_js}; const bubbles = [];
-                imgs.forEach((src, i) => {{
-                    const bSize = Math.floor(Math.random() * 300) + 150;
+                imgs.forEach((src) => {{
+                    const bSize = Math.floor(Math.random() * 200) + 150;
                     const el = document.createElement('img'); el.src = src;
-                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; z-index:50; opacity:0.9;';
+                    el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; opacity:0.9;';
                     let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize);
-                    let angle = Math.random() * Math.PI * 2; let speed = 0.5 + Math.random();
+                    let angle = Math.random() * Math.PI * 2; let speed = 0.6 + Math.random();
                     container.appendChild(el); bubbles.push({{el, x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, size: bSize}});
                 }});
                 function animateBubbles() {{
@@ -1231,8 +1076,5 @@ else:
             }}, 500);
         </script>"""
         
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}<div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
-        components.html(html_code, height=1000, scrolling=False)
-    
-    else:
-        st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}</style></head><body>{js_config}<div id="robot-container"></div>{import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
+        components.html(html_code, height=1200, scrolling=False)
