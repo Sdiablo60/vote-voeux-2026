@@ -1,14 +1,16 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🔴 OUTIL DE VÉRIFICATION DES BORDS 🔴
+// 🔴 ZONES DE RÉGLAGE MANUEL 🔴
 // =========================================================
 
-// Si le code Python a bien fonctionné :
-// 1. Mettez MARGE_HAUT à 0.0 -> Le trait rouge doit toucher le bandeau rouge du titre.
+// 1. HAUTEUR DU CADRE
+// 0.0 = Le robot pense que le haut de l'écran est le haut de la fenêtre.
+// Si le Python a bien marché, 0.0 devrait être parfait (collé au titre rouge).
 const MARGE_HAUT = 0.0; 
 
-// 2. Mettez FACTEUR_LARGEUR à 1.0 -> Les traits rouges doivent toucher les bords de l'écran.
+// 2. LARGEUR DU CADRE
+// 1.0 = Toute la largeur. Si vous voyez les traits verticaux sur les bords, c'est bon.
 const FACTEUR_LARGEUR = 1.0; 
 
 // =========================================================
@@ -20,20 +22,24 @@ if (document.readyState === 'loading') {
 }
 
 function launchCalibration() {
-    // NETTOYAGE
+    // Nettoyage de tout ancien robot
     const oldIds = ['robot-container', 'robot-canvas-overlay', 'robot-ghost-layer', 'robot-canvas-final', 'robot-calibration-layer'];
     oldIds.forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
 
-    // CRÉATION CALQUE DE TEST
+    // Création du calque de test
     const canvas = document.createElement('canvas');
     canvas.id = 'robot-calibration-layer';
     document.body.appendChild(canvas);
 
-    // STYLE FORCÉ
+    // Style forcé pour être sûr d'être au dessus de tout
     canvas.style.cssText = `
-        position: fixed !important; top: 0 !important; left: 0 !important;
-        width: 100vw !important; height: 100vh !important;
-        z-index: 2147483647 !important; pointer-events: none !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 999999 !important; /* Très haut pour passer devant le QR code */
+        pointer-events: none !important;
         background: transparent !important;
     `;
 
@@ -53,9 +59,9 @@ function initThreeJS(canvas) {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setClearColor(0x000000, 0);
 
-    // --- LE CADRE ROUGE ---
+    // CRÉATION DU CADRE ROUGE
     const borderGeo = new THREE.BufferGeometry();
-    const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 }); // Ligne épaisse
+    const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
     const borderLine = new THREE.LineLoop(borderGeo, borderMat);
     scene.add(borderLine);
 
@@ -68,9 +74,9 @@ function initThreeJS(canvas) {
         const halfH = visibleHeight / 2;
         const halfW = visibleWidth / 2;
 
-        // APPLICATION DES MARGES
-        const yTop = halfH - MARGE_HAUT;
-        const yBottom = -halfH; // Tout en bas
+        // Application des marges manuelles
+        const yTop = halfH - MARGE_HAUT; 
+        const yBottom = -halfH; 
         const xRight = halfW * FACTEUR_LARGEUR;
         const xLeft = -xRight;
 
