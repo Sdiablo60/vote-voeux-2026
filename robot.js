@@ -1,44 +1,53 @@
 import * as THREE from 'three';
 
-// --- CONFIGURATION ---
-const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
+// =========================================================================
+// 🔴 ZONE DE RÉGLAGE - MODIFIEZ CES 3 CHIFFRES UNIQUEMENT 🔴
+// =========================================================================
 
-// --- RÉGLAGES ---
-// Augmentez ce chiffre pour monter la boule verte
-// Diminuez ce chiffre pour descendre la boule verte
-const OFFSET_HAUTEUR = 0.5; 
+// 1. HAUTEUR (Pour descendre la ligne du haut sous votre titre)
+// Plus le chiffre est grand, plus la ligne DESCEND.
+// Essayez : 1.5, 2.0, 2.5...
+const MARGE_HAUT = 2.2; 
 
-// --- TEXTES ---
-const MESSAGES_BAG = {
-    attente: ["Bienvenue !", "Prêts ?"],
-    vote_off: ["Votes CLOS !"],
-    photos: ["Photos ! 📸", "Souriez !"],
-    danse: ["Dancefloor ! 💃"],
-    explosion: ["Boum !"],
-    cache_cache: ["Coucou !"]
-};
+// 2. BAS (Pour remonter la ligne du bas si elle est cachée)
+// Plus le chiffre est grand, plus la ligne REMONTE.
+// Essayez : 0.0 (tout en bas), 0.5, 1.0...
+const MARGE_BAS = 0.0;
 
-// --- INIT SÉCURISÉE ---
+// 3. LARGEUR (Pour écarter les bords gauche/droite)
+// 1.0 = Largeur mathématique exacte.
+// Si vous voyez des bandes noires, mettez 1.0.
+// Si les lignes sortent de l'écran, mettez 0.95.
+const FACTEUR_LARGEUR = 1.0; 
+
+// =========================================================================
+
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initLocalLayer);
+    document.addEventListener('DOMContentLoaded', launchCalibration);
 } else {
-    initLocalLayer();
+    launchCalibration();
 }
 
-function initLocalLayer() {
+function launchCalibration() {
+    // NETTOYAGE TOTAL (On supprime tout ancien robot)
     const oldIds = ['robot-container', 'robot-canvas-overlay', 'robot-ghost-layer', 'robot-canvas-final', 'robot-canvas-escape'];
     oldIds.forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
 
-    document.documentElement.style.cssText = "margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;";
-    document.body.style.cssText = "margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;";
-
+    // CRÉATION DU CALQUE DE CALIBRAGE
     const canvas = document.createElement('canvas');
-    canvas.id = 'robot-canvas-final';
+    canvas.id = 'robot-calibration-layer';
     document.body.appendChild(canvas);
 
+    // STYLE FORCÉ (PLEIN ÉCRAN)
     canvas.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-        z-index: 9999; pointer-events: none; background: transparent;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 2147483647 !important;
+        pointer-events: none !important;
+        background: transparent !important;
     `;
 
     initThreeJS(canvas);
@@ -49,139 +58,65 @@ function initThreeJS(canvas) {
     let height = window.innerHeight;
 
     const scene = new THREE.Scene();
+    // CAMÉRA FIXE À Z=14
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 14); 
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x000000, 0);
+    renderer.setClearColor(0x000000, 0); // Transparent
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
-    scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight.position.set(5, 10, 7);
-    scene.add(dirLight);
+    // --- LE CADRE DE CALIBRAGE ---
+    const borderGeo = new THREE.BufferGeometry();
+    // Ligne rouge très visible
+    const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4 });
+    const borderLine = new THREE.LineLoop(borderGeo, borderMat);
+    scene.add(borderLine);
 
-    // =========================================================
-    // --- STEP 2 : CALIBRAGE HAUTEUR SOURCE ---
-    // =========================================================
-    
-    if (config.mode === 'photos') {
-        // Cadre Rouge
-        const borderGeo = new THREE.BufferGeometry();
-        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
-        const borderLine = new THREE.Line(borderGeo, borderMat);
-        scene.add(borderLine);
+    // Fonction de calcul précis
+    function updateBorder() {
+        const dist = camera.position.z; // 14
+        const vFOV = THREE.MathUtils.degToRad(camera.fov); // 50 deg en rad
+        
+        // Hauteur et Largeur totales visibles à Z=0
+        const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
+        const visibleWidth = visibleHeight * camera.aspect;
 
-        // Boule Verte (Source)
-        const sourceGeo = new THREE.SphereGeometry(0.5, 32, 32);
-        const sourceMat = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
-        const sourceMesh = new THREE.Mesh(sourceGeo, sourceMat);
-        scene.add(sourceMesh);
+        const halfH = visibleHeight / 2;
+        const halfW = visibleWidth / 2;
 
-        const updateLayout = () => {
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            renderer.setSize(w, h);
-            camera.aspect = w / h;
-            camera.updateProjectionMatrix();
+        // APPLICATION DES MARGES (Celles que vous réglez en haut)
+        const yTop = halfH - MARGE_HAUT;       // On descend le haut
+        const yBottom = -halfH + MARGE_BAS;    // On remonte le bas
+        const xRight = halfW * FACTEUR_LARGEUR; // On ajuste la largeur
+        const xLeft = -xRight;
 
-            const dist = camera.position.z;
-            const vFOV = THREE.MathUtils.degToRad(camera.fov);
-            const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
-            const visibleWidth = visibleHeight * camera.aspect;
-
-            const topY = visibleHeight / 2;
-            const rightX = visibleWidth / 2;
-
-            // --- APPLICATION DU RÉGLAGE HAUTEUR ---
-            // On prend le haut mathématique (topY) et on ajoute votre réglage
-            sourceMesh.position.set(0, topY + OFFSET_HAUTEUR, 0);
-
-            // Mise à jour du cadre rouge (lui reste sur les bords mathématiques)
-            const pTL = new THREE.Vector3(-rightX, topY, 0);
-            const pTR = new THREE.Vector3(rightX, topY, 0);
-            const pBR = new THREE.Vector3(rightX, -topY, 0);
-            const pBL = new THREE.Vector3(-rightX, -topY, 0);
-            borderGeo.setFromPoints([pTL, pTR, pBR, pBL, pTL]);
-        };
-
-        updateLayout();
-        window.addEventListener('resize', updateLayout);
-    }
-    // =========================================================
-
-    // --- ROBOT ---
-    const robotGroup = new THREE.Group();
-    robotGroup.scale.set(0.7, 0.7, 0.7);
-    
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
-    const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
-    const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); 
-    const greyMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
-
-    function createPart(geo, mat, x, y, z, parent) {
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(x, y, z);
-        mesh.userData = { origPos: new THREE.Vector3(x, y, z), origRot: new THREE.Euler(0, 0, 0) };
-        if(parent) parent.add(mesh);
-        return mesh;
+        const points = [
+            new THREE.Vector3(xLeft, yTop, 0),    // Haut Gauche
+            new THREE.Vector3(xRight, yTop, 0),   // Haut Droite
+            new THREE.Vector3(xRight, yBottom, 0),// Bas Droite
+            new THREE.Vector3(xLeft, yBottom, 0)  // Bas Gauche
+        ];
+        borderGeo.setFromPoints(points);
     }
 
-    const head = createPart(new THREE.SphereGeometry(0.85, 32, 32), whiteMat, 0, 0, 0, robotGroup);
-    head.scale.set(1.4, 1.0, 0.75);
-    createPart(new THREE.SphereGeometry(0.78, 32, 32), blackMat, 0, 0, 0.55, head).scale.set(1.25, 0.85, 0.6);
-    createPart(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat, -0.35, 0.15, 1.05, head);
-    createPart(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat, 0.35, 0.15, 1.05, head);
-    const mouth = createPart(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat, 0, -0.15, 1.05, head);
-    mouth.rotation.z = Math.PI;
-    const lEar = createPart(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 16), whiteMat, -1.1, 0, 0, head); lEar.rotation.z = Math.PI/2;
-    const rEar = createPart(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 16), whiteMat, 1.1, 0, 0, head); rEar.rotation.z = Math.PI/2;
+    updateBorder();
 
-    const body = createPart(new THREE.SphereGeometry(0.65, 32, 32), whiteMat, 0, -1.1, 0, robotGroup);
-    body.scale.set(0.95, 1.1, 0.8);
-    createPart(new THREE.TorusGeometry(0.62, 0.03, 16, 32), greyMat, 0, 0, 0, body).rotation.x = Math.PI/2;
-
-    const leftArm = createPart(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat, -0.8, -0.8, 0, robotGroup); leftArm.rotation.z = 0.15;
-    const rightArm = createPart(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat, 0.8, -0.8, 0, robotGroup); rightArm.rotation.z = -0.15;
-
-    scene.add(robotGroup);
-    
-    // Position initiale robot
-    let targetPosition = new THREE.Vector3(0, -1, 0); 
-    robotGroup.position.copy(targetPosition);
-
-    // BULLE
-    let bubbleOverlay = document.getElementById('robot-bubble-force');
-    if (!bubbleOverlay) {
-        bubbleOverlay = document.createElement('div');
-        bubbleOverlay.id = 'robot-bubble-force';
-        bubbleOverlay.style.cssText = `
-            position: fixed; opacity: 0; background: white; color: black;
-            padding: 15px 25px; border-radius: 30px; font-family: sans-serif; font-weight: bold; font-size: 18px;
-            pointer-events: none; z-index: 10000; transition: opacity 0.3s;
-        `;
-        document.body.appendChild(bubbleOverlay);
-    }
-
-    let time = 0;
+    // Boucle de rendu simple
     function animate() {
         requestAnimationFrame(animate);
-        time += 0.02;
-        robotGroup.position.y = -1 + Math.sin(time) * 0.1;
-
-        if(bubbleOverlay && bubbleOverlay.style.opacity == 1) {
-            const headPos = robotGroup.position.clone(); 
-            headPos.y += 0.8; 
-            headPos.project(camera);
-            const x = (headPos.x * .5 + .5) * window.innerWidth; 
-            const y = (headPos.y * -.5 + .5) * window.innerHeight;
-            bubbleOverlay.style.left = Math.max(0, Math.min(window.innerWidth - 200, x)) + 'px';
-            bubbleOverlay.style.top = (y - 80) + 'px';
-        }
-
         renderer.render(scene, camera);
     }
     animate();
+
+    // Mise à jour si on redimensionne la fenêtre
+    window.addEventListener('resize', () => {
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        renderer.setSize(w, h);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+        updateBorder();
+    });
 }
