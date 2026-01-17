@@ -28,14 +28,12 @@ function getUniqueMessage(category) {
     return msg;
 }
 
-// Script pour l'intro (seulement pour mode attente)
 const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" },
-    { time: 4.0, text: "C'est calme ici... 🤔", action: "look_around" },
-    { time: 7.0, text: "OH ! BONJOUR ! 😳", action: "surprise" },
-    { time: 10.0, text: "Bienvenue au " + config.titre + " ! ✨", action: "wave" },
-    { time: 14.0, text: "Prêts pour la soirée ? 🎉", action: "ask" }
+    { time: 4.0, text: "Je calibre l'écran... 📐", action: "look_around" },
+    { time: 7.0, text: "Le cadre rouge touche les bords ? 🟥", action: "surprise" },
+    { time: 10.0, text: "C'est ma zone de jeu !", action: "wave" }
 ];
 
 if (container) {
@@ -44,6 +42,11 @@ if (container) {
 }
 
 function initRobot(container) {
+    // 1. FORCER LE RESET CSS (Pour supprimer les marges blanches du navigateur)
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.overflow = "hidden"; // Empêche les ascenseurs
+    
     let width = window.innerWidth;
     let height = window.innerHeight;
     
@@ -70,40 +73,40 @@ function initRobot(container) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE DE DEBUG (UNIQUEMENT MODE PHOTOS) ---
+    // --- STEP 1 : CADRE DE DEBUG (CALIBRAGE EXACT) ---
     // =========================================================
-    let updateDebugBorder = () => {}; // Fonction vide par défaut
+    let updateDebugBorder = () => {}; 
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000 });
+        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
-        // Cette fonction calcule exactement ce que la caméra voit à Z=0
         updateDebugBorder = () => {
-            const dist = camera.position.z; // Distance caméra (14)
-            const vFOV = THREE.MathUtils.degToRad(camera.fov); // 50 degrés en radians
+            // Distance entre la caméra (Z=14) et le plan du robot (Z=0)
+            const dist = camera.position.z; 
+            const vFOV = THREE.MathUtils.degToRad(camera.fov); 
             
-            // Hauteur visible totale à la position 0
+            // Hauteur visible exacte à Z=0
             const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
-            // Largeur visible totale
+            // Largeur visible exacte
             const visibleWidth = visibleHeight * camera.aspect;
 
-            // On prend 95% de la taille pour laisser une petite marge visible à l'écran
-            const w = (visibleWidth / 2) * 0.95;
-            const h = (visibleHeight / 2) * 0.95;
+            // J'ai retiré le facteur 0.95. Maintenant c'est 100% de l'écran.
+            const w = visibleWidth / 2;
+            const h = visibleHeight / 2;
 
             const points = [
-                new THREE.Vector3(-w, h, 0),
-                new THREE.Vector3(w, h, 0),
-                new THREE.Vector3(w, -h, 0),
-                new THREE.Vector3(-w, -h, 0),
-                new THREE.Vector3(-w, h, 0)
+                new THREE.Vector3(-w, h, 0),  // Haut Gauche
+                new THREE.Vector3(w, h, 0),   // Haut Droite
+                new THREE.Vector3(w, -h, 0),  // Bas Droite
+                new THREE.Vector3(-w, -h, 0), // Bas Gauche
+                new THREE.Vector3(-w, h, 0)   // Fermer la boucle
             ];
             borderGeo.setFromPoints(points);
         };
-        updateDebugBorder(); // Premier appel
+        updateDebugBorder(); 
     }
     // =========================================================
 
@@ -148,7 +151,6 @@ function initRobot(container) {
     let startX = (config.mode === 'attente') ? -15 : 0;
     let targetPosition = new THREE.Vector3(startX, -1, 0); 
     robotGroup.position.copy(targetPosition);
-    
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let introIndex = 0; let nextEventTime = 0; let bubbleTimeout = null;
 
@@ -157,20 +159,16 @@ function initRobot(container) {
     
     function pickNewTarget() { 
         const aspect = width / height; 
-        const vW = 7 * aspect; 
-        const side = Math.random() > 0.5 ? 1 : -1; 
-        const safeMin = 2; const safeMax = vW * 0.7; 
-        let x = side * (safeMin + Math.random() * (safeMax - safeMin)); 
-        let y = -1 + (Math.random() - 0.5) * 2.0; 
-        targetPosition.set(x, y, 0); 
+        const safeMax = (7 * aspect) * 0.8; 
+        const x = (Math.random()>0.5?1:-1) * (2 + Math.random()*(safeMax-2));
+        targetPosition.set(x, -1 + (Math.random()-0.5)*2, 0); 
     }
 
     function animate() {
         requestAnimationFrame(animate);
         time += 0.015;
 
-        // Comportement spécifique Mode Attente (Intro)
-        if (config.mode === 'attente' && robotState === 'intro') {
+        if (robotState === 'intro') {
             if (introIndex < introScript.length) {
                 const step = introScript[introIndex];
                 if (time >= step.time) { 
@@ -184,9 +182,7 @@ function initRobot(container) {
                 }
             } else if (time > 18) { robotState = 'moving'; pickNewTarget(); nextEventTime = time + 3; }
             if (introIndex > 0 && introIndex < 3) robotGroup.position.lerp(targetPosition, 0.02);
-        } 
-        // Comportement par défaut (Moving)
-        else if (robotState === 'moving') {
+        } else if (robotState === 'moving') {
             robotGroup.position.y += Math.sin(time*2)*0.002;
             robotGroup.position.lerp(targetPosition, 0.02);
             smoothRotate(robotGroup, 'y', (targetPosition.x - robotGroup.position.x)*0.05, 0.05);
@@ -214,8 +210,7 @@ function initRobot(container) {
     window.addEventListener('resize', () => {
         width = window.innerWidth; height = window.innerHeight;
         renderer.setSize(width, height); camera.aspect = width / height; camera.updateProjectionMatrix();
-        // Mise à jour de la bordure si on est en mode photos
-        if(config.mode === 'photos') updateDebugBorder(); 
+        if(config.mode === 'photos') updateDebugBorder(); // Mise à jour de la bordure
     });
     animate();
 }
