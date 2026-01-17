@@ -11,7 +11,7 @@ import * as THREE from 'three';
 // 1. Lancez avec 5.0 -> Vous verrez la ligne.
 // 2. Si elle est trop basse : Augmentez (ex: 5.5, 6.0, 6.2...)
 // 3. Si elle est trop haute : Diminuez (ex: 4.5)
-const POSITION_Y_LIGNE = 6.529; 
+const POSITION_Y_LIGNE = 6.525; 
 
 // Largeur (1.0 = normal)
 const FACTEUR_LARGEUR = 1.0; 
