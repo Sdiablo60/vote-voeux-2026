@@ -14,11 +14,15 @@ const MESSAGES_BAG = {
     cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie ! ⚡"]
 };
 
+// --- DÉMARRAGE SÉCURISÉ ---
 if (container) {
+    // Nettoyage préventif
+    while(container.firstChild) container.removeChild(container.firstChild);
     try {
         initRobot(container);
     } catch (e) {
-        console.error("ERREUR 3D:", e);
+        console.error("CRASH:", e);
+        container.innerHTML = `<div style="color:red;text-align:center;padding-top:50px">Erreur: ${e.message}</div>`;
     }
 }
 
@@ -33,25 +37,6 @@ function getUniqueMessage(category) {
 }
 const usedMessages = {};
 
-// --- NOUVEAU : Générateur de texture pour le fondu des faisceaux ---
-function createBeamTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 32; canvas.height = 256; // Format long pour le dégradé
-    const context = canvas.getContext('2d');
-    // Dégradé linéaire vertical
-    const gradient = context.createLinearGradient(0, 0, 0, 256);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)'); // Opaque au début
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.0)'); // Transparent à la fin
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 32, 256);
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping; // Important pour ne pas répéter le dégradé
-    return texture;
-}
-// On crée la texture une seule fois pour tous les spots
-const beamFadeTexture = createBeamTexture();
-
-
 function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -62,9 +47,9 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA (Z=17 pour voir large)
+    // CAMÉRA : Reculée pour voir les côtés (Z=18)
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 150);
-    camera.position.set(0, 0, 17); 
+    camera.position.set(0, 0, 18); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -80,6 +65,19 @@ function initRobot(container) {
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
     scene.add(explosionLight);
+
+    // --- GÉNÉRATION TEXTURE FONDU (Beam Fade) ---
+    // Créée ici pour être sûr qu'elle est disponible
+    const canvas = document.createElement('canvas');
+    canvas.width = 32; canvas.height = 64;
+    const context = canvas.getContext('2d');
+    const gradient = context.createLinearGradient(0, 0, 0, 64);
+    gradient.addColorStop(0.0, 'rgba(255, 255, 255, 1.0)'); // Opaque près du spot
+    gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.5)');
+    gradient.addColorStop(1.0, 'rgba(255, 255, 255, 0.0)'); // Transparent à la fin
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 32, 64);
+    const beamFadeTexture = new THREE.CanvasTexture(canvas);
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
@@ -118,93 +116,112 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- SUPPORTS DJ (ÉCARTÉS) ---
-    const trussMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.9, roughness: 0.1 });
-
-    function createDJStand(xPos) {
-        const standGroup = new THREE.Group();
-        standGroup.position.set(xPos, -7, -2); 
-        // Pilier
-        const height = 15;
-        const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, height, 16), trussMat);
-        pillar.position.y = height / 2; standGroup.add(pillar);
+    // --- CRÉATION TOTEMS DJ (Stands Verticaux) ---
+    const standMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.5 });
+    
+    function createTotem(xPos) {
+        const group = new THREE.Group();
+        group.position.set(xPos, -8, -2); // Posé au sol, reculé un peu
+        
+        // Colonne
+        const col = new THREE.Mesh(new THREE.BoxGeometry(0.8, 18, 0.8), standMat);
+        col.position.y = 9; 
+        group.add(col);
+        
         // Base
-        const base = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.9, 0.3, 32), trussMat);
-        base.position.y = 0.15; standGroup.add(base);
-        scene.add(standGroup);
-        return standGroup;
+        const base = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.2, 1.5), standMat);
+        base.position.y = 0.1;
+        group.add(base);
+
+        scene.add(group);
+        return group; // Retourne le groupe pour y attacher les spots
     }
 
-    // NOUVELLE POSITION : ±17 au lieu de ±13 pour écarter davantage
-    const leftStand = createDJStand(-17);
-    const rightStand = createDJStand(17);
+    // Positions ÉCARTÉES (X = +/- 16)
+    const leftTotem = createTotem(-16);
+    const rightTotem = createTotem(16);
 
-    // --- SPOTS & FAISCEAUX RÉALISTES (FONDU) ---
+    // --- SPOTS & FAISCEAUX FADE ---
     const stageSpots = [];
     const housingMat = new THREE.MeshStandardMaterial({ color: 0xCCCCCC, metalness: 0.5, roughness: 0.5, emissive: 0x222222 });
     const barnMat = new THREE.MeshStandardMaterial({ color: 0x333333, side: THREE.DoubleSide });
     const centerTarget = new THREE.Vector3(0,0,0);
 
-    function createSpot(parentStand, yLocalPos, colorInt, isBottom) {
-        const group = new THREE.Group();
-        group.position.set(0, yLocalPos, 0.3); 
-        group.scale.set(0.6, 0.6, 0.6);
+    function createSpot(parent, yLocal, colorInt, isBottom) {
+        const spotGroup = new THREE.Group();
+        // Attaché au totem parent à la hauteur locale Y
+        spotGroup.position.set(0, yLocal, 0.5); 
+        spotGroup.scale.set(0.6, 0.6, 0.6); // Taille réduite
 
-        // Support et Corps
+        // Structure Spot
         const bracket = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 16, Math.PI), housingMat);
-        bracket.rotation.z = isBottom ? 0 : Math.PI; group.add(bracket);
-        const bodyGroup = new THREE.Group(); group.add(bodyGroup);
+        bracket.rotation.z = isBottom ? 0 : Math.PI; spotGroup.add(bracket);
+        
+        const bodyGroup = new THREE.Group(); spotGroup.add(bodyGroup);
         const box = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), housingMat);
         box.position.z = 0.3; bodyGroup.add(box);
         const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32), housingMat);
         cyl.rotation.x = Math.PI/2; cyl.position.z = -0.2; bodyGroup.add(cyl);
         const lens = new THREE.Mesh(new THREE.CircleGeometry(0.35, 32), new THREE.MeshBasicMaterial({ color: colorInt }));
         lens.position.set(0, 0, -0.51); bodyGroup.add(lens);
+        
         const topDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), barnMat); topDoor.position.set(0, 0.45, -0.5); topDoor.rotation.x = Math.PI/4; bodyGroup.add(topDoor);
         const botDoor = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.3), barnMat); botDoor.position.set(0, -0.45, -0.5); botDoor.rotation.x = -Math.PI/4; bodyGroup.add(botDoor);
 
-        // --- NOUVEAU FAISCEAU AVEC FONDU ---
-        const beamLen = 60; // Très long faisceau
-        // Utilise un cône ouvert à la fin, qui commence à la taille de la lentille (0.35) et s'élargit (2.0)
-        const beamGeo = new THREE.ConeGeometry(2.0, beamLen, 32, 1, true, 0, Math.PI * 2);
-        // On déplace le point de pivot à la pointe du cône
-        beamGeo.translate(0, -beamLen / 2, 0); 
-        // On l'oriente vers l'avant
+        // FAISCEAU "FONDU" (Texture Alpha)
+        const beamLen = 35;
+        // Cone ouvert en bas (radiusTop=0.35, radiusBottom=2.0)
+        const beamGeo = new THREE.CylinderGeometry(0.35, 2.5, beamLen, 32, 1, true);
+        beamGeo.translate(0, -beamLen/2, 0); 
         beamGeo.rotateX(-Math.PI / 2);
-
+        
         const beamMat = new THREE.MeshBasicMaterial({ 
             color: colorInt, 
             transparent: true, 
-            opacity: 1.0, // L'opacité globale est gérée ici, le dégradé par alphaMap
-            alphaMap: beamFadeTexture, // Application de la texture de fondu
-            side: THREE.DoubleSide, // Important pour voir le fondu des deux côtés
-            blending: THREE.AdditiveBlending, 
+            opacity: 0.6, 
+            alphaMap: beamFadeTexture, // Le dégradé magique
+            side: THREE.DoubleSide, 
             depthWrite: false,
+            blending: THREE.AdditiveBlending 
         });
         const beam = new THREE.Mesh(beamGeo, beamMat);
         beam.position.z = -0.52; 
-        // IMPORTANT : On inverse l'échelle Z pour que la texture de fondu soit dans le bon sens (opaque près de la lentille)
-        beam.scale.z = -1; 
+        // Rotation pour aligner le dégradé (transparent au bout)
+        beam.rotation.z = Math.PI; 
+        beam.scale.set(1, 1, -1); // Inverse Z pour que le dégradé parte du bon sens
         bodyGroup.add(beam);
 
         // Lumière réelle
         const light = new THREE.SpotLight(colorInt, 10);
-        light.angle = 0.35; light.distance = 70; light.decay = 1.5; light.penumbra = 0.5;
+        light.angle = 0.4; light.distance = 60; light.decay = 1.5;
         light.position.set(0, 0, -0.5);
-        bodyGroup.add(light); 
-        scene.add(light.target); light.target.position.copy(centerTarget);
+        bodyGroup.add(light);
+        
+        // Cible (Le robot au centre)
+        const targetObj = new THREE.Object3D();
+        scene.add(targetObj); targetObj.position.copy(centerTarget);
+        light.target = targetObj;
 
-        parentStand.add(group);
-        bodyGroup.lookAt(parentStand.worldToLocal(centerTarget.clone()));
+        // Attachement
+        parent.add(spotGroup);
+        // Orientation vers le centre (conversion de coordonnées mondiales en locales)
+        const worldTarget = new THREE.Vector3(0,0,0);
+        parent.worldToLocal(worldTarget); // Convertit (0,0,0) en coord relative au totem
+        bodyGroup.lookAt(worldTarget);
 
-        return { group, beam, light, baseIntensity: 10, timeOff: Math.random() * 100 };
+        return { body: spotGroup, beam, light, baseIntensity: 10, timeOff: Math.random() * 100 };
     }
 
-    // --- PLACEMENT ---
-    stageSpots.push(createSpot(leftStand, 13, 0xFFFF00, false));
-    stageSpots.push(createSpot(leftStand, 4, 0x00FFFF, true));
-    stageSpots.push(createSpot(rightStand, 13, 0x00FF00, false));
-    stageSpots.push(createSpot(rightStand, 4, 0xFFA500, true));
+    // --- PLACEMENT DES SPOTS SUR LES TOTEMS ---
+    // Y local par rapport au sol du totem (-8)
+    // HAUT : Y=14 (soit Y=6 monde) -> Juste sous le titre
+    // BAS : Y=5 (soit Y=-3 monde) -> Au dessus de la barre du bas
+    
+    stageSpots.push(createSpot(leftTotem, 14, 0xFFFF00, false)); // Gauche Haut
+    stageSpots.push(createSpot(leftTotem, 5, 0x00FFFF, true));   // Gauche Bas
+    
+    stageSpots.push(createSpot(rightTotem, 14, 0x00FF00, false)); // Droite Haut
+    stageSpots.push(createSpot(rightTotem, 5, 0xFFA500, true));   // Droite Bas
 
     // --- ANIMATION ---
     let time = 0;
@@ -219,8 +236,7 @@ function initRobot(container) {
 
         stageSpots.forEach(s => {
             const pulse = Math.sin(time * 3 + s.timeOff) * 0.2 + 0.8;
-            // L'opacité du matériau gère l'intensité globale du faisceau dégradé
-            s.beam.material.opacity = 0.8 * pulse; 
+            s.beam.material.opacity = 0.6 * pulse;
             s.light.intensity = s.baseIntensity * pulse;
         });
 
