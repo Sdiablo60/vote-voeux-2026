@@ -20,55 +20,9 @@ import copy
 import re
 import tempfile
 
-# ==============================================================================
-# DÉBUT DU BLOC DE CALIBRAGE ÉCRAN (NE RIEN MODIFIER DANS CE BLOC)
-# ==============================================================================
-
-# 1. Force l'affichage en pleine largeur (Wide Mode)
-st.set_page_config(layout="wide", page_title="Concours Vidéo 2026", initial_sidebar_state="collapsed")
-
-# 2. Injection CSS pour supprimer les bandes noires (Padding & Marges)
-st.markdown("""
-    <style>
-        /* Supprime la barre de menu Streamlit en haut (Header) */
-        header[data-testid="stHeader"] {
-            display: none;
-        }
-
-        /* Supprime le pied de page */
-        footer {
-            display: none;
-        }
-
-        /* C'EST ICI QUE LES BANDES NOIRES SONT SUPPRIMÉES */
-        /* On force les marges internes (padding) du contenu principal à 0 */
-        .block-container {
-            padding-top: 0rem !important;
-            padding-bottom: 0rem !important;
-            padding-left: 0rem !important;
-            padding-right: 0rem !important;
-            margin-top: 0rem !important;
-            max-width: 100vw !important;
-        }
-
-        /* Supprime les marges de l'application globale */
-        .stApp {
-            margin: 0 !important;
-            padding: 0 !important;
-            background-color: black; /* Fond noir uni pour éviter les coupures */
-        }
-        
-        /* Gestion des Iframes (pour le robot) */
-        iframe {
-            display: block;
-            border: none;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# FIN DU BLOC DE CALIBRAGE - TON CODE CONTINUE CI-DESSOUS
-# ==============================================================================
+# =========================================================
+# 1. IMPORTS & CONFIGURATION INITIALE
+# =========================================================
 
 try:
     from fpdf import FPDF
@@ -77,6 +31,12 @@ except ImportError:
     PDF_AVAILABLE = False
 
 Image.MAX_IMAGE_PIXELS = None 
+
+st.set_page_config(
+    page_title="Régie Master",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
 # --- RECUPERATION PARAMETRES URL ---
 qp = st.query_params
@@ -115,22 +75,22 @@ st.markdown("""
     
     [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
     
-.social-header { 
+    .social-header { 
         position: fixed; 
         top: 0; 
         left: 0; 
         width: 100%; 
-        height: 8vh;  /* <--- MODIFIÉ : 8% au lieu de 12% */
+        height: 12vh; 
         background: #E2001A !important; 
         display: flex; 
         align-items: center; 
         justify-content: center; 
         z-index: 999999 !important; 
-        border-bottom: 3px solid white; /* Bordure un peu plus fine */
+        border-bottom: 5px solid white; 
     }
     .social-title { 
         color: white !important; 
-        font-size: 30px !important; /* <--- MODIFIÉ : Plus petit pour rentrer dans 8vh */
+        font-size: 40px !important; 
         font-weight: bold; 
         margin: 0; 
         text-transform: uppercase; 
