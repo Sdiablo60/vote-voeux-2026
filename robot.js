@@ -3,6 +3,11 @@ import * as THREE from 'three';
 // --- CONFIGURATION ---
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
+// --- RÉGLAGES ---
+// Augmentez ce chiffre pour monter la boule verte
+// Diminuez ce chiffre pour descendre la boule verte
+const OFFSET_HAUTEUR = 0.5; 
+
 // --- TEXTES ---
 const MESSAGES_BAG = {
     attente: ["Bienvenue !", "Prêts ?"],
@@ -13,7 +18,7 @@ const MESSAGES_BAG = {
     cache_cache: ["Coucou !"]
 };
 
-// --- INIT SÉCURISÉE (SANS SORTIE IFRAME) ---
+// --- INIT SÉCURISÉE ---
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initLocalLayer);
 } else {
@@ -21,15 +26,12 @@ if (document.readyState === 'loading') {
 }
 
 function initLocalLayer() {
-    // 1. NETTOYAGE
     const oldIds = ['robot-container', 'robot-canvas-overlay', 'robot-ghost-layer', 'robot-canvas-final', 'robot-canvas-escape'];
     oldIds.forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
 
-    // 2. CSS RESET SUR LA FRAME LOCALE
     document.documentElement.style.cssText = "margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;";
     document.body.style.cssText = "margin: 0; padding: 0; overflow: hidden; width: 100%; height: 100%;";
 
-    // 3. CRÉATION CANVAS
     const canvas = document.createElement('canvas');
     canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
@@ -47,7 +49,6 @@ function initThreeJS(canvas) {
     let height = window.innerHeight;
 
     const scene = new THREE.Scene();
-    // CAMÉRA (Reculée à 14 pour bien voir les bords)
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 14); 
 
@@ -63,24 +64,22 @@ function initThreeJS(canvas) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 2 : LE POINT DE DÉPART (LA CIBLE VERTE) ---
+    // --- STEP 2 : CALIBRAGE HAUTEUR SOURCE ---
     // =========================================================
     
-    // Cadre Rouge (Pour repère)
     if (config.mode === 'photos') {
-        // 1. Le Cadre Rouge
+        // Cadre Rouge
         const borderGeo = new THREE.BufferGeometry();
         const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
-        // 2. La Source (Point Vert)
+        // Boule Verte (Source)
         const sourceGeo = new THREE.SphereGeometry(0.5, 32, 32);
         const sourceMat = new THREE.MeshBasicMaterial({ color: 0x00FF00 });
         const sourceMesh = new THREE.Mesh(sourceGeo, sourceMat);
         scene.add(sourceMesh);
 
-        // FONCTION DE CALCUL DES BORDS
         const updateLayout = () => {
             const w = window.innerWidth;
             const h = window.innerHeight;
@@ -93,16 +92,14 @@ function initThreeJS(canvas) {
             const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
             const visibleWidth = visibleHeight * camera.aspect;
 
-            // Limites 3D exactes
             const topY = visibleHeight / 2;
             const rightX = visibleWidth / 2;
 
-            // --- RÉGLAGE HAUTEUR DE LA SOURCE ---
-            // On place la boule verte tout en haut (Y = topY)
-            // On décale légèrement vers le bas (-0.5) pour qu'elle soit visible
-            sourceMesh.position.set(0, topY - 0.5, 0);
+            // --- APPLICATION DU RÉGLAGE HAUTEUR ---
+            // On prend le haut mathématique (topY) et on ajoute votre réglage
+            sourceMesh.position.set(0, topY + OFFSET_HAUTEUR, 0);
 
-            // Mise à jour du cadre rouge
+            // Mise à jour du cadre rouge (lui reste sur les bords mathématiques)
             const pTL = new THREE.Vector3(-rightX, topY, 0);
             const pTR = new THREE.Vector3(rightX, topY, 0);
             const pBR = new THREE.Vector3(rightX, -topY, 0);
@@ -150,12 +147,12 @@ function initThreeJS(canvas) {
     const rightArm = createPart(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat, 0.8, -0.8, 0, robotGroup); rightArm.rotation.z = -0.15;
 
     scene.add(robotGroup);
-
-    // Position initiale
+    
+    // Position initiale robot
     let targetPosition = new THREE.Vector3(0, -1, 0); 
     robotGroup.position.copy(targetPosition);
 
-    // BULLE TEXTE (Recréée pour être sûr)
+    // BULLE
     let bubbleOverlay = document.getElementById('robot-bubble-force');
     if (!bubbleOverlay) {
         bubbleOverlay = document.createElement('div');
@@ -173,7 +170,7 @@ function initThreeJS(canvas) {
         requestAnimationFrame(animate);
         time += 0.02;
         robotGroup.position.y = -1 + Math.sin(time) * 0.1;
-        
+
         if(bubbleOverlay && bubbleOverlay.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); 
             headPos.y += 0.8; 
