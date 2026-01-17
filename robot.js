@@ -43,12 +43,12 @@ function initRobot(container) {
     container.style.zIndex = '1'; container.style.pointerEvents = 'none';
     
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x000000, 0.015);
+    scene.fog = new THREE.FogExp2(0x000000, 0.012); // Brouillard un peu plus léger pour voir loin
     
-    // CAMÉRA
+    // CAMÉRA : Reculée un peu plus pour voir le grand sol
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 300);
-    camera.position.set(0, 3, 35); 
-    camera.lookAt(0, -6, 0); 
+    camera.position.set(0, 4, 38); 
+    camera.lookAt(0, -5, 0); 
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
@@ -59,34 +59,35 @@ function initRobot(container) {
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
     scene.add(ambientLight);
     
-    // Spot Robot puissant
-    const spotRobot = new THREE.SpotLight(0xffffff, 20);
-    spotRobot.position.set(0, 20, 15);
-    spotRobot.angle = 0.5;
+    // Spot Robot
+    const spotRobot = new THREE.SpotLight(0xffffff, 18);
+    spotRobot.position.set(0, 20, 20);
+    spotRobot.angle = 0.4;
     scene.add(spotRobot);
 
     const explosionLight = new THREE.PointLight(0xffaa00, 0, 20);
     explosionLight.position.set(0, 0, 5);
     scene.add(explosionLight);
 
-    // --- LE SOL ---
+    // --- LE SOL (AGRANDI) ---
     const floorY = -12;
-    const grid = new THREE.GridHelper(200, 50, 0x555555, 0x111111);
+    // Grille beaucoup plus large (300 au lieu de 200)
+    const grid = new THREE.GridHelper(300, 60, 0x555555, 0x111111);
     grid.position.y = floorY;
     scene.add(grid);
     
     const floorPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(500, 500),
+        new THREE.PlaneGeometry(600, 600), // Sol immense
         new THREE.MeshBasicMaterial({ color: 0x020202 }) 
     );
     floorPlane.rotation.x = -Math.PI / 2;
     floorPlane.position.y = floorY - 0.1;
     scene.add(floorPlane);
 
-    // --- ROBOT ---
+    // --- ROBOT (HÉROS) ---
     const robotGroup = new THREE.Group();
-    robotGroup.scale.set(1.1, 1.1, 1.1); 
-    robotGroup.position.y = floorY + 4.5;
+    robotGroup.scale.set(1.5, 1.5, 1.5); // Robot Grossi (x1.5)
+    robotGroup.position.y = floorY + 5.5; // Ajusté pour ne pas traverser le sol
     spotRobot.target = robotGroup;
 
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
@@ -124,15 +125,16 @@ function initRobot(container) {
     const parts = [head, body, leftArm, rightArm];
 
     // =========================================================
-    // --- SYSTÈME LASER "FINAL LOOK" ---
+    // --- SYSTÈME LASER ---
     // =========================================================
     
-    const hubY = 10; 
+    // Source abaissée à 8.5 pour être visible sous le titre
+    const hubY = 8.5; 
     const laserHub = new THREE.Group();
     laserHub.position.set(0, hubY, 0);
     scene.add(laserHub);
 
-    const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 0.5, 1, 32), new THREE.MeshBasicMaterial({color: 0x111111}));
+    const hubMesh = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.5, 1, 32), new THREE.MeshBasicMaterial({color: 0x111111}));
     laserHub.add(hubMesh);
 
     const lasers = [];
@@ -141,36 +143,33 @@ function initRobot(container) {
     for(let i=0; i<24; i++) { 
         const color = colors[Math.floor(Math.random()*colors.length)];
         
-        // --- 1. LE FAISCEAU ---
-        // Cœur
-        const coreGeo = new THREE.CylinderGeometry(0.03, 0.03, 1, 6, 1, true); 
+        // 1. FAISCEAU (Gros Cœur + Gros Halo)
+        const coreGeo = new THREE.CylinderGeometry(0.04, 0.04, 1, 6, 1, true); 
         coreGeo.translate(0, 0.5, 0); coreGeo.rotateX(Math.PI / 2); 
         const coreMat = new THREE.MeshBasicMaterial({ 
-            color: 0xFFFFFF, transparent: true, opacity: 0.9,
+            color: 0xFFFFFF, transparent: true, opacity: 0.8,
             blending: THREE.AdditiveBlending, depthWrite: false
         });
         const beamCore = new THREE.Mesh(coreGeo, coreMat);
         scene.add(beamCore);
 
-        // Halo (Ajusté pour être plus "aérien" et moins "tube")
-        const glowGeo = new THREE.CylinderGeometry(0.1, 0.4, 1, 8, 1, true); 
+        const glowGeo = new THREE.CylinderGeometry(0.15, 0.5, 1, 8, 1, true); 
         glowGeo.translate(0, 0.5, 0); glowGeo.rotateX(Math.PI / 2); 
         const glowMat = new THREE.MeshBasicMaterial({ 
-            color: color, transparent: true, 
-            opacity: 0.15, // Plus subtil pour effet lumière
+            color: color, transparent: true, opacity: 0.2, 
             blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
         });
         const beamGlow = new THREE.Mesh(glowGeo, glowMat);
         scene.add(beamGlow);
 
-        // --- 2. L'IMPACT AU SOL ---
-        const dotCoreGeo = new THREE.CircleGeometry(0.5, 16); 
+        // 2. IMPACT (Visible)
+        const dotCoreGeo = new THREE.CircleGeometry(0.6, 16); 
         const dotCoreMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending });
         const dotCore = new THREE.Mesh(dotCoreGeo, dotCoreMat);
         dotCore.rotation.x = -Math.PI / 2; dotCore.position.y = floorY + 0.06;
         scene.add(dotCore);
 
-        const dotGlowGeo = new THREE.CircleGeometry(1.5, 32); 
+        const dotGlowGeo = new THREE.CircleGeometry(1.8, 32); 
         const dotGlowMat = new THREE.MeshBasicMaterial({ 
             color: color, transparent: true, opacity: 0.5, 
             blending: THREE.AdditiveBlending, depthWrite: false 
@@ -179,12 +178,13 @@ function initRobot(container) {
         dotGlow.rotation.x = -Math.PI / 2;
         scene.add(dotGlow);
 
-        // Positionnement initial : On évite le centre exact (0,0) pour ne pas couper le robot
+        // ZONE D'EXCLUSION : On force les lasers à commencer loin du centre (Robot)
+        // Rayon mini = 12 (pour laisser la place au gros robot)
         let startX, startZ;
         do {
-            startX = (Math.random()-0.5) * 70;
-            startZ = (Math.random()-0.5) * 50;
-        } while (Math.abs(startX) < 5 && Math.abs(startZ) < 5); // Zone d'exclusion robot
+            startX = (Math.random()-0.5) * 80;
+            startZ = (Math.random()-0.5) * 60;
+        } while (Math.abs(startX) < 12 && Math.abs(startZ) < 8); 
 
         lasers.push({
             beamCore, beamGlow, dotCore, dotGlow,
@@ -192,14 +192,14 @@ function initRobot(container) {
             currentPos: new THREE.Vector3(startX, floorY + 0.05, startZ),
             targetPos: new THREE.Vector3(startX, floorY + 0.05, startZ),
             speed: 0.03 + Math.random() * 0.05, 
-            strobeSpeed: 8 + Math.random() * 15,
+            strobeSpeed: 10 + Math.random() * 20,
             strobeOffset: Math.random() * 100
         });
     }
 
     // --- ANIMATION ---
     let time = 0;
-    let targetPos = new THREE.Vector3(4, floorY + 4.5, 0);
+    let targetPos = new THREE.Vector3(4, floorY + 5.5, 0); // Cible robot ajustée
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let nextEvent = 0;
     let introIndex = 0;
@@ -208,35 +208,32 @@ function initRobot(container) {
         requestAnimationFrame(animate);
         time += 0.01;
 
-        // --- LOGIQUE LASER ---
+        // ANIMATION LASERS
         lasers.forEach((l) => {
-            // STROBOSCOPE
+            // Stroboscope
             let flash = Math.sin(time * l.strobeSpeed + l.strobeOffset); 
             flash = (flash + 1) / 2; 
             flash = Math.pow(flash, 3); 
-
-            // Visibilité variable
             const visibility = 0.1 + flash * 0.9;
 
             l.beamCore.material.opacity = visibility * 0.9;
-            l.beamGlow.material.opacity = visibility * 0.25; // Transparence ajustée
+            l.beamGlow.material.opacity = visibility * 0.25;
             l.dotCore.material.opacity = visibility;
             l.dotGlow.material.opacity = visibility * 0.5;
 
-            // MOUVEMENT
+            // Mouvement Chaos avec Protection Robot
             if (l.currentPos.distanceTo(l.targetPos) < 1) {
-                // Nouvelle cible aléatoire, en évitant le centre strict
                 let tx, tz;
+                // Boucle pour trouver une cible qui n'est pas SUR le robot
                 do {
-                    tx = (Math.random()-0.5) * 90;
-                    tz = (Math.random()-0.5) * 60;
-                } while (Math.abs(tx) < 6 && Math.abs(tz) < 6); // Protection Robot
+                    tx = (Math.random()-0.5) * 100;
+                    tz = (Math.random()-0.5) * 80;
+                } while (Math.abs(tx) < 12 && Math.abs(tz) < 8); 
 
                 l.targetPos.set(tx, floorY + 0.05, tz);
             }
             l.currentPos.lerp(l.targetPos, l.speed);
 
-            // Mise à jour
             l.dotCore.position.copy(l.currentPos); l.dotCore.position.y = floorY + 0.06;
             l.dotGlow.position.copy(l.currentPos); l.dotGlow.position.y = floorY + 0.05;
             
@@ -254,8 +251,8 @@ function initRobot(container) {
             if (introIndex < script.length) {
                 if (time >= script[introIndex].t) {
                     const act = script[introIndex].a;
-                    if(act=="hide") robotGroup.position.x = -30;
-                    if(act=="enter") targetPos.set(4, floorY+4.5, 0);
+                    if(act=="hide") robotGroup.position.x = -35;
+                    if(act=="enter") targetPos.set(4, floorY+5.5, 0);
                     if(act=="look") { smoothRotate(robotGroup, 'y', -0.5, 0.05); smoothRotate(head, 'y', 0.8, 0.05); }
                     if(act=="surprise") { robotGroup.position.y += 0.5; head.rotation.x = -0.3; }
                     if(act=="wave") rightArm.rotation.z = Math.PI - 0.5;
@@ -265,7 +262,7 @@ function initRobot(container) {
             if(introIndex>0) robotGroup.position.lerp(targetPos, 0.02);
         }
         else if (robotState === 'moving') {
-            robotGroup.position.y = (floorY + 4.5) + Math.sin(time*2)*0.1;
+            robotGroup.position.y = (floorY + 5.5) + Math.sin(time*2)*0.1;
             robotGroup.position.lerp(targetPos, 0.02);
             smoothRotate(robotGroup, 'y', (targetPos.x - robotGroup.position.x)*0.05, 0.05);
             if(robotGroup.position.distanceTo(targetPos)<0.5) pickNewTarget();
@@ -292,7 +289,7 @@ function initRobot(container) {
 
     function smoothRotate(obj, axis, target, speed) { obj.rotation[axis] += (target - obj.rotation[axis]) * speed; }
     function showBubble(txt, dur) { bubble.innerText = txt; bubble.style.opacity = 1; setTimeout(() => bubble.style.opacity=0, dur); }
-    function pickNewTarget() { targetPos.set((Math.random()>0.5?1:-1)*(5+Math.random()*8), floorY+4.5, 0); }
+    function pickNewTarget() { targetPos.set((Math.random()>0.5?1:-1)*(5+Math.random()*8), floorY+5.5, 0); }
 
     window.addEventListener('resize', () => {
         width = window.innerWidth; height = window.innerHeight;
