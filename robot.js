@@ -10,7 +10,7 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 // 0.0 = Tout en haut de l'écran
 // 0.15 = Descend de 15% (Pour passer sous le titre "Concours Vidéo")
 // Ajustez ce chiffre si le trait n'est pas bien placé par rapport au titre
-const TOP_OFFSET_PERCENT = 0.50; 
+const TOP_OFFSET_PERCENT = 0.15; 
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
