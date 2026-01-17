@@ -8,9 +8,9 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue !", "Prêts ?"],
+    attente: ["Bienvenue !", "Installez-vous.", "Prêts ?"],
     vote_off: ["Votes CLOS !"],
-    photos: ["Photos ! 📸", "Souriez !"],
+    photos: ["Photos ! 📸", "Souriez !", "On partage !"],
     danse: ["Dancefloor ! 💃"],
     explosion: ["Boum !"],
     cache_cache: ["Coucou !"]
@@ -31,9 +31,9 @@ function getUniqueMessage(category) {
 const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" },
-    { time: 4.0, text: "Calibrage écran... 📐", action: "look_around" },
-    { time: 7.0, text: "Je touche les bords ! 🟥", action: "surprise" },
-    { time: 10.0, text: "Zone validée.", action: "wave" }
+    { time: 4.0, text: "Je vérifie les bords... 📐", action: "look_around" },
+    { time: 7.0, text: "Gauche et Droite ok ? 🟥", action: "surprise" },
+    { time: 10.0, text: "On peut commencer !", action: "wave" }
 ];
 
 if (container) {
@@ -42,8 +42,7 @@ if (container) {
 }
 
 function initRobot(container) {
-    // --- 1. RESET CSS FORCE ---
-    // Indispensable pour que le canvas touche les bords du moniteur
+    // Reset CSS pour garantir le plein écran
     document.body.style.margin = "0";
     document.body.style.padding = "0";
     document.body.style.overflow = "hidden";
@@ -74,34 +73,53 @@ function initRobot(container) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE 100% ÉCRAN ---
+    // --- STEP 1 : CADRE DE DEBUG (CALIBRAGE MANUEL) ---
     // =========================================================
     let updateDebugBorder = () => {}; 
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+        // Ligne rouge bien épaisse
+        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
         updateDebugBorder = () => {
-            const dist = camera.position.z; // 14
+            const dist = camera.position.z; 
             const vFOV = THREE.MathUtils.degToRad(camera.fov); 
             
-            // Calcul exact des limites visibles à Z=0
+            // Hauteur et Largeur théoriques totales à Z=0
             const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
             const visibleWidth = visibleHeight * camera.aspect;
 
-            // Facteur 0.99 pour voir le trait juste AVANT qu'il ne sorte de l'écran
-            const w = (visibleWidth / 2) * 0.99;
-            const h = (visibleHeight / 2) * 0.99;
+            const halfW = visibleWidth / 2;
+            const halfH = visibleHeight / 2;
+
+            // --- RÉGLAGES DE CALIBRAGE ---
+            // 1.0 = Bord exact de l'écran. 
+            // Si vous voyez du noir, c'est que c'est < 1.0.
+            const widthFactor = 1.0; 
+            
+            // Décalage du HAUT (en unités 3D) pour passer sous le titre rouge
+            // Augmentez cette valeur pour descendre la ligne du haut
+            const offsetTop = 2.0; 
+
+            // Décalage du BAS (en unités 3D) pour être au dessus du footer
+            // Augmentez pour remonter la ligne du bas
+            const offsetBottom = 0.5;
+
+            // Calcul des coordonnées du cadre
+            const xLeft = -halfW * widthFactor;
+            const xRight = halfW * widthFactor;
+            const yTop = halfH - offsetTop;
+            const yBottom = -halfH + offsetBottom;
 
             const points = [
-                new THREE.Vector3(-w, h, 0),  // Haut Gauche
-                new THREE.Vector3(w, h, 0),   // Haut Droite
-                new THREE.Vector3(w, -h, 0),  // Bas Droite
-                new THREE.Vector3(-w, -h, 0), // Bas Gauche
-                new THREE.Vector3(-w, h, 0)   // Fermeture
+                new THREE.Vector3(xLeft, yTop, 0),   // Haut Gauche
+                new THREE.Vector3(xRight, yTop, 0),  // Haut Droite
+                new THREE.Vector3(xRight, yBottom, 0), // Bas Droite
+                new THREE.Vector3(xLeft, yBottom, 0),  // Bas Gauche
+                new THREE.Vector3(xLeft, yTop, 0)    // Fermer la boucle
             ];
             borderGeo.setFromPoints(points);
         };
@@ -147,9 +165,11 @@ function initRobot(container) {
 
     // --- ANIMATION ---
     let time = 0;
+    // Robot centré par défaut
     let startX = (config.mode === 'attente') ? -15 : 0;
     let targetPosition = new THREE.Vector3(startX, -1, 0); 
     robotGroup.position.copy(targetPosition);
+    
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let introIndex = 0; let nextEventTime = 0; let bubbleTimeout = null;
 
