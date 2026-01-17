@@ -2,27 +2,69 @@ import * as THREE from 'three';
 
 const container = document.getElementById('robot-container');
 const bubble = document.getElementById('robot-bubble');
+
+// --- RÉCUPÉRATION DE LA CONFIGURATION INJECTÉE PAR APP.PY ---
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
 
-// --- PARAMÈTRE DE BORDURE VALIDÉ ---
+// --- PARAMÈTRE DE BORDURE ---
 const LIMITE_HAUTE_Y = 6.53; 
 
-// --- TEXTES DÉTAILLÉS PAR MODE ---
+// --- DICTIONNAIRE DE PHRASES PAR MUR ---
 const MESSAGES_BAG = {
-    attente: ["Bienvenue ! ✨", "Installez-vous.", "Ravi de vous voir !", "La soirée va être belle !", "Prêts pour le show ?", "J'adore l'ambiance !", "Coucou la technique ! 👷"],
-    vote_off: ["Les votes sont CLOS ! 🛑", "Les jeux sont faits.", "Le podium arrive... 🏆", "Suspens... 😬", "La régie gère ! ⚡"],
-    photos: ["Ouistiti ! 📸", "Souriez pour le mur !", "On partage vos sourires ! 📲", "Vous êtes magnifiques !", "Selfie time ! 🤳", "Clic-clac, c'est dans la boîte !"],
-    danse: ["Dancefloor ! 💃", "Je sens le rythme ! 🎵", "Regardez mes moves ! 🤖", "On se bouge ! 🙌", "Allez DJ, monte le son ! 🔊"],
-    explosion: ["Surchauffe système ! 🔥", "J'ai perdu la tête... 🤯", "Rassemblement magnétique... 🧲", "Oups, petite erreur de calcul !"],
-    cache_cache: ["Coucou ! 👋", "Me revoilà !", "Magie numérique ! ⚡", "Je suis plus rapide que la lumière ! 🚀"]
+    // 🏠 MUR ACCUEIL
+    attente: [
+        "Bienvenue ! ✨", 
+        "Installez-vous confortablement.", 
+        "Ravi de vous voir au " + config.titre + " !", 
+        "La soirée va être belle !", 
+        "Je vérifie les derniers réglages... 🛠️", 
+        "Prêts pour le show ?",
+        "J'adore l'ambiance ici !", 
+        "Coucou la technique ! 👷"
+    ],
+    // 🔒 MUR VOTES FERMÉS
+    vote_off: [
+        "Les votes sont CLOS ! 🛑", 
+        "Les jeux sont faits.", 
+        "Le podium arrive... 🏆", 
+        "Suspens... Qui va gagner ?", 
+        "Calcul des scores en cours... 🧮", 
+        "La régie prépare les résultats ! ⚡"
+    ],
+    // 📸 MUR PHOTOS LIVE
+    photos: [
+        "Ouistiti ! 📸", 
+        "Souriez pour le mur !", 
+        "On partage vos plus beaux moments ! 📲", 
+        "Vous êtes magnifiques !", 
+        "Selfie time ! ✨",
+        "Clic-clac, c'est dans la boîte !",
+        "Envoyez vos photos, je les adore !"
+    ],
+    // ACTIONS SPÉCIALES (Commun à tous les murs)
+    explosion: [
+        "Surchauffe système ! 🔥", 
+        "J'ai perdu la tête... 🤯", 
+        "Rassemblement magnétique... 🧲", 
+        "Oups, petite erreur de calcul !"
+    ],
+    cache_cache: [
+        "Coucou ! 👋", 
+        "Me revoilà !", 
+        "Magie numérique ! ⚡", 
+        "Je suis partout à la fois ! 🚀"
+    ]
 };
 
 const usedMessages = {};
 function getUniqueMessage(category) {
+    const bag = MESSAGES_BAG[category] || MESSAGES_BAG['attente'];
     if (!usedMessages[category]) usedMessages[category] = [];
-    if (usedMessages[category].length >= (MESSAGES_BAG[category] || []).length) usedMessages[category] = [];
-    let available = MESSAGES_BAG[category].filter(m => !usedMessages[category].includes(m));
+    if (usedMessages[category].length >= bag.length) usedMessages[category] = [];
+    
+    let available = bag.filter(m => !usedMessages[category].includes(m));
     let msg = available[Math.floor(Math.random() * available.length)];
+    
     usedMessages[category].push(msg);
     return msg;
 }
@@ -91,7 +133,7 @@ function initRobot(container) {
     scene.add(robotGroup);
     const parts = [head, body, leftArm, rightArm];
 
-    // --- SPOTS SCÈNE (BORDURE 6.53) ---
+    // --- SPOTS SCÈNE (AVEC BORDURE VALIDÉE 6.53) ---
     const stageSpots = [];
     function createSpot(color, x, y) {
         const g = new THREE.Group(); g.position.set(x, y, 0);
@@ -102,46 +144,18 @@ function initRobot(container) {
     }
     [-6, -2, 2, 6].forEach((x, i) => stageSpots.push(createSpot([0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], x, LIMITE_HAUTE_Y)));
 
-    // --- PARTICULES DE FUMÉE ---
-    const particleCount = 100;
-    const pGeo = new THREE.BufferGeometry();
-    const pPos = new Float32Array(particleCount * 3).fill(999);
-    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-    const pSystem = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.4, color: 0xffaa00, transparent: true, opacity: 0.7 }));
-    scene.add(pSystem);
-    const pVels = Array.from({length: particleCount}, () => ({ v: new THREE.Vector3(), life: 0 }));
-
-    function triggerSmoke(x, y, z) {
-        const pos = pGeo.attributes.position.array;
-        pVels.forEach((p, i) => {
-            pos[i*3]=x; pos[i*3+1]=y; pos[i*3+2]=z;
-            p.v.set((Math.random()-0.5)*0.2, (Math.random()-0.5)*0.2, (Math.random()-0.5)*0.2);
-            p.life = 1.0;
-        });
-    }
-
     // --- LOGIQUE ANIMATION ---
     let time = 0, targetPos = new THREE.Vector3(-15, 0, 0), robotState = 'intro', introIdx = 0, nextEvt = 0;
 
     function showBubble(text, duration) { 
         if(!bubble) return; 
         bubble.innerText = text; bubble.style.opacity = 1; 
-        setTimeout(() => { bubble.style.opacity = 0; }, duration); 
+        setTimeout(() => { if(bubble) bubble.style.opacity = 0; }, duration); 
     }
 
     function animate() {
         requestAnimationFrame(animate);
         time += 0.015;
-
-        // Particules Update
-        const pos = pGeo.attributes.position.array;
-        pVels.forEach((p, i) => {
-            if(p.life > 0) {
-                pos[i*3] += p.v.x; pos[i*3+1] += p.v.y; pos[i*3+2] += p.v.z;
-                p.life -= 0.02; if(p.life <= 0) pos[i*3] = 999;
-            }
-        });
-        pGeo.attributes.position.needsUpdate = true;
 
         // Spots Update
         stageSpots.forEach(s => {
@@ -164,26 +178,28 @@ function initRobot(container) {
         else if (robotState === 'moving') {
             robotGroup.position.lerp(targetPos, 0.02);
             robotGroup.rotation.y = Math.sin(time)*0.2;
+            
+            // Atteint la cible ?
             if(robotGroup.position.distanceTo(targetPos) < 0.5) {
                 targetPos.set((Math.random()-0.5)*12, (Math.random()-0.5)*5, 0);
+                // Sécurité bordure haute
                 if(targetPos.y > LIMITE_HAUTE_Y - 2) targetPos.y = LIMITE_HAUTE_Y - 3;
             }
+
+            // Événements aléatoires (Parole, Explosion, Téléport)
             if(time > nextEvt) {
                 const r = Math.random();
-                if(r < 0.15) { 
+                if(r < 0.15) { // EXPLOSION
                     robotState = 'exploding'; showBubble(getUniqueMessage('explosion'), 3000);
-                    triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z);
                     parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5));
                     setTimeout(() => { robotState = 'moving'; }, 4000);
-                } else if(r < 0.3) { 
-                    triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z);
+                } else if(r < 0.3) { // TÉLÉPORTATION
                     robotGroup.visible = false; showBubble(getUniqueMessage('cache_cache'), 1500);
                     setTimeout(() => { 
                         robotGroup.position.set((Math.random()-0.5)*10, (Math.random()-0.5)*5, 0); 
-                        robotGroup.visible = true; triggerSmoke(robotGroup.position.x, robotGroup.position.y, robotGroup.position.z);
-                        robotState = 'moving'; 
+                        robotGroup.visible = true; robotState = 'moving'; 
                     }, 1000);
-                } else {
+                } else { // PAROLE ADAPTÉE AU MUR
                     showBubble(getUniqueMessage(config.mode), 4000);
                 }
                 nextEvt = time + 10;
@@ -194,10 +210,12 @@ function initRobot(container) {
             if(time % 4 > 3.8) parts.forEach(p => p.position.lerp(p.userData.origPos, 0.2));
         }
 
+        // Bulle : Positionnement et sécurité
         if(bubble && bubble.style.opacity == 1) {
             const p = robotGroup.position.clone(); p.y += 1.2; p.project(camera);
             bubble.style.left = (p.x * 0.5 + 0.5) * window.innerWidth + 'px';
             let bY = (p.y * -0.5 + 0.5) * window.innerHeight;
+            // Ne jamais coller la bulle au titre rouge (Y < 120px)
             bubble.style.top = (bY < 120 ? 130 : bY) + 'px';
         }
         renderer.render(scene, camera);
