@@ -32,7 +32,7 @@ const introScript = [
     { time: 0.0, action: "hide_start" },
     { time: 1.0, action: "enter_stage" },
     { time: 4.0, text: "Je calibre l'écran... 📐", action: "look_around" },
-    { time: 7.0, text: "Le cadre rouge touche les bords ? 🟥", action: "surprise" },
+    { time: 7.0, text: "Le cadre rouge est bon ? 🟥", action: "surprise" },
     { time: 10.0, text: "C'est ma zone de jeu !", action: "wave" }
 ];
 
@@ -42,10 +42,10 @@ if (container) {
 }
 
 function initRobot(container) {
-    // 1. FORCER LE RESET CSS (Pour supprimer les marges blanches du navigateur)
+    // Reset CSS pour garantir le plein écran
     document.body.style.margin = "0";
     document.body.style.padding = "0";
-    document.body.style.overflow = "hidden"; // Empêche les ascenseurs
+    document.body.style.overflow = "hidden"; 
     
     let width = window.innerWidth;
     let height = window.innerHeight;
@@ -56,7 +56,7 @@ function initRobot(container) {
     
     const scene = new THREE.Scene();
     
-    // CAMÉRA STANDARD (Z=14)
+    // CAMÉRA STANDARD
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 14); 
 
@@ -73,36 +73,42 @@ function initRobot(container) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE DE DEBUG (CALIBRAGE EXACT) ---
+    // --- STEP 1 : CADRE DE DEBUG AJUSTÉ ---
     // =========================================================
     let updateDebugBorder = () => {}; 
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 2 });
+        // Ligne épaisse rouge
+        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
         updateDebugBorder = () => {
-            // Distance entre la caméra (Z=14) et le plan du robot (Z=0)
             const dist = camera.position.z; 
             const vFOV = THREE.MathUtils.degToRad(camera.fov); 
             
-            // Hauteur visible exacte à Z=0
+            // Calcul théorique de ce que voit la caméra
             const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
-            // Largeur visible exacte
             const visibleWidth = visibleHeight * camera.aspect;
 
-            // J'ai retiré le facteur 0.95. Maintenant c'est 100% de l'écran.
-            const w = visibleWidth / 2;
-            const h = visibleHeight / 2;
+            // --- RÉGLAGES MANUELS POUR VOTRE ÉCRAN ---
+            // scaleW : 1.0 (Pleine largeur)
+            // scaleH : 0.85 (On réduit la hauteur pour voir les lignes haut/bas)
+            // offsetY : -0.5 (On descend le cadre pour être sous le titre)
+            const scaleW = 1.0; 
+            const scaleH = 0.85; 
+            const offsetY = -0.5; 
+
+            const w = (visibleWidth / 2) * scaleW;
+            const h = (visibleHeight / 2) * scaleH;
 
             const points = [
-                new THREE.Vector3(-w, h, 0),  // Haut Gauche
-                new THREE.Vector3(w, h, 0),   // Haut Droite
-                new THREE.Vector3(w, -h, 0),  // Bas Droite
-                new THREE.Vector3(-w, -h, 0), // Bas Gauche
-                new THREE.Vector3(-w, h, 0)   // Fermer la boucle
+                new THREE.Vector3(-w, h + offsetY, 0),  // Haut Gauche
+                new THREE.Vector3(w, h + offsetY, 0),   // Haut Droite
+                new THREE.Vector3(w, -h + offsetY, 0),  // Bas Droite
+                new THREE.Vector3(-w, -h + offsetY, 0), // Bas Gauche
+                new THREE.Vector3(-w, h + offsetY, 0)   // Boucler
             ];
             borderGeo.setFromPoints(points);
         };
@@ -210,7 +216,7 @@ function initRobot(container) {
     window.addEventListener('resize', () => {
         width = window.innerWidth; height = window.innerHeight;
         renderer.setSize(width, height); camera.aspect = width / height; camera.updateProjectionMatrix();
-        if(config.mode === 'photos') updateDebugBorder(); // Mise à jour de la bordure
+        if(config.mode === 'photos') updateDebugBorder(); 
     });
     animate();
 }
