@@ -1,13 +1,7 @@
 import * as THREE from 'three';
 
-const container = document.getElementById('robot-container');
-const bubble = document.getElementById('robot-bubble');
-
 // --- CONFIGURATION ---
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
-
-// --- RÉGLAGE DE LA BORDURE HAUTE ---
-const TOP_OFFSET_PERCENT = 0.18; 
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
@@ -19,62 +13,49 @@ const MESSAGES_BAG = {
     cache_cache: ["Coucou !"]
 };
 
-const usedMessages = {};
-function getUniqueMessage(category) {
-    if (!MESSAGES_BAG[category]) return "...";
-    if (!usedMessages[category]) usedMessages[category] = [];
-    if (usedMessages[category].length >= MESSAGES_BAG[category].length) usedMessages[category] = [];
-    let available = MESSAGES_BAG[category].filter(m => !usedMessages[category].includes(m));
-    if (available.length === 0) available = MESSAGES_BAG[category];
-    let msg = available[Math.floor(Math.random() * available.length)];
-    usedMessages[category].push(msg);
-    return msg;
-}
-
-const introScript = [
-    { time: 0.0, action: "hide_start" },
-    { time: 1.0, action: "enter_stage" },
-    { time: 4.0, text: "Je sors de la boite... 📦", action: "look_around" },
-    { time: 7.0, text: "Ah ! Je suis libre ! 🟥", action: "surprise" },
-    { time: 10.0, text: "On valide ?", action: "wave" }
-];
-
-if (container) {
-    while(container.firstChild) container.removeChild(container.firstChild);
-    try { initRobot(container); } catch (e) { console.error(e); }
-}
-
-function initRobot(container) {
-    // =========================================================
-    // --- STEP 0 : L'ÉVASION (FORCE LE PLEIN ÉCRAN) ---
-    // =========================================================
-    // 1. On déplace le conteneur dans le BODY pour sortir de la carte QR
-    if (container.parentElement !== document.body) {
+// --- INIT SÉCURISÉE AVEC CRÉATION DE CALQUE ---
+function initOverlay() {
+    // 1. Chercher si notre calque existe déjà
+    let container = document.getElementById('robot-overlay-layer');
+    
+    // 2. S'il n'existe pas, on le CRÉE de toutes pièces
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'robot-overlay-layer';
         document.body.appendChild(container);
-        console.log("Robot déplacé vers le body !");
     }
 
-    // 2. On écrase tous les styles précédents pour garantir le plein écran
-    // Utilisation de vw/vh pour ignorer les parents
+    // 3. On force le style CSS via JS (Infaillible)
     container.style.cssText = `
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        z-index: 9999 !important;
-        pointer-events: none !important;
-        background: transparent !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        transform: none !important;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 100000; /* Au-dessus de TOUT */
+        pointer-events: none; /* Laisse passer les clics */
+        background: transparent;
+        overflow: hidden;
     `;
-    
-    // 3. Reset du body aussi
-    document.body.style.margin = "0";
-    document.body.style.overflow = "hidden";
-    // =========================================================
 
+    // 4. On nettoie l'intérieur au cas où
+    while (container.firstChild) {
+        container.removeChild(container.firstChild);
+    }
+
+    // 5. On lance le robot dans ce nouveau calque
+    initRobot(container);
+}
+
+// Lancement
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initOverlay);
+} else {
+    initOverlay();
+}
+
+// --- LOGIQUE ROBOT ---
+function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
     
@@ -84,27 +65,30 @@ function initRobot(container) {
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 14); 
 
+    // RENDERER TRANSPARENT
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setClearColor(0x000000, 0); // Fond 100% transparent
     container.appendChild(renderer.domElement);
 
     // LUMIÈRES
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5); 
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(5, 10, 7);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    dirLight.position.set(5, 10, 10);
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE (RAYCASTING) ---
+    // --- STEP 1 : CADRE ROUGE (TEST FINAL) ---
     // =========================================================
-    let updateDebugBorder = () => {}; 
+    // Réglage : Descendre le haut de 18% pour être sous le titre
+    const TOP_OFFSET_PERCENT = 0.18; 
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        // Ligne très épaisse pour être sûr de la voir
-        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
+        // Ligne très épaisse (4px)
+        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 4 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
@@ -116,31 +100,24 @@ function initRobot(container) {
             return new THREE.Vector3().copy(camera.position).add(vector.multiplyScalar(distance));
         }
 
-        updateDebugBorder = () => {
-            // Recalcul des dimensions après le déplacement du conteneur
-            const aspect = window.innerWidth / window.innerHeight;
-            camera.aspect = aspect;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-
+        const updateDebugBorder = () => {
             const topNDC = 1.0 - (TOP_OFFSET_PERCENT * 2);
-
-            // On recule un tout petit peu les bords (0.99) pour être sûr qu'ils soient dans le cadre
-            const side = 0.99;
-            const bottom = -0.99;
-
-            const pTL = getPointAtZ0(-side, topNDC, camera); 
-            const pTR = getPointAtZ0(side, topNDC, camera);  
-            const pBR = getPointAtZ0(side, bottom, camera);    
-            const pBL = getPointAtZ0(-side, bottom, camera);   
+            // On marge légèrement (0.99) pour être sûr d'être dans l'écran
+            const pTL = getPointAtZ0(-0.99, topNDC, camera); 
+            const pTR = getPointAtZ0(0.99, topNDC, camera);  
+            const pBR = getPointAtZ0(0.99, -0.99, camera);    
+            const pBL = getPointAtZ0(-0.99, -0.99, camera);   
 
             const points = [pTL, pTR, pBR, pBL, pTL];
             borderGeo.setFromPoints(points);
         };
-        // Appel immédiat
         updateDebugBorder();
-        // Appel différé pour être sûr que le DOM est à jour
-        setTimeout(updateDebugBorder, 100);
+        
+        window.addEventListener('resize', () => {
+            width = window.innerWidth; height = window.innerHeight;
+            renderer.setSize(width, height); camera.aspect = width / height; camera.updateProjectionMatrix();
+            updateDebugBorder();
+        });
     }
     // =========================================================
 
@@ -180,72 +157,20 @@ function initRobot(container) {
 
     scene.add(robotGroup);
 
-    // --- ANIMATION ---
-    let time = 0;
-    let startX = (config.mode === 'attente') ? -15 : 0;
-    let targetPosition = new THREE.Vector3(startX, -1, 0); 
+    // Position initiale
+    let targetPosition = new THREE.Vector3(0, -1, 0); 
     robotGroup.position.copy(targetPosition);
-    
-    let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
-    let introIndex = 0; let nextEventTime = 0; let bubbleTimeout = null;
 
-    function smoothRotate(obj, axis, target, speed) { obj.rotation[axis] += (target - obj.rotation[axis]) * speed; }
-    function showBubble(text, dur) { if(!bubble) return; if(bubbleTimeout) clearTimeout(bubbleTimeout); bubble.innerText = text; bubble.style.opacity = 1; if(dur) bubbleTimeout = setTimeout(() => bubble.style.opacity=0, dur); }
-    
-    function pickNewTarget() { 
-        const borderRight = getPointAtZ0(1.0, 0, camera).x;
-        const safeMax = borderRight - 2.5; 
-        const x = (Math.random()>0.5?1:-1) * (1.5 + Math.random()*(safeMax-1.5));
-        targetPosition.set(x, -1 + (Math.random()-0.5)*2, 0); 
-    }
-
+    // Animation Loop
+    let time = 0;
     function animate() {
         requestAnimationFrame(animate);
-        time += 0.015;
-
-        if (robotState === 'intro') {
-            if (introIndex < introScript.length) {
-                const step = introScript[introIndex];
-                if (time >= step.time) { 
-                    if(step.text) showBubble(step.text, 3500);
-                    if(step.action === "hide_start") robotGroup.position.set(-15, -1, 0);
-                    if(step.action === "enter_stage") targetPosition.set(0, -1, 0);
-                    if(step.action === "look_around") { smoothRotate(robotGroup, 'y', -0.5, 0.05); }
-                    if(step.action === "surprise") { robotGroup.position.y += 0.5; head.rotation.x = -0.3; }
-                    if(step.action === "wave") rightArm.rotation.z = Math.PI - 0.5;
-                    introIndex++; 
-                }
-            } else if (time > 18) { robotState = 'moving'; pickNewTarget(); nextEventTime = time + 3; }
-            if (introIndex > 0 && introIndex < 3) robotGroup.position.lerp(targetPosition, 0.02);
-        } else if (robotState === 'moving') {
-            robotGroup.position.y += Math.sin(time*2)*0.002;
-            robotGroup.position.lerp(targetPosition, 0.02);
-            smoothRotate(robotGroup, 'y', (targetPosition.x - robotGroup.position.x)*0.05, 0.05);
-            
-            if (robotGroup.position.distanceTo(targetPosition) < 0.5) pickNewTarget();
-            if (time > nextEventTime) { 
-                if(Math.random()<0.4) { 
-                    showBubble(getUniqueMessage(config.mode), 4000); 
-                    robotGroup.position.lerp(targetPosition, 0.001); 
-                } else pickNewTarget();
-                nextEventTime = time + 3 + Math.random()*5; 
-            }
-        }
-
-        if(bubble && bubble.style.opacity == 1) {
-            const pos = robotGroup.position.clone(); pos.y += 0.8; pos.project(camera);
-            const x = (pos.x * .5 + .5) * window.innerWidth; const y = (pos.y * -.5 + .5) * window.innerHeight;
-            bubble.style.left = Math.max(150, Math.min(window.innerWidth-150, x)) + 'px';
-            bubble.style.top = Math.max(50, y - 80) + 'px';
-        }
-
+        time += 0.02;
+        
+        // Mouvement de respiration simple pour confirmer qu'il est vivant
+        robotGroup.position.y = -1 + Math.sin(time) * 0.1;
+        
         renderer.render(scene, camera);
     }
-
-    window.addEventListener('resize', () => {
-        width = window.innerWidth; height = window.innerHeight;
-        renderer.setSize(width, height); camera.aspect = width / height; camera.updateProjectionMatrix();
-        if(config.mode === 'photos') updateDebugBorder(); 
-    });
     animate();
 }
