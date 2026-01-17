@@ -7,7 +7,7 @@ import * as THREE from 'three';
 // 1. HAUTEUR (Pour descendre la ligne du haut sous votre titre)
 // Plus le chiffre est grand, plus la ligne DESCEND.
 // Essayez : 1.5, 2.0, 2.5...
-const MARGE_HAUT = 0.5; 
+const MARGE_HAUT = 0; 
 
 // 2. BAS (Pour remonter la ligne du bas si elle est cachée)
 // Plus le chiffre est grand, plus la ligne REMONTE.
