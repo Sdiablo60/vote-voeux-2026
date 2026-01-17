@@ -22,46 +22,38 @@ if (document.readyState === 'loading') {
 }
 
 function forceLayerCreation() {
-    // 1. DIAGNOSTIC IFRAME (Regardez la console F12)
-    if (window.self !== window.top) {
-        console.warn("ALERTE : LE ROBOT EST COINCÉ DANS UNE IFRAME !");
-        console.warn("Il ne pourra pas sortir de ce cadre sans modifier le site parent.");
-    }
+    // 1. RESET CSS VIOLENT SUR LA PAGE HTML
+    // On écrase les marges de la page elle-même
+    document.documentElement.style.cssText = "margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important;";
+    document.body.style.cssText = "margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important;";
 
-    // 2. NETTOYAGE AGRESSIF
-    // On supprime tout ce qui pourrait s'appeler robot-container
-    const oldIds = ['robot-container', 'robot-canvas-overlay', 'robot-ghost-layer'];
+    // 2. NETTOYAGE
+    const oldIds = ['robot-container', 'robot-canvas-overlay', 'robot-ghost-layer', 'robot-canvas-final'];
     oldIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.remove();
     });
 
-    // 3. CRÉATION TOILE NEUVE
+    // 3. CRÉATION TOILE
     const canvas = document.createElement('canvas');
     canvas.id = 'robot-canvas-final';
-    
-    // 4. ATTACHEMENT RACINE (HTML au lieu de BODY)
-    document.documentElement.appendChild(canvas);
+    document.body.appendChild(canvas); // On attache au body nettoyé
 
-    // 5. STYLES "TOP PRIORITÉ"
+    // 4. STYLE CANVA
     canvas.style.cssText = `
+        display: block !important;
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
         width: 100vw !important;
         height: 100vh !important;
         z-index: 2147483647 !important;
         pointer-events: none !important;
-        background: rgba(255, 0, 0, 0.5) !important; /* FOND ROUGE TEMPORAIRE */
-        display: block !important;
-        transform: none !important;
+        /* FOND VERT TEMPORAIRE POUR VOIR LES LIMITES */
+        background: rgba(0, 255, 0, 0.2) !important; 
     `;
-
-    // 6. FLASH DIAGNOSTIC
-    // Le fond rouge disparaît après 1 seconde si tout va bien
-    setTimeout(() => {
-        canvas.style.background = 'transparent';
-    }, 1000);
 
     initThreeJS(canvas);
 }
@@ -86,7 +78,7 @@ function initThreeJS(canvas) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE ROUGE (SUR TOUT L'ÉCRAN) ---
+    // --- STEP 1 : CADRE ROUGE (SUR LA ZONE VERTE) ---
     // =========================================================
     let updateBorderFunc = () => {};
 
@@ -105,7 +97,7 @@ function initThreeJS(canvas) {
         }
 
         updateBorderFunc = () => {
-            // Forçage des dimensions
+            // On force la mise à jour des dimensions
             const w = window.innerWidth;
             const h = window.innerHeight;
             renderer.setSize(w, h);
@@ -113,8 +105,8 @@ function initThreeJS(canvas) {
             camera.updateProjectionMatrix();
 
             const topNDC = 1.0 - (TOP_OFFSET_PERCENT * 2);
-            // On utilise 0.999 pour coller aux bords
-            const limit = 0.999; 
+            // On colle aux bords (1.0)
+            const limit = 1.0; 
 
             const pTL = getPointAtZ0(-limit, topNDC, camera); 
             const pTR = getPointAtZ0(limit, topNDC, camera);  
@@ -124,10 +116,9 @@ function initThreeJS(canvas) {
             const points = [pTL, pTR, pBR, pBL, pTL];
             borderGeo.setFromPoints(points);
         };
-        // Exécution immédiate et répétée pour contrer les chargements dynamiques
+        // Appel immédiat et répété
         updateBorderFunc();
-        setTimeout(updateBorderFunc, 500);
-        setInterval(updateBorderFunc, 2000); // Vérification continue
+        setInterval(updateBorderFunc, 1000);
     }
     // =========================================================
 
@@ -189,7 +180,6 @@ function initThreeJS(canvas) {
         time += 0.02;
         robotGroup.position.y = -1 + Math.sin(time) * 0.1;
         
-        // Suivi bulle
         if(bubbleOverlay && bubbleOverlay.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); 
             headPos.y += 0.8; 
