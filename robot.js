@@ -1,11 +1,14 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🔴 RÉGLAGE DE HAUTEUR 🔴
+// 🔴 CORRECTION MANUELLE VERTICALE (FORCE BRUTE) 🔴
 // =========================================================
-// 0.05 = On descend de 5% seulement.
-// PLUS LE CHIFFRE EST PETIT, PLUS LE TRAIT MONTE.
-const HAUTEUR_TITRE_POURCENTAGE = 0.001; 
+// Mettez une valeur positive pour FORCER le trait à remonter.
+// Essayez 0.5 pour commencer.
+// Si c'est trop haut, baissez (0.3). Si trop bas, montez (0.8).
+const FORCE_MONTEE = 0.5; 
+
+// =========================================================
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', launchCalibrationOnly);
@@ -60,10 +63,11 @@ function initThreeJS(canvas) {
         const halfH = visibleHeight / 2;
         const halfW = visibleWidth / 2;
 
-        // CALCUL : On descend du haut (halfH) de X %
-        const yTop = halfH - (visibleHeight * HAUTEUR_TITRE_POURCENTAGE);
+        // CALCUL : On prend le haut de l'écran et on AJOUTE votre force de montée
+        // Si FORCE_MONTEE = 0.5, on remonte le trait de 0.5 unités virtuelles au-dessus du "top" mathématique.
+        const yTop = halfH + FORCE_MONTEE; 
         
-        const yBottom = -halfH; 
+        const yBottom = -halfH + 0.5; // On remonte un peu le bas aussi pour qu'il soit visible
         const xRight = halfW;   
         const xLeft = -halfW;   
 
