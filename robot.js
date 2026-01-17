@@ -38,21 +38,23 @@ function initRobot(container) {
     let width = window.innerWidth;
     let height = window.innerHeight;
     
+    // Force le plein écran sans marges
     container.style.position = 'fixed'; container.style.top = '0'; container.style.left = '0';
     container.style.width = '100%'; container.style.height = '100%';
     container.style.zIndex = '1'; container.style.pointerEvents = 'none';
     
     const scene = new THREE.Scene();
-    // Brouillard quasi inexistant pour ne pas assombrir les bords
-    scene.fog = new THREE.FogExp2(0x000000, 0.002); 
+    
+    // CORRECTION 1 : FOND NOIR TOTAL + BROUILLARD NOIR = INFINI (Plus de bandes)
+    scene.background = new THREE.Color(0x000000); 
+    scene.fog = new THREE.FogExp2(0x000000, 0.015); 
     
     // CAMÉRA
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 500); // Voir très loin
-    camera.position.set(0, 3, 45); 
-    // CORRECTION 1 : On regarde plus haut (Y=8) pour remonter la grille à l'écran
-    camera.lookAt(0, 8, 0); 
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 300);
+    camera.position.set(0, 4, 45); 
+    camera.lookAt(0, 2, 0); 
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false }); // Alpha false pour fond solide
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
@@ -62,7 +64,7 @@ function initRobot(container) {
     scene.add(ambientLight);
     
     const spotFace = new THREE.SpotLight(0xffffff, 40);
-    spotFace.position.set(0, 20, 40); 
+    spotFace.position.set(0, 15, 40); 
     spotFace.angle = 0.5;
     scene.add(spotFace);
 
@@ -70,17 +72,18 @@ function initRobot(container) {
     explosionLight.position.set(0, 0, 5);
     scene.add(explosionLight);
 
-    // --- LE SOL (INFINI) ---
-    const floorY = -15;
+    // --- LE SOL (REMONTÉ & INFINI) ---
+    // CORRECTION 2 : On remonte le sol à -9 (il était à -15)
+    const floorY = -9;
     
-    // CORRECTION 3 : Grille immense (4000x4000) pour supprimer les bandes noires
-    const grid = new THREE.GridHelper(4000, 400, 0x666666, 0x222222);
+    // Grille immense qui se fond dans le noir
+    const grid = new THREE.GridHelper(2000, 400, 0x666666, 0x181818);
     grid.position.y = floorY;
     scene.add(grid);
     
     const floorPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(4000, 4000), 
-        new THREE.MeshBasicMaterial({ color: 0x050505 }) 
+        new THREE.PlaneGeometry(2000, 2000), 
+        new THREE.MeshBasicMaterial({ color: 0x000000 }) 
     );
     floorPlane.rotation.x = -Math.PI / 2;
     floorPlane.position.y = floorY - 0.1;
@@ -88,7 +91,8 @@ function initRobot(container) {
 
     // --- ROBOT ---
     const robotGroup = new THREE.Group();
-    robotGroup.scale.set(2.0, 2.0, 2.0); // Robot encore un peu plus gros
+    robotGroup.scale.set(2.0, 2.0, 2.0); 
+    // Ajusté à la nouvelle hauteur du sol
     robotGroup.position.set(0, floorY + 7, 15); 
     spotFace.target = robotGroup;
 
@@ -130,8 +134,8 @@ function initRobot(container) {
     // --- SYSTÈME LASER ---
     // =========================================================
     
-    // CORRECTION 2 : Hauteur ajustée (9.5) pour être sous le titre
-    const hubY = 9.5; 
+    // Source ajustée au sol remonté
+    const hubY = 10; 
     const laserHub = new THREE.Group();
     laserHub.position.set(0, hubY, 0);
     scene.add(laserHub);
@@ -145,7 +149,7 @@ function initRobot(container) {
     for(let i=0; i<24; i++) { 
         const color = colors[Math.floor(Math.random()*colors.length)];
         
-        // 1. FAISCEAU (CORRECTION 4 : Plus épais et plus lumineux)
+        // 1. FAISCEAU VISIBLE
         const coreGeo = new THREE.CylinderGeometry(0.06, 0.06, 1, 6, 1, true); 
         coreGeo.translate(0, 0.5, 0); coreGeo.rotateX(Math.PI / 2); 
         const coreMat = new THREE.MeshBasicMaterial({ 
@@ -155,10 +159,10 @@ function initRobot(container) {
         const beamCore = new THREE.Mesh(coreGeo, coreMat);
         scene.add(beamCore);
 
-        const glowGeo = new THREE.CylinderGeometry(0.3, 0.8, 1, 8, 1, true); // Très épais
+        const glowGeo = new THREE.CylinderGeometry(0.3, 0.8, 1, 8, 1, true); 
         glowGeo.translate(0, 0.5, 0); glowGeo.rotateX(Math.PI / 2); 
         const glowMat = new THREE.MeshBasicMaterial({ 
-            color: color, transparent: true, opacity: 0.6, // Plus opaque (0.6)
+            color: color, transparent: true, opacity: 0.6, 
             blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
         });
         const beamGlow = new THREE.Mesh(glowGeo, glowMat);
@@ -215,7 +219,7 @@ function initRobot(container) {
                     l.isActive = true;
                     let tx, tz;
                     do { 
-                        tx = (Math.random()-0.5) * 180; // Zone très large
+                        tx = (Math.random()-0.5) * 180; 
                         tz = (Math.random()-0.5) * 120;
                     } while (Math.abs(tx) < 25); 
                     l.targetPos.set(tx, floorY+0.05, tz);
@@ -227,7 +231,7 @@ function initRobot(container) {
             const newOp = currentOp + (targetOp - currentOp) * 0.05;
 
             l.beamCore.material.opacity = newOp * 1.0; 
-            l.beamGlow.material.opacity = newOp * 0.6; // Opacité max halo
+            l.beamGlow.material.opacity = newOp * 0.6;
             l.dotCore.material.opacity = newOp * 1.0;
             l.dotGlow.material.opacity = newOp * 0.7;
 
@@ -262,7 +266,7 @@ function initRobot(container) {
         }
         else if (robotState === 'moving') {
             robotGroup.position.y = (floorY + 7) + Math.sin(time*4)*0.2;
-            robotGroup.position.lerp(targetPos, 0.03); // Vitesse mouvement robot
+            robotGroup.position.lerp(targetPos, 0.03);
             
             const lookPos = targetPos.clone();
             lookPos.y = robotGroup.position.y;
@@ -286,7 +290,6 @@ function initRobot(container) {
             mouth.scale.set(1, 1+Math.sin(time*25)*0.5, 1);
             robotGroup.lookAt(new THREE.Vector3(0, 5, 50));
         }
-        
         else if (robotState === 'exploding') { parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.1; p.userData.velocity.multiplyScalar(0.95); }); }
         else if (robotState === 'reassembling') { parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x *= 0.9; }); }
 
