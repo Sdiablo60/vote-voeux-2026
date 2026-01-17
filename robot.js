@@ -2,7 +2,10 @@ import * as THREE from 'three';
 
 // --- CONFIGURATION ---
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement' };
-const TOP_OFFSET_PERCENT = 0.18; 
+// IMPORTANT : Si le robot réussit à passer en plein écran total, 
+// il faudra descendre un peu plus le haut du cadre pour ne pas être SUR le titre.
+// Essayons 0.20 (20% de marge haute)
+const TOP_OFFSET_PERCENT = 0.20; 
 
 // --- TEXTES ---
 const MESSAGES_BAG = {
@@ -14,53 +17,74 @@ const MESSAGES_BAG = {
     cache_cache: ["Coucou !"]
 };
 
-// --- INIT FORCÉE ---
+// --- INIT : L'ÉVASION ---
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', forceLayerCreation);
+    document.addEventListener('DOMContentLoaded', escapeAndLaunch);
 } else {
-    forceLayerCreation();
+    escapeAndLaunch();
 }
 
-function forceLayerCreation() {
-    // 1. RESET CSS VIOLENT SUR LA PAGE HTML
-    // On écrase les marges de la page elle-même
-    document.documentElement.style.cssText = "margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important;";
-    document.body.style.cssText = "margin: 0 !important; padding: 0 !important; overflow: hidden !important; width: 100% !important; height: 100% !important;";
-
-    // 2. NETTOYAGE
-    const oldIds = ['robot-container', 'robot-canvas-overlay', 'robot-ghost-layer', 'robot-canvas-final'];
+function escapeAndLaunch() {
+    // 1. NETTOYAGE TOTAL
+    const oldIds = ['robot-container', 'robot-canvas-overlay', 'robot-ghost-layer', 'robot-canvas-final', 'robot-canvas-escape'];
     oldIds.forEach(id => {
+        // On cherche dans la fenêtre actuelle ET la fenêtre parente au cas où
         const el = document.getElementById(id);
         if (el) el.remove();
+        try {
+            if (window.top.document) {
+                const elTop = window.top.document.getElementById(id);
+                if (elTop) elTop.remove();
+            }
+        } catch(e){}
     });
 
-    // 3. CRÉATION TOILE
+    // 2. CRÉATION DU CANVAS
     const canvas = document.createElement('canvas');
-    canvas.id = 'robot-canvas-final';
-    document.body.appendChild(canvas); // On attache au body nettoyé
+    canvas.id = 'robot-canvas-escape';
+    
+    // 3. LA CIBLE : LE VRAI BODY
+    // On essaie d'atteindre le "window.top.document.body" (le chef suprême de la page)
+    let targetBody = document.body;
+    let isTopLevel = false;
 
-    // 4. STYLE CANVA
+    try {
+        if (window.top && window.top.document && window.top.document.body) {
+            targetBody = window.top.document.body;
+            isTopLevel = true;
+            console.log("🚀 ÉVASION RÉUSSIE : Robot attaché au Body Principal !");
+        }
+    } catch (e) {
+        console.warn("🔒 ÉVASION BLOQUÉE (Cross-Origin) : On reste dans le cadre local.");
+    }
+
+    targetBody.appendChild(canvas);
+
+    // 4. STYLE ULTRA FORCÉ
     canvas.style.cssText = `
-        display: block !important;
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
         width: 100vw !important;
         height: 100vh !important;
         z-index: 2147483647 !important;
         pointer-events: none !important;
-        /* FOND VERT TEMPORAIRE POUR VOIR LES LIMITES */
-        background: rgba(0, 255, 0, 0.2) !important; 
+        background: transparent !important; /* PLUS DE VERT */
+        display: block !important;
+        transform: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
     `;
 
-    initThreeJS(canvas);
+    initThreeJS(canvas, isTopLevel);
 }
 
-function initThreeJS(canvas) {
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+function initThreeJS(canvas, isTopLevel) {
+    // Si on est sur le top level, on utilise window.top pour les dimensions
+    const targetWindow = isTopLevel ? window.top : window;
+    
+    let width = targetWindow.innerWidth;
+    let height = targetWindow.innerHeight;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
@@ -68,7 +92,7 @@ function initThreeJS(canvas) {
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
     renderer.setSize(width, height);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(targetWindow.devicePixelRatio);
     renderer.setClearColor(0x000000, 0);
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); 
@@ -78,13 +102,13 @@ function initThreeJS(canvas) {
     scene.add(dirLight);
 
     // =========================================================
-    // --- STEP 1 : CADRE ROUGE (SUR LA ZONE VERTE) ---
+    // --- STEP 1 : CADRE ROUGE ---
     // =========================================================
     let updateBorderFunc = () => {};
 
     if (config.mode === 'photos') {
         const borderGeo = new THREE.BufferGeometry();
-        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 });
+        const borderMat = new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 });
         const borderLine = new THREE.Line(borderGeo, borderMat);
         scene.add(borderLine);
 
@@ -97,15 +121,14 @@ function initThreeJS(canvas) {
         }
 
         updateBorderFunc = () => {
-            // On force la mise à jour des dimensions
-            const w = window.innerWidth;
-            const h = window.innerHeight;
+            const w = targetWindow.innerWidth;
+            const h = targetWindow.innerHeight;
             renderer.setSize(w, h);
             camera.aspect = w / h;
             camera.updateProjectionMatrix();
 
             const topNDC = 1.0 - (TOP_OFFSET_PERCENT * 2);
-            // On colle aux bords (1.0)
+            // On se met à 100% (1.0)
             const limit = 1.0; 
 
             const pTL = getPointAtZ0(-limit, topNDC, camera); 
@@ -116,9 +139,7 @@ function initThreeJS(canvas) {
             const points = [pTL, pTR, pBR, pBL, pTL];
             borderGeo.setFromPoints(points);
         };
-        // Appel immédiat et répété
         updateBorderFunc();
-        setInterval(updateBorderFunc, 1000);
     }
     // =========================================================
 
@@ -158,17 +179,18 @@ function initThreeJS(canvas) {
 
     scene.add(robotGroup);
 
-    // BULLE DE TEXTE
-    let bubbleOverlay = document.getElementById('robot-bubble-force');
+    // BULLE DE TEXTE (Attachement au bon endroit)
+    const bubbleId = 'robot-bubble-escape';
+    let bubbleOverlay = targetWindow.document.getElementById(bubbleId);
     if (!bubbleOverlay) {
-        bubbleOverlay = document.createElement('div');
-        bubbleOverlay.id = 'robot-bubble-force';
+        bubbleOverlay = targetWindow.document.createElement('div');
+        bubbleOverlay.id = bubbleId;
         bubbleOverlay.style.cssText = `
             position: fixed; opacity: 0; background: white; color: black;
             padding: 15px 25px; border-radius: 30px; font-family: sans-serif; font-weight: bold; font-size: 18px;
             pointer-events: none; z-index: 2147483647; transition: opacity 0.3s;
         `;
-        document.body.appendChild(bubbleOverlay);
+        targetBody.appendChild(bubbleOverlay);
     }
 
     // ANIMATION
@@ -179,22 +201,22 @@ function initThreeJS(canvas) {
         requestAnimationFrame(animate);
         time += 0.02;
         robotGroup.position.y = -1 + Math.sin(time) * 0.1;
-        
+
         if(bubbleOverlay && bubbleOverlay.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); 
             headPos.y += 0.8; 
             headPos.project(camera);
-            const x = (headPos.x * .5 + .5) * window.innerWidth; 
-            const y = (headPos.y * -.5 + .5) * window.innerHeight;
-            bubbleOverlay.style.left = Math.max(0, Math.min(window.innerWidth - 200, x)) + 'px';
+            const x = (headPos.x * .5 + .5) * targetWindow.innerWidth; 
+            const y = (headPos.y * -.5 + .5) * targetWindow.innerHeight;
+            bubbleOverlay.style.left = Math.max(0, Math.min(targetWindow.innerWidth - 200, x)) + 'px';
             bubbleOverlay.style.top = (y - 80) + 'px';
         }
         renderer.render(scene, camera);
     }
 
-    window.addEventListener('resize', () => {
-        const w = window.innerWidth;
-        const h = window.innerHeight;
+    targetWindow.addEventListener('resize', () => {
+        const w = targetWindow.innerWidth;
+        const h = targetWindow.innerHeight;
         renderer.setSize(w, h);
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
