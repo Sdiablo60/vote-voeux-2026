@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (MULTI-LAYER RENDERING)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v7 - DYNAMIQUE & Z-INDEX 6)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -88,12 +88,12 @@ if (config.mode === 'vote_off') currentTextBank = [...TEXTS_VOTE_OFF];
 else if (config.mode === 'photos') currentTextBank = [...TEXTS_PHOTOS];
 else currentTextBank = [...TEXTS_ATTENTE];
 
-// --- STYLE CSS ---
+// --- STYLE CSS (Z-INDEX 6) ---
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
         position: fixed; padding: 20px 25px; color: black; font-family: 'Arial', sans-serif;
-        font-weight: bold; font-size: 22px; text-align: center; z-index: 2147483647;
+        font-weight: bold; font-size: 22px; text-align: center; z-index: 6; /* Z-INDEX 6 : Devant Robot(5), Derrière Texte(10) */
         pointer-events: none; transition: opacity 0.5s, transform 0.3s; transform: scale(0.9); 
         max-width: 350px; width: max-content;
     }
@@ -144,18 +144,19 @@ const introScript_VoteOff = [
     { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
-// --- SCENARIO 3 : PHOTOS LIVE ---
+// --- SCENARIO 3 : PHOTOS LIVE (DYNAMIQUE) ---
 const introScript_Photos = [
     { time: 2, text: "", action: "enter_teleport_right_visible" }, 
     { time: 8, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
     { time: 13, text: "", action: "dance_stop" },
     { time: 15, text: "Coucou tout le monde ! 👋", type: "speech", action: "wave_hands" }, 
-    { time: 22, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, 
-    { time: 30, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
-    { time: 37, text: "J'adore vos sourires.", type: "speech" },
-    { time: 44, text: "Bon, je vous laisse la place...", type: "speech", action: "exit_left_normal" }, 
-    { time: 52, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, 
-    { time: 60, text: "Allez, on se fait un petit selfie ensemble ?", type: "speech", action: "pose_selfie" } 
+    { time: 20, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, // Traverse vite
+    { time: 28, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
+    { time: 35, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, // Repart à droite
+    { time: 42, text: "Envoyez vos meilleurs sourires !", type: "speech", action: "pose_selfie" }, 
+    { time: 48, text: "Bon, je file voir la régie...", type: "speech", action: "exit_left_fast" }, // Sortie rapide
+    { time: 55, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, // Revient
+    { time: 62, text: "Allez, on se fait un petit selfie ensemble ?", type: "speech", action: "pose_selfie" } 
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -167,16 +168,13 @@ if (document.readyState === 'loading') { document.addEventListener('DOMContentLo
 function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble', 'robot-canvas-floor', 'robot-canvas-bot'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     
-    // CANVAS 1 : SOL (Z-INDEX 0)
-    const canvasFloor = document.createElement('canvas'); 
-    canvasFloor.id = 'robot-canvas-floor';
+    const canvasFloor = document.createElement('canvas'); canvasFloor.id = 'robot-canvas-floor';
     document.body.appendChild(canvasFloor);
     canvasFloor.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 0 !important; pointer-events: none !important; background: transparent !important;`;
 
-    // CANVAS 2 : ROBOT (Z-INDEX 5)
-    const canvasBot = document.createElement('canvas'); 
-    canvasBot.id = 'robot-canvas-bot';
+    const canvasBot = document.createElement('canvas'); canvasBot.id = 'robot-canvas-bot';
     document.body.appendChild(canvasBot);
+    // ROBOT = 5
     canvasBot.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 5 !important; pointer-events: none !important; background: transparent !important;`;
 
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
@@ -188,24 +186,14 @@ function launchFinalScene() {
 function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     
-    // --- SCENE 1 : SOL (Fond) ---
-    const sceneFloor = new THREE.Scene();
-    sceneFloor.fog = new THREE.Fog(0x000000, 10, 60);
-    const cameraFloor = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    cameraFloor.position.set(0, 0, 12);
-    
+    const sceneFloor = new THREE.Scene(); sceneFloor.fog = new THREE.Fog(0x000000, 10, 60);
+    const cameraFloor = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); cameraFloor.position.set(0, 0, 12);
     const rendererFloor = new THREE.WebGLRenderer({ canvas: canvasFloor, antialias: true, alpha: true });
     rendererFloor.setSize(width, height); rendererFloor.setPixelRatio(window.devicePixelRatio);
-    
-    const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
-    grid.position.y = -2.5; 
-    sceneFloor.add(grid);
+    const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222); grid.position.y = -2.5; sceneFloor.add(grid);
 
-    // --- SCENE 2 : ROBOT (Devant) ---
-    const sceneBot = new THREE.Scene(); // Pas de brouillard sur le robot pour qu'il reste net
-    const cameraBot = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    cameraBot.position.set(0, 0, 12);
-
+    const sceneBot = new THREE.Scene();
+    const cameraBot = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); cameraBot.position.set(0, 0, 12);
     const rendererBot = new THREE.WebGLRenderer({ canvas: canvasBot, antialias: true, alpha: true });
     rendererBot.setSize(width, height); rendererBot.setPixelRatio(window.devicePixelRatio);
 
@@ -217,7 +205,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     
     sceneBot.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // PARTICULES (Dans scène Bot pour être devant)
     const particleCount = 100;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
@@ -229,56 +216,42 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     let isExploding = false;
 
     function triggerTeleport(pos) {
-        isExploding = true;
-        explosionTime = 1.0; 
-        particles.position.copy(pos);
-        particleMat.opacity = 1;
+        isExploding = true; explosionTime = 1.0; 
+        particles.position.copy(pos); particleMat.opacity = 1;
         for(let i=0; i<particleCount; i++) {
-            particlePositions[i*3] = (Math.random()-0.5)*2;
-            particlePositions[i*3+1] = (Math.random()-0.5)*4;
-            particlePositions[i*3+2] = (Math.random()-0.5)*2;
+            particlePositions[i*3] = (Math.random()-0.5)*2; particlePositions[i*3+1] = (Math.random()-0.5)*4; particlePositions[i*3+2] = (Math.random()-0.5)*2;
         }
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    // ROBOT (Construction)
-    const robotGroup = new THREE.Group(); 
-    robotGroup.position.set(-35, 0, 0); 
-    robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
-    
+    const robotGroup = new THREE.Group(); robotGroup.position.set(-35, 0, 0); robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat); head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat); face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
-    
     const armLGroup = new THREE.Group(); armLGroup.position.set(-0.9, -0.8, 0); 
     const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armL.position.y = -0.2; 
     const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handL.position.y = -0.5; 
     armLGroup.add(armL); armLGroup.add(handL);
-
     const armRGroup = new THREE.Group(); armRGroup.position.set(0.9, -0.8, 0);
     const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armR.position.y = -0.2;
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
-
     [head, body, armLGroup, armRGroup].forEach(p => { robotGroup.add(p); });
     armLGroup.userData.origRot = armLGroup.rotation.clone(); armRGroup.userData.origRot = armRGroup.rotation.clone();
-
-    sceneBot.add(robotGroup); // Ajout scène BOT
+    sceneBot.add(robotGroup); 
 
     const stageSpots = [];
     [-8, -3, 3, 8].forEach((x, i) => {
         const g = new THREE.Group(); g.position.set(x, LIMITE_HAUTE_Y, 0);
         const beam = new THREE.Mesh(new THREE.ConeGeometry(0.4, 15, 32, 1, true), new THREE.MeshBasicMaterial({ color: [0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
         beam.rotateX(-Math.PI/2); beam.position.z = -7.5; g.add(beam);
-        sceneBot.add(g); // Spots dans scène BOT
-        stageSpots.push({ g, beam, isOn: false, nextToggle: Math.random()*5 });
+        sceneBot.add(g); stageSpots.push({ g, beam, isOn: false, nextToggle: Math.random()*5 });
     });
 
     let robotState = 'intro';
@@ -360,6 +333,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(step.action === "move_left_check") targetPos.set(-11, -1, 0); 
                 if(step.action === "move_far_left") targetPos.set(-12, 0, -1);
                 if(step.action === "exit_left_normal") targetPos.set(-35, 0, 0);
+                if(step.action === "exit_left_fast") targetPos.set(-35, 0, 0);
                 if(step.action === "look_around") targetPos.set(0, 0, -5);
                 if(step.action === "surprise_stop") targetPos.set(-6, 0, 4);
                 if(step.action === "move_center_wave") targetPos.set(0, 0, 5);
@@ -396,7 +370,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             
             if(robotState !== 'dancing_intro' && robotState !== 'posing') {
                 let speedFactor = VITESSE_MOUVEMENT;
-                if (step && (step.action?.includes("exit"))) speedFactor = 0.015; 
+                if (step && (step.action?.includes("exit"))) speedFactor = 0.03; 
                 else if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; 
                 else if(targetPos.z > 7) speedFactor = 0.02; 
                 robotGroup.position.lerp(targetPos, speedFactor);
@@ -459,15 +433,17 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             const headPos = robotGroup.position.clone(); headPos.y += 1.3 + (robotGroup.position.z * 0.05); headPos.project(cameraBot);
             const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
             const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
+            
+            // LA BULLE SUIT LE ROBOT MEME HORS CHAMP
             let leftPos = (bX - bubbleEl.offsetWidth / 2);
-            leftPos = Math.max(20, Math.min(leftPos, window.innerWidth - bubbleEl.offsetWidth - 20)); 
             bubbleEl.style.left = leftPos + 'px';
             bubbleEl.style.top = (bY - bubbleEl.offsetHeight - 25) + 'px';
             if(parseFloat(bubbleEl.style.top) < 140) bubbleEl.style.top = '140px';
         }
+        
         lastPos.copy(robotGroup.position);
-        rendererFloor.render(sceneFloor, cameraFloor); // Rendu Sol (Fond)
-        rendererBot.render(sceneBot, cameraBot); // Rendu Robot (Devant)
+        rendererFloor.render(sceneFloor, cameraFloor); 
+        rendererBot.render(sceneBot, cameraBot); 
     }
     animate();
 }
