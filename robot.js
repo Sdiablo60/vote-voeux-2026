@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (ZONE LARGE & ROTATION FIXE)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - PHOTOS INTERACTIF)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -11,7 +11,7 @@ const VITESSE_MOUVEMENT = 0.008;
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
 
-// ZONE INTERDITE ÉLARGIE (Pour ne pas toucher le cadre central)
+// ZONE INTERDITE ÉLARGIE (Le robot reste sur les cotés en mode libre)
 const SAFE_ZONE_X = 9.0; 
 
 const CENTRAL_MESSAGES = [
@@ -24,6 +24,7 @@ const CENTRAL_MESSAGES = [
 ];
 
 // --- BANQUES DE TEXTES ---
+
 const TEXTS_ATTENTE = [
     "Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖",
     "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
@@ -62,23 +63,27 @@ const TEXTS_VOTE_OFF = [
     "Merci à tous d'avoir participé, c'était intense."
 ];
 
+// --- TEXTES SPÉCIFIQUES PHOTOS (Selfies, Groupes, Avis) ---
 const TEXTS_PHOTOS = [
+    "Vous pouvez me prendre en photo ? 📸",
+    "Allez, on se fait un petit selfie ensemble ?",
+    "Rapprochez-vous pour une photo de groupe !",
+    "Oh ! Quelle belle photo vient d'apparaître !",
+    "J'ai une petite préférence pour celle-ci... (Chut !)",
+    "Regardez ce sourire ! Magnifique !",
     "C'est parti pour la soirée danse ! 💃",
     "Je me chauffe les vérins... Regardez ce style !",
     "Quelqu'un a vu mon amie ? Une webcam très mignonne ?",
-    "Oh ! Cette photo est magnifique !",
-    "J'adore voir vos sourires sur grand écran.",
-    "Allez, on bouge ! Même les robots savent danser !",
-    "Un pas à gauche, un pas à droite... 🎵",
-    "Je crois que je connais cette personne sur la photo !",
+    "Continuez d'envoyer vos photos, c'est génial !",
+    "Je valide cette pose ! Top model !",
+    "Attention le petit oiseau va sortir... Ah non c'est un pixel.",
+    "Cadrez bien mes antennes s'il vous plait.",
     "Vous êtes rayonnants ce soir.",
-    "Devinette : J'ai un œil mais je ne vois pas. Qui suis-je ? ... Un appareil photo ! (ou moi)",
+    "Devinette : J'ai un œil mais je ne vois pas. Qui suis-je ? ... Un appareil photo !",
     "Attention, je vais tenter un moonwalk...",
-    "Si je tombe, ne riez pas, c'est lourd le métal.",
     "Envoyez-nous vos plus belles grimaces !",
-    "La soirée ne fait que commencer !",
-    "Je valide cette photo ! 👍",
     "Flash info : Vous êtes le meilleur public !",
+    "On veut plus de photos de groupe ! Serrez-vous !",
     "Mes capteurs de rythme sont au maximum."
 ];
 
@@ -133,26 +138,27 @@ const introScript_Attente = [
     { time: 204, text: "Installez-vous bien, je veille sur vous.", type: "speech" }
 ];
 
-// --- SCENARIO 2 : VOTE OFF (RESTE SUR LES COTÉS) ---
+// --- SCENARIO 2 : VOTE OFF ---
 const introScript_VoteOff = [
-    { time: 2, text: "", action: "enter_teleport_left" }, // Arrive à gauche (X=-10)
+    { time: 2, text: "", action: "enter_teleport_left" }, 
     { time: 8, text: "Oula... C'est fini !", type: "speech" },
-    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" }, // Traverse vers droite (X=10)
+    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" },
     { time: 22, text: "La régie est en train de compter les points...", type: "speech" },
-    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "move_left_check" }, // Retourne gauche (X=-10)
+    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "move_left_check" }, 
     { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
-// --- SCENARIO 3 : PHOTOS LIVE (DANSE + COTÉS) ---
+// --- SCENARIO 3 : PHOTOS LIVE (Interactif & Selfie) ---
 const introScript_Photos = [
-    { time: 2, text: "", action: "enter_teleport_right" }, // Arrive à droite (X=10)
-    { time: 8, text: "Hé ! Mais c'est une soirée dansante ici ? 🕺", type: "speech" },
-    { time: 15, text: "Attendez, je m'échauffe...", type: "speech", action: "dance_start" },
-    { time: 20, text: "", action: "dance_stop" }, // Stop Face Caméra
-    { time: 22, text: "Pfiou ! Je suis chaud là !", type: "speech" },
-    { time: 29, text: "Dites, vous n'auriez pas vu une amie ?", type: "speech", action: "move_left_check" }, // Va à gauche (X=-10)
-    { time: 36, text: "Elle m'avait dit qu'elle viendrait... Une grille-pain très mignonne.", type: "speech" },
-    { time: 43, text: "Tant pis, je danse tout seul ! 🤖✨", type: "speech", action: "dance_start" }
+    { time: 2, text: "", action: "enter_teleport_right" }, // Arrive droite
+    { time: 8, text: "Wouah ! C'est ici le studio photo ?", type: "speech", action: "move_center_wave" }, // Va au milieu
+    { time: 15, text: "Vous pouvez me prendre en photo ? 📸", type: "speech", action: "toc_toc_approach" }, // Gros plan
+    { time: 22, text: "Attention... 3, 2, 1... Cheese !", type: "speech", action: "pose_selfie" }, // Pose fixe
+    { time: 29, text: "J'espère que je n'ai pas fermé les yeux...", type: "thought", action: "backup_a_bit" },
+    { time: 36, text: "Hop ! Je me téléporte !", type: "speech", action: "enter_teleport_left" }, // TP Gauche
+    { time: 42, text: "Oh regardez celle-ci ! Magnifique !", type: "speech", action: "look_bubbles" }, // Regarde en l'air
+    { time: 49, text: "J'ai une petite préférence pour ce sourire là-haut...", type: "speech" },
+    { time: 56, text: "Allez, soirée danse pour fêter ça !", type: "speech", action: "dance_start" }
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -318,14 +324,14 @@ function initThreeJS(canvas, bubbleEl) {
         if (robotState === 'intro') {
             const step = currentIntroScript[introIdx];
             if (step && time >= step.time) {
-                if (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast") || step.action?.includes("normal")) {
+                if (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast") || step.action?.includes("normal") || step.action?.includes("teleport")) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
                 // Mouvements standards
                 if(step.action === "enter_scene_slow") targetPos.set(-7, 2, -2);
                 
-                // ZONES SAFE pour les murs chargés (Vote/Photos) -> X = 10 ou -10
+                // ZONES SAFE pour les murs chargés (Vote/Photos)
                 if(step.action === "move_right_slow") targetPos.set(10, 1, -2); 
                 if(step.action === "move_left_check") targetPos.set(-10, -1, 0); 
                 
@@ -333,10 +339,14 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "surprise_stop") targetPos.set(-6, 0, 4);
                 if(step.action === "move_center_wave") targetPos.set(0, 0, 5);
                 
-                // Gros plan
+                // Gros plan & Selfie
                 if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
+                if(step.action === "pose_selfie") { robotState = 'posing'; setTimeout(() => { robotState = 'intro'; }, 3000); }
                 
+                // Regarde les bulles
+                if(step.action === "look_bubbles") { targetPos.set(0, 4, 0); }
+
                 if(step.action === "scan_crowd") targetPos.set(-10, 1, 4);
                 if(step.action === "phone_call") targetPos.set(10, 0, 2);
                 if(step.action === "surprise") targetPos.set(10, 0, 6);
@@ -369,7 +379,7 @@ function initThreeJS(canvas, bubbleEl) {
                 }
                 if(step.action === "dance_stop") {
                     robotState = 'intro'; 
-                    robotGroup.rotation.set(0, 0, 0); // RESET ROTATION FACE CAMERA
+                    robotGroup.rotation.set(0, 0, 0); // RESET ROTATION
                 }
                 
                 introIdx++;
@@ -379,7 +389,8 @@ function initThreeJS(canvas, bubbleEl) {
                 robotState = 'infinite_loop'; pickNewTarget(); nextEvt = time + 10; 
             }
             
-            if(robotState !== 'dancing_intro') {
+            // Pas de mouvement pendant la pose selfie ou la danse
+            if(robotState !== 'dancing_intro' && robotState !== 'posing') {
                 let speedFactor = VITESSE_MOUVEMENT;
                 if (step && step.action === "exit_right_normal") speedFactor = 0.015; 
                 else if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; 
@@ -416,6 +427,14 @@ function initThreeJS(canvas, bubbleEl) {
                     }, 6000); 
                     nextEvt = time + 20;
                 }
+                // NOUVEAU : TELEPORTATION ALEATOIRE EN MODE LIBRE (Si pas accueil)
+                else if (config.mode !== 'attente' && r < 0.40) {
+                    const side = Math.random() > 0.5 ? 10 : -10;
+                    robotGroup.position.set(side * -1, 0, 0); // TP opposé
+                    targetPos.set(side, 0, 0);
+                    triggerTeleport(robotGroup.position);
+                    nextEvt = time + 10;
+                }
                 else if (currentSpeed < SPEED_THRESHOLD) { 
                     const msg = getNextMessage(); 
                     const type = (msg.includes("Hmm") || msg.includes("Calcul") || msg.includes("Analyse")) ? 'thought' : 'speech';
@@ -436,6 +455,10 @@ function initThreeJS(canvas, bubbleEl) {
         else if (robotState === 'dancing' || robotState === 'dancing_intro') {
             robotGroup.rotation.y += 0.15; 
             robotGroup.position.y = Math.abs(Math.sin(time * 5)) * 0.5; 
+        }
+        else if (robotState === 'posing') {
+            robotGroup.rotation.y = 0; // Face caméra
+            robotGroup.rotation.z = Math.sin(time * 2) * 0.1; // Penche la tête mignon
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
