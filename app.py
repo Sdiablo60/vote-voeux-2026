@@ -847,7 +847,7 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - RETOUR CANVAS UNIQUE)
+# 3. MUR SOCIAL (VERSION FINALE - ORDRE SIMPLE)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -924,7 +924,7 @@ else:
             0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{ text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A; }}
             20%, 24%, 55% {{ text-shadow: none; opacity: 0.5; }}
         }}
-        /* CANVAS ROBOT (ET SOL 3D) EN ARRIERE PLAN */
+        /* CANVAS ROBOT + SOL = FOND (Z=0) */
         #robot-canvas-final {{
             z-index: 0 !important;
         }}
@@ -947,13 +947,14 @@ else:
                 <div id="welcome-title" class="neon-title">BIENVENUE</div>
                 <div id="sub-text"></div>
             </div>
-            <div id="robot-bubble" class="bubble" style="z-index: 6;">...</div>
+            <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
             <div id="robot-container" style="z-index: 0; pointer-events: none;"></div>
             {import_map}<script type="module">{js_content}</script></body></html>"""
         components.html(html_code, height=1000, scrolling=False) 
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
+            # ... (CODE PODIUM INCHANGÉ) ...
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
