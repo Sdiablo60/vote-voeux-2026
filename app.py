@@ -865,7 +865,7 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - NEON ADOUCI)
+# 3. MUR SOCIAL (VERSION FINALE - LAYOUT CORRIGÉ)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -875,7 +875,7 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    # === CSS PRINCIPAL ===
+    # === CSS PRINCIPAL (GLOBAL) ===
     st.markdown("""
     <style>
         .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
@@ -884,6 +884,7 @@ else:
             width: 100vw !important; max-width: 100vw !important;
             overflow: hidden !important;
         }
+        /* HEADER ROUGE FIXE (IDENTIQUE PARTOUT) */
         .social-header { 
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 8vh !important;
@@ -906,9 +907,8 @@ else:
     </style>
     """, unsafe_allow_html=True)
     
-    # Affiche le header rouge SAUF si on est en mode Votes (car layout spécifique)
-    if cfg["mode_affichage"] != "votes" or (not cfg["session_ouverte"] and not cfg["reveal_resultats"]):
-         st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
+    # AFFICHE LE TITRE TOUT LE TEMPS (Même en mode vote)
+    st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
     effects = cfg.get("screen_effects", {})
@@ -982,18 +982,12 @@ else:
         const textEl = document.getElementById('sub-text');
         
         function updateText() {
-            // 1. Monte et disparait
             textEl.className = 'text-hidden';
-            
             setTimeout(() => {
-                // 2. Change le texte (pendant qu'il est invisible)
                 textEl.innerHTML = messages[msgIdx % messages.length];
-                // Reset position (sans transition pour le ramener en bas instantanément)
                 textEl.style.transition = 'none';
                 textEl.style.transform = 'translateY(30px)';
-                
                 setTimeout(() => {
-                    // 3. Réactive transition et affiche (Monte vers le centre)
                     textEl.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
                     textEl.className = 'text-visible';
                     msgIdx++;
@@ -1002,17 +996,13 @@ else:
         }
         
         function startLoop() {
-            // Affiche le premier message
             textEl.innerHTML = messages[0];
             textEl.className = 'text-visible';
             msgIdx++;
-            // Lance la boucle
             setInterval(updateText, 6000);
         }
 
-        // IMPORTANT : On attend 45 secondes (45000 ms) que le robot finisse son intro
         setTimeout(startLoop, 45000);
-        
         </script>"""
 
         logo_img_tag = f'<img id="welcome-logo" src="data:image/png;base64,{logo_data}">' if logo_data else ""
@@ -1034,7 +1024,7 @@ else:
     # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # === PODIUM & CORRECTION ZOOM ===
+            # === PODIUM ===
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1098,12 +1088,12 @@ else:
             </style>""", height=1000, scrolling=False)
 
         elif cfg["session_ouverte"]:
-             # === VOTES OUVERTS & CORRECTION LAYOUT ===
+             # === VOTES OUVERTS (LAYOUT CORRIGÉ) ===
              host = st.context.headers.get('host', 'localhost')
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              
-             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="height:120px; margin: 15px 0;">' if cfg.get("logo_b64") else ""
+             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="height:140px; margin: 10px 0;">' if cfg.get("logo_b64") else ""
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
              voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
              voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
@@ -1116,7 +1106,7 @@ else:
                  for c in clist:
                      im = '<div style="font-size:24px;">👤</div>'
                      if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid white;">'
-                     h += f"""<div style="display:flex; align-items:center; background:rgba(255,255,255,0.1); padding:8px 15px; border-radius:30px; margin-bottom:8px; width:100%;">
+                     h += f"""<div style="display:flex; align-items:center; background:rgba(255,255,255,0.15); padding:8px 15px; border-radius:30px; margin-bottom:8px; width:100%; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
                                 {im}<span style="margin-left:10px; font-size:16px; font-weight:bold; color:white; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c}</span>
                             </div>"""
                  return h
@@ -1127,32 +1117,50 @@ else:
              components.html(f"""
              <style>
                 body {{ background: black; margin: 0; padding: 0; font-family: 'Arial', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
-                .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 40px; position: fixed; top: 0; left: 0; z-index: 9999; display: flex; align-items: center; border-bottom: 2px solid white; }}
+                
+                /* HEADER SPACING */
+                .header-spacer {{ width: 100%; height: 8vh; }}
+                
+                /* TOP SECTION : LOGO + TICKER */
+                .top-section {{ display: flex; flex-direction: column; align-items: center; width: 100%; flex: 0 0 auto; padding-top: 1vh; }}
+                
+                /* BANDEAU DEFILANT */
+                .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 40px; display: flex; align-items: center; border-bottom: 2px solid white; margin-top: 10px; }}
                 .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 16px; text-transform: uppercase; white-space: nowrap; }}
                 @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
-                .main-layout {{ display: flex; flex-direction: column; height: 100%; padding-top: 50px; box-sizing: border-box; }}
-                .header-section {{ text-align: center; flex: 0 0 auto; margin-bottom: 10px; z-index: 10; }}
-                .main-title {{ font-size: 50px; font-weight: 900; color: #E2001A; margin: 0; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px black; }}
-                .sub-title {{ font-size: 24px; color: white; margin-top: 5px; font-weight: normal; }}
-                .content-grid {{ display: flex; justify-content: center; align-items: flex-start; width: 90%; margin: 0 auto; flex: 1; gap: 40px; }}
+                
+                /* MAIN CONTENT (Centered Vertical) */
+                .main-content {{ flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding-bottom: 2vh; }}
+                .content-grid {{ display: flex; justify-content: center; align-items: flex-start; width: 95%; gap: 30px; }}
+                
                 .col-cands {{ width: 25%; display: flex; flex-direction: column; justify-content: center; }}
                 .col-qr {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
-                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); animation: pulse 3s infinite; }}
+                
+                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); animation: pulse 3s infinite; text-align: center; }}
+                .qr-sub {{ margin-top: 10px; color: black; font-weight: bold; font-size: 18px; text-transform: uppercase; }}
+                
                 @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 70px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
              </style>
-             <div class="marquee-container">
-                <div style="background:#C20015; height:100%; padding:0 20px; display:flex; align-items:center; font-weight:900; z-index:2;">DERNIERS VOTES :</div>
-                <div style="overflow:hidden; flex:1;"><div class="marquee-content">{voter_string}</div></div>
-             </div>
-             <div class="main-layout">
-                <div class="header-section">
-                    <div class="main-title">VOTES OUVERTS</div>
-                    {logo_html}
-                    <div class="sub-title">SCANNEZ LE QR CODE POUR CHOISIR VOS 3 FAVORIS</div>
+             
+             <div class="header-spacer"></div>
+             
+             <div class="top-section">
+                {logo_html}
+                <div class="marquee-container">
+                    <div style="background:#C20015; height:100%; padding:0 20px; display:flex; align-items:center; font-weight:900; z-index:2;">DERNIERS VOTES :</div>
+                    <div style="overflow:hidden; flex:1;"><div class="marquee-content">{voter_string}</div></div>
                 </div>
+             </div>
+             
+             <div class="main-content">
                 <div class="content-grid">
                     <div class="col-cands" style="align-items: flex-end;">{left_html}</div>
-                    <div class="col-qr"><div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div></div>
+                    <div class="col-qr">
+                        <div class="qr-box">
+                            <img src="data:image/png;base64,{qr_b64}" width="260">
+                            <div class="qr-sub">Scannez pour voter</div>
+                        </div>
+                    </div>
                     <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
                 </div>
              </div>""", height=950)
