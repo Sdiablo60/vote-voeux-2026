@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - CORRECTION "FREEZE")
+// 🟢 CONFIGURATION ROBOT 2026 (MULTI-SCÈNES & Z-INDEX CORRIGÉ)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -20,7 +20,7 @@ const CENTRAL_MESSAGES = [
     "N'oubliez pas vos sourires !"
 ];
 
-// --- BANQUE DE TEXTES MASSIVE ---
+// --- BANQUE DE TEXTES : MODE ATTENTE (Général) ---
 const INFINITE_TEXTS = [
     "Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖",
     "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
@@ -34,38 +34,61 @@ const INFINITE_TEXTS = [
     "Je scanne la salle... Ambiance : 100% positive.",
     "Qui a le meilleur sourire ce soir ? Je cherche...",
     "N'oubliez pas de scanner le QR Code tout à l'heure !",
-    "J'espère que le buffet sera bon... Ah zut, je ne mange pas.",
     "Si vous voyez un boulon par terre, c'est à moi.",
     "Faites coucou à la caméra ! Ah non, c'est moi la caméra.",
     "Hmm... Je me demande si je suis étanche...",
     "Calcul de la trajectoire optimale... Fait.",
     "Analyse des données biométriques... Vous êtes humains.",
-    "J'espère que j'ai bien éteint le gaz chez moi...",
     "Mise à jour système en attente... Non, pas maintenant !",
     "Je crois que j'ai un pixel mort sur ma rétine gauche.",
     "Est-ce que les moutons électriques rêvent d'androids ?",
     "42. La réponse est 42.",
-    "Je cours sans jambes. Qui suis-je ? ... Le Temps ! ⏳",
-    "Plus j'ai de gardiens, moins je suis gardé. Qui suis-je ? ... Un secret !",
-    "J'ai des villes, mais pas de maisons. Qui suis-je ? ... Une carte !",
-    "Je commence la nuit et je finis le matin. Qui suis-je ? ... La lettre N !",
     "Prêts pour le décollage ?",
     "Attachez vos ceintures, la soirée va décoller !",
-    "J'adore les avions, ils ont des ailes comme moi... ah non.",
     "Direction : La bonne humeur !",
-    "Vérification des portes : armement des toboggans.",
     "C'est long l'attente, hein ? Mais ça vaut le coup !",
     "Je pourrais rester ici toute la nuit.",
     "Regardez comme le logo brille bien.",
     "Je suis tellement content d'être votre animateur.",
     "Pas de flash s'il vous plaît, ça m'éblouit.",
     "Vous m'entendez bien au fond ?",
-    "J'ai l'impression de grandir... Ah non, je vole juste plus haut.",
     "Bip Bip... Bip Bip...",
     "Loading happiness... 99%..."
 ];
 
-let availableTexts = [...INFINITE_TEXTS];
+// --- BANQUE DE TEXTES : MODE VOTE OFF ---
+const VOTE_OFF_TEXTS = [
+    "Les votes sont clos ! Le suspense est total... 😬",
+    "La régie est en train de compter les points...",
+    "Qui va gagner ? J'ai ma petite idée, mais je ne dirai rien ! 🤫",
+    "Calcul des résultats en cours... Bip Bip...",
+    "J'espère que vous avez voté pour le meilleur !",
+    "Je sens la tension monter dans la salle...",
+    "Analyse statistique en cours. C'est très serré !",
+    "Les gagnants seront bientôt révélés. Restez concentrés.",
+    "Je vérifie qu'il n'y a pas eu de triche... Non, tout est nickel. ✅",
+    "Ça mouline, ça mouline... Les résultats arrivent !"
+];
+
+// --- BANQUE DE TEXTES : MODE PHOTOS LIVE ---
+const PHOTOS_TEXTS = [
+    "Oh ! Quelle belle photo vient d'arriver ! 😍",
+    "J'adore vos sourires sur cet écran géant !",
+    "Continuez d'envoyer vos moments forts, c'est génial !",
+    "Hé ! Je crois que je connais cette personne !",
+    "Très photogénique ! 📸",
+    "Allez, faites une grimace pour la prochaine !",
+    "C'est ça l'ambiance de la soirée ! Bravo !",
+    "Je scanne les photos... Taux de bonheur : 200%.",
+    "Vous êtes tous magnifiques ce soir.",
+    "Regardez celle-ci ! Trop drôle ! 😂"
+];
+
+// Sélection de la banque de texte active selon le mode
+let currentTextBank = [];
+if (config.mode === 'vote_off') currentTextBank = [...VOTE_OFF_TEXTS];
+else if (config.mode === 'photos') currentTextBank = [...PHOTOS_TEXTS];
+else currentTextBank = [...INFINITE_TEXTS];
 
 // --- STYLE CSS ---
 const style = document.createElement('style');
@@ -83,7 +106,7 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO NARRATIF ---
+// --- SCENARIO NARRATIF (Uniquement pour le mode "attente") ---
 const introScript = [
     { time: 4, text: "", action: "enter_scene_slow" }, 
     { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
@@ -119,7 +142,8 @@ function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
-    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 10; pointer-events: none !important; background: transparent !important;`;
+    // CORRECTION Z-INDEX ICI : z-index: 1
+    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 1; pointer-events: none !important; background: transparent !important;`;
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
     initThreeJS(canvas, bubbleEl);
@@ -129,7 +153,6 @@ function initThreeJS(canvas, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     const scene = new THREE.Scene();
     
-    // Brouillard pour fondre le sol dans le noir
     scene.fog = new THREE.Fog(0x000000, 10, 60);
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
@@ -140,12 +163,18 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- SOL (GRID HELPER) UNIFORME SANS LIGNE ROUGE ---
+    // --- SOL UNIFORME ---
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
     grid.position.y = -2.5; 
     scene.add(grid);
 
-    const robotGroup = new THREE.Group(); robotGroup.position.set(-30, 0, 0); robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
+    // --- ROBOT ---
+    const robotGroup = new THREE.Group(); 
+    // Position de départ dépend du mode
+    if (config.mode === 'attente') robotGroup.position.set(-30, 0, 0);
+    else robotGroup.position.set(0, 0, 0); // Déjà au centre pour les autres modes
+
+    robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -168,9 +197,13 @@ function initThreeJS(canvas, bubbleEl) {
         scene.add(g); stageSpots.push({ g, beam, isOn: false, nextToggle: Math.random()*5 });
     });
 
-    let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
+    let robotState = (config.mode === 'attente') ? 'intro' : 'infinite_loop';
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
-    let targetPos = new THREE.Vector3(-30, 0, 0); 
+    // Cible initiale dépend du mode
+    let targetPos = new THREE.Vector3(0, 0, 0);
+    if (config.mode === 'attente') targetPos.set(-30, 0, 0);
+    else pickNewTarget();
+
     let lastPos = new THREE.Vector3();
     let lastTextChange = 0;
     let textMsgIndex = 0;
@@ -203,11 +236,17 @@ function initThreeJS(canvas, bubbleEl) {
         nextMoveTime = Date.now() + 8000; 
     }
 
+    // Fonction qui pioche dans la bonne banque selon le mode
     function getNextMessage() {
-        if (availableTexts.length === 0) { availableTexts = [...INFINITE_TEXTS]; }
-        const idx = Math.floor(Math.random() * availableTexts.length);
-        const msg = availableTexts[idx];
-        availableTexts.splice(idx, 1);
+        if (currentTextBank.length === 0) {
+            // Recharge la banque appropriée si vide
+            if (config.mode === 'vote_off') currentTextBank = [...VOTE_OFF_TEXTS];
+            else if (config.mode === 'photos') currentTextBank = [...PHOTOS_TEXTS];
+            else currentTextBank = [...INFINITE_TEXTS];
+        }
+        const idx = Math.floor(Math.random() * currentTextBank.length);
+        const msg = currentTextBank[idx];
+        currentTextBank.splice(idx, 1);
         return msg;
     }
 
@@ -288,15 +327,10 @@ function initThreeJS(canvas, bubbleEl) {
         else if (robotState === 'exploding') { parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.05; p.userData.velocity.multiplyScalar(0.98); }); }
         else if (robotState === 'reassembling') {
             let finished = true;
-            parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1; if (p.position.distanceTo(p.userData.origPos) > 0.05) finished = false; }); // Seuil augmenté à 0.05
-            
+            parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1; if (p.position.distanceTo(p.userData.origPos) > 0.05) finished = false; });
             if(finished) { 
-                // CORRECTION FREEZE : ON FORCE LA SUITE IMMEDIATE
-                parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); }); // Snap
-                robotState = 'infinite_loop'; 
-                nextEvt = time + 5; 
-                pickNewTarget(); 
-                nextMoveTime = 0; // Force mouvement immédiat
+                parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); }); 
+                robotState = 'infinite_loop'; nextEvt = time + 5; pickNewTarget(); nextMoveTime = 0; 
             }
         }
 
