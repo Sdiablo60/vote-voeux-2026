@@ -764,7 +764,7 @@ if est_admin:
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # --- CORRECTION CSS MOBILE (STYLE ÉPURÉ) ---
+    # --- CORRECTION CSS MOBILE (FIX TOTAL COULEURS & LISTE) ---
     st.markdown("""<style>
     /* FOND NOIR GLOBAL */
     .stApp {background-color:black !important; color:white !important;} 
@@ -772,49 +772,46 @@ elif est_utilisateur:
     .block-container {padding: 1rem !important;} 
     h1, h2, h3, p, div, span, label { color: white !important; }
     
-    /* --- CHAMP DE SAISIE (ZONE DE RECHERCHE) --- */
+    /* --- WIDGET MULTISELECT (CHAMP DE SAISIE) --- */
+    /* La boite principale blanche */
     .stMultiSelect div[data-baseweb="select"] > div { 
-        background-color: #ffffff !important; 
-        color: #000000 !important; 
-        border: 2px solid #E2001A !important; /* Bordure rouge pour bien voir le champ */
+        background-color: white !important; 
+        color: black !important; 
         border-radius: 8px;
+        border: none !important;
     }
-    /* Texte "Choose options" ou saisie */
-    .stMultiSelect input { color: black !important; caret-color: black; }
-    .stMultiSelect div[data-baseweb="select"] span { color: #333 !important; } /* Placeholder gris foncé */
+    /* Le texte "Choose options" ou le texte tapé */
+    .stMultiSelect input { color: black !important; }
+    .stMultiSelect div[data-baseweb="select"] span { color: #555 !important; } /* Gris foncé pour le placeholder */
     
-    /* --- MENU DÉROULANT (LISTE PARTICIPANTS) --- */
-    div[data-baseweb="popover"] { background-color: white !important; border: none !important; }
-    ul[role="listbox"] { background-color: white !important; padding: 0 !important; }
+    /* --- MENU DÉROULANT (LA LISTE) --- */
+    /* Le conteneur de la liste */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] { 
+        background-color: white !important; 
+        border-radius: 8px !important;
+    }
     
-    /* ITEMS DE LA LISTE */
+    /* Les options individuelles (Lignes) */
     li[role="option"] {
+        color: black !important; 
         background-color: white !important;
-        color: black !important;
-        border-bottom: 1px solid #eaeaea !important; /* Juste un trait fin gris clair */
-        border-top: none !important;
-        border-left: none !important;
-        border-right: none !important;
-        padding: 15px 10px !important;
-        font-size: 16px !important;
-        display: flex !important;
-        align-items: center !important;
+        border-bottom: 1px solid #f0f0f0 !important; /* Trait fin subtil */
+        padding: 12px 20px !important; /* Plus d'espace */
     }
     
-    /* Suppression des fonds gris "Excel" */
-    li[role="option"]:nth-child(even), li[role="option"]:nth-child(odd) { background-color: white !important; }
-    
-    /* Textes dans la liste */
-    li[role="option"] span { color: black !important; font-weight: 500 !important; }
-    
-    /* Effet au clic/survol */
-    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
-        background-color: #fff0f0 !important; /* Fond rouge très pâle */
-        color: #E2001A !important;
+    /* Texte à l'intérieur des options */
+    li[role="option"] span, li[role="option"] div {
+        color: black !important;
         font-weight: bold !important;
     }
-
-    /* TAGS SÉLECTIONNÉS */
+    
+    /* Effet de survol (Hover) */
+    li[role="option"]:hover, li[role="option"]:focus, li[role="option"][aria-selected="true"] {
+        background-color: #ffe6e6 !important; /* Rouge très pâle au survol */
+        color: #E2001A !important;
+    }
+    
+    /* --- TAGS SÉLECTIONNÉS (LES CHOIX DANS LA BOITE) --- */
     span[data-baseweb="tag"] {
         background-color: #E2001A !important;
         color: white !important;
@@ -822,15 +819,15 @@ elif est_utilisateur:
     }
     span[data-baseweb="tag"] span { color: white !important; }
     
-    /* BOUTON VALIDATION */
+    /* BOUTON ROUGE */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { 
         background-color: #E2001A !important; 
         color: white !important; 
-        border: none !important; 
+        border: 1px solid #E2001A !important; 
         font-weight: bold !important;
         border-radius: 10px !important;
-        padding: 15px 0 !important;
     }
+    button[kind="primary"]:hover { background-color: #C20015 !important; }
     </style>""", unsafe_allow_html=True)
     
     curr_sess = cfg.get("session_id", "init")
@@ -1366,5 +1363,6 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
 
 
