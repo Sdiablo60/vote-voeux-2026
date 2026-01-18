@@ -67,101 +67,77 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # =========================================================
 st.markdown("""
 <style>
-    /* 1. NETTOYAGE STREAMLIT */
-    .stApp {
-        background-color: #FFFFFF;
-        color: black;
-    }
+    /* 1. SUPPRESSION TOTALE DES ÉLÉMENTS STREAMLIT PAR DÉFAUT */
     [data-testid="stHeader"], footer, header { 
         display: none !important; 
         height: 0 !important;
+        visibility: hidden !important;
     }
 
-    /* 2. FORCER LE PLEIN ECRAN (Suppression marges) */
-    .main .block-container {
-        max-width: 100vw !important;
-        width: 100vw !important;
+    /* 2. NETTOYAGE DU CONTENEUR PRINCIPAL (Supprime les marges noires) */
+    .stApp, .main, .block-container {
+        background-color: black !important;
         padding: 0 !important;
         margin: 0 !important;
+        max-width: 100vw !important;
         overflow: hidden !important;
     }
+    
     [data-testid="stAppViewContainer"] {
         padding: 0 !important;
         margin: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
         overflow: hidden !important;
     }
 
-    /* 3. LE BANDEAU ROUGE (HEADER) */
+    /* 3. LE BANDEAU TITRE (Fixé en haut, Hauteur 8vh) */
     .social-header { 
         position: fixed !important; 
         top: 0 !important; 
         left: 0 !important; 
         width: 100vw !important; 
-        height: 8vh !important;
-        background-color: #E2001A !important;
+        height: 8vh !important; /* 8% de la hauteur */
+        background-color: #E2001A !important; 
         display: flex !important; 
         align-items: center !important; 
         justify-content: center !important; 
         z-index: 999999 !important;
         border-bottom: 3px solid white;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
     }
+    
     .social-title { 
         color: white !important; 
         font-family: Arial, sans-serif !important;
-        font-size: 3vh !important;
+        font-size: 3.5vh !important; /* Taille relative à la hauteur */
         font-weight: 900 !important; 
         margin: 0 !important; 
         text-transform: uppercase; 
         letter-spacing: 2px;
     }
 
-    /* 4. POSITIONNEMENT IFRAME ROBOT (Sous le header) */
+    /* 4. LA FENÊTRE DU ROBOT (Fixée dessous, Hauteur 92vh) */
     iframe[title="streamlit.components.v1.components.html"] {
         position: fixed !important;
-        top: 8vh !important;      /* Commence SOUS le bandeau */
+        top: 8vh !important;       /* Commence PILE sous le titre */
         left: 0 !important;
-        width: 100vw !important;
-        height: 92vh !important;  /* Le reste de la hauteur */
+        width: 100vw !important;   /* Largeur totale */
+        height: 92vh !important;   /* Le reste de la hauteur (100 - 8 = 92) */
         border: none !important;
         z-index: 1 !important; 
         margin: 0 !important;
         display: block !important;
     }
-    
-    ::-webkit-scrollbar { display: none; }
-    
-    /* 5. STYLE ADMIN & UI */
+
+    /* RESTE DU STYLE (Boutons Admin, etc.) */
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
-    button[kind="primary"]:hover { background-color: #C20015 !important; }
     
-    .session-card { background-color: #f8f9fa; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; margin-bottom: 20px; }
-    .session-title { color: #E2001A; font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; }
-    
-    .login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: #f8f9fa; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; }
-    .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
-    .stTextInput input { text-align: center; font-size: 18px; }
-    
-    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
-    section[data-testid="stSidebar"] button[kind="primary"] { background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px; }
-    section[data-testid="stSidebar"] button[kind="secondary"] { background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important; }
-    
-    .blue-anim-btn button { background-color: #2980b9 !important; color: white !important; border: none !important; transition: all 0.3s ease !important; font-weight: bold !important; }
-    .blue-anim-btn button:hover { transform: scale(1.05) !important; box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important; background-color: #3498db !important; }
-
-    a.custom-link-btn { display: block !important; text-align: center !important; padding: 12px 20px !important; border-radius: 8px !important; text-decoration: none !important; font-weight: bold !important; margin-bottom: 10px !important; color: white !important; transition: transform 0.2s !important; width: 100% !important; box-sizing: border-box !important; line-height: 1.5 !important; }
-    a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; }
-    .btn-red { background-color: #E2001A !important; }
-    .btn-blue { background-color: #2980b9 !important; }
-    
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] { background-color: white !important; }
-    li[role="option"] { color: black !important; background-color: white !important; }
-    div[data-baseweb="select"] div { color: black !important; }
-    li[role="option"] span { color: black !important; }
+    /* Cache les ascenseurs */
+    ::-webkit-scrollbar { display: none; }
 </style>
 """, unsafe_allow_html=True)
-
 # =========================================================
 # 3. DONNEES & CONFIGURATIONS PAR DEFAUT
 # =========================================================
@@ -1179,3 +1155,4 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
