@@ -847,7 +847,7 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL (VERSION CLEAN - PRÊT POUR PROD)
+# 3. MUR SOCIAL (VERSION FINALE - ETAPE 2 VALIDÉE)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -857,10 +857,10 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    # === CSS : L'IFRAME PREND TOUT L'ECRAN ===
+    # === CSS PRINCIPAL : IFRAME 100% ÉCRAN EN ARRIÈRE-PLAN ===
     st.markdown("""
     <style>
-        /* 1. Nettoyage */
+        /* 1. Nettoyage global */
         .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
             background-color: black !important;
             padding: 0 !important; margin: 0 !important;
@@ -868,14 +868,14 @@ else:
             overflow: hidden !important;
         }
 
-        /* 2. LE BANDEAU TITRE (Devant l'iframe) */
+        /* 2. LE BANDEAU TITRE (Fixé devant) */
         .social-header { 
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 8vh !important;
             background-color: #E2001A !important; 
             display: flex !important; align-items: center !important; justify-content: center !important; 
-            z-index: 999999 !important; 
-            border-bottom: 3px solid white;
+            z-index: 999999 !important; /* Devant l'iframe */
+            border-bottom: 3px solid white; 
             box-shadow: 0 5px 10px rgba(0,0,0,0.3);
         }
         .social-title { 
@@ -884,15 +884,15 @@ else:
             margin: 0 !important; text-transform: uppercase; letter-spacing: 2px;
         }
 
-        /* 3. L'IFRAME EN ARRIÈRE-PLAN (100% ECRAN) */
+        /* 3. L'IFRAME (Prend tout l'écran, placée derrière) */
         iframe {
             position: fixed !important;
-            top: 0 !important;         
+            top: 0 !important;
             left: 0 !important;
             width: 100vw !important;
-            height: 100vh !important;  
+            height: 100vh !important;
             border: none !important;
-            z-index: 0 !important;     
+            z-index: 0 !important; /* Derrière le bandeau */
             display: block !important;
         }
     </style>
@@ -960,7 +960,6 @@ else:
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # ... (Podium inchangé) ...
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1015,15 +1014,46 @@ else:
             components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "photos_live":
-        # ... (Photos Live - CLEAN) ...
+        # --- PHOTOS LIVE (CORRIGÉ Z-INDEX & VITESSE) ---
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
         photos = glob.glob(f"{LIVE_DIR}/*")
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
-        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8); pointer-events: none;'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
-        bubbles_script = f"""<script>setTimeout(function() {{ var container = document.createElement('div'); container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:5;overflow:hidden;background:transparent;pointer-events:none;'; document.body.appendChild(container); var centerDiv = document.createElement('div'); centerDiv.innerHTML = `{center_html_content}`; document.body.appendChild(centerDiv); const imgs = {img_js}; const bubbles = []; imgs.forEach((src, i) => {{ const bSize = Math.floor(Math.random() * 300) + 150; const el = document.createElement('img'); el.src = src; el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; z-index:50; opacity:0.9;'; let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize); let angle = Math.random() * Math.PI * 2; let speed = 0.5 + Math.random(); container.appendChild(el); bubbles.push({{el, x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, size: bSize}}); }}); function animateBubbles() {{ bubbles.forEach(b => {{ b.x += b.vx; b.y += b.vy; if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1; if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1; b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)'; }}); requestAnimationFrame(animateBubbles); }} animateBubbles(); }}, 500);</script>"""
+        
+        # Center-box : Z-INDEX 10 (DEVANT)
+        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8); pointer-events: none;'><h1 style='color:#E2001A; margin:0 0 15px 0; font-size:28px; font-weight:bold; text-transform:uppercase;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
+        
+        # Bubbles : Z-INDEX 1 (DERRIÈRE) + VITESSE ACCÉLÉRÉE
+        bubbles_script = f"""<script>setTimeout(function() {{ 
+            var container = document.createElement('div'); 
+            container.id = 'live-container'; 
+            container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;pointer-events:none;'; 
+            document.body.appendChild(container); 
+            var centerDiv = document.createElement('div'); centerDiv.innerHTML = `{center_html_content}`; document.body.appendChild(centerDiv); 
+            const imgs = {img_js}; const bubbles = []; 
+            imgs.forEach((src, i) => {{ 
+                const bSize = Math.floor(Math.random() * 300) + 150; 
+                const el = document.createElement('img'); el.src = src; 
+                el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; z-index:50; opacity:0.9;'; 
+                let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize); 
+                let angle = Math.random() * Math.PI * 2; 
+                let speed = 1.5 + Math.random() * 1.5; /* VITESSE ACCÉLÉRÉE */
+                container.appendChild(el); bubbles.push({{el, x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, size: bSize}}); 
+            }}); 
+            function animateBubbles() {{ 
+                bubbles.forEach(b => {{ 
+                    b.x += b.vx; b.y += b.vy; 
+                    if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1; 
+                    if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1; 
+                    b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)'; 
+                }}); 
+                requestAnimationFrame(animateBubbles); 
+            }} 
+            animateBubbles(); 
+        }}, 500);</script>"""
+        
         html_code = f"""<!DOCTYPE html><html><head>{internal_css}</head><body>{js_config}
         <div id="safe-zone"></div>
         <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
@@ -1031,3 +1061,4 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
