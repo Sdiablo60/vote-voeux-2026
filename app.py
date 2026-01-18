@@ -759,11 +759,12 @@ if est_admin:
                         else: st.error("Remplissez l'identifiant et le mot de passe.")
 
 # =========================================================
-# 2. APPLICATION MOBILE (Vote) - STYLE CORRIGÉ
+# 2. APPLICATION MOBILE (Vote)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
+    # --- CORRECTION CSS MOBILE (STYLE PROPRE) ---
     st.markdown("""<style>
     /* FOND NOIR GLOBAL */
     .stApp {background-color:black !important; color:white !important;} 
@@ -800,16 +801,17 @@ elif est_utilisateur:
         color: #E2001A !important;
     }
 
-    /* --- TAGS SÉLECTIONNÉS (ROUGE & BLANC) --- */
+    /* --- TAGS SÉLECTIONNÉS (MODIFIÉ : FOND BLANC / BORD ROUGE) --- */
     span[data-baseweb="tag"] {
-        background-color: #E2001A !important;
-        color: white !important;
-        border-radius: 20px !important;
+        background-color: white !important; 
+        color: black !important;
+        border-radius: 15px !important;
+        border: 2px solid #E2001A !important; /* Bordure rouge */
     }
-    span[data-baseweb="tag"] span { color: white !important; }
-    span[data-baseweb="tag"] svg { fill: white !important; }
+    span[data-baseweb="tag"] span { color: black !important; font-weight: bold !important; }
+    span[data-baseweb="tag"] svg { fill: #E2001A !important; } /* Croix rouge */
     
-    /* BOUTON */
+    /* BOUTON VALIDATION */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { 
         background-color: #E2001A !important; 
         color: white !important; 
@@ -893,7 +895,7 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID & LOGO HAUT)
+# 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FIXE & LOGO CALÉ)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -996,6 +998,7 @@ else:
         </style>
         """
         
+        # SCRIPT GESTION TEXTE (AVEC DELAI ROBOT 45s)
         text_script = """<script>
         const messages = [
             "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -1051,7 +1054,7 @@ else:
     # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # === PODIUM & SÉQUENCE CINÉMATIQUE (CORRECTIF FINAL) ===
+            # === PODIUM & SÉQUENCE CINÉMATIQUE (GRID 2x2 FIXEE) ===
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1136,7 +1139,7 @@ else:
                 // 6. LOGO GROS
                 finalOverlay.classList.add('stage-1-big');
                 
-                // 7. LOGO EN HAUT (POSITION CORRIGÉE : -70%)
+                // 7. LOGO EN HAUT (POSITION CORRIGÉE)
                 await wait(6000);
                 finalOverlay.classList.remove('stage-1-big');
                 finalOverlay.classList.add('stage-2-top');
@@ -1151,12 +1154,13 @@ else:
             .column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}
             .column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}
             
-            /* GAGNANTS : EMPILEMENT (280px pour 2 cartes de 120px) */
+            /* GAGNANTS : EMPILEMENT PYRAMIDAL */
+            /* 135px * 2 = 270px. Donc 300px suffit pour 2 cartes */
             .winners-box{{
-                display:flex; flex-direction:row; flex-wrap:wrap-reverse;
+                display:flex; flex-direction:row; flex-wrap:wrap-reverse; /* Construit vers le haut */
                 justify-content:center; align-items:flex-end;
-                width:280px !important; /* Force le wrap si > 2 */
-                max-width:280px !important;
+                width:300px !important; /* LARGEUR FORCEE POUR 2 CARTES MAX */
+                max-width:300px !important;
                 margin:0 auto; padding-bottom:0px;
                 opacity:0; transform:translateY(50px) scale(0.8);
                 transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);
@@ -1171,40 +1175,44 @@ else:
             .pedestal-3{{height:150px;border-top:3px solid #CD7F32;color:#CD7F32;}}
             .rank-num{{font-size:120px;font-weight:900;opacity:0.2;line-height:1;}}
             
-            /* SCORES (CACHÉS) */
+            /* SCORES (CACHÉS PAR DÉFAUT) */
             .rank-score{{
                 font-size:30px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.5);margin-bottom:-20px;z-index:5;
                 opacity: 0; transform: scale(0.5); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             }}
             .rank-score.visible{{ opacity: 1; transform: scale(1); }}
             
-            /* CARTES RÉDUITES (120px) */
+            /* CARTES RÉDUITES (135px) POUR EMPILEMENT */
             .p-card{{
-                background:rgba(20,20,20,0.8); border-radius:15px; padding:8px;
-                width:120px; margin:3px; 
+                background:rgba(20,20,20,0.8); border-radius:15px; padding:10px;
+                width:135px; margin:3px; 
                 backdrop-filter:blur(5px); border:2px solid rgba(255,255,255,0.3);
                 display:flex; flex-direction:column; align-items:center;
                 box-shadow:0 5px 15px rgba(0,0,0,0.5); flex-shrink:0;
             }}
             .p-img,.p-placeholder{{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
-            .p-name{{font-family:Arial;font-size:14px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
+            .p-name{{font-family:Arial;font-size:15px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
             
             .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
             .intro-text{{color:white;font-size:40px;font-weight:bold;text-transform:uppercase;text-shadow:0 0 20px black;}}
             .intro-count{{color:#E2001A;font-size:100px;font-weight:900;margin-top:10px;text-shadow:0 0 20px black;}}
             
-            /* OVERLAY FINAL */
+            /* OVERLAY FINAL AVEC 2 ETAPES (POSITIONS CORRIGEES) */
             .final-overlay{{
                 position:fixed;top:0;left:0;width:100vw;height:100vh;
                 display:flex;flex-direction:column;justify-content:center;align-items:center;
                 z-index:6000;pointer-events:none;
                 opacity:0;transition:all 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             }}
-            /* ETAPE 1 : GROS */
+            /* ETAPE 1 : GROS + FOND NOIR */
             .final-overlay.stage-1-big{{opacity:1;transform:scale(1.2);background-color:rgba(0,0,0,0.95);}}
             
-            /* ETAPE 2 : EN HAUT (-70%) */
-            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-70%);background-color:transparent;}}
+            /* ETAPE 2 : PETIT + CALÉ EN HAUT (PADDING 15vh) */
+            /* On change la méthode : on aligne en haut et on ajoute du padding */
+            .final-overlay.stage-2-top{{
+                opacity:1; transform:scale(0.85); background-color:transparent;
+                justify-content: flex-start; padding-top: 15vh; /* Juste sous le header */
+            }}
             
             .final-content{{text-align:center;}}
             .final-logo{{width:500px;margin-bottom:30px;}}
@@ -1217,6 +1225,7 @@ else:
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              
+             # 1. LOGO GROSSIT (380px)
              logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom: 30px;">' if cfg.get("logo_b64") else ""
              
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
@@ -1276,7 +1285,11 @@ else:
              <div class="main-content">
                 <div class="content-grid">
                     <div class="col-cands" style="align-items: flex-end;">{left_html}</div>
-                    <div class="col-qr">{logo_html}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div><div class="qr-text-big">SCANNEZ POUR VOTER</div></div>
+                    <div class="col-qr">
+                        {logo_html}
+                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div>
+                        <div class="qr-text-big">SCANNEZ POUR VOTER</div>
+                    </div>
                     <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
                 </div>
              </div>""", height=950)
