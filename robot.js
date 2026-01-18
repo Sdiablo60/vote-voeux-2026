@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (CLAP-E EST NÉ !)
+// 🟢 CONFIGURATION ROBOT 2026 (TIMING PARFAIT - CLAP-E)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 7500; 
+const DUREE_LECTURE = 7500; // Le texte reste 7.5 secondes
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
@@ -22,10 +22,11 @@ const CENTRAL_MESSAGES = [
     "N'oubliez pas vos sourires !"
 ];
 
-// --- BANQUES DE TEXTES (Avec Branding CLAP-E) ---
+// --- BANQUES DE TEXTES ---
 const TEXTS_ATTENTE = [
     "Que fait Clap-E quand il s'ennuie ? ... Il se range ! 🤖",
-    "Je m'appelle Clap-E, et je suis ravi d'être votre animateur !",
+    "Je m'appelle Clap-E, votre serviteur dévoué !",
+    "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
     "Pourquoi les robots n'ont-ils jamais peur ? Car ils ont des nerfs d'acier !",
     "Toc toc... (C'est encore Clap-E !)",
     "Vous êtes très élégants ce soir !",
@@ -105,7 +106,7 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO 1 : ACCUEIL (PRESENTATION CLAP-E) ---
+// --- SCENARIO 1 : ACCUEIL ---
 const introScript_Attente = [
     { time: 4, text: "", action: "enter_scene_slow" }, 
     { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
@@ -113,7 +114,7 @@ const introScript_Attente = [
     { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" }, 
     { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" }, 
     
-    // PRESENTATION DU NOM
+    // PRESENTATION
     { time: 42, text: "Bonjour tout le monde ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
     
     { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech", action: "move_far_right" }, 
@@ -123,10 +124,9 @@ const introScript_Attente = [
     { time: 76, text: "Votre visage me dit quelque chose monsieur...", type: "thought", action: "scan_crowd" }, 
     { time: 84, text: "Hum, non, je dois confondre avec une star. 😎", type: "speech" },
     
-    // APPEL REGIE PERSONNALISÉ
+    // APPEL REGIE
     { time: 92, text: "Excusez-moi, je reçois un appel...", type: "speech", action: "phone_call" }, 
     { time: 100, text: "Allô la régie ? Oui, ici Clap-E, je vous écoute.", type: "speech" },
-    
     { time: 108, text: "QUOI ?! C'est confirmé ?!", type: "speech", action: "surprise" },
     { time: 116, text: "Incroyable ! On vient de me nommer Animateur de la soirée ! 🎤", type: "speech", action: "start_subtitles" },
     { time: 124, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
@@ -134,12 +134,15 @@ const introScript_Attente = [
     { time: 140, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
     { time: 148, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" }, 
     { time: 156, text: "Mince ! Clap-E doit filer en coulisses !", type: "speech" },
+    
+    // SORTIE CORRIGÉE : Parle à 162, Attend 7s (jusqu'à 169), Sort à 169
     { time: 162, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech" }, 
-    { time: 165, text: "", action: "exit_right_normal" }, 
-    { time: 180, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" }, 
-    { time: 188, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
-    { time: 196, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
-    { time: 204, text: "Installez-vous bien, Clap-E veille sur vous.", type: "speech" }
+    { time: 169, text: "", action: "exit_right_normal" }, // SORTIE RETARDÉE
+    
+    { time: 184, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" }, 
+    { time: 192, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
+    { time: 200, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
+    { time: 208, text: "Installez-vous bien, Clap-E veille sur vous.", type: "speech" }
 ];
 
 // --- SCENARIO 2 : VOTE OFF ---
@@ -162,10 +165,13 @@ const introScript_Photos = [
     { time: 28, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
     { time: 35, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, 
     { time: 42, text: "Un petit selfie avec Clap-E ?", type: "speech", action: "pose_selfie" }, 
+    
+    // SORTIE CORRIGÉE : Parle à 48, Attend 7s (jusqu'à 55), Sort à 55
     { time: 48, text: "Bon, je file voir la régie...", type: "speech" }, 
-    { time: 51, text: "", action: "exit_left_fast" }, 
-    { time: 58, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, 
-    { time: 65, text: "Allez, tous ensemble pour la photo !", type: "speech", action: "pose_selfie" } 
+    { time: 55, text: "", action: "exit_left_fast" }, // SORTIE RETARDÉE
+    
+    { time: 62, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, 
+    { time: 69, text: "Allez, tous ensemble pour la photo !", type: "speech", action: "pose_selfie" } 
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -337,17 +343,17 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                if(step.action === "enter_scene_slow") targetPos.set(-12, 2, -2); // LOIN
+                if(step.action === "enter_scene_slow") targetPos.set(-12, 2, -2);
                 if(step.action === "move_right_slow") targetPos.set(11, 1, -2); 
                 if(step.action === "move_left_check") targetPos.set(-11, -1, 0); 
                 if(step.action === "move_far_left") targetPos.set(-12, 0, -1);
-                if(step.action === "move_far_right") targetPos.set(12, 0, -1); // Ajout
+                if(step.action === "move_far_right") targetPos.set(12, 0, -1);
                 if(step.action === "exit_left_normal") targetPos.set(-35, 0, 0);
                 if(step.action === "exit_left_fast") targetPos.set(-35, 0, 0);
                 if(step.action === "exit_right_normal") targetPos.set(35, 0, 0);
                 if(step.action === "look_around") targetPos.set(0, 0, -5);
-                if(step.action === "surprise_stop") targetPos.set(-11, 0, 4); // COTE
-                if(step.action === "move_center_wave") targetPos.set(11, 0, 5); // COTE
+                if(step.action === "surprise_stop") targetPos.set(-11, 0, 4); 
+                if(step.action === "move_center_wave") targetPos.set(11, 0, 5); 
                 if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
                 if(step.action === "wave_hands") { isWaving = true; setTimeout(() => { isWaving = false; }, 3000); }
@@ -358,7 +364,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(step.action === "surprise") targetPos.set(11, 0, 6);
                 if(step.action === "start_subtitles") { subtitlesActive = true; cycleCenterText(); lastTextChange = time; }
                 if(step.action === "stress_pacing") targetPos.set(-11, -2, 0);
-                if(step.action === "listen_intense") targetPos.set(0, 0, 5); // Centre Arriere
+                if(step.action === "listen_intense") targetPos.set(0, 0, 5);
                 
                 if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 4); }
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
