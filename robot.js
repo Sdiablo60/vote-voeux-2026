@@ -1,17 +1,19 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL v13 - EVITEMENT TEXTE)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v14 - FX BOOST & TIMING)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 7500; 
+const DUREE_LECTURE = 7000; 
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
 const SAFE_ZONE_X = 10.0; 
-const MUTE_LIMIT_X = 13.5; 
+
+// Limite plus stricte : dès qu'il touche le bord, le texte coupe
+const MUTE_LIMIT_X = 11.0; 
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -90,13 +92,13 @@ if (config.mode === 'vote_off') currentTextBank = [...TEXTS_VOTE_OFF];
 else if (config.mode === 'photos') currentTextBank = [...TEXTS_PHOTOS];
 else currentTextBank = [...TEXTS_ATTENTE];
 
-// --- STYLE CSS (Z-INDEX 6) ---
+// --- STYLE CSS ---
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
         position: fixed; padding: 20px 25px; color: black; font-family: 'Arial', sans-serif;
         font-weight: bold; font-size: 22px; text-align: center; z-index: 6; 
-        pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: scale(0.9); 
+        pointer-events: none; transition: opacity 0.2s, transform 0.3s; transform: scale(0.9); 
         max-width: 350px; width: max-content;
     }
     .bubble-speech { background: white; border-radius: 30px; border: 4px solid #E2001A; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
@@ -106,66 +108,67 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO 1 : ACCUEIL (CORRIGÉ - EVITEMENT TEXTE) ---
+// --- SCENARIO 1 : ACCUEIL (CORRIGÉ : TELEPORT AU DEBUT + FX) ---
 const introScript_Attente = [
-    { time: 4, text: "", action: "enter_scene_slow" }, // Arrive à -12 (GAUCHE)
-    { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" }, // Va à -9 (RESTE GAUCHE, ne va PAS au centre)
-    { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" }, // Traverse vers 12 (DROITE)
-    { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" }, // Traverse vers -12 (GAUCHE)
-    { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" }, // Stop à -11
+    // APPARITION IMMEDIATE (Pas de marche depuis l'extérieur)
+    { time: 2, text: "", action: "enter_teleport_left_visible" }, 
+    { time: 5, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" }, 
+    { time: 13, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" }, 
+    { time: 21, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" }, 
+    { time: 29, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" }, 
     
-    { time: 42, text: "Bonjour tout le monde ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
+    { time: 37, text: "Bonjour tout le monde ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
     
-    { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech", action: "move_far_right" }, // Va à 12
-    { time: 58, text: "", action: "toc_toc_approach" }, // S'approche à 11 (DROITE)
-    { time: 60, text: "Toc ! Toc ! Vous m'entendez là-dedans ?", type: "speech" }, 
-    { time: 68, text: "Ah ! Vous êtes bien réels ! 😅", type: "speech", action: "backup_a_bit" }, // Recule à 12
-    { time: 76, text: "Votre visage me dit quelque chose monsieur...", type: "thought", action: "scan_crowd" }, // Va à -12
-    { time: 84, text: "Hum, non, je dois confondre avec une star. 😎", type: "speech" },
+    { time: 45, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech", action: "move_far_right" }, 
+    { time: 53, text: "", action: "toc_toc_approach" }, 
+    { time: 55, text: "Toc ! Toc ! Vous m'entendez là-dedans ?", type: "speech" }, 
+    { time: 63, text: "Ah ! Vous êtes bien réels ! 😅", type: "speech", action: "backup_a_bit" }, 
+    { time: 71, text: "Votre visage me dit quelque chose monsieur...", type: "thought", action: "scan_crowd" }, 
+    { time: 79, text: "Hum, non, je dois confondre avec une star. 😎", type: "speech" },
     
-    { time: 92, text: "Excusez-moi, je reçois un appel...", type: "speech", action: "phone_call" }, // Va à 12
-    { time: 100, text: "Allô la régie ? Oui, ici Clap-E, je vous écoute.", type: "speech" },
-    { time: 108, text: "QUOI ?! C'est confirmé ?!", type: "speech", action: "surprise" },
-    { time: 116, text: "Incroyable ! On vient de me nommer Animateur de la soirée ! 🎤", type: "speech", action: "start_subtitles" },
-    { time: 124, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
-    { time: 132, text: "Ouhlà... Je n'ai pas préparé mes fiches...", type: "thought", action: "stress_pacing" }, // Va à -12
-    { time: 140, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
-    { time: 148, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" }, 
-    { time: 156, text: "Mince ! Clap-E doit filer en coulisses !", type: "speech" },
+    { time: 87, text: "Excusez-moi, je reçois un appel...", type: "speech", action: "phone_call" }, 
+    { time: 95, text: "Allô la régie ? Oui, ici Clap-E, je vous écoute.", type: "speech" },
+    { time: 103, text: "QUOI ?! C'est confirmé ?!", type: "speech", action: "surprise" },
+    { time: 111, text: "Incroyable ! On vient de me nommer Animateur de la soirée ! 🎤", type: "speech", action: "start_subtitles" },
+    { time: 119, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
+    { time: 127, text: "Ouhlà... Je n'ai pas préparé mes fiches...", type: "thought", action: "stress_pacing" }, 
+    { time: 135, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
+    { time: 143, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" }, 
+    { time: 151, text: "Mince ! Clap-E doit filer en coulisses !", type: "speech" },
     
-    { time: 162, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech" }, 
-    { time: 169, text: "", action: "exit_right_normal" }, // SORTIE
+    { time: 157, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech" }, // Parle
+    { time: 162, text: "", action: "enter_teleport_right" }, // SORTIE PAR TELEPORTATION (Plus visible)
     
-    { time: 184, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" }, // Rentre à -12
-    { time: 192, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
-    { time: 200, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
-    { time: 208, text: "Installez-vous bien, Clap-E veille sur vous.", type: "speech" }
+    { time: 177, text: "Me revoilà ! 😅", type: "speech", action: "enter_teleport_left_visible" }, 
+    { time: 185, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
+    { time: 193, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
+    { time: 201, text: "Installez-vous bien, Clap-E veille sur vous.", type: "speech" }
 ];
 
 // --- SCENARIO 2 : VOTE OFF ---
 const introScript_VoteOff = [
-    { time: 2, text: "", action: "enter_teleport_left" }, // Arrive -12
-    { time: 8, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
-    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" }, // Va 12
-    { time: 22, text: "La régie est en train de compter les points...", type: "speech" },
-    { time: 29, text: "Soyez patients, Clap-E surveille tout ça !", type: "speech", action: "move_left_check" }, // Va -12
-    { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
+    { time: 2, text: "", action: "enter_teleport_left_visible" }, 
+    { time: 5, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
+    { time: 12, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" },
+    { time: 20, text: "La régie est en train de compter les points...", type: "speech" },
+    { time: 27, text: "Soyez patients, Clap-E surveille tout ça !", type: "speech", action: "move_left_check" }, 
+    { time: 35, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
 // --- SCENARIO 3 : PHOTOS LIVE ---
 const introScript_Photos = [
-    { time: 2, text: "", action: "enter_teleport_right_visible" }, // Arrive 11
-    { time: 8, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
-    { time: 13, text: "", action: "dance_stop" },
-    { time: 15, text: "Coucou ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" }, 
-    { time: 20, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, // Va -12
-    { time: 28, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
-    { time: 35, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, // Va 12
-    { time: 42, text: "Un petit selfie avec Clap-E ?", type: "speech", action: "pose_selfie" }, 
-    { time: 48, text: "Bon, je file voir la régie...", type: "speech" }, 
-    { time: 55, text: "", action: "exit_left_fast" }, 
-    { time: 62, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, 
-    { time: 69, text: "Allez, tous ensemble pour la photo !", type: "speech", action: "pose_selfie" } 
+    { time: 2, text: "", action: "enter_teleport_right_visible" }, 
+    { time: 5, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
+    { time: 10, text: "", action: "dance_stop" },
+    { time: 12, text: "Coucou ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" }, 
+    { time: 18, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, 
+    { time: 26, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
+    { time: 33, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, 
+    { time: 40, text: "Un petit selfie avec Clap-E ?", type: "speech", action: "pose_selfie" }, 
+    { time: 47, text: "Bon, je file voir la régie...", type: "speech" }, 
+    { time: 54, text: "", action: "exit_left_fast" }, // Sortie en silence
+    { time: 61, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right_visible" }, 
+    { time: 68, text: "Allez, tous ensemble pour la photo !", type: "speech", action: "pose_selfie" } 
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -214,21 +217,33 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     
     sceneBot.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    const particleCount = 100;
+    // --- PARTICULES BOOSTÉES (500) ---
+    const particleCount = 500;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
     particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-    const particleMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.2, transparent: true, opacity: 0 });
+    const particleMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.3, transparent: true, opacity: 0 }); // Plus gros
     const particles = new THREE.Points(particleGeo, particleMat);
     sceneBot.add(particles);
+    
+    // LUMIERE FLASH TELEPORT
+    const teleportLight = new THREE.PointLight(0x00ffff, 0, 20);
+    sceneBot.add(teleportLight);
+
     let explosionTime = 0;
     let isExploding = false;
 
     function triggerTeleport(pos) {
         isExploding = true; explosionTime = 1.0; 
-        particles.position.copy(pos); particleMat.opacity = 1;
+        particles.position.copy(pos); 
+        teleportLight.position.copy(pos); // Lumière au point de TP
+        teleportLight.intensity = 5; // Flash lumineux
+        
+        particleMat.opacity = 1;
         for(let i=0; i<particleCount; i++) {
-            particlePositions[i*3] = (Math.random()-0.5)*2; particlePositions[i*3+1] = (Math.random()-0.5)*4; particlePositions[i*3+2] = (Math.random()-0.5)*2;
+            particlePositions[i*3] = (Math.random()-0.5)*3; // Plus large dispersion
+            particlePositions[i*3+1] = (Math.random()-0.5)*5; 
+            particlePositions[i*3+2] = (Math.random()-0.5)*3;
         }
         particleGeo.attributes.position.needsUpdate = true;
     }
@@ -322,8 +337,13 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         if(isExploding && explosionTime > 0) {
             explosionTime -= 0.02;
             particleMat.opacity = explosionTime;
+            teleportLight.intensity = explosionTime * 5; // Flash diminue
             const positions = particleGeo.attributes.position.array;
-            for(let i=0; i<100; i++) { positions[i*3] += (Math.random()-0.5)*0.1; positions[i*3+1] += (Math.random()-0.5)*0.1; positions[i*3+2] += (Math.random()-0.5)*0.1; }
+            for(let i=0; i<particleCount; i++) { 
+                positions[i*3] += (Math.random()-0.5)*0.2; 
+                positions[i*3+1] += (Math.random()-0.5)*0.2; 
+                positions[i*3+2] += (Math.random()-0.5)*0.2; 
+            }
             particleGeo.attributes.position.needsUpdate = true;
         }
 
@@ -348,11 +368,11 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(step.action === "exit_left_normal") targetPos.set(-35, 0, 0);
                 if(step.action === "exit_left_fast") targetPos.set(-35, 0, 0);
                 if(step.action === "exit_right_normal") targetPos.set(35, 0, 0);
-                if(step.action === "look_around") targetPos.set(-9, 1, 4); // RESTE GAUCHE
+                if(step.action === "look_around") targetPos.set(0, 0, -5);
                 if(step.action === "surprise_stop") targetPos.set(-11, 0, 4); 
                 if(step.action === "move_center_wave") targetPos.set(11, 0, 5); 
-                if(step.action === "toc_toc_approach") targetPos.set(11, 0, 8.5); // RESTE DROITE
-                if(step.action === "backup_a_bit") targetPos.set(11, 0, 5);
+                if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
+                if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
                 if(step.action === "wave_hands") { isWaving = true; setTimeout(() => { isWaving = false; }, 3000); }
                 if(step.action === "pose_selfie") { robotState = 'posing'; setTimeout(() => { robotState = 'intro'; }, 3000); }
                 if(step.action === "look_bubbles") { targetPos.set(-12, 4, 0); } 
@@ -364,13 +384,17 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(step.action === "listen_intense") targetPos.set(-11, 0, 5);
                 
                 if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 4); }
-                if(step.action === "center_breath") targetPos.set(0, 0, 3); // Exception : Respire au centre bas (pas de texte ici)
+                if(step.action === "center_breath") targetPos.set(0, 0, 3);
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
                 if(step.action === "enter_teleport_left") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
                 if(step.action === "enter_teleport_right") { robotGroup.position.set(35, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
                 
+                // TELEPORTATIONS VISIBLES (On set la position du robot SUR l'écran)
                 if(step.action === "enter_teleport_right_visible") {
                     robotGroup.position.set(11, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0));
+                }
+                if(step.action === "enter_teleport_left_visible") {
+                    robotGroup.position.set(-12, 0, 0); targetPos.set(-12, 0, 0); triggerTeleport(new THREE.Vector3(-12, 0, 0));
                 }
 
                 if(step.action === "dance_start") { robotState = 'dancing_intro'; setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); }
