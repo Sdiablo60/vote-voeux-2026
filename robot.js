@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (CENTRE INTERDIT STRICTEMENT)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v13 - EVITEMENT TEXTE)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -10,8 +10,6 @@ const DUREE_LECTURE = 7500;
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
-
-// ZONE INTERDITE STRICTE (Aucun arrêt entre -9 et 9)
 const SAFE_ZONE_X = 10.0; 
 const MUTE_LIMIT_X = 13.5; 
 
@@ -92,7 +90,7 @@ if (config.mode === 'vote_off') currentTextBank = [...TEXTS_VOTE_OFF];
 else if (config.mode === 'photos') currentTextBank = [...TEXTS_PHOTOS];
 else currentTextBank = [...TEXTS_ATTENTE];
 
-// --- STYLE CSS ---
+// --- STYLE CSS (Z-INDEX 6) ---
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
@@ -108,13 +106,13 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO 1 : ACCUEIL (CORRIGÉ - TOUT SUR LES COTÉS) ---
+// --- SCENARIO 1 : ACCUEIL (CORRIGÉ - EVITEMENT TEXTE) ---
 const introScript_Attente = [
     { time: 4, text: "", action: "enter_scene_slow" }, // Arrive à -12 (GAUCHE)
-    { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
-    { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" }, // Va à 12 (DROITE)
-    { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" }, // Va à -12 (GAUCHE)
-    { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" }, // Stop à -12
+    { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" }, // Va à -9 (RESTE GAUCHE, ne va PAS au centre)
+    { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" }, // Traverse vers 12 (DROITE)
+    { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" }, // Traverse vers -12 (GAUCHE)
+    { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" }, // Stop à -11
     
     { time: 42, text: "Bonjour tout le monde ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
     
@@ -342,39 +340,32 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                // --- ACTIONS AVEC COORDONNÉES DÉPORTÉES ---
                 if(step.action === "enter_scene_slow") targetPos.set(-12, 2, -2);
-                if(step.action === "move_right_slow") targetPos.set(12, 1, -2); // Traverse vers 12
-                if(step.action === "move_left_check") targetPos.set(-12, -1, 0); // Traverse vers -12
+                if(step.action === "move_right_slow") targetPos.set(11, 1, -2); 
+                if(step.action === "move_left_check") targetPos.set(-11, -1, 0); 
                 if(step.action === "move_far_left") targetPos.set(-12, 0, -1);
                 if(step.action === "move_far_right") targetPos.set(12, 0, -1);
                 if(step.action === "exit_left_normal") targetPos.set(-35, 0, 0);
                 if(step.action === "exit_left_fast") targetPos.set(-35, 0, 0);
                 if(step.action === "exit_right_normal") targetPos.set(35, 0, 0);
-                
-                if(step.action === "look_around") targetPos.set(0, 0, -5); 
-                if(step.action === "surprise_stop") targetPos.set(-12, 0, 4); // Stop Gauche
-                if(step.action === "move_center_wave") targetPos.set(11, 0, 5); // Stop Droite (vague)
-                
-                // TOC TOC DEPORTÉ A DROITE
-                if(step.action === "toc_toc_approach") targetPos.set(11, 0, 8.5); 
+                if(step.action === "look_around") targetPos.set(-9, 1, 4); // RESTE GAUCHE
+                if(step.action === "surprise_stop") targetPos.set(-11, 0, 4); 
+                if(step.action === "move_center_wave") targetPos.set(11, 0, 5); 
+                if(step.action === "toc_toc_approach") targetPos.set(11, 0, 8.5); // RESTE DROITE
                 if(step.action === "backup_a_bit") targetPos.set(11, 0, 5);
-                
                 if(step.action === "wave_hands") { isWaving = true; setTimeout(() => { isWaving = false; }, 3000); }
                 if(step.action === "pose_selfie") { robotState = 'posing'; setTimeout(() => { robotState = 'intro'; }, 3000); }
                 if(step.action === "look_bubbles") { targetPos.set(-12, 4, 0); } 
-                
-                if(step.action === "scan_crowd") targetPos.set(-12, 1, 4);
-                if(step.action === "phone_call") targetPos.set(12, 0, 2);
-                if(step.action === "surprise") targetPos.set(12, 0, 6);
+                if(step.action === "scan_crowd") targetPos.set(-11, 1, 4);
+                if(step.action === "phone_call") targetPos.set(11, 0, 2);
+                if(step.action === "surprise") targetPos.set(11, 0, 6);
                 if(step.action === "start_subtitles") { subtitlesActive = true; cycleCenterText(); lastTextChange = time; }
-                if(step.action === "stress_pacing") targetPos.set(-12, -2, 0);
-                if(step.action === "listen_intense") targetPos.set(-12, 0, 5);
+                if(step.action === "stress_pacing") targetPos.set(-11, -2, 0);
+                if(step.action === "listen_intense") targetPos.set(-11, 0, 5);
                 
-                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-12, 0, 4); }
-                if(step.action === "center_breath") targetPos.set(0, 0, 3);
+                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 4); }
+                if(step.action === "center_breath") targetPos.set(0, 0, 3); // Exception : Respire au centre bas (pas de texte ici)
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
-                
                 if(step.action === "enter_teleport_left") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
                 if(step.action === "enter_teleport_right") { robotGroup.position.set(35, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
                 
