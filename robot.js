@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL v8 - COUPURE BORDS)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v9 - ARRÊTS EXTÉRIEURS)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -10,10 +10,12 @@ const DUREE_LECTURE = 7500;
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
+
+// ZONE INTERDITE : Le robot ne s'arrête jamais entre -10 et 10
 const SAFE_ZONE_X = 10.0; 
 
-// Limite X au-delà de laquelle le robot se tait pour ne pas couper le texte
-const MUTE_LIMIT_X = 11.0; 
+// Limite X au-delà de laquelle le texte se coupe (élargie pour permettre l'arrêt sur les cotés)
+const MUTE_LIMIT_X = 13.5; 
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -107,32 +109,32 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO 1 : ACCUEIL ---
+// --- SCENARIO 1 : ACCUEIL (CORRIGÉ - PLUS D'ARRÊT AU CENTRE) ---
 const introScript_Attente = [
-    { time: 4, text: "", action: "enter_scene_slow" }, 
+    { time: 4, text: "", action: "enter_scene_slow" }, // Arrive à -12
     { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
-    { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" },
-    { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" },
-    { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" },
+    { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" }, // Va à 11 (Traverse le centre sans s'arrêter)
+    { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" }, // Va à -11
+    { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" }, // S'arrête à -11 (Coté Gauche)
     { time: 42, text: "Bonjour tout le monde ! 👋", type: "speech", action: "wave_hands" },
-    { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech", action: "move_center_wave" }, 
-    { time: 58, text: "", action: "toc_toc_approach" }, 
+    { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech", action: "move_far_right" }, // Traverse vers 11
+    { time: 58, text: "", action: "toc_toc_approach" }, // Exception : S'approche très près (devant le texte, pas derrière)
     { time: 60, text: "Toc ! Toc ! Vous m'entendez là-dedans ?", type: "speech" }, 
     { time: 68, text: "Ah ! Vous êtes bien réels ! 😅", type: "speech", action: "backup_a_bit" },
-    { time: 76, text: "Votre visage me dit quelque chose monsieur...", type: "thought", action: "scan_crowd" },
+    { time: 76, text: "Votre visage me dit quelque chose monsieur...", type: "thought", action: "scan_crowd" }, // Recule à -11
     { time: 84, text: "Hum, non, je dois confondre avec une star. 😎", type: "speech" },
-    { time: 92, text: "Excusez-moi, je reçois un appel...", type: "speech", action: "phone_call" },
+    { time: 92, text: "Excusez-moi, je reçois un appel...", type: "speech", action: "phone_call" }, // Va à 11
     { time: 100, text: "Allô la régie ? Oui c'est le Robot.", type: "speech" },
     { time: 108, text: "QUOI ?! C'est confirmé ?!", type: "speech", action: "surprise" },
     { time: 116, text: "Incroyable ! On vient de me nommer Animateur de la soirée ! 🎤", type: "speech", action: "start_subtitles" },
     { time: 124, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
-    { time: 132, text: "Ouhlà... Je n'ai pas préparé mes fiches...", type: "thought", action: "stress_pacing" },
+    { time: 132, text: "Ouhlà... Je n'ai pas préparé mes fiches...", type: "thought", action: "stress_pacing" }, // Retourne à -11
     { time: 140, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
-    { time: 148, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" },
+    { time: 148, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" }, // Ecoute (coté)
     { time: 156, text: "Mince ! Je dois filer en coulisses !", type: "speech" },
     { time: 162, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech" }, 
     { time: 165, text: "", action: "exit_right_normal" }, // SORTIE SILENCIEUSE
-    { time: 180, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" },
+    { time: 180, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" }, // Rentre à -11
     { time: 188, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
     { time: 196, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
     { time: 204, text: "Installez-vous bien, je veille sur vous.", type: "speech" }
@@ -140,27 +142,27 @@ const introScript_Attente = [
 
 // --- SCENARIO 2 : VOTE OFF ---
 const introScript_VoteOff = [
-    { time: 2, text: "", action: "enter_teleport_left" }, 
+    { time: 2, text: "", action: "enter_teleport_left" }, // Arrive à -11
     { time: 8, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
-    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" },
+    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" }, // Traverse vers 11
     { time: 22, text: "La régie est en train de compter les points...", type: "speech" },
-    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "move_left_check" }, 
+    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "move_left_check" }, // Retourne à -11
     { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
-// --- SCENARIO 3 : PHOTOS LIVE (SORTIE CORRIGÉE) ---
+// --- SCENARIO 3 : PHOTOS LIVE ---
 const introScript_Photos = [
-    { time: 2, text: "", action: "enter_teleport_right_visible" }, 
+    { time: 2, text: "", action: "enter_teleport_right_visible" }, // Arrive à 11
     { time: 8, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
     { time: 13, text: "", action: "dance_stop" },
     { time: 15, text: "Coucou tout le monde ! 👋", type: "speech", action: "wave_hands" }, 
-    { time: 20, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, 
+    { time: 20, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, // Traverse vers -12
     { time: 28, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
-    { time: 35, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, 
+    { time: 35, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, // Retourne à 11
     { time: 42, text: "Envoyez vos meilleurs sourires !", type: "speech", action: "pose_selfie" }, 
-    { time: 48, text: "Bon, je file voir la régie...", type: "speech" }, // PARLE D'ABORD
-    { time: 51, text: "", action: "exit_left_fast" }, // PART ENSUITE (SILENCE)
-    { time: 58, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, 
+    { time: 48, text: "Bon, je file voir la régie...", type: "speech" }, 
+    { time: 51, text: "", action: "exit_left_fast" }, // Sortie silencieuse
+    { time: 58, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, // Revient à 11
     { time: 65, text: "Allez, on se fait un petit selfie ensemble ?", type: "speech", action: "pose_selfie" } 
 ];
 
@@ -179,6 +181,7 @@ function launchFinalScene() {
 
     const canvasBot = document.createElement('canvas'); canvasBot.id = 'robot-canvas-bot';
     document.body.appendChild(canvasBot);
+    // ROBOT = 5
     canvasBot.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 5 !important; pointer-events: none !important; background: transparent !important;`;
 
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
@@ -288,7 +291,10 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         const visibleHeight = 2 * Math.tan(vFOV / 2) * dist; const visibleWidth = visibleHeight * cameraBot.aspect;
         const xLimit = (visibleWidth / 2) - 2.5; 
         const side = Math.random() > 0.5 ? 1 : -1;
+        
+        // CIBLE EXTERIEURE : X > 10 ou X < -10
         const randomX = SAFE_ZONE_X + (Math.random() * (xLimit - SAFE_ZONE_X)); 
+        
         targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
         nextMoveTime = Date.now() + 8000; 
@@ -332,15 +338,17 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                if(step.action === "enter_scene_slow") targetPos.set(-7, 2, -2);
+                if(step.action === "enter_scene_slow") targetPos.set(-12, 2, -2); // -12 pour éviter le centre
                 if(step.action === "move_right_slow") targetPos.set(11, 1, -2); 
                 if(step.action === "move_left_check") targetPos.set(-11, -1, 0); 
                 if(step.action === "move_far_left") targetPos.set(-12, 0, -1);
+                if(step.action === "move_far_right") targetPos.set(12, 0, -1);
                 if(step.action === "exit_left_normal") targetPos.set(-35, 0, 0);
                 if(step.action === "exit_left_fast") targetPos.set(-35, 0, 0);
-                if(step.action === "look_around") targetPos.set(0, 0, -5);
-                if(step.action === "surprise_stop") targetPos.set(-6, 0, 4);
-                if(step.action === "move_center_wave") targetPos.set(0, 0, 5);
+                if(step.action === "exit_right_normal") targetPos.set(35, 0, 0);
+                if(step.action === "look_around") targetPos.set(0, 0, -5); // Regarde au fond
+                if(step.action === "surprise_stop") targetPos.set(-11, 0, 4); // S'arrête à gauche
+                if(step.action === "move_center_wave") targetPos.set(11, 0, 5); // Va à droite
                 if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
                 if(step.action === "wave_hands") { isWaving = true; setTimeout(() => { isWaving = false; }, 3000); }
@@ -352,17 +360,17 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(step.action === "start_subtitles") { subtitlesActive = true; cycleCenterText(); lastTextChange = time; }
                 if(step.action === "stress_pacing") targetPos.set(-11, -2, 0);
                 if(step.action === "listen_intense") targetPos.set(0, 0, 5);
-                if(step.action === "exit_right_normal") targetPos.set(35, 0, 0); 
+                
                 if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 4); }
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
-                if(step.action === "enter_teleport_left") { robotGroup.position.set(-35, 0, 0); targetPos.set(-8, 0, 0); triggerTeleport(new THREE.Vector3(-8, 0, 0)); }
-                if(step.action === "enter_teleport_right") { robotGroup.position.set(35, 0, 0); targetPos.set(8, 0, 0); triggerTeleport(new THREE.Vector3(8, 0, 0)); }
+                if(step.action === "enter_teleport_left") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
+                if(step.action === "enter_teleport_right") { robotGroup.position.set(35, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
                 
                 if(step.action === "enter_teleport_right_visible") {
-                    robotGroup.position.set(7, 0, 0); 
-                    targetPos.set(7, 0, 0); 
-                    triggerTeleport(new THREE.Vector3(7, 0, 0));
+                    robotGroup.position.set(11, 0, 0); 
+                    targetPos.set(11, 0, 0); 
+                    triggerTeleport(new THREE.Vector3(11, 0, 0));
                 }
 
                 if(step.action === "dance_start") { robotState = 'dancing_intro'; setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); }
