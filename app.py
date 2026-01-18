@@ -1054,30 +1054,44 @@ elif est_utilisateur:
             st.info("⏳ En attente du lancement...")
 
 # =========================================================
-# 3. MUR SOCIAL (PODIUM CORRIGÉ : GRID 2x2 & LOGO CALÉ)
+# 3. MUR SOCIAL (VERSION FINALE - PODIUM & LOGO CALÉS)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
+    
+    # Rafraîchissement automatique toutes les 5 secondes
     st_autorefresh(interval=5000, key="wall_refresh")
     
-    st.markdown("""<style>
+    # --- STYLE DU HEADER ROUGE ---
+    st.markdown("""
+    <style>
         .stApp { background-color: black !important; }
         .social-header { 
             position: fixed; top: 0; left: 0; width: 100vw; height: 8vh;
             background-color: #E2001A; display: flex; align-items: center; 
             justify-content: center; z-index: 9999; border-bottom: 3px solid white; 
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
-        .social-title { color: white; font-size: 3.5vh; font-weight: 900; text-transform: uppercase; }
+        .social-title { 
+            color: white !important; font-family: Arial, sans-serif;
+            font-size: 3.5vh; font-weight: 900; text-transform: uppercase; 
+            margin: 0; padding: 0;
+        }
     </style>
-    <div class="social-header"><h1 class="social-title">CONCOURS VIDÉO PÔLE AEROPORTUAIRE 2026</h1></div>""", unsafe_allow_html=True)
+    <div class="social-header"><h1 class="social-title">CONCOURS VIDÉO PÔLE AEROPORTUAIRE 2026</h1></div>
+    """, unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
     
     if mode == "votes" and cfg.get("reveal_resultats"):
+        # === LOGIQUE DU PODIUM ===
         v_data = load_json(VOTES_FILE, {})
         c_imgs = cfg.get("candidats_images", {})
+        if not v_data: v_data = {"En attente": 0}
+        
         sorted_scores = sorted(list(set(v_data.values())), reverse=True)
+        
         def get_winners(rank_idx):
             if rank_idx >= len(sorted_scores): return []
             s = sorted_scores[rank_idx]
@@ -1090,7 +1104,10 @@ else:
                 h += f"<div class='p-card'><div class='p-name'>{c}</div>{img}</div>"
             return h
 
-        h1 = gen_cards(get_winners(0), "🥇"); h2 = gen_cards(get_winners(1), "🥈"); h3 = gen_cards(get_winners(2), "🥉")
+        h1 = gen_cards(get_winners(0), "🥇")
+        h2 = gen_cards(get_winners(1), "🥈")
+        h3 = gen_cards(get_winners(2), "🥉")
+        
         s1 = sorted_scores[0] if len(sorted_scores)>0 else 0
         s2 = sorted_scores[1] if len(sorted_scores)>1 else 0
         s3 = sorted_scores[2] if len(sorted_scores)>2 else 0
@@ -1104,66 +1121,95 @@ else:
         </div>
         
         <div class="podium-container">
-            <div class="column-2"><div class="winners-box" id="win-2">{h2}</div><div class="pedestal pedestal-2"><div class="rank-score" id="score-2">{s2} PTS</div><div class="rank-num">2</div></div></div>
-            <div class="column-1"><div class="winners-box" id="win-1">{h1}</div><div class="pedestal pedestal-1"><div class="rank-score" id="score-1">{s1} PTS</div><div class="rank-num">1</div></div></div>
-            <div class="column-3"><div class="winners-box" id="win-3">{h3}</div><div class="pedestal pedestal-3"><div class="rank-score" id="score-3">{s3} PTS</div><div class="rank-num">3</div></div></div>
+            <div class="column-2">
+                <div class="winners-box" id="win-2">{h2}</div>
+                <div class="pedestal pedestal-2"><div class="rank-score" id="score-2">{s2} PTS</div><div class="rank-num">2</div></div>
+            </div>
+            <div class="column-1">
+                <div class="winners-box" id="win-1">{h1}</div>
+                <div class="pedestal pedestal-1"><div class="rank-score" id="score-1">{s1} PTS</div><div class="rank-num">1</div></div>
+            </div>
+            <div class="column-3">
+                <div class="winners-box" id="win-3">{h3}</div>
+                <div class="pedestal pedestal-3"><div class="rank-score" id="score-3">{s3} PTS</div><div class="rank-num">3</div></div>
+            </div>
         </div>
 
         <script>
         const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
-        async function run() {{
+        async function runSuspense() {{
+            // Séquence : 10s de suspense avant chaque révélation
             await wait(1000); document.getElementById('win-3').classList.add('visible'); 
             await wait(1000); document.getElementById('score-3').classList.add('visible');
+            
             await wait(4000); document.getElementById('win-2').classList.add('visible');
             await wait(1000); document.getElementById('score-2').classList.add('visible');
+            
             await wait(4000); document.getElementById('win-1').classList.add('visible');
             await wait(1000); document.getElementById('score-1').classList.add('visible');
+            
+            // Animation finale
             await wait(4000); document.getElementById('final-overlay').classList.add('stage-1-big');
-            await wait(6000); document.getElementById('final-overlay').classList.replace('stage-1-big', 'stage-2-top');
+            await wait(6000); 
+            document.getElementById('final-overlay').classList.remove('stage-1-big');
+            document.getElementById('final-overlay').classList.add('stage-2-top');
         }}
-        run();
+        runSuspense();
         </script>
 
         <style>
-        body {{ background: black; overflow: hidden; font-family: Arial, sans-serif; }}
-        .podium-container {{ position: absolute; bottom: 0; width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: flex-end; padding-bottom: 20px; }}
-        .column-1, .column-2, .column-3 {{ display: flex; flex-direction: column; align-items: center; width: 30%; }}
+        body {{ background: black; overflow: hidden; font-family: Arial, sans-serif; margin: 0; }}
         
-        /* GRID 2x2 FORCEE */
+        .podium-container {{ 
+            position: absolute; bottom: 0; width: 100vw; height: 92vh; 
+            display: flex; justify-content: center; align-items: flex-end; padding-bottom: 20px; 
+        }}
+        
+        .column-1, .column-2, .column-3 {{ display: flex; flex-direction: column; align-items: center; width: 32%; }}
+        
+        /* GRID 2x2 DES GAGNANTS */
         .winners-box {{ 
             display: flex; flex-wrap: wrap-reverse; justify-content: center; 
-            width: 350px !important; gap: 10px; opacity: 0; transition: 1s; 
+            width: 380px !important; gap: 10px; opacity: 0; transition: 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
         }}
         .winners-box.visible {{ opacity: 1; }}
+        
         .p-card {{ 
-            width: 160px; background: rgba(30,30,30,0.9); border-radius: 15px; 
-            padding: 10px; border: 2px solid white; text-align: center; 
-         Pyramide inversée : la 3ème carte se centrera au dessus */
+            width: 170px; background: rgba(30,30,30,0.95); border-radius: 15px; 
+            padding: 10px; border: 2px solid white; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5);
         }}
-        .p-img {{ width: 100%; border-radius: 10px; border: 2px solid white; }}
-        .p-name {{ color: white; font-weight: bold; font-size: 14px; margin-bottom: 5px; text-transform: uppercase; }}
+        .p-img {{ width: 100%; border-radius: 10px; border: 1px solid rgba(255,255,255,0.5); }}
+        .p-name {{ color: white; font-weight: bold; font-size: 16px; margin-bottom: 8px; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
 
         .pedestal {{ width: 100%; background: linear-gradient(#444, #000); border-radius: 20px 20px 0 0; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }}
-        .pedestal-1 {{ height: 300px; border-top: 5px solid gold; }}
-        .pedestal-2 {{ height: 200px; border-top: 5px solid silver; }}
-        .pedestal-3 {{ height: 120px; border-top: 5px solid #cd7f32; }}
-        .rank-num {{ font-size: 80px; font-weight: 900; color: white; opacity: 0.3; }}
-        .rank-score {{ font-size: 24px; font-weight: bold; color: white; opacity: 0; transition: 0.5s; }}
+        .pedestal-1 {{ height: 320px; border-top: 6px solid gold; }}
+        .pedestal-2 {{ height: 220px; border-top: 6px solid silver; }}
+        .pedestal-3 {{ height: 140px; border-top: 6px solid #cd7f32; }}
+        
+        .rank-num {{ font-size: 90px; font-weight: 900; color: white; opacity: 0.2; line-height: 1; }}
+        .rank-score {{ font-size: 28px; font-weight: bold; color: white; opacity: 0; transition: 0.8s; }}
         .rank-score.visible {{ opacity: 1; }}
 
-        /* ANIMATION LOGO FINAL */
+        /* OVERLAY FINAL (LOGO ET FÉLICITATIONS) */
         .final-overlay {{
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 8000; opacity: 0; pointer-events: none; transition: all 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 8000; opacity: 0; pointer-events: none; transition: all 1.5s ease-in-out;
         }}
+        
+        /* Étape 1 : Gros au milieu */
         .final-overlay.stage-1-big {{ opacity: 1; transform: scale(1.1); background: rgba(0,0,0,0.9); }}
+        
+        /* Étape 2 : Calé sous le titre rouge */
         .final-overlay.stage-2-top {{ 
-            opacity: 1; transform: scale(0.7); 
-            justify-content: flex-start; padding-top: 12vh; /* POSITION SOUS LE TITRE ROUGE */
+            opacity: 1; transform: scale(0.75); 
+            background: transparent;
+            justify-content: flex-start; 
+            padding-top: 10vh; /* Ajusté pour être juste sous le bandeau */
         }}
-        .final-logo {{ width: 500px; margin-bottom: 20px; }}
-        .final-text {{ font-size: 60px; color: #E2001A; font-weight: 900; text-align: center; text-shadow: 0 0 20px black; }}
+        
+        .final-logo {{ width: 550px; margin-bottom: 20px; }}
+        .final-text {{ font-size: 65px; color: #E2001A; font-weight: 900; text-align: center; text-shadow: 0 0 20px black; line-height: 1.1; }}
         </style>""", height=1000)
 
     elif cfg["session_ouverte"]:
