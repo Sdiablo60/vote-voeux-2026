@@ -1088,13 +1088,13 @@ else:
             </style>""", height=1000, scrolling=False)
 
         elif cfg["session_ouverte"]:
-             # === VOTES OUVERTS (LAYOUT AJUSTÉ : LOGO AU CENTRE + CANDIDATS GROSSIS) ===
+             # === VOTES OUVERTS (LAYOUT FINAL : LOGO XXL, BANDEAU NOIR, TEXTE EXTERNE) ===
              host = st.context.headers.get('host', 'localhost')
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              
-             # Logo pour la colonne centrale
-             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:250px; margin-bottom: 20px;">' if cfg.get("logo_b64") else ""
+             # 1. LOGO GROSSIT (380px)
+             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom: 30px;">' if cfg.get("logo_b64") else ""
              
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
              voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
@@ -1103,13 +1103,11 @@ else:
              cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
              left_cands = cands[:mid]; right_cands = cands[mid:]
              
-             # STYLES LISTE CANDIDATS (Augmentés)
              def gen_html_list(clist, imgs):
                  h = ""
                  for c in clist:
                      im = '<div style="font-size:35px;">👤</div>' 
                      if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid white;">'
-                     # Padding 15/25, Margin 25, Font 22
                      h += f"""<div style="display:flex; align-items:center; background:rgba(255,255,255,0.15); padding:15px 25px; border-radius:50px; margin-bottom:25px; width:100%; max-width:450px; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
                                 {im}<span style="margin-left:20px; font-size:22px; font-weight:bold; color:white; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c}</span>
                             </div>"""
@@ -1122,38 +1120,55 @@ else:
              <style>
                 body {{ background: black; margin: 0; padding: 0; font-family: 'Arial', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
                 
-                /* HEADER SPACING */
                 .header-spacer {{ width: 100%; height: 8vh; }}
                 
-                /* TOP SECTION : JUSTE LE TICKER */
                 .top-section {{ display: flex; flex-direction: column; align-items: center; width: 100%; flex: 0 0 auto; padding-top: 0; }}
                 
-                /* BANDEAU DEFILANT */
-                .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 45px; display: flex; align-items: center; border-bottom: 2px solid white; margin-top: 0; }}
-                .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; white-space: nowrap; }}
+                /* 2. BANDEAU DEFILANT : FOND NOIR + DESCENDU */
+                .marquee-container {{ 
+                    width: 100%; 
+                    background: black; /* Fond Noir */
+                    color: white; 
+                    height: 50px; 
+                    display: flex; align-items: center; 
+                    border-top: 1px solid #333;
+                    border-bottom: 4px solid #E2001A; /* Souligné rouge */
+                    margin-top: 25px; /* Descendu */
+                }}
+                .marquee-label {{
+                    background: #E2001A; color: white; height: 100%; padding: 0 25px; display: flex; align-items: center; font-weight: 900; z-index: 2; font-size: 18px;
+                }}
+                .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 20px; text-transform: uppercase; white-space: nowrap; }}
                 @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
                 
-                /* MAIN CONTENT */
                 .main-content {{ flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding-bottom: 2vh; }}
                 .content-grid {{ display: flex; justify-content: center; align-items: center; width: 98%; gap: 20px; height: 100%; }}
                 
-                /* COLONNES CANDIDATS */
                 .col-cands {{ width: 30%; display: flex; flex-direction: column; justify-content: center; height: 100%; }}
-                
-                /* COLONNE CENTRALE : Logo + QR */
                 .col-qr {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
                 
-                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite; text-align: center; }}
-                .qr-sub {{ margin-top: 10px; color: black; font-weight: bold; font-size: 20px; text-transform: uppercase; }}
+                .qr-box {{ 
+                    background: white; padding: 15px; border-radius: 20px; 
+                    box-shadow: 0 0 60px rgba(226, 0, 26, 0.6); 
+                    animation: pulse 3s infinite; text-align: center; 
+                    margin-bottom: 20px; /* Espace avant le texte */
+                }}
                 
-                @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 80px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
+                /* 3. TEXTE EXTERNE GROS */
+                .qr-text-big {{ 
+                    color: white; font-weight: 900; font-size: 32px; 
+                    text-transform: uppercase; text-align: center; 
+                    text-shadow: 0 0 20px #E2001A; letter-spacing: 2px;
+                }}
+                
+                @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 90px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
              </style>
              
              <div class="header-spacer"></div>
              
              <div class="top-section">
                 <div class="marquee-container">
-                    <div style="background:#C20015; height:100%; padding:0 25px; display:flex; align-items:center; font-weight:900; z-index:2; font-size: 18px;">DERNIERS VOTES :</div>
+                    <div class="marquee-label">DERNIERS VOTES :</div>
                     <div style="overflow:hidden; flex:1;"><div class="marquee-content">{voter_string}</div></div>
                 </div>
              </div>
@@ -1164,10 +1179,12 @@ else:
                     
                     <div class="col-qr">
                         {logo_html}
+                        
                         <div class="qr-box">
                             <img src="data:image/png;base64,{qr_b64}" width="280">
-                            <div class="qr-sub">Scannez pour voter</div>
                         </div>
+                        
+                        <div class="qr-text-big">SCANNEZ POUR VOTER</div>
                     </div>
                     
                     <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
