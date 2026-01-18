@@ -764,7 +764,7 @@ if est_admin:
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # --- CORRECTION CSS MOBILE (FIX TOTAL COULEURS & LISTE) ---
+    # --- CORRECTION CSS MOBILE (TAGS & LISTE) ---
     st.markdown("""<style>
     /* FOND NOIR GLOBAL */
     .stApp {background-color:black !important; color:white !important;} 
@@ -772,62 +772,54 @@ elif est_utilisateur:
     .block-container {padding: 1rem !important;} 
     h1, h2, h3, p, div, span, label { color: white !important; }
     
-    /* --- WIDGET MULTISELECT (CHAMP DE SAISIE) --- */
-    /* La boite principale blanche */
+    /* --- CHAMP DE SAISIE --- */
     .stMultiSelect div[data-baseweb="select"] > div { 
-        background-color: white !important; 
-        color: black !important; 
+        background-color: #ffffff !important; 
+        color: #000000 !important; 
+        border: 2px solid #E2001A !important; 
         border-radius: 8px;
-        border: none !important;
     }
-    /* Le texte "Choose options" ou le texte tapé */
-    .stMultiSelect input { color: black !important; }
-    .stMultiSelect div[data-baseweb="select"] span { color: #555 !important; } /* Gris foncé pour le placeholder */
+    .stMultiSelect input { color: black !important; caret-color: black; }
+    .stMultiSelect div[data-baseweb="select"] span { color: #333 !important; }
     
-    /* --- MENU DÉROULANT (LA LISTE) --- */
-    /* Le conteneur de la liste */
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] { 
-        background-color: white !important; 
-        border-radius: 8px !important;
-    }
+    /* --- MENU DÉROULANT (LISTE) --- */
+    div[data-baseweb="popover"] { background-color: white !important; border: none !important; }
+    ul[role="listbox"] { background-color: white !important; padding: 0 !important; }
     
-    /* Les options individuelles (Lignes) */
     li[role="option"] {
-        color: black !important; 
         background-color: white !important;
-        border-bottom: 1px solid #f0f0f0 !important; /* Trait fin subtil */
-        padding: 12px 20px !important; /* Plus d'espace */
-    }
-    
-    /* Texte à l'intérieur des options */
-    li[role="option"] span, li[role="option"] div {
         color: black !important;
+        border-bottom: 1px solid #eaeaea !important;
+        padding: 15px 10px !important;
+        font-size: 16px !important;
+    }
+    li[role="option"] span { color: black !important; font-weight: 500 !important; }
+    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+        background-color: #fff0f0 !important;
+        color: #E2001A !important;
         font-weight: bold !important;
     }
-    
-    /* Effet de survol (Hover) */
-    li[role="option"]:hover, li[role="option"]:focus, li[role="option"][aria-selected="true"] {
-        background-color: #ffe6e6 !important; /* Rouge très pâle au survol */
-        color: #E2001A !important;
-    }
-    
-    /* --- TAGS SÉLECTIONNÉS (LES CHOIX DANS LA BOITE) --- */
+
+    /* --- TAGS SÉLECTIONNÉS (MODIFIÉ : PLUS DOUX) --- */
     span[data-baseweb="tag"] {
-        background-color: #E2001A !important;
+        background-color: #333333 !important; /* Gris foncé au lieu de rouge vif */
         color: white !important;
-        border-radius: 20px !important;
+        border-radius: 15px !important;
+        border: 1px solid #555 !important;
     }
     span[data-baseweb="tag"] span { color: white !important; }
+    /* Croix de fermeture du tag */
+    span[data-baseweb="tag"] svg { fill: white !important; }
     
-    /* BOUTON ROUGE */
+    /* BOUTON VALIDATION */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { 
         background-color: #E2001A !important; 
         color: white !important; 
-        border: 1px solid #E2001A !important; 
+        border: none !important; 
         font-weight: bold !important;
         border-radius: 10px !important;
+        padding: 15px 0 !important;
     }
-    button[kind="primary"]:hover { background-color: #C20015 !important; }
     </style>""", unsafe_allow_html=True)
     
     curr_sess = cfg.get("session_id", "init")
@@ -901,9 +893,8 @@ elif est_utilisateur:
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
-
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - PODIUM CINÉMATIQUE & GRID FIX)
+# 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -1062,7 +1053,7 @@ else:
     # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # === PODIUM & SÉQUENCE CINÉMATIQUE (EMPILEMENT 2x2 & POSITION CORRIGÉS) ===
+            # === PODIUM & SÉQUENCE CINÉMATIQUE (GRID 2x2 FORCEE) ===
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1162,13 +1153,12 @@ else:
             .column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}
             .column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}
             
-            /* GAGNANTS : EMPILEMENT PYRAMIDAL CORRIGÉ (LARGEUR 300px pour 2 cartes) */
-            /* Force le wrap : 130 + 130 + marges < 300px */
+            /* GAGNANTS : EMPILEMENT PYRAMIDAL */
             .winners-box{{
                 display:flex; flex-direction:row; flex-wrap:wrap-reverse; /* Construit vers le haut */
                 justify-content:center; align-items:flex-end;
-                width:300px !important; /* Force le wrap si > 2 cartes */
-                max-width:300px !important;
+                width:400px !important; /* LARGEUR FORCEE POUR 2 CARTES MAX */
+                max-width:400px !important;
                 margin:0 auto; padding-bottom:0px;
                 opacity:0; transform:translateY(50px) scale(0.8);
                 transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);
@@ -1190,7 +1180,7 @@ else:
             }}
             .rank-score.visible{{ opacity: 1; transform: scale(1); }}
             
-            /* CARTES RÉDUITES (130px) POUR EMPILEMENT COTE A COTE */
+            /* CARTES 130px */
             .p-card{{
                 background:rgba(20,20,20,0.8); border-radius:15px; padding:8px;
                 width:130px; margin:4px; 
@@ -1216,7 +1206,6 @@ else:
             .final-overlay.stage-1-big{{opacity:1;transform:scale(1.2);background-color:rgba(0,0,0,0.95);}}
             
             /* ETAPE 2 : PETIT + EN HAUT (REMONTE A -55%) + TRANSPARENT */
-            /* -55% permet de remonter franchement le logo pour dégager la vue */
             .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-55%);background-color:transparent;}}
             
             .final-content{{text-align:center;}}
