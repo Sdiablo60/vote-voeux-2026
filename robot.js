@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (TELEPORTATION & ZONE INTERDITE)
+// 🟢 CONFIGURATION ROBOT 2026 (ZONE LARGE & ROTATION FIXE)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -11,8 +11,8 @@ const VITESSE_MOUVEMENT = 0.008;
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
 
-// Zone centrale interdite (pour ne pas cacher les textes)
-const SAFE_ZONE_X = 7.0; 
+// ZONE INTERDITE ÉLARGIE (Pour ne pas toucher le cadre central)
+const SAFE_ZONE_X = 9.0; 
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -23,7 +23,7 @@ const CENTRAL_MESSAGES = [
     "N'oubliez pas vos sourires !"
 ];
 
-// --- BANQUE : ACCUEIL / GÉNÉRAL ---
+// --- BANQUES DE TEXTES ---
 const TEXTS_ATTENTE = [
     "Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖",
     "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
@@ -44,7 +44,6 @@ const TEXTS_ATTENTE = [
     "Je suis tellement content d'être votre animateur."
 ];
 
-// --- BANQUE : VOTE OFF (Thème : Chiffres, Attente, Suspense) ---
 const TEXTS_VOTE_OFF = [
     "Désolé, les votes sont clos ! 🛑",
     "La régie compte les points... 1, 2, 3... beaucoup !",
@@ -63,7 +62,6 @@ const TEXTS_VOTE_OFF = [
     "Merci à tous d'avoir participé, c'était intense."
 ];
 
-// --- BANQUE : PHOTOS LIVE (Thème : Image, Danse, Flash) ---
 const TEXTS_PHOTOS = [
     "C'est parti pour la soirée danse ! 💃",
     "Je me chauffe les vérins... Regardez ce style !",
@@ -135,24 +133,24 @@ const introScript_Attente = [
     { time: 204, text: "Installez-vous bien, je veille sur vous.", type: "speech" }
 ];
 
-// --- SCENARIO 2 : VOTE OFF (Entrée gauche, traverse, parle) ---
+// --- SCENARIO 2 : VOTE OFF (RESTE SUR LES COTÉS) ---
 const introScript_VoteOff = [
-    { time: 2, text: "", action: "enter_teleport_left" }, // RENTRE AVEC EFFET
+    { time: 2, text: "", action: "enter_teleport_left" }, // Arrive à gauche (X=-10)
     { time: 8, text: "Oula... C'est fini !", type: "speech" },
-    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" },
+    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" }, // Traverse vers droite (X=10)
     { time: 22, text: "La régie est en train de compter les points...", type: "speech" },
-    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "move_left_check" },
+    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "move_left_check" }, // Retourne gauche (X=-10)
     { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
-// --- SCENARIO 3 : PHOTOS LIVE (Entrée droite, danse, face public) ---
+// --- SCENARIO 3 : PHOTOS LIVE (DANSE + COTÉS) ---
 const introScript_Photos = [
-    { time: 2, text: "", action: "enter_teleport_right" }, // RENTRE AVEC EFFET
+    { time: 2, text: "", action: "enter_teleport_right" }, // Arrive à droite (X=10)
     { time: 8, text: "Hé ! Mais c'est une soirée dansante ici ? 🕺", type: "speech" },
     { time: 15, text: "Attendez, je m'échauffe...", type: "speech", action: "dance_start" },
-    { time: 20, text: "", action: "dance_stop" }, // STOP DANSE & FACE PUBLIC
+    { time: 20, text: "", action: "dance_stop" }, // Stop Face Caméra
     { time: 22, text: "Pfiou ! Je suis chaud là !", type: "speech" },
-    { time: 29, text: "Dites, vous n'auriez pas vu une amie ?", type: "speech", action: "look_around" },
+    { time: 29, text: "Dites, vous n'auriez pas vu une amie ?", type: "speech", action: "move_left_check" }, // Va à gauche (X=-10)
     { time: 36, text: "Elle m'avait dit qu'elle viendrait... Une grille-pain très mignonne.", type: "speech" },
     { time: 43, text: "Tant pis, je danse tout seul ! 🤖✨", type: "speech", action: "dance_start" }
 ];
@@ -167,7 +165,6 @@ function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
-    // Z-INDEX 1 pour être derrière le texte
     canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 1; pointer-events: none !important; background: transparent !important;`;
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
@@ -187,12 +184,12 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // SOL GRIS
+    // SOL GRIS (SANS LIGNE ROUGE)
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
     grid.position.y = -2.5; 
     scene.add(grid);
 
-    // PARTICULES (Pour téléportation)
+    // PARTICULES (TELEPORTATION)
     const particleCount = 100;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
@@ -203,13 +200,11 @@ function initThreeJS(canvas, bubbleEl) {
     let explosionTime = 0;
     let isExploding = false;
 
-    // FONCTION TELEPORTATION
     function triggerTeleport(pos) {
         isExploding = true;
-        explosionTime = 1.0; // Durée effet
+        explosionTime = 1.0; 
         particles.position.copy(pos);
         particleMat.opacity = 1;
-        // Reset positions locales
         for(let i=0; i<particleCount; i++) {
             particlePositions[i*3] = (Math.random()-0.5)*2;
             particlePositions[i*3+1] = (Math.random()-0.5)*4;
@@ -220,7 +215,7 @@ function initThreeJS(canvas, bubbleEl) {
 
     // ROBOT
     const robotGroup = new THREE.Group(); 
-    robotGroup.position.set(-35, 0, 0); // Départ caché par défaut
+    robotGroup.position.set(-35, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
@@ -275,7 +270,7 @@ function initThreeJS(canvas, bubbleEl) {
         const xLimit = (visibleWidth / 2) - 2.5; 
         const side = Math.random() > 0.5 ? 1 : -1;
         
-        // ZONE INTERDITE CENTRALE : X doit être < -SAFE_ZONE_X ou > SAFE_ZONE_X
+        // ZONE INTERDITE : X > 9.0 ou X < -9.0
         const randomX = SAFE_ZONE_X + (Math.random() * (xLimit - SAFE_ZONE_X)); 
         
         targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
@@ -306,9 +301,9 @@ function initThreeJS(canvas, bubbleEl) {
             particleMat.opacity = explosionTime;
             const positions = particleGeo.attributes.position.array;
             for(let i=0; i<100; i++) {
-                positions[i*3] += (Math.random()-0.5)*0.1; // X
-                positions[i*3+1] += (Math.random()-0.5)*0.1; // Y
-                positions[i*3+2] += (Math.random()-0.5)*0.1; // Z
+                positions[i*3] += (Math.random()-0.5)*0.1; 
+                positions[i*3+1] += (Math.random()-0.5)*0.1;
+                positions[i*3+2] += (Math.random()-0.5)*0.1;
             }
             particleGeo.attributes.position.needsUpdate = true;
         }
@@ -327,37 +322,44 @@ function initThreeJS(canvas, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                // MOUVEMENTS CLASSIQUES
+                // Mouvements standards
                 if(step.action === "enter_scene_slow") targetPos.set(-7, 2, -2);
+                
+                // ZONES SAFE pour les murs chargés (Vote/Photos) -> X = 10 ou -10
+                if(step.action === "move_right_slow") targetPos.set(10, 1, -2); 
+                if(step.action === "move_left_check") targetPos.set(-10, -1, 0); 
+                
                 if(step.action === "look_around") targetPos.set(0, 0, -5);
-                if(step.action === "move_right_slow") targetPos.set(7, 1, -2); // LOIN DU CENTRE
-                if(step.action === "move_left_check") targetPos.set(-7, -1, 0); // LOIN DU CENTRE
                 if(step.action === "surprise_stop") targetPos.set(-6, 0, 4);
-                if(step.action === "move_center_wave") targetPos.set(0, 0, 5); // Exceptionnellement au centre devant
+                if(step.action === "move_center_wave") targetPos.set(0, 0, 5);
+                
+                // Gros plan
                 if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
-                if(step.action === "scan_crowd") targetPos.set(-7, 1, 4);
-                if(step.action === "phone_call") targetPos.set(7, 0, 2);
-                if(step.action === "surprise") targetPos.set(7, 0, 6);
+                
+                if(step.action === "scan_crowd") targetPos.set(-10, 1, 4);
+                if(step.action === "phone_call") targetPos.set(10, 0, 2);
+                if(step.action === "surprise") targetPos.set(10, 0, 6);
                 if(step.action === "start_subtitles") { subtitlesActive = true; cycleCenterText(); lastTextChange = time; }
-                if(step.action === "stress_pacing") targetPos.set(-7, -2, 0);
+                if(step.action === "stress_pacing") targetPos.set(-10, -2, 0);
                 if(step.action === "listen_intense") targetPos.set(0, 0, 5);
                 if(step.action === "exit_right_normal") targetPos.set(35, 0, 0); 
                 if(step.action === "exit_right_fast") targetPos.set(35, 0, 0); 
-                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-7, 0, 4); }
+                
+                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-10, 0, 4); }
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
                 
                 // TELEPORTATIONS
                 if(step.action === "enter_teleport_left") { 
-                    robotGroup.position.set(-35, 0, 0); // Hors champ
-                    targetPos.set(-8, 0, 0); // Arrivée gauche
-                    triggerTeleport(new THREE.Vector3(-8, 0, 0));
+                    robotGroup.position.set(-35, 0, 0); 
+                    targetPos.set(-10, 0, 0); 
+                    triggerTeleport(new THREE.Vector3(-10, 0, 0));
                 }
                 if(step.action === "enter_teleport_right") { 
                     robotGroup.position.set(35, 0, 0); 
-                    targetPos.set(8, 0, 0); 
-                    triggerTeleport(new THREE.Vector3(8, 0, 0));
+                    targetPos.set(10, 0, 0); 
+                    triggerTeleport(new THREE.Vector3(10, 0, 0));
                 }
 
                 // DANSE
@@ -366,8 +368,8 @@ function initThreeJS(canvas, bubbleEl) {
                     setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); 
                 }
                 if(step.action === "dance_stop") {
-                    robotState = 'intro'; // Force arrêt danse
-                    robotGroup.rotation.set(0, 0, 0); // REMET DROIT
+                    robotState = 'intro'; 
+                    robotGroup.rotation.set(0, 0, 0); // RESET ROTATION FACE CAMERA
                 }
                 
                 introIdx++;
@@ -409,7 +411,7 @@ function initThreeJS(canvas, bubbleEl) {
                     showBubble("C'est ma chanson préférée !", 'speech');
                     setTimeout(() => { 
                         robotState = 'infinite_loop'; 
-                        robotGroup.rotation.set(0,0,0); // REMET DROIT APRES DANSE
+                        robotGroup.rotation.set(0,0,0); 
                         pickNewTarget(); 
                     }, 6000); 
                     nextEvt = time + 20;
