@@ -1,17 +1,16 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT (RETOUR AUX BASIQUES)
+// 🟢 CONFIGURATION ROBOT - MOUVEMENT FLUIDE & LINÉAIRE
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 6000; 
-const VITESSE_MOUVEMENT = 0.015; // Mouvement doux
-const ECHELLE_BOT = 0.75; // Taille originale rétablie
+const VITESSE_LINEAIRE = 0.04; // Vitesse constante (plus d'impulsion)
+const ECHELLE_BOT = 0.75; 
 
-// LIMITES ECRAN (Reste visible sans aller sur le texte)
-const X_MAX_SCREEN = 12.0; 
-const X_SAFE_CENTER = 6.5; 
+// LIMITES ECRAN (Zones latérales)
+const X_MAX_SCREEN = 13.0; 
+const X_SAFE_MIN = 7.0; // Reste à l'écart du centre (texte)
 
 // BANQUES DE TEXTES
 const TEXTS_ATTENTE = [
@@ -51,7 +50,7 @@ function initThreeJS(canvasBot, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); 
-    camera.position.set(0, 0, 12);
+    camera.position.set(0, 0, 14);
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvasBot, antialias: true, alpha: true });
     renderer.setSize(width, height); renderer.setPixelRatio(window.devicePixelRatio);
@@ -61,36 +60,29 @@ function initThreeJS(canvasBot, bubbleEl) {
         camera.aspect = w / h; camera.updateProjectionMatrix(); renderer.setSize(w, h);
     });
 
-    // LUMIERES
     const ambientLight = new THREE.AmbientLight(0xffffff, 1.2); scene.add(ambientLight);
     const spotLight = new THREE.SpotLight(0xffffff, 1.5); spotLight.position.set(10, 20, 10); scene.add(spotLight);
 
     // ==========================================
-    // 🤖 CONSTRUCTION DU ROBOT ORIGINAL (Clap-E v1)
+    // 🤖 ROBOT ORIGINAL
     // ==========================================
     const robotGroup = new THREE.Group(); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
-    // Matériaux Originaux
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2 });
-    const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff }); // Bleu Cyan original
+    const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
-    // Tête & Visage
+    // Tête
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat); head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat); face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
-    
-    // Yeux (Torus originaux)
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
-    
-    // Bouche
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
     
-    // Corps
+    // Corps & Bras
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
     
-    // Bras (Capsules originales)
     const armLGroup = new THREE.Group(); armLGroup.position.set(-0.9, -0.8, 0); 
     const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armL.position.y = -0.2; 
     const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handL.position.y = -0.5; 
@@ -101,32 +93,29 @@ function initThreeJS(canvasBot, bubbleEl) {
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
 
-    // Assemblage
-    robotGroup.add(head);
-    robotGroup.add(body);
-    robotGroup.add(armLGroup);
-    robotGroup.add(armRGroup);
-    
+    robotGroup.add(head, body, armLGroup, armRGroup);
     scene.add(robotGroup);
 
-    // --- LOGIQUE D'ANIMATION CALME ---
+    // --- LOGIQUE DEPLACEMENT LISSE ---
     let time = 0;
     let targetPos = new THREE.Vector3(0, 0, 0);
     let bubbleTimer = 0;
     let isWaving = false;
-
-    // Position Initiale
-    robotGroup.position.set(-20, 0, 0); // Hors champ gauche
+    
+    // Initialisation : Hors champ gauche
+    robotGroup.position.set(-20, 0, 0);
 
     function pickTarget() {
+        // Choisir un côté (Gauche ou Droite) pour éviter le texte central
         const side = Math.random() > 0.5 ? 1 : -1;
-        const x = side * (X_SAFE_CENTER + Math.random() * (X_MAX_SCREEN - X_SAFE_CENTER));
-        // Y reste proche de 0 ou monte un peu pour "flotter"
-        const y = Math.sin(Date.now() * 0.001) * 2; 
+        // Position aléatoire dans la zone latérale
+        const x = side * (X_SAFE_MIN + Math.random() * (X_MAX_SCREEN - X_SAFE_MIN));
+        const y = (Math.random() - 0.5) * 4; // Hauteur variée
         return new THREE.Vector3(x, y, 0);
     }
-
-    targetPos = new THREE.Vector3(0, 0, 0); // Premier point : Centre (mais décalé par sécurité)
+    
+    // Premier mouvement vers le centre (mais décalé)
+    targetPos = new THREE.Vector3(-6, 0, 0);
 
     function showBubble(txt) {
         if(!txt) return;
@@ -140,24 +129,32 @@ function initThreeJS(canvasBot, bubbleEl) {
         requestAnimationFrame(animate);
         time += 0.02;
 
-        // 1. Mouvement Fluide (Lerp)
-        robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
-        
-        // 2. Légère oscillation (Respiration/Vol stationnaire)
-        robotGroup.position.y += Math.sin(time * 2) * 0.005;
-        robotGroup.rotation.z = Math.sin(time) * 0.05; // Balancement léger
+        // 1. CALCUL DU VECTEUR DE DIRECTION
+        // On n'utilise plus lerp (qui ralentit à la fin). On avance à vitesse constante.
+        const direction = new THREE.Vector3().subVectors(targetPos, robotGroup.position);
+        const distance = direction.length();
 
-        // 3. Orientation regard caméra
-        robotGroup.lookAt(camera.position.x, camera.position.y, camera.position.z + 10); // Regarde devant
-
-        // 4. Gestion Cible
-        if (robotGroup.position.distanceTo(targetPos) < 1.5) {
-            targetPos = pickTarget();
+        if (distance > 0.2) {
+            // Si on est loin, on avance
+            direction.normalize(); // Vecteur unitaire
+            robotGroup.position.add(direction.multiplyScalar(VITESSE_LINEAIRE));
+            
+            // Rotation douce vers la cible (pour qu'il regarde où il va un peu)
+            // Mais on garde le visage principalement vers la caméra
+            const lookTarget = targetPos.clone();
+            lookTarget.z = 10; // Force à regarder vers l'avant
+            robotGroup.lookAt(lookTarget);
+            
+        } else {
+            // Arrivé ! On choisit une nouvelle cible après une mini pause
+            if(Math.random() < 0.05) targetPos = pickTarget();
         }
 
-        // 5. Animation Bras (Coucou aléatoire)
+        // 2. OSCILLATION (Effet Flottant indépendant du mouvement)
+        robotGroup.position.y += Math.sin(time * 2) * 0.008;
+
+        // 3. BRAS (Animation)
         if (Math.random() < 0.005) isWaving = true;
-        
         if (isWaving) {
             armRGroup.rotation.z = Math.sin(time * 15) * 0.5;
             armRGroup.rotation.x = -0.5;
@@ -167,13 +164,13 @@ function initThreeJS(canvasBot, bubbleEl) {
             armRGroup.rotation.z = -Math.sin(time * 2) * 0.1;
         }
 
-        // 6. Parole
+        // 4. PAROLE
         if (time > bubbleTimer) {
             showBubble(currentTextBank[Math.floor(Math.random() * currentTextBank.length)]);
             bubbleTimer = time + 10 + Math.random() * 10;
         }
 
-        // Mise à jour Bulle
+        // 5. POSITION BULLE
         if (bubbleEl.style.opacity > 0) {
             const headPos = robotGroup.position.clone(); headPos.y += 1.8; headPos.project(camera);
             const x = (headPos.x * .5 + .5) * window.innerWidth;
