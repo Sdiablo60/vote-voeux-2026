@@ -10,10 +10,10 @@ const DUREE_LECTURE = 7000;
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 
-// --- 1. LIGNE ROUGE DE CALIBRATION (A COMMENTER LE JOUR J) ---
-// C'est ici que l'on rétablit la ligne pour voir les limites de l'iframe
+// --- 1. LIGNE ROUGE DE CALIBRATION (DOUBLE SÉCURITÉ) ---
+// Note : Le CSS dans app.py l'ajoute déjà, mais ceci force la main si nécessaire.
 document.body.style.border = "5px solid red"; 
-document.body.style.boxSizing = "border-box"; // Pour que la bordure soit incluse dans les dimensions
+document.body.style.boxSizing = "border-box"; 
 
 // --- INJECTION STYLE BULLES ---
 const style = document.createElement('style');
