@@ -1,14 +1,23 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (INTELLIGENT & CONTEXTUEL)
+// 🟢 CONFIGURATION ROBOT 2026 (SCÉNARIO & MESSAGES DYNAMIQUES)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 6000; 
+const DUREE_LECTURE = 5500; // Un peu plus rapide pour enchainer les dialogues
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
+
+// --- MESSAGES ROTATIFS DU CENTRE (APRES L'INTRO) ---
+const CENTRAL_MESSAGES = [
+    "VOTRE SOIRÉE VA BIENTÔT COMMENCER<br>MERCI DE VOUS INSTALLER",
+    "UNE SOIRÉE EXCEPTIONNELLE<br>VOUS ATTEND",
+    "VEUILLEZ COUPER LA SONNERIE<br>DE VOS TÉLÉPHONES 🔕",
+    "PROFITEZ DE L'INSTANT<br>ET DU SPECTACLE",
+    "BIENVENUE"
+];
 
 // --- INJECTION STYLE BULLES ---
 const style = document.createElement('style');
@@ -25,28 +34,30 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO D'INTRODUCTION (ACCUEIL) ---
-// Le robot fait le tour, check la régie, et dit le titre dynamique.
+// --- SCENARIO D'INTRODUCTION (Narratif) ---
 const introScript = [
-    { time: 1, text: "Inspection technique de la zone... 🧐", type: "thought", action: "move_top_left" },
-    { time: 5, text: "Le plafond est ok... ✅", type: "thought", action: "move_top_right" },
+    { time: 1, text: "Inspection de la zone... 🧐", type: "thought", action: "move_top_left" },
+    { time: 5, text: "Tout semble en ordre par ici... ✅", type: "thought", action: "move_top_right" },
     { time: 9, text: "Tiens ? Mais il y a du monde ! 😳", type: "speech", action: "move_center_close" },
-    { time: 13, text: "Bonjour à tous ! 👋", type: "speech" },
-    { time: 16, text: "Bip Bip... Oui la régie ? 📞", type: "speech", action: "listen_regie" },
-    { time: 20, text: "Ah bon ? C'est moi qui anime ?", type: "speech", action: "surprise" },
-    { time: 24, text: "C'est un honneur ! Je suis prêt. 🤖✨", type: "speech", action: "update_title" },
-    // ICI : Il reprend le titre dynamique de la config
-    { time: 28, text: "Bienvenue à la soirée : " + config.titre + " ! 🎉", type: "speech", action: "move_side" }
+    { time: 12, text: "Bonjour à tous ! 👋", type: "speech" },
+    
+    // NOUVEAU DIALOGUE RÉGIE
+    { time: 16, text: "Bip Bip... Oui la régie ? Je vous reçois. 📞", type: "speech", action: "listen_regie" },
+    { time: 20, text: "Attendez... Quoi ?! Vraiment ?! 😮", type: "speech" },
+    { time: 24, text: "Mesdames et Messieurs, on vient de m'informer...", type: "speech", action: "surprise" },
+    { time: 28, text: "Je serai votre animateur officiel ce soir ! 🤖✨", type: "speech" },
+    
+    // AFFICHAGE DU TITRE ET ANNONCE
+    { time: 33, text: "Bienvenue à : " + config.titre + " ! 🎉", type: "speech", action: "update_title" }
 ];
 
-// --- BANQUE DE MESSAGES CONTEXTUELS ---
 const MESSAGES_BAG = {
     attente: [
-        "Je suis votre animateur ! 🤖", 
-        "Hé la régie, mon micro est ok ?", 
-        "Je scanne votre enthousiasme : 100% !",
-        "N'oubliez pas de scanner le QR Code tout à l'heure !",
-        "J'espère que vous passez un bon moment."
+        "Installez-vous confortablement, on commence bientôt !", 
+        "Hé la régie, mon micro est bien branché ?", 
+        "Je scanne la salle... Vous êtes magnifiques !",
+        "N'oubliez pas de scanner le QR Code pour jouer tout à l'heure !",
+        "Je révise mes fiches... Bip Bip..."
     ],
     vote_off: [
         "Les votes sont clos ! Le suspense est à son comble... 😬", 
@@ -158,42 +169,52 @@ function initThreeJS(canvas, bubbleEl) {
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
     let targetPos = new THREE.Vector3(-12, 0, -3); 
+    
+    // Variables pour la rotation du texte central
+    let lastTextChange = 0;
+    let textMsgIndex = 0;
 
     function showBubble(text, type = 'speech') { 
-        bubbleEl.innerText = text; bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
+        bubbleEl.innerHTML = text; // innerHTML pour autoriser les <br>
+        bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
         bubbleEl.style.opacity = 1; bubbleEl.style.transform = "scale(1)";
         setTimeout(() => { bubbleEl.style.opacity = 0; bubbleEl.style.transform = "scale(0.9)"; }, DUREE_LECTURE); 
     }
 
-    // --- NOUVELLE FONCTION DE CIBLE (EVITE LE CENTRE) ---
+    // Fonction pour changer le texte central dynamiquement
+    function cycleCenterText() {
+        const welcomeDiv = document.getElementById('welcome-text');
+        if(welcomeDiv) {
+            welcomeDiv.style.opacity = 0;
+            setTimeout(() => {
+                welcomeDiv.innerHTML = CENTRAL_MESSAGES[textMsgIndex % CENTRAL_MESSAGES.length];
+                welcomeDiv.style.fontSize = "55px"; // Taille un peu plus petite pour les messages longs
+                welcomeDiv.style.color = "white";
+                welcomeDiv.style.textShadow = "0 0 20px rgba(255,255,255,0.5)";
+                welcomeDiv.style.opacity = 1;
+                textMsgIndex++;
+            }, 1000); // 1s de fondu
+        }
+    }
+
     function pickNewTarget() {
-        // Calcul des limites physiques de l'écran
         const dist = camera.position.z; 
         const vFOV = THREE.MathUtils.degToRad(camera.fov);
         const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
         const visibleWidth = visibleHeight * camera.aspect;
         const xLimit = (visibleWidth / 2) - 2.0;
 
-        // On définit une "Zone Morte" au centre de 4 unités de large (-4 à +4)
-        // Le robot doit aller soit à gauche ( < -4 ) soit à droite ( > 4 )
         const minOffset = 4.0; 
-        
-        // On choisit un côté aléatoirement (Gauche ou Droite)
         const side = Math.random() > 0.5 ? 1 : -1;
-        
-        // On génère une position aléatoire DANS LA ZONE AUTORISÉE
-        // x sera entre 4.0 et xLimit
         const randomX = minOffset + (Math.random() * (xLimit - minOffset));
         
         targetPos.set(
-            side * randomX, // Position finale X (jamais au centre)
-            (Math.random() - 0.5) * 6, // Hauteur aléatoire
-            (Math.random() * 5) - 3    // Profondeur aléatoire
+            side * randomX, 
+            (Math.random() - 0.5) * 6, 
+            (Math.random() * 5) - 3
         );
 
-        // Sécurité hauteur (ne pas toucher le titre)
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
-        
         nextMoveTime = Date.now() + 6000;
     }
 
@@ -201,65 +222,70 @@ function initThreeJS(canvas, bubbleEl) {
         requestAnimationFrame(animate);
         time += 0.015;
 
-        // Animation des spots
         stageSpots.forEach(s => {
             if(time > s.nextToggle) { s.isOn = !s.isOn; s.nextToggle = time + Math.random()*3 + 1; }
             s.beam.material.opacity += ((s.isOn ? 0.12 : 0) - s.beam.material.opacity) * 0.1;
             s.g.lookAt(robotGroup.position);
         });
 
-        // --- GESTION DU SCENARIO INTRO ---
+        // --- SCENARIO INTRO ---
         if (robotState === 'intro') {
             const step = introScript[introIdx];
             if (step && time >= step.time) {
                 showBubble(step.text, step.type);
                 
-                // Actions spéciales pour le "Tour de la maison"
                 if(step.action === "move_top_left") targetPos.set(-7, 3, 0);
                 if(step.action === "move_top_right") targetPos.set(7, 3, 0);
-                if(step.action === "move_center_close") targetPos.set(0, 0, 6); // S'approche au centre pour dire bonjour
+                if(step.action === "move_center_close") targetPos.set(0, 0, 6);
                 if(step.action === "listen_regie") targetPos.set(-2, 0, 4);
-                if(step.action === "surprise") targetPos.set(2, 1, 6); // Gros plan
-                if(step.action === "move_side") pickNewTarget(); // Repart sur le coté à la fin
+                if(step.action === "surprise") targetPos.set(2, 1, 6);
+                if(step.action === "move_side") pickNewTarget();
 
                 if(step.action === "update_title") {
-                    const welcomeDiv = window.parent.document.getElementById('welcome-text');
+                    const welcomeDiv = document.getElementById('welcome-text');
                     if(welcomeDiv) {
                         const logoHtml = config.logo ? `<img src="data:image/png;base64,${config.logo}" style="width:250px; margin-bottom:10px;">` : "";
                         welcomeDiv.style.fontSize = "45px";
                         welcomeDiv.innerHTML = `${logoHtml}<br>BIENVENUE AU<br><span style="color:#E2001A; font-size:65px;">${config.titre}</span>`;
+                        // On initie le changement de texte 10s après l'affichage du titre
+                        lastTextChange = time + 10; 
                     }
                 }
                 introIdx++;
             }
-            // Transition vers le mode libre après le script
-            if(time > 35) { robotState = 'moving'; pickNewTarget(); nextEvt = time + 10; }
-            robotGroup.position.lerp(targetPos, 0.02); // Mouvement fluide
+            // Fin de l'intro vers 40s (laisser le titre affiché)
+            if(time > 40) { robotState = 'moving'; pickNewTarget(); nextEvt = time + 10; }
+            robotGroup.position.lerp(targetPos, 0.02);
         } 
+        
         // --- MODE LIBRE ---
         else if (robotState === 'moving' || robotState === 'approaching' || robotState === 'thinking') {
+            
+            // GESTION ROTATION TEXTE CENTRAL (Uniquement en mode attente)
+            if (config.mode === 'attente' && time > lastTextChange + 12) { // Change toutes les 12 secondes (approx)
+                cycleCenterText();
+                lastTextChange = time;
+            }
+
             if (Date.now() > nextMoveTime || robotState === 'approaching') { robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT); }
             robotGroup.rotation.y = Math.sin(time)*0.2;
             
-            // Si le robot arrive à destination
             if(robotGroup.position.distanceTo(targetPos) < 0.5 && robotState !== 'thinking') {
                 if (robotState === 'approaching') {
-                    // S'il était en train de s'approcher pour une photo, il repart
                     robotState = 'moving'; pickNewTarget(); 
                 } else if (Date.now() > nextMoveTime) { 
                     pickNewTarget(); 
                 }
             }
             
-            // Événements aléatoires (Phrases)
             if(time > nextEvt) {
                 const r = Math.random();
                 
-                // Sur le mur PHOTOS, il s'approche plus souvent de l'écran
+                // --- COMPORTEMENT SPÉCIFIQUE MUR PHOTOS ---
                 if (config.mode === 'photos' && r < 0.4) {
                      robotState = 'approaching'; 
-                     // S'approche devant (Z=7) mais décale un peu pour pas cacher le QR code (X=-5 ou X=5)
-                     const sidePhoto = Math.random() > 0.5 ? 5 : -5;
+                     // Va voir à gauche ou à droite, mais pas au centre (pour laisser le QR code visible)
+                     const sidePhoto = Math.random() > 0.5 ? 5.5 : -5.5;
                      targetPos.set(sidePhoto, (Math.random()-0.5)*2, 7); 
                      
                      const bag = MESSAGES_BAG['photos'];
@@ -286,7 +312,6 @@ function initThreeJS(canvas, bubbleEl) {
             if(finished) { robotState = 'moving'; nextEvt = time + 2; pickNewTarget(); }
         }
 
-        // Positionnement de la bulle
         if(bubbleEl && bubbleEl.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); headPos.y += 1.3 + (robotGroup.position.z * 0.05); headPos.project(camera);
             const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
