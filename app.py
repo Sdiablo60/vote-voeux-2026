@@ -62,169 +62,42 @@ USERS_FILE = "users.json"
 for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
-# =========================================================
-# 2. CSS GLOBAL
-# =========================================================
 st.markdown("""
 <style>
-    /* PAR DEFAUT : FOND BLANC (Pour l'Admin) */
+    /* === CSS GLOBAL (ADMIN & DÉFAUT) === */
+    
+    /* 1. Configuration de base : Fond Blanc pour l'Admin */
     .stApp {
         background-color: #FFFFFF;
         color: black;
     }
     
-    [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
-    
-    .social-header { 
-        position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 12vh; 
-        background: #E2001A !important; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        z-index: 999999 !important; 
-        border-bottom: 5px solid white; 
-    }
-    .social-title { 
-        color: white !important; 
-        font-size: 40px !important; 
-        font-weight: bold; 
-        margin: 0; 
-        text-transform: uppercase; 
+    /* 2. Masquer le menu hamburger et le footer Streamlit partout */
+    [data-testid="stHeader"], footer, header { 
+        display: none !important; 
+        height: 0 !important;
+        visibility: hidden !important;
     }
 
-    html, body, [data-testid="stAppViewContainer"] {
-        overflow: hidden !important;
-        height: 100vh !important;
-        width: 100vw !important;
-        margin: 0 !important;
-        padding: 0 !important;
-    }
+    /* 3. Style des Boutons (Commun) */
+    button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
+    button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
+    button[kind="primary"]:hover { background-color: #C20015 !important; }
     
+    /* 4. Styles Admin Spécifiques (Cartes, Login, Sidebar) */
+    .session-card { background-color: #f8f9fa; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; margin-bottom: 20px; }
+    .session-title { color: #E2001A; font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; }
+    .login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: #f8f9fa; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; }
+    .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
+    .stTextInput input { text-align: center; font-size: 18px; }
+    
+    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
+    section[data-testid="stSidebar"] button[kind="primary"] { background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px; }
+    
+    /* Cache les ascenseurs */
     ::-webkit-scrollbar { display: none; }
-    
-    button[kind="secondary"] { 
-        color: #333 !important; 
-        border-color: #333 !important; 
-    }
-    button[kind="primary"] { 
-        color: white !important; 
-        background-color: #E2001A !important; 
-        border: none; 
-    }
-    button[kind="primary"]:hover { 
-        background-color: #C20015 !important; 
-    }
-    
-    /* DESIGN ADMIN MODERNE */
-    .session-card {
-        background-color: #f8f9fa;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        text-align: center;
-        border: 1px solid #ddd;
-        margin-bottom: 20px;
-    }
-    .session-title {
-        color: #E2001A;
-        font-size: 24px;
-        font-weight: 900;
-        text-transform: uppercase;
-        margin-bottom: 10px;
-    }
-    
-    .login-container {
-        max-width: 400px; 
-        margin: 100px auto; 
-        padding: 40px;
-        background: #f8f9fa; 
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-        text-align: center; 
-        border: 1px solid #ddd;
-    }
-    .login-title { 
-        color: #E2001A; 
-        font-size: 24px; 
-        font-weight: bold; 
-        margin-bottom: 20px; 
-        text-transform: uppercase; 
-    }
-    .stTextInput input { 
-        text-align: center; 
-        font-size: 18px; 
-    }
-    
-    section[data-testid="stSidebar"] { 
-        background-color: #f0f2f6 !important; 
-    }
-    section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; 
-        width: 100%; 
-        border-radius: 5px; 
-        margin-bottom: 5px;
-    }
-    section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; 
-        width: 100%; 
-        border-radius: 5px; 
-        margin-bottom: 5px; 
-        border: none !important; 
-        color: white !important;
-    }
-    
-    .blue-anim-btn button {
-        background-color: #2980b9 !important; 
-        color: white !important; 
-        border: none !important; 
-        transition: all 0.3s ease !important; 
-        font-weight: bold !important; 
-    }
-    .blue-anim-btn button:hover {
-        transform: scale(1.05) !important; 
-        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important; 
-        background-color: #3498db !important; 
-    }
-
-    a.custom-link-btn {
-        display: block !important; 
-        text-align: center !important; 
-        padding: 12px 20px !important; 
-        border-radius: 8px !important; 
-        text-decoration: none !important; 
-        font-weight: bold !important; 
-        margin-bottom: 10px !important;
-        color: white !important; 
-        transition: transform 0.2s !important; 
-        width: 100% !important; 
-        box-sizing: border-box !important; 
-        line-height: 1.5 !important; 
-    }
-    a.custom-link-btn:hover { 
-        transform: scale(1.02); 
-        opacity: 0.9; 
-    }
-    .btn-red { background-color: #E2001A !important; }
-    .btn-blue { background-color: #2980b9 !important; }
-    
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
-        background-color: white !important;
-    }
-    li[role="option"] {
-        color: black !important; 
-        background-color: white !important; 
-    }
-    div[data-baseweb="select"] div {
-        color: black !important; 
-    }
-    li[role="option"] span { color: black !important; }
 </style>
 """, unsafe_allow_html=True)
-
 # =========================================================
 # 3. DONNEES & CONFIGURATIONS PAR DEFAUT
 # =========================================================
@@ -884,6 +757,7 @@ if est_admin:
                                 save_json(USERS_FILE, users_db)
                                 st.success(f"Utilisateur {new_u} créé !"); time.sleep(1); st.rerun()
                         else: st.error("Remplissez l'identifiant et le mot de passe.")
+
 # =========================================================
 # 2. APPLICATION MOBILE (Vote)
 # =========================================================
@@ -973,283 +847,439 @@ elif est_utilisateur:
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
-# =========================================================
-# 2. APPLICATION MOBILE (Vote & Visibilité Liste)
-# =========================================================
-elif est_utilisateur:
-    cfg = load_json(CONFIG_FILE, default_config)
-    
-    st.markdown("""<style>
-    .stApp {background-color:black !important; color:white !important;} 
-    [data-testid='stHeader'] {display:none;} 
-    .block-container {padding: 1rem !important;} 
-    h1, h2, h3, p, div, span, label { color: white !important; }
-    
-    /* --- LISTE DÉROULANTE (FIX VISIBILITÉ) --- */
-    .stMultiSelect div[data-baseweb="select"] > div { 
-        background-color: white !important; 
-        color: black !important; 
-        border: 2px solid #E2001A !important; 
-        border-radius: 8px;
-    }
-    .stMultiSelect input { color: black !important; }
-
-    /* Le menu de sélection */
-    div[data-baseweb="popover"], div[data-baseweb="menu"] { background-color: white !important; }
-    li[role="option"] {
-        background-color: white !important;
-        color: black !important; 
-        border-bottom: 1px solid #eee !important;
-    }
-    li[role="option"] span { color: black !important; font-weight: bold !important; }
-    li[role="option"]:hover { background-color: #ffe6e6 !important; }
-
-    /* Étiquettes sélectionnées (Tags) */
-    span[data-baseweb="tag"] {
-        background-color: #E2001A !important;
-        color: white !important;
-        border-radius: 15px !important;
-    }
-    span[data-baseweb="tag"] span { color: white !important; }
-    
-    button[kind="primary"] { 
-        background-color: #E2001A !important; 
-        border-radius: 10px !important;
-    }
-    </style>""", unsafe_allow_html=True)
-    
-    curr_sess = cfg.get("session_id", "init")
-    if "vote_success" not in st.session_state: st.session_state.vote_success = False
-    if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
-    if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
-    
-    if "user_pseudo" not in st.session_state:
-        st.subheader("Identification")
-        pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
-        if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            st.session_state.user_pseudo = pseudo.strip()
-            st.rerun()
-    else:
-        if cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin):
-            if st.session_state.vote_success:
-                 st.balloons()
-                 st.markdown("<h1 style='color:#E2001A;text-align:center;'>MERCI !</h1>", unsafe_allow_html=True)
-                 st.stop()
-            
-            if not st.session_state.rules_accepted:
-                st.info("⚠️ RÈGLES DU VOTE : Sélectionnez 3 vidéos."); 
-                if st.button("J'AI COMPRIS", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
-            else:
-                choix = st.multiselect("Vos 3 préférées :", cfg["candidats"], max_selections=3)
-                if len(choix) == 3 and st.button("VALIDER", type="primary", use_container_width=True):
-                    vts = load_json(VOTES_FILE, {})
-                    pts = [5, 3, 1]
-                    for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-                    save_json(VOTES_FILE, vts)
-                    details = load_json(DETAILED_VOTES_FILE, [])
-                    details.append({"Utilisateur": st.session_state.user_pseudo, "Choix": choix})
-                    save_json(DETAILED_VOTES_FILE, details)
-                    st.session_state.vote_success = True; st.rerun()
-        else:
-            st.info("⏳ En attente du lancement...")
 
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - PODIUM & LOGO CALÉS)
+# 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # Rafraîchissement automatique toutes les 5 secondes
-    st_autorefresh(interval=5000, key="wall_refresh")
+    # Refresh auto
+    refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
+    st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    # --- STYLE DU HEADER ROUGE ---
+    # === CSS PRINCIPAL ===
     st.markdown("""
     <style>
-        .stApp { background-color: black !important; }
+        .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
+            background-color: black !important;
+            padding: 0 !important; margin: 0 !important;
+            width: 100vw !important; max-width: 100vw !important;
+            overflow: hidden !important;
+        }
+        /* HEADER ROUGE FIXE */
         .social-header { 
-            position: fixed; top: 0; left: 0; width: 100vw; height: 8vh;
-            background-color: #E2001A; display: flex; align-items: center; 
-            justify-content: center; z-index: 9999; border-bottom: 3px solid white; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            position: fixed !important; top: 0 !important; left: 0 !important; 
+            width: 100vw !important; height: 8vh !important;
+            background-color: #E2001A !important; 
+            display: flex !important; align-items: center !important; justify-content: center !important; 
+            z-index: 999999 !important; 
+            border-bottom: 3px solid white; 
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
         }
         .social-title { 
-            color: white !important; font-family: Arial, sans-serif;
-            font-size: 3.5vh; font-weight: 900; text-transform: uppercase; 
-            margin: 0; padding: 0;
+            color: white !important; font-family: Arial, sans-serif !important;
+            font-size: 3.5vh !important; font-weight: 900 !important; 
+            margin: 0 !important; text-transform: uppercase; letter-spacing: 2px;
+        }
+        iframe {
+            position: fixed !important; top: 0 !important; left: 0 !important;
+            width: 100vw !important; height: 100vh !important;
+            border: none !important; z-index: 0 !important; display: block !important;
         }
     </style>
-    <div class="social-header"><h1 class="social-title">CONCOURS VIDÉO PÔLE AEROPORTUAIRE 2026</h1></div>
     """, unsafe_allow_html=True)
     
-    mode = cfg.get("mode_affichage")
+    # AFFICHE LE TITRE TOUT LE TEMPS
+    st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
-    if mode == "votes" and cfg.get("reveal_resultats"):
-        # === LOGIQUE DU PODIUM ===
-        v_data = load_json(VOTES_FILE, {})
-        c_imgs = cfg.get("candidats_images", {})
-        if not v_data: v_data = {"En attente": 0}
-        
-        sorted_scores = sorted(list(set(v_data.values())), reverse=True)
-        
-        def get_winners(rank_idx):
-            if rank_idx >= len(sorted_scores): return []
-            s = sorted_scores[rank_idx]
-            return [c for c, score in v_data.items() if score == s]
+    mode = cfg.get("mode_affichage")
+    effects = cfg.get("screen_effects", {})
+    effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
+    inject_visual_effect(effect_name, 25, 15)
+    
+    try:
+        with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
+        with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
+    except: css_content = ""; js_content = "console.error('Fichiers manquants');"
 
-        def gen_cards(cands, emoji):
-            h = ""
-            for c in cands:
-                img = f"<img src='data:image/png;base64,{c_imgs[c]}' class='p-img'>" if c in c_imgs else f"<div class='p-placeholder'>{emoji}</div>"
-                h += f"<div class='p-card'><div class='p-name'>{c}</div>{img}</div>"
-            return h
-
-        h1 = gen_cards(get_winners(0), "🥇")
-        h2 = gen_cards(get_winners(1), "🥈")
-        h3 = gen_cards(get_winners(2), "🥉")
-        
-        s1 = sorted_scores[0] if len(sorted_scores)>0 else 0
-        s2 = sorted_scores[1] if len(sorted_scores)>1 else 0
-        s3 = sorted_scores[2] if len(sorted_scores)>2 else 0
-
-        components.html(f"""
-        <div id="final-overlay" class="final-overlay">
-            <div class="final-content">
-                <img src="data:image/png;base64,{cfg.get('logo_b64','')}" class="final-logo">
-                <h1 class="final-text">FÉLICITATIONS<br>AUX GAGNANTS !</h1>
-            </div>
-        </div>
-        
-        <div class="podium-container">
-            <div class="column-2">
-                <div class="winners-box" id="win-2">{h2}</div>
-                <div class="pedestal pedestal-2"><div class="rank-score" id="score-2">{s2} PTS</div><div class="rank-num">2</div></div>
-            </div>
-            <div class="column-1">
-                <div class="winners-box" id="win-1">{h1}</div>
-                <div class="pedestal pedestal-1"><div class="rank-score" id="score-1">{s1} PTS</div><div class="rank-num">1</div></div>
-            </div>
-            <div class="column-3">
-                <div class="winners-box" id="win-3">{h3}</div>
-                <div class="pedestal pedestal-3"><div class="rank-score" id="score-3">{s3} PTS</div><div class="rank-num">3</div></div>
-            </div>
-        </div>
-
-        <script>
-        const wait=(ms)=>new Promise(r=>setTimeout(r,ms));
-        async function runSuspense() {{
-            // Séquence : 10s de suspense avant chaque révélation
-            await wait(1000); document.getElementById('win-3').classList.add('visible'); 
-            await wait(1000); document.getElementById('score-3').classList.add('visible');
-            
-            await wait(4000); document.getElementById('win-2').classList.add('visible');
-            await wait(1000); document.getElementById('score-2').classList.add('visible');
-            
-            await wait(4000); document.getElementById('win-1').classList.add('visible');
-            await wait(1000); document.getElementById('score-1').classList.add('visible');
-            
-            // Animation finale
-            await wait(4000); document.getElementById('final-overlay').classList.add('stage-1-big');
-            await wait(6000); 
-            document.getElementById('final-overlay').classList.remove('stage-1-big');
-            document.getElementById('final-overlay').classList.add('stage-2-top');
+    robot_mode = "attente" 
+    if mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
+        robot_mode = "vote_off"
+    elif mode == "photos_live":
+        robot_mode = "photos"
+    
+    safe_title = cfg['titre_mur'].replace("'", "\\'")
+    logo_data = cfg.get("logo_b64", "")
+    
+    js_config = f"""<script>window.robotConfig = {{ mode: '{robot_mode}', titre: '{safe_title}', logo: '{logo_data}' }};</script>"""
+    import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
+    
+    # === CSS INTERNE (ROBOT & EFFETS) ===
+    internal_css_base = f"""
+    <style>
+        body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
+        #safe-zone {{ position: absolute; top: 8vh; left: 0; width: 100vw; height: 92vh; box-sizing: border-box; z-index: 100; pointer-events: none; }}
+        {css_content}
+        .neon-title {{
+            font-family: Arial, sans-serif; font-size: 70px; font-weight: 900; letter-spacing: 5px; margin: 0; padding: 0; color: #fff;
+            text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A;
+            animation: neon-flicker 1.5s infinite alternate;
         }}
-        runSuspense();
-        </script>
+        @keyframes neon-flicker {{
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{ text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A; }}
+            20%, 24%, 55% {{ text-shadow: none; opacity: 0.5; }}
+        }}
+        #robot-canvas-final {{ z-index: -1 !important; }}
+    </style>
+    """
 
+    # --- MODE 1 : ATTENTE (ACCUEIL) ---
+    if mode == "attente":
+        internal_css = internal_css_base + """
         <style>
-        body {{ background: black; overflow: hidden; font-family: Arial, sans-serif; margin: 0; }}
+            #welcome-container { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 80%; z-index: 10; pointer-events: none; }
+            #welcome-logo { width: 380px; margin-bottom: 60px; }
+            #sub-text { 
+                margin-top: 50px; color: #eeeeee; font-family: 'Arial', sans-serif; font-size: 40px; font-weight: normal; 
+                opacity: 0; transform: translateY(30px); /* Position basse départ */
+                transition: opacity 0.8s ease-out, transform 0.8s ease-out; 
+                text-shadow: 0 0 10px black; 
+            }
+            .text-visible { opacity: 1 !important; transform: translateY(0px) !important; }
+            .text-hidden { opacity: 0 !important; transform: translateY(-30px) !important; /* Part vers le haut */ }
+        </style>
+        """
         
-        .podium-container {{ 
-            position: absolute; bottom: 0; width: 100vw; height: 92vh; 
-            display: flex; justify-content: center; align-items: flex-end; padding-bottom: 20px; 
-        }}
+        # SCRIPT GESTION TEXTE (AVEC DELAI ROBOT 45s)
+        text_script = """<script>
+        const messages = [
+            "Votre soirée va bientôt commencer...<br>Merci de vous installer",
+            "Une soirée exceptionnelle vous attend",
+            "Veuillez couper la sonnerie<br>de vos téléphones 🔕",
+            "Profitez de l'instant et du spectacle",
+            "Préparez-vous à jouer !",
+            "N'oubliez pas vos sourires !"
+        ];
+        let msgIdx = 0;
+        const textEl = document.getElementById('sub-text');
         
-        .column-1, .column-2, .column-3 {{ display: flex; flex-direction: column; align-items: center; width: 32%; }}
+        function updateText() {
+            textEl.className = 'text-hidden';
+            setTimeout(() => {
+                textEl.innerHTML = messages[msgIdx % messages.length];
+                textEl.style.transition = 'none';
+                textEl.style.transform = 'translateY(30px)';
+                setTimeout(() => {
+                    textEl.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
+                    textEl.className = 'text-visible';
+                    msgIdx++;
+                }, 100);
+            }, 800);
+        }
         
-        /* GRID 2x2 DES GAGNANTS */
-        .winners-box {{ 
-            display: flex; flex-wrap: wrap-reverse; justify-content: center; 
-            width: 380px !important; gap: 10px; opacity: 0; transition: 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
-        }}
-        .winners-box.visible {{ opacity: 1; }}
-        
-        .p-card {{ 
-            width: 170px; background: rgba(30,30,30,0.95); border-radius: 15px; 
-            padding: 10px; border: 2px solid white; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        }}
-        .p-img {{ width: 100%; border-radius: 10px; border: 1px solid rgba(255,255,255,0.5); }}
-        .p-name {{ color: white; font-weight: bold; font-size: 16px; margin-bottom: 8px; text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+        function startLoop() {
+            textEl.innerHTML = messages[0];
+            textEl.className = 'text-visible';
+            msgIdx++;
+            setInterval(updateText, 6000);
+        }
 
-        .pedestal {{ width: 100%; background: linear-gradient(#444, #000); border-radius: 20px 20px 0 0; display: flex; flex-direction: column; align-items: center; padding: 20px 0; }}
-        .pedestal-1 {{ height: 320px; border-top: 6px solid gold; }}
-        .pedestal-2 {{ height: 220px; border-top: 6px solid silver; }}
-        .pedestal-3 {{ height: 140px; border-top: 6px solid #cd7f32; }}
-        
-        .rank-num {{ font-size: 90px; font-weight: 900; color: white; opacity: 0.2; line-height: 1; }}
-        .rank-score {{ font-size: 28px; font-weight: bold; color: white; opacity: 0; transition: 0.8s; }}
-        .rank-score.visible {{ opacity: 1; }}
+        setTimeout(startLoop, 45000);
+        </script>"""
 
-        /* OVERLAY FINAL (LOGO ET FÉLICITATIONS) */
-        .final-overlay {{
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 8000; opacity: 0; pointer-events: none; transition: all 1.5s ease-in-out;
-        }}
+        logo_img_tag = f'<img id="welcome-logo" src="data:image/png;base64,{logo_data}">' if logo_data else ""
         
-        /* Étape 1 : Gros au milieu */
-        .final-overlay.stage-1-big {{ opacity: 1; transform: scale(1.1); background: rgba(0,0,0,0.9); }}
-        
-        /* Étape 2 : Calé sous le titre rouge */
-        .final-overlay.stage-2-top {{ 
-            opacity: 1; transform: scale(0.75); 
-            background: transparent;
-            justify-content: flex-start; 
-            padding-top: 10vh; /* Ajusté pour être juste sous le bandeau */
-        }}
-        
-        .final-logo {{ width: 550px; margin-bottom: 20px; }}
-        .final-text {{ font-size: 65px; color: #E2001A; font-weight: 900; text-align: center; text-shadow: 0 0 20px black; line-height: 1.1; }}
-        </style>""", height=1000)
+        html_code = f"""<!DOCTYPE html><html><head>{internal_css}</head><body>{js_config}
+            <div id="safe-zone"></div>
+            <div id="welcome-container">
+                {logo_img_tag}
+                <div id="welcome-title" class="neon-title">BIENVENUE</div>
+                <div id="sub-text"></div>
+            </div>
+            <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
+            <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
+            {import_map}<script type="module">{js_content}</script>
+            {text_script}
+            </body></html>"""
+        components.html(html_code, height=1000, scrolling=False) 
 
-    elif cfg["session_ouverte"]:
-         # === VOTES OUVERTS (LAYOUT LOGO CENTRE) ===
-         host = st.context.headers.get('host', 'localhost')
-         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-         
-         logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom: 30px;">' if cfg.get("logo_b64") else ""
-         
-         cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
-         left_cands = cands[:mid]; right_cands = cands[mid:]
-         
-         def gen_html_list(clist, imgs):
-             h = ""
-             for c in clist:
-                 im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid white;">' if c in imgs else '👤'
-                 h += f"""<div style="display:flex; align-items:center; background:rgba(255,255,255,0.15); padding:15px; border-radius:50px; margin-bottom:15px; width:400px; color:white; font-weight:bold; font-size:20px;">
-                            <div style="margin-right:15px;">{im}</div>{c}
-                        </div>"""
-             return h
-
-         components.html(f"""
-         <style>
-            body {{ background: black; margin:0; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }}
-            .main {{ flex: 1; display: flex; justify-content: space-around; align-items: center; padding-top: 10vh; }}
-            .col {{ display: flex; flex-direction: column; }}
-            .center-col {{ display: flex; flex-direction: column; align-items: center; }}
-            .qr-box {{ background: white; padding: 20px; border-radius: 20px; text-align: center; border: 5px solid #E2001A; }}
-         </style>
-         <div class="main">
-            <div class="col">{gen_html_list(left_cands, cfg.get("candidats_images", {}))}</div>
-            <div class="center-col">
-                {logo_html}
-                <div class="qr-box">
-                    <img src="data:image/png;base64,{qr_b64}" width="250">
-                    <h2 style="color:black; margin-top:10px;">SCANNEZ POUR VOTER</h2>
+    # --- MODE 2 : VOTES ---
+    elif mode == "votes":
+        if cfg.get("reveal_resultats"):
+            # === PODIUM & SÉQUENCE CINÉMATIQUE (GRID 2x2 FORCEE) ===
+            v_data = load_json(VOTES_FILE, {})
+            c_imgs = cfg.get("candidats_images", {})
+            if not v_data: v_data = {"Personne": 0}
+            sorted_unique_scores = sorted(list(set(v_data.values())), reverse=True)
+            s1 = sorted_unique_scores[0] if len(sorted_unique_scores) > 0 else 0; rank1 = [c for c, s in v_data.items() if s == s1]
+            s2 = sorted_unique_scores[1] if len(sorted_unique_scores) > 1 else 0; rank2 = [c for c, s in v_data.items() if s == s2]
+            s3 = sorted_unique_scores[2] if len(sorted_unique_scores) > 2 else 0; rank3 = [c for c, s in v_data.items() if s == s3]
+            def get_podium_html(cands, score, emoji):
+                if not cands: return ""
+                html = ""
+                for c in cands:
+                    img_tag = f"<div class='p-placeholder' style='background:#333; display:flex; justify-content:center; align-items:center; font-size:60px;'>{emoji}</div>"
+                    if c in c_imgs: img_tag = f"<img src='data:image/png;base64,{c_imgs[c]}' class='p-img'>"
+                    html += f"<div class='p-card'>{img_tag}<div class='p-name'>{c}</div></div>"
+                return html
+            h1 = get_podium_html(rank1, s1, "🥇"); h2 = get_podium_html(rank2, s2, "🥈"); h3 = get_podium_html(rank3, s3, "🥉")
+            final_logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="final-logo">' if cfg.get("logo_b64") else ""
+            
+            components.html(f"""
+            <div id="intro-layer" class="intro-overlay"><div id="intro-txt" class="intro-text"></div><div id="intro-num" class="intro-count"></div></div>
+            
+            <div id="final-overlay" class="final-overlay">
+                <div class="final-content">
+                    {final_logo_html}
+                    <h1 class="final-text">FÉLICITATIONS<br>AUX GAGNANTS !</h1>
                 </div>
             </div>
-            <div class="col">{gen_html_list(right_cands, cfg.get("candidats_images", {}))}</div>
-         </div>""", height=900)
+            
+            <audio id="applause-sound" preload="auto"><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg"></audio>
+            
+            <div class="podium-container">
+                <div class="column-2">
+                    <div class="winners-box rank-2" id="win-2">{h2}</div>
+                    <div class="pedestal pedestal-2"><div class="rank-score" id="score-2">{s2} PTS</div><div class="rank-num">2</div></div>
+                </div>
+                <div class="column-1">
+                    <div class="winners-box rank-1" id="win-1">{h1}</div>
+                    <div class="pedestal pedestal-1"><div class="rank-score" id="score-1">{s1} PTS</div><div class="rank-num">1</div></div>
+                </div>
+                <div class="column-3">
+                    <div class="winners-box rank-3" id="win-3">{h3}</div>
+                    <div class="pedestal pedestal-3"><div class="rank-score" id="score-3">{s3} PTS</div><div class="rank-num">3</div></div>
+                </div>
+            </div>
+            
+            <script>
+            const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
+            const layer=document.getElementById('intro-layer'),txt=document.getElementById('intro-txt'),num=document.getElementById('intro-num'),w1=document.getElementById('win-1'),w2=document.getElementById('win-2'),w3=document.getElementById('win-3'),audio=document.getElementById('applause-sound'),finalOverlay=document.getElementById('final-overlay');
+            
+            function startConfetti(){{var script=document.createElement('script');script.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";script.onload=()=>{{var duration=15*1000;var animationEnd=Date.now()+duration;var defaults={{startVelocity:30,spread:360,ticks:60,zIndex:5500}};var random=(min,max)=>Math.random()*(max-min)+min;var interval=setInterval(function(){{var timeLeft=animationEnd-Date.now();if(timeLeft<=0){{return clearInterval(interval);}}var particleCount=50*(timeLeft/duration);confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.1,0.3),y:Math.random()-0.2}}}}));confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.7,0.9),y:Math.random()-0.2}}}}));}},250);}};document.body.appendChild(script);}}
+            
+            async function countdown(seconds,message){{layer.style.display='flex';layer.style.opacity='1';txt.innerText=message;for(let i=seconds;i>0;i--){{num.innerText=i;await wait(1000);}}layer.style.opacity='0';await wait(500);layer.style.display='none';}}
+            
+            async function runShow(){{
+                // 1. REVELATION 3ème (10s suspens)
+                await countdown(10,"EN TROISIÈME PLACE...");
+                w3.classList.add('visible');
+                await wait(1000); 
+                document.getElementById('score-3').classList.add('visible');
+                await wait(4000);
+                
+                // 2. REVELATION 2ème
+                await countdown(10,"EN SECONDE PLACE...");
+                w2.classList.add('visible');
+                await wait(1000); 
+                document.getElementById('score-2').classList.add('visible');
+                await wait(4000);
+                
+                // 3. REVELATION 1er
+                await countdown(10,"ET LE VAINQUEUR EST...");
+                w1.classList.add('visible');
+                await wait(1000); 
+                document.getElementById('score-1').classList.add('visible');
+                
+                // 4. FÊTE (CONFETTIS)
+                startConfetti();
+                try{{audio.currentTime=0;audio.play();}}catch(e){{}}
+                
+                // 5. PAUSE APRES VICTOIRE (6 secondes)
+                await wait(6000);
+                
+                // 6. APPARITION GROSSE DU LOGO (STAGE 1)
+                finalOverlay.classList.add('stage-1-big');
+                
+                // 7. ZOOM ARRIERE VERS LE HAUT (STAGE 2 - Après 6 secondes)
+                await wait(6000);
+                finalOverlay.classList.remove('stage-1-big');
+                finalOverlay.classList.add('stage-2-top');
+            }}
+            window.parent.document.body.style.backgroundColor="black";runShow();
+            </script>
+            
+            <style>
+            body{{margin:0;overflow:hidden;background:black;font-family:'Arial', sans-serif;}}
+            .podium-container{{position:absolute;bottom:0;left:0;width:100%;height:100vh;display:flex;justify-content:center;align-items:flex-end;padding-bottom:20px;}}
+            .column-2{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-right:-20px;z-index:2;}}
+            .column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}
+            .column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}
+            
+            /* GAGNANTS : EMPILEMENT PYRAMIDAL */
+            .winners-box{{
+                display:flex; flex-direction:row; flex-wrap:wrap-reverse; /* Construit vers le haut */
+                justify-content:center; align-items:flex-end;
+                width:400px !important; /* LARGEUR FORCEE POUR 2 CARTES MAX */
+                max-width:400px !important;
+                margin:0 auto; padding-bottom:0px;
+                opacity:0; transform:translateY(50px) scale(0.8);
+                transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);
+                gap:5px;
+            }}
+            .winners-box.visible{{opacity:1;transform:translateY(0) scale(1);}}
+            
+            /* PODIUM FIXE */
+            .pedestal{{width:100%;background:linear-gradient(to bottom,#333,#000);border-radius:20px 20px 0 0;box-shadow:0 -5px 15px rgba(255,255,255,0.1);display:flex;flex-direction:column;justify-content:flex-start;align-items:center;position:relative;padding-top:20px;}}
+            .pedestal-1{{height:350px;border-top:3px solid #FFD700;color:#FFD700;}}
+            .pedestal-2{{height:220px;border-top:3px solid #C0C0C0;color:#C0C0C0;}}
+            .pedestal-3{{height:150px;border-top:3px solid #CD7F32;color:#CD7F32;}}
+            .rank-num{{font-size:120px;font-weight:900;opacity:0.2;line-height:1;}}
+            
+            /* SCORES (CACHÉS PAR DÉFAUT) */
+            .rank-score{{
+                font-size:30px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.5);margin-bottom:-20px;z-index:5;
+                opacity: 0; transform: scale(0.5); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }}
+            .rank-score.visible{{ opacity: 1; transform: scale(1); }}
+            
+            /* CARTES 130px */
+            .p-card{{
+                background:rgba(20,20,20,0.8); border-radius:15px; padding:8px;
+                width:130px; margin:4px; 
+                backdrop-filter:blur(5px); border:2px solid rgba(255,255,255,0.3);
+                display:flex; flex-direction:column; align-items:center;
+                box-shadow:0 5px 15px rgba(0,0,0,0.5); flex-shrink:0;
+            }}
+            .p-img,.p-placeholder{{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
+            .p-name{{font-family:Arial;font-size:15px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
+            
+            .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
+            .intro-text{{color:white;font-size:40px;font-weight:bold;text-transform:uppercase;text-shadow:0 0 20px black;}}
+            .intro-count{{color:#E2001A;font-size:100px;font-weight:900;margin-top:10px;text-shadow:0 0 20px black;}}
+            
+            /* OVERLAY FINAL AVEC 2 ETAPES */
+            .final-overlay{{
+                position:fixed;top:0;left:0;width:100vw;height:100vh;
+                display:flex;flex-direction:column;justify-content:center;align-items:center;
+                z-index:6000;pointer-events:none;
+                opacity:0;transition:all 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }}
+            /* ETAPE 1 : GROS + FOND NOIR */
+            .final-overlay.stage-1-big{{opacity:1;transform:scale(1.2);background-color:rgba(0,0,0,0.95);}}
+            
+            /* ETAPE 2 : PETIT + EN HAUT (REMONTE A -55%) + TRANSPARENT */
+            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-55%);background-color:transparent;}}
+            
+            .final-content{{text-align:center;}}
+            .final-logo{{width:500px;margin-bottom:30px;}}
+            .final-text{{font-size:70px;color:#E2001A;font-weight:900;text-transform:uppercase;text-shadow:0 0 30px rgba(0,0,0,0.8);margin:0;line-height:1.2;}}
+            </style>""", height=1000, scrolling=False)
+
+        elif cfg["session_ouverte"]:
+             # === VOTES OUVERTS (LAYOUT FINAL : LOGO XXL, BANDEAU NOIR, TEXTE EXTERNE) ===
+             host = st.context.headers.get('host', 'localhost')
+             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+             
+             # 1. LOGO GROSSIT (380px)
+             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom: 30px;">' if cfg.get("logo_b64") else ""
+             
+             recent_votes = load_json(DETAILED_VOTES_FILE, [])
+             voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
+             voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
+             
+             cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
+             left_cands = cands[:mid]; right_cands = cands[mid:]
+             
+             def gen_html_list(clist, imgs):
+                 h = ""
+                 for c in clist:
+                     im = '<div style="font-size:35px;">👤</div>' 
+                     if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid white;">'
+                     h += f"""<div style="display:flex; align-items:center; background:rgba(255,255,255,0.15); padding:15px 25px; border-radius:50px; margin-bottom:25px; width:100%; max-width:450px; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
+                                {im}<span style="margin-left:20px; font-size:22px; font-weight:bold; color:white; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c}</span>
+                            </div>"""
+                 return h
+                 
+             left_html = gen_html_list(left_cands, cfg.get("candidats_images", {}))
+             right_html = gen_html_list(right_cands, cfg.get("candidats_images", {}))
+
+             components.html(f"""
+             <style>
+                body {{ background: black; margin: 0; padding: 0; font-family: 'Arial', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
+                .header-spacer {{ width: 100%; height: 8vh; }}
+                .top-section {{ display: flex; flex-direction: column; align-items: center; width: 100%; flex: 0 0 auto; padding-top: 0; }}
+                
+                /* 2. BANDEAU DEFILANT : FOND NOIR + DESCENDU */
+                .marquee-container {{ 
+                    width: 100%; background: black; color: white; height: 50px; 
+                    display: flex; align-items: center; border-top: 1px solid #333;
+                    border-bottom: 4px solid #E2001A; margin-top: 25px; 
+                }}
+                .marquee-label {{ background: #E2001A; color: white; height: 100%; padding: 0 25px; display: flex; align-items: center; font-weight: 900; z-index: 2; font-size: 18px; }}
+                .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 20px; text-transform: uppercase; white-space: nowrap; }}
+                @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
+                
+                .main-content {{ flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding-bottom: 2vh; }}
+                .content-grid {{ display: flex; justify-content: center; align-items: center; width: 98%; gap: 20px; height: 100%; }}
+                .col-cands {{ width: 30%; display: flex; flex-direction: column; justify-content: center; height: 100%; }}
+                .col-qr {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
+                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 60px rgba(226, 0, 26, 0.6); animation: pulse 3s infinite; text-align: center; margin-bottom: 20px; }}
+                .qr-text-big {{ color: white; font-weight: 900; font-size: 32px; text-transform: uppercase; text-align: center; text-shadow: 0 0 20px #E2001A; letter-spacing: 2px; }}
+                @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 90px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
+             </style>
+             
+             <div class="header-spacer"></div>
+             
+             <div class="top-section">
+                <div class="marquee-container">
+                    <div class="marquee-label">DERNIERS VOTES :</div>
+                    <div style="overflow:hidden; flex:1;"><div class="marquee-content">{voter_string}</div></div>
+                </div>
+             </div>
+             
+             <div class="main-content">
+                <div class="content-grid">
+                    <div class="col-cands" style="align-items: flex-end;">{left_html}</div>
+                    <div class="col-qr">
+                        {logo_html}
+                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div>
+                        <div class="qr-text-big">SCANNEZ POUR VOTER</div>
+                    </div>
+                    <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
+                </div>
+             </div>""", height=950)
+             
+        else:
+            # VOTE FERMÉ (Attente)
+            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
+            html_code = f"""<!DOCTYPE html><html><head>{internal_css_base}</head><body>{js_config}
+            <div id="safe-zone"></div>
+            <div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 10; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events: none;'>
+                <div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>
+                    {logo_html}
+                    <h1 class="neon-title" style='font-size:60px; margin:0;'>MERCI !</h1>
+                    <h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal; text-shadow: 0 0 10px black;'>Les votes sont clos.</h2>
+                    <h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic; text-shadow: 0 0 10px black;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3>
+                </div>
+            </div>
+            <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
+            <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
+            {import_map}<script type="module">{js_content}</script></body></html>"""
+            components.html(html_code, height=1000, scrolling=False)
+
+    elif mode == "photos_live":
+        host = st.context.headers.get('host', 'localhost')
+        qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+        qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+        logo_data = cfg.get("logo_b64", "")
+        photos = glob.glob(f"{LIVE_DIR}/*")
+        img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8); pointer-events: none;'><h1 class="neon-title" style='font-size:28px; margin:0 0 15px 0;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3; text-shadow: 0 0 10px black;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
+        
+        bubbles_script = f"""<script>setTimeout(function() {{ var container = document.createElement('div'); container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;pointer-events:none;'; document.body.appendChild(container); var centerDiv = document.createElement('div'); centerDiv.innerHTML = `{center_html_content}`; document.body.appendChild(centerDiv); const imgs = {img_js}; const bubbles = []; imgs.forEach((src, i) => {{ const bSize = Math.floor(Math.random() * 300) + 150; const el = document.createElement('img'); el.src = src; el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; z-index:50; opacity:0.9;'; let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize); let angle = Math.random() * Math.PI * 2; let speed = 1.5 + Math.random() * 1.5; container.appendChild(el); bubbles.push({{el, x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, size: bSize}}); }}); function animateBubbles() {{ bubbles.forEach(b => {{ b.x += b.vx; b.y += b.vy; if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1; if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1; b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)'; }}); requestAnimationFrame(animateBubbles); }} animateBubbles(); }}, 500);</script>"""
+        
+        html_code = f"""<!DOCTYPE html><html><head>{internal_css_base}</head><body>{js_config}
+        <div id="safe-zone"></div>
+        <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
+        <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
+        {import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
+        components.html(html_code, height=1000, scrolling=False)
+    
     else:
-        st.markdown("<h1 style='color:white;text-align:center;margin-top:20vh;'>EN ATTENTE...</h1>", unsafe_allow_html=True)
+        st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
+
