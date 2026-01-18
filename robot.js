@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (CIBLAGE CORRIGÉ)
+// 🟢 CONFIGURATION ROBOT 2026 (INTELLIGENT & RÉFLEXIF)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -9,6 +9,9 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement', lo
 const DUREE_LECTURE = 5500; 
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
+
+// SEUIL DE VITESSE : Si le robot va plus vite que ça, il ne parle pas.
+const SPEED_THRESHOLD = 0.03; 
 
 // --- MESSAGES ROTATIFS (SOUS LE TITRE) ---
 const CENTRAL_MESSAGES = [
@@ -44,7 +47,6 @@ const introScript = [
     { time: 20, text: "Attendez... Quoi ?! Vraiment ?! 😮", type: "speech" },
     { time: 24, text: "Mesdames et Messieurs, on vient de m'informer...", type: "speech", action: "surprise" },
     { time: 28, text: "Je serai votre animateur officiel ce soir ! 🤖✨", type: "speech" },
-    // ICI : Affiche le titre de la soirée DANS LE SOUS-TITRE
     { time: 33, text: "Bienvenue à la soirée : " + config.titre + " ! 🎉", type: "speech", action: "update_title" }
 ];
 
@@ -69,6 +71,14 @@ const MESSAGES_BAG = {
         "Regardez comme vous êtes beaux ce soir !",
         "Hé ! Je crois que je connais cette personne !",
         "Continuez à remplir le mur, c'est génial !"
+    ],
+    // NOUVEAU : Messages de réflexion (nuage)
+    reflexion: [
+        "Hmm... Je me demande si...",
+        "Calcul en cours...",
+        "Analyse de l'ambiance...",
+        "J'espère que j'ai fermé le gaz chez moi...",
+        "01001000 01101001 ! Ah pardon, je réfléchis à voix haute."
     ]
 };
 
@@ -166,7 +176,9 @@ function initThreeJS(canvas, bubbleEl) {
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
     let targetPos = new THREE.Vector3(-12, 0, -3); 
     
-    // Variables pour la rotation du texte
+    // NOUVEAU : Variable pour stocker la position précédente et calculer la vitesse
+    let lastPos = new THREE.Vector3();
+
     let lastTextChange = 0;
     let textMsgIndex = 0;
 
@@ -177,8 +189,6 @@ function initThreeJS(canvas, bubbleEl) {
         setTimeout(() => { bubbleEl.style.opacity = 0; bubbleEl.style.transform = "scale(0.9)"; }, DUREE_LECTURE); 
     }
 
-    // Fonction qui change le SOUS-TEXTE (id='sub-text')
-    // CORRECTION ICI : Utilisation de document.getElementById au lieu de window.parent.document...
     function cycleCenterText() {
         const subDiv = document.getElementById('sub-text');
         if(subDiv) {
@@ -216,6 +226,9 @@ function initThreeJS(canvas, bubbleEl) {
         requestAnimationFrame(animate);
         time += 0.015;
 
+        // NOUVEAU : Calcul de la vitesse instantanée
+        const currentSpeed = robotGroup.position.distanceTo(lastPos);
+
         stageSpots.forEach(s => {
             if(time > s.nextToggle) { s.isOn = !s.isOn; s.nextToggle = time + Math.random()*3 + 1; }
             s.beam.material.opacity += ((s.isOn ? 0.12 : 0) - s.beam.material.opacity) * 0.1;
@@ -235,7 +248,6 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "move_side") pickNewTarget();
 
                 if(step.action === "update_title") {
-                    // CORRECTION ICI AUSSI : document.getElementById
                     const subDiv = document.getElementById('sub-text');
                     if(subDiv) {
                         subDiv.innerHTML = config.titre; 
@@ -267,27 +279,46 @@ function initThreeJS(canvas, bubbleEl) {
                 }
             }
             
+            // NOUVEAU LOGIQUE D'ÉVÉNEMENT AVEC VÉRIFICATION DE VITESSE
             if(time > nextEvt) {
                 const r = Math.random();
-                if (config.mode === 'photos' && r < 0.4) {
-                     robotState = 'approaching'; 
-                     const sidePhoto = Math.random() > 0.5 ? 5.5 : -5.5;
-                     targetPos.set(sidePhoto, (Math.random()-0.5)*2, 7); 
-                     const bag = MESSAGES_BAG['photos'];
-                     showBubble(bag[Math.floor(Math.random()*bag.length)]);
-                }
-                else if(r < 0.08) { 
+
+                // Priorité absolue à l'explosion (arrête le mouvement de toute façon)
+                if(r < 0.05) { 
                     robotState = 'exploding'; showBubble("Surchauffe ! 🔥"); 
                     parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4)); 
                     setTimeout(() => { robotState = 'reassembling'; }, 3500);
-                } else if(r < 0.18) { 
-                    robotState = 'thinking'; targetPos.copy(robotGroup.position); showBubble("Analyse du bonheur ambiant : 100%...", 'thought'); 
-                    setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 7000);
-                } else { 
-                    const bag = MESSAGES_BAG[config.mode] || MESSAGES_BAG['attente'];
-                    showBubble(bag[Math.floor(Math.random()*bag.length)]);
+                    nextEvt = time + 20;
                 }
-                nextEvt = time + 20; 
+                // SI VITESSE LENTE : Autorisation de parler ou réfléchir
+                else if (currentSpeed < SPEED_THRESHOLD) {
+                     // Plus de chance de réfléchir (nuage)
+                    if(r < 0.30) { 
+                        robotState = 'thinking'; targetPos.copy(robotGroup.position);
+                        // Choisit un message de réflexion aléatoire
+                        const text = MESSAGES_BAG.reflexion[Math.floor(Math.random()*MESSAGES_BAG.reflexion.length)];
+                        showBubble(text, 'thought'); 
+                        setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 7000);
+                    } 
+                    // Sinon, comportement normal (parole)
+                    else {
+                         if (config.mode === 'photos' && r < 0.6) { // Plus fréquent sur photos
+                             robotState = 'approaching'; 
+                             const sidePhoto = Math.random() > 0.5 ? 5.5 : -5.5;
+                             targetPos.set(sidePhoto, (Math.random()-0.5)*2, 7); 
+                             const bag = MESSAGES_BAG['photos'];
+                             showBubble(bag[Math.floor(Math.random()*bag.length)]);
+                        } else { 
+                            const bag = MESSAGES_BAG[config.mode] || MESSAGES_BAG['attente'];
+                            showBubble(bag[Math.floor(Math.random()*bag.length)]);
+                        }
+                    }
+                    nextEvt = time + 20; 
+                } 
+                // SI VITESSE RAPIDE : On reporte l'événement à bientôt
+                else {
+                    nextEvt = time + 2; // Réessaie dans 2 secondes
+                }
             }
         }
         else if (robotState === 'exploding') { parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.05; p.userData.velocity.multiplyScalar(0.98); }); }
@@ -305,6 +336,9 @@ function initThreeJS(canvas, bubbleEl) {
             bubbleEl.style.top = (bY - bubbleEl.offsetHeight - 25) + 'px';
             if(parseFloat(bubbleEl.style.top) < 140) bubbleEl.style.top = '140px';
         }
+        
+        // NOUVEAU : Mise à jour de la dernière position pour le prochain calcul de vitesse
+        lastPos.copy(robotGroup.position);
         renderer.render(scene, camera);
     }
     animate();
