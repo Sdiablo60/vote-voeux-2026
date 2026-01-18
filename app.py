@@ -759,12 +759,11 @@ if est_admin:
                         else: st.error("Remplissez l'identifiant et le mot de passe.")
 
 # =========================================================
-# 2. APPLICATION MOBILE (Vote)
+# 2. APPLICATION MOBILE (Vote) - STYLE CORRIGÉ
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # --- CORRECTION CSS MOBILE (CONTRASTE FORCE) ---
     st.markdown("""<style>
     /* FOND NOIR GLOBAL */
     .stApp {background-color:black !important; color:white !important;} 
@@ -772,53 +771,45 @@ elif est_utilisateur:
     .block-container {padding: 1rem !important;} 
     h1, h2, h3, p, div, span, label { color: white !important; }
     
-    /* --- ZONE DE SAISIE (INPUT) --- */
+    /* --- ZONE DE SAISIE --- */
     .stMultiSelect div[data-baseweb="select"] > div { 
         background-color: #ffffff !important; 
         color: #000000 !important; 
         border: 2px solid #E2001A !important; 
         border-radius: 8px;
     }
-    /* Le texte tapé ou le placeholder */
     .stMultiSelect input { color: black !important; caret-color: black; }
     .stMultiSelect div[data-baseweb="select"] span { color: #333 !important; }
     
-    /* --- LISTE DÉROULANTE (DROPDOWN) --- */
+    /* --- LISTE DÉROULANTE --- */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] { 
         background-color: white !important; 
         border: 1px solid #ccc !important;
     }
-    
-    /* ITEMS DE LA LISTE */
     li[role="option"] {
         background-color: white !important;
-        color: black !important; /* TEXTE NOIR FORCE */
+        color: black !important; 
         border-bottom: 1px solid #eee !important;
-        display: flex !important;
-        align-items: center !important;
+        padding: 12px 10px !important;
         font-weight: bold !important;
     }
-    /* Supprimer les styles par défaut de Streamlit qui mettent du blanc */
     li[role="option"] span { color: black !important; }
-    li[role="option"] div { color: black !important; }
     
-    /* SURVOL DE LA LISTE */
     li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+        background-color: #fff0f0 !important;
+        color: #E2001A !important;
+    }
+
+    /* --- TAGS SÉLECTIONNÉS (ROUGE & BLANC) --- */
+    span[data-baseweb="tag"] {
         background-color: #E2001A !important;
         color: white !important;
-    }
-    li[role="option"]:hover span { color: white !important; }
-
-    /* --- TAGS SÉLECTIONNÉS (DANS LA BOITE) --- */
-    span[data-baseweb="tag"] {
-        background-color: #E2001A !important; /* ROUGE TRANSDEV */
-        color: white !important;
-        border: none !important;
+        border-radius: 20px !important;
     }
     span[data-baseweb="tag"] span { color: white !important; }
-    span[data-baseweb="tag"] svg { fill: white !important; } /* La croix X en blanc */
+    span[data-baseweb="tag"] svg { fill: white !important; }
     
-    /* BOUTON VALIDATION */
+    /* BOUTON */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { 
         background-color: #E2001A !important; 
         color: white !important; 
@@ -900,8 +891,9 @@ elif est_utilisateur:
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
+
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - PODIUM AJUSTÉ)
+# 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID & LOGO HAUT)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -1004,7 +996,6 @@ else:
         </style>
         """
         
-        # SCRIPT GESTION TEXTE (AVEC DELAI ROBOT 45s)
         text_script = """<script>
         const messages = [
             "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -1060,7 +1051,7 @@ else:
     # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # === PODIUM & SÉQUENCE CINÉMATIQUE (GRID 2x2 & LOGO DESCENDU) ===
+            # === PODIUM & SÉQUENCE CINÉMATIQUE (CORRECTIF FINAL) ===
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1115,7 +1106,7 @@ else:
             async function countdown(seconds,message){{layer.style.display='flex';layer.style.opacity='1';txt.innerText=message;for(let i=seconds;i>0;i--){{num.innerText=i;await wait(1000);}}layer.style.opacity='0';await wait(500);layer.style.display='none';}}
             
             async function runShow(){{
-                // 1. REVELATION 3ème (10s suspens)
+                // 1. REVELATION 3ème
                 await countdown(10,"EN TROISIÈME PLACE...");
                 w3.classList.add('visible');
                 await wait(1000); 
@@ -1135,17 +1126,17 @@ else:
                 await wait(1000); 
                 document.getElementById('score-1').classList.add('visible');
                 
-                // 4. FÊTE (CONFETTIS)
+                // 4. FÊTE
                 startConfetti();
                 try{{audio.currentTime=0;audio.play();}}catch(e){{}}
                 
-                // 5. PAUSE APRES VICTOIRE (6 secondes)
+                // 5. PAUSE
                 await wait(6000);
                 
-                // 6. APPARITION GROSSE DU LOGO (STAGE 1)
+                // 6. LOGO GROS
                 finalOverlay.classList.add('stage-1-big');
                 
-                // 7. ZOOM ARRIERE VERS LE HAUT (STAGE 2 - Après 6 secondes)
+                // 7. LOGO EN HAUT (POSITION CORRIGÉE : -70%)
                 await wait(6000);
                 finalOverlay.classList.remove('stage-1-big');
                 finalOverlay.classList.add('stage-2-top');
@@ -1160,12 +1151,12 @@ else:
             .column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}
             .column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}
             
-            /* GAGNANTS : EMPILEMENT PYRAMIDAL CORRIGÉ (LARGEUR 340px) */
+            /* GAGNANTS : EMPILEMENT (280px pour 2 cartes de 120px) */
             .winners-box{{
-                display:flex; flex-direction:row; flex-wrap:wrap-reverse; /* Construit vers le haut */
+                display:flex; flex-direction:row; flex-wrap:wrap-reverse;
                 justify-content:center; align-items:flex-end;
-                width:340px !important; /* Assez large pour 2 cartes de 150px + marges */
-                max-width:340px !important;
+                width:280px !important; /* Force le wrap si > 2 */
+                max-width:280px !important;
                 margin:0 auto; padding-bottom:0px;
                 opacity:0; transform:translateY(50px) scale(0.8);
                 transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);
@@ -1180,40 +1171,40 @@ else:
             .pedestal-3{{height:150px;border-top:3px solid #CD7F32;color:#CD7F32;}}
             .rank-num{{font-size:120px;font-weight:900;opacity:0.2;line-height:1;}}
             
-            /* SCORES */
+            /* SCORES (CACHÉS) */
             .rank-score{{
                 font-size:30px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.5);margin-bottom:-20px;z-index:5;
                 opacity: 0; transform: scale(0.5); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             }}
             .rank-score.visible{{ opacity: 1; transform: scale(1); }}
             
-            /* CARTES AGRANDIES (150px) POUR EMPILEMENT */
+            /* CARTES RÉDUITES (120px) */
             .p-card{{
-                background:rgba(20,20,20,0.8); border-radius:15px; padding:10px;
-                width:150px; margin:4px; 
+                background:rgba(20,20,20,0.8); border-radius:15px; padding:8px;
+                width:120px; margin:3px; 
                 backdrop-filter:blur(5px); border:2px solid rgba(255,255,255,0.3);
                 display:flex; flex-direction:column; align-items:center;
                 box-shadow:0 5px 15px rgba(0,0,0,0.5); flex-shrink:0;
             }}
-            .p-img,.p-placeholder{{width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
-            .p-name{{font-family:Arial;font-size:18px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
+            .p-img,.p-placeholder{{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
+            .p-name{{font-family:Arial;font-size:14px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
             
             .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
             .intro-text{{color:white;font-size:40px;font-weight:bold;text-transform:uppercase;text-shadow:0 0 20px black;}}
             .intro-count{{color:#E2001A;font-size:100px;font-weight:900;margin-top:10px;text-shadow:0 0 20px black;}}
             
-            /* OVERLAY FINAL AVEC 2 ETAPES */
+            /* OVERLAY FINAL */
             .final-overlay{{
                 position:fixed;top:0;left:0;width:100vw;height:100vh;
                 display:flex;flex-direction:column;justify-content:center;align-items:center;
                 z-index:6000;pointer-events:none;
                 opacity:0;transition:all 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             }}
-            /* ETAPE 1 : GROS + FOND NOIR */
+            /* ETAPE 1 : GROS */
             .final-overlay.stage-1-big{{opacity:1;transform:scale(1.2);background-color:rgba(0,0,0,0.95);}}
             
-            /* ETAPE 2 : PETIT + EN HAUT (PLUS BAS : -15%) + TRANSPARENT */
-            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-15%);background-color:transparent;}}
+            /* ETAPE 2 : EN HAUT (-70%) */
+            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-70%);background-color:transparent;}}
             
             .final-content{{text-align:center;}}
             .final-logo{{width:500px;margin-bottom:30px;}}
@@ -1226,7 +1217,6 @@ else:
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              
-             # 1. LOGO GROSSIT (380px)
              logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom: 30px;">' if cfg.get("logo_b64") else ""
              
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
@@ -1286,11 +1276,7 @@ else:
              <div class="main-content">
                 <div class="content-grid">
                     <div class="col-cands" style="align-items: flex-end;">{left_html}</div>
-                    <div class="col-qr">
-                        {logo_html}
-                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div>
-                        <div class="qr-text-big">SCANNEZ POUR VOTER</div>
-                    </div>
+                    <div class="col-qr">{logo_html}<div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div><div class="qr-text-big">SCANNEZ POUR VOTER</div></div>
                     <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
                 </div>
              </div>""", height=950)
