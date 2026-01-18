@@ -764,7 +764,7 @@ if est_admin:
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # --- CORRECTION CSS MOBILE (TAGS & LISTE) ---
+    # --- CORRECTION CSS MOBILE (CONTRASTE FORCE) ---
     st.markdown("""<style>
     /* FOND NOIR GLOBAL */
     .stApp {background-color:black !important; color:white !important;} 
@@ -772,44 +772,51 @@ elif est_utilisateur:
     .block-container {padding: 1rem !important;} 
     h1, h2, h3, p, div, span, label { color: white !important; }
     
-    /* --- CHAMP DE SAISIE --- */
+    /* --- ZONE DE SAISIE (INPUT) --- */
     .stMultiSelect div[data-baseweb="select"] > div { 
         background-color: #ffffff !important; 
         color: #000000 !important; 
         border: 2px solid #E2001A !important; 
         border-radius: 8px;
     }
+    /* Le texte tapé ou le placeholder */
     .stMultiSelect input { color: black !important; caret-color: black; }
     .stMultiSelect div[data-baseweb="select"] span { color: #333 !important; }
     
-    /* --- MENU DÉROULANT (LISTE) --- */
-    div[data-baseweb="popover"] { background-color: white !important; border: none !important; }
-    ul[role="listbox"] { background-color: white !important; padding: 0 !important; }
+    /* --- LISTE DÉROULANTE (DROPDOWN) --- */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] { 
+        background-color: white !important; 
+        border: 1px solid #ccc !important;
+    }
     
+    /* ITEMS DE LA LISTE */
     li[role="option"] {
         background-color: white !important;
-        color: black !important;
-        border-bottom: 1px solid #eaeaea !important;
-        padding: 15px 10px !important;
-        font-size: 16px !important;
-    }
-    li[role="option"] span { color: black !important; font-weight: 500 !important; }
-    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
-        background-color: #fff0f0 !important;
-        color: #E2001A !important;
+        color: black !important; /* TEXTE NOIR FORCE */
+        border-bottom: 1px solid #eee !important;
+        display: flex !important;
+        align-items: center !important;
         font-weight: bold !important;
     }
-
-    /* --- TAGS SÉLECTIONNÉS (MODIFIÉ : PLUS DOUX) --- */
-    span[data-baseweb="tag"] {
-        background-color: #333333 !important; /* Gris foncé au lieu de rouge vif */
+    /* Supprimer les styles par défaut de Streamlit qui mettent du blanc */
+    li[role="option"] span { color: black !important; }
+    li[role="option"] div { color: black !important; }
+    
+    /* SURVOL DE LA LISTE */
+    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+        background-color: #E2001A !important;
         color: white !important;
-        border-radius: 15px !important;
-        border: 1px solid #555 !important;
+    }
+    li[role="option"]:hover span { color: white !important; }
+
+    /* --- TAGS SÉLECTIONNÉS (DANS LA BOITE) --- */
+    span[data-baseweb="tag"] {
+        background-color: #E2001A !important; /* ROUGE TRANSDEV */
+        color: white !important;
+        border: none !important;
     }
     span[data-baseweb="tag"] span { color: white !important; }
-    /* Croix de fermeture du tag */
-    span[data-baseweb="tag"] svg { fill: white !important; }
+    span[data-baseweb="tag"] svg { fill: white !important; } /* La croix X en blanc */
     
     /* BOUTON VALIDATION */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { 
@@ -894,7 +901,7 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
+# 3. MUR SOCIAL (VERSION FINALE - PODIUM AJUSTÉ)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -1053,7 +1060,7 @@ else:
     # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # === PODIUM & SÉQUENCE CINÉMATIQUE (GRID 2x2 FORCEE) ===
+            # === PODIUM & SÉQUENCE CINÉMATIQUE (GRID 2x2 & LOGO DESCENDU) ===
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1153,12 +1160,12 @@ else:
             .column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}
             .column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}
             
-            /* GAGNANTS : EMPILEMENT PYRAMIDAL */
+            /* GAGNANTS : EMPILEMENT PYRAMIDAL CORRIGÉ (LARGEUR 340px) */
             .winners-box{{
                 display:flex; flex-direction:row; flex-wrap:wrap-reverse; /* Construit vers le haut */
                 justify-content:center; align-items:flex-end;
-                width:400px !important; /* LARGEUR FORCEE POUR 2 CARTES MAX */
-                max-width:400px !important;
+                width:340px !important; /* Assez large pour 2 cartes de 150px + marges */
+                max-width:340px !important;
                 margin:0 auto; padding-bottom:0px;
                 opacity:0; transform:translateY(50px) scale(0.8);
                 transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);
@@ -1173,23 +1180,23 @@ else:
             .pedestal-3{{height:150px;border-top:3px solid #CD7F32;color:#CD7F32;}}
             .rank-num{{font-size:120px;font-weight:900;opacity:0.2;line-height:1;}}
             
-            /* SCORES (CACHÉS PAR DÉFAUT) */
+            /* SCORES */
             .rank-score{{
                 font-size:30px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.5);margin-bottom:-20px;z-index:5;
                 opacity: 0; transform: scale(0.5); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             }}
             .rank-score.visible{{ opacity: 1; transform: scale(1); }}
             
-            /* CARTES 130px */
+            /* CARTES AGRANDIES (150px) POUR EMPILEMENT */
             .p-card{{
-                background:rgba(20,20,20,0.8); border-radius:15px; padding:8px;
-                width:130px; margin:4px; 
+                background:rgba(20,20,20,0.8); border-radius:15px; padding:10px;
+                width:150px; margin:4px; 
                 backdrop-filter:blur(5px); border:2px solid rgba(255,255,255,0.3);
                 display:flex; flex-direction:column; align-items:center;
                 box-shadow:0 5px 15px rgba(0,0,0,0.5); flex-shrink:0;
             }}
-            .p-img,.p-placeholder{{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
-            .p-name{{font-family:Arial;font-size:15px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
+            .p-img,.p-placeholder{{width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
+            .p-name{{font-family:Arial;font-size:18px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
             
             .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
             .intro-text{{color:white;font-size:40px;font-weight:bold;text-transform:uppercase;text-shadow:0 0 20px black;}}
@@ -1205,8 +1212,8 @@ else:
             /* ETAPE 1 : GROS + FOND NOIR */
             .final-overlay.stage-1-big{{opacity:1;transform:scale(1.2);background-color:rgba(0,0,0,0.95);}}
             
-            /* ETAPE 2 : PETIT + EN HAUT (REMONTE A -55%) + TRANSPARENT */
-            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-55%);background-color:transparent;}}
+            /* ETAPE 2 : PETIT + EN HAUT (PLUS BAS : -15%) + TRANSPARENT */
+            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-15%);background-color:transparent;}}
             
             .final-content{{text-align:center;}}
             .final-logo{{width:500px;margin-bottom:30px;}}
