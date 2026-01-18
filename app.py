@@ -906,6 +906,7 @@ else:
     </style>
     """, unsafe_allow_html=True)
     
+    # Affiche le header rouge SAUF si on est en mode Votes (car layout spécifique)
     if cfg["mode_affichage"] != "votes" or (not cfg["session_ouverte"] and not cfg["reveal_resultats"]):
          st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
@@ -931,7 +932,7 @@ else:
     js_config = f"""<script>window.robotConfig = {{ mode: '{robot_mode}', titre: '{safe_title}', logo: '{logo_data}' }};</script>"""
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
-    # === CSS INTERNE (MODIFIÉ POUR NÉON PLUS DOUX) ===
+    # === CSS INTERNE (ROBOT & EFFETS) ===
     internal_css_base = f"""
     <style>
         body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
@@ -939,27 +940,18 @@ else:
         {css_content}
         .neon-title {{
             font-family: Arial, sans-serif; font-size: 70px; font-weight: 900; letter-spacing: 5px; margin: 0; padding: 0; color: #fff;
-            /* OMBRE REDUITE ICI : Moins de couches, rayon max 50px au lieu de 150px */
             text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A;
             animation: neon-flicker 1.5s infinite alternate;
         }}
         @keyframes neon-flicker {{
-            /* ETAT ALLUMÉ (Intensité réduite) */
-            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{
-                text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A;
-            }}
-            /* ETAT ETEINT/FAIBLE */
-            20%, 24%, 55% {{
-                text-shadow: none; opacity: 0.5;
-            }}
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{ text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A; }}
+            20%, 24%, 55% {{ text-shadow: none; opacity: 0.5; }}
         }}
-        /* FORCE LE CANVAS DU ROBOT EN ARRIERE-PLAN MAIS DEVANT LE FOND */
-        #robot-canvas-final {{
-            z-index: -1 !important;
-        }}
+        #robot-canvas-final {{ z-index: -1 !important; }}
     </style>
     """
 
+    # --- MODE 1 : ATTENTE (ACCUEIL) ---
     if mode == "attente":
         internal_css = internal_css_base + """
         <style>
@@ -968,7 +960,35 @@ else:
             #sub-text { margin-top: 50px; color: #eeeeee; font-family: 'Arial', sans-serif; font-size: 40px; font-weight: normal; opacity: 0; transition: opacity 1s ease-in-out; text-shadow: 0 0 10px black; }
         </style>
         """
+        
+        # SCRIPT POUR FAIRE DÉFILER LES TEXTES
+        text_script = """<script>
+        const messages = [
+            "Votre soirée va bientôt commencer...<br>Merci de vous installer",
+            "Une soirée exceptionnelle vous attend",
+            "Veuillez couper la sonnerie<br>de vos téléphones 🔕",
+            "Profitez de l'instant et du spectacle",
+            "Préparez-vous à jouer !",
+            "N'oubliez pas vos sourires !"
+        ];
+        let msgIdx = 0;
+        const textEl = document.getElementById('sub-text');
+        
+        function cycleText() {
+            textEl.style.opacity = 0;
+            setTimeout(() => {
+                textEl.innerHTML = messages[msgIdx % messages.length];
+                textEl.style.opacity = 1;
+                msgIdx++;
+            }, 1000);
+        }
+        
+        setInterval(cycleText, 5000);
+        setTimeout(cycleText, 500);
+        </script>"""
+
         logo_img_tag = f'<img id="welcome-logo" src="data:image/png;base64,{logo_data}">' if logo_data else ""
+        
         html_code = f"""<!DOCTYPE html><html><head>{internal_css}</head><body>{js_config}
             <div id="safe-zone"></div>
             <div id="welcome-container">
@@ -978,12 +998,15 @@ else:
             </div>
             <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
             <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
-            {import_map}<script type="module">{js_content}</script></body></html>"""
+            {import_map}<script type="module">{js_content}</script>
+            {text_script}
+            </body></html>"""
         components.html(html_code, height=1000, scrolling=False) 
 
+    # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # === PODIUM & CORRECTION ZOOM (C) ===
+            # === PODIUM & CORRECTION ZOOM ===
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1002,7 +1025,6 @@ else:
             h1 = get_podium_html(rank1, s1, "🥇"); h2 = get_podium_html(rank2, s2, "🥈"); h3 = get_podium_html(rank3, s3, "🥉")
             final_logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="final-logo">' if cfg.get("logo_b64") else ""
             
-            # --- CSS PODIUM CORRIGE (ZOOM & CENTRAGE) ---
             components.html(f"""
             <div id="intro-layer" class="intro-overlay"><div id="intro-txt" class="intro-text"></div><div id="intro-num" class="intro-count"></div></div>
             <div id="final-overlay" class="final-overlay"><div class="final-content">{final_logo_html}<h1 class="final-text">FÉLICITATIONS AUX GAGNANTS !</h1></div></div>
@@ -1040,7 +1062,6 @@ else:
             .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
             .intro-text{{color:white;font-size:40px;font-weight:bold;text-transform:uppercase;text-shadow:0 0 20px black;}}
             .intro-count{{color:#E2001A;font-size:100px;font-weight:900;margin-top:10px;text-shadow:0 0 20px black;}}
-            /* CORRECTION C : ZOOM & POSITION */
             .final-overlay{{position:fixed;top:0;left:0;width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:6000;pointer-events:none;opacity:0;transition:all 1.5s ease-in-out;background-color:black;transform:scale(1.5);}}
             .final-overlay.stage-1-black{{opacity:1;transform:scale(1);}}
             .final-overlay.stage-2-transparent{{background-color:transparent;opacity:1;transform:scale(1);justify-content:flex-start;padding-top:5vh;}}
@@ -1049,7 +1070,7 @@ else:
             </style>""", height=1000, scrolling=False)
 
         elif cfg["session_ouverte"]:
-             # === VOTES OUVERTS & CORRECTION LAYOUT (B) ===
+             # === VOTES OUVERTS & CORRECTION LAYOUT ===
              host = st.context.headers.get('host', 'localhost')
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
