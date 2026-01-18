@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (Z-INDEX 1 : ROBOT > BULLES)
+// 🟢 CONFIGURATION ROBOT 2026 (MULTI-LAYER RENDERING)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -10,8 +10,6 @@ const DUREE_LECTURE = 7500;
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
-
-// ZONE INTERDITE
 const SAFE_ZONE_X = 10.0; 
 
 const CENTRAL_MESSAGES = [
@@ -167,40 +165,66 @@ if (config.mode === 'photos') currentIntroScript = introScript_Photos;
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', launchFinalScene); } else { launchFinalScene(); }
 
 function launchFinalScene() {
-    ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
-    const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
-    document.body.appendChild(canvas);
-    // Z-INDEX 1 : Devant le fond (0) mais derrière le texte (20)
-    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 1 !important; pointer-events: none !important; background: transparent !important;`;
+    ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble', 'robot-canvas-floor', 'robot-canvas-bot'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+    
+    // CANVAS 1 : SOL (Z-INDEX 0)
+    const canvasFloor = document.createElement('canvas'); 
+    canvasFloor.id = 'robot-canvas-floor';
+    document.body.appendChild(canvasFloor);
+    canvasFloor.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 0 !important; pointer-events: none !important; background: transparent !important;`;
+
+    // CANVAS 2 : ROBOT (Z-INDEX 5)
+    const canvasBot = document.createElement('canvas'); 
+    canvasBot.id = 'robot-canvas-bot';
+    document.body.appendChild(canvasBot);
+    canvasBot.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 5 !important; pointer-events: none !important; background: transparent !important;`;
+
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
-    initThreeJS(canvas, bubbleEl);
+    
+    initThreeJS(canvasFloor, canvasBot, bubbleEl);
 }
 
-function initThreeJS(canvas, bubbleEl) {
+function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
-    const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x000000, 10, 60);
-
-    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-    camera.position.set(0, 0, 12); 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-    renderer.setSize(width, height); renderer.setPixelRatio(window.devicePixelRatio);
-    window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     
-    scene.add(new THREE.AmbientLight(0xffffff, 2.0));
-
+    // --- SCENE 1 : SOL (Fond) ---
+    const sceneFloor = new THREE.Scene();
+    sceneFloor.fog = new THREE.Fog(0x000000, 10, 60);
+    const cameraFloor = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+    cameraFloor.position.set(0, 0, 12);
+    
+    const rendererFloor = new THREE.WebGLRenderer({ canvas: canvasFloor, antialias: true, alpha: true });
+    rendererFloor.setSize(width, height); rendererFloor.setPixelRatio(window.devicePixelRatio);
+    
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
     grid.position.y = -2.5; 
-    scene.add(grid);
+    sceneFloor.add(grid);
 
+    // --- SCENE 2 : ROBOT (Devant) ---
+    const sceneBot = new THREE.Scene(); // Pas de brouillard sur le robot pour qu'il reste net
+    const cameraBot = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+    cameraBot.position.set(0, 0, 12);
+
+    const rendererBot = new THREE.WebGLRenderer({ canvas: canvasBot, antialias: true, alpha: true });
+    rendererBot.setSize(width, height); rendererBot.setPixelRatio(window.devicePixelRatio);
+
+    window.addEventListener('resize', () => { 
+        const w = window.innerWidth, h = window.innerHeight;
+        cameraFloor.aspect = w / h; cameraFloor.updateProjectionMatrix(); rendererFloor.setSize(w, h);
+        cameraBot.aspect = w / h; cameraBot.updateProjectionMatrix(); rendererBot.setSize(w, h);
+    });
+    
+    sceneBot.add(new THREE.AmbientLight(0xffffff, 2.0));
+
+    // PARTICULES (Dans scène Bot pour être devant)
     const particleCount = 100;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
     particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
     const particleMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.2, transparent: true, opacity: 0 });
     const particles = new THREE.Points(particleGeo, particleMat);
-    scene.add(particles);
+    sceneBot.add(particles);
     let explosionTime = 0;
     let isExploding = false;
 
@@ -217,7 +241,7 @@ function initThreeJS(canvas, bubbleEl) {
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    // ROBOT
+    // ROBOT (Construction)
     const robotGroup = new THREE.Group(); 
     robotGroup.position.set(-35, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
@@ -246,14 +270,15 @@ function initThreeJS(canvas, bubbleEl) {
     [head, body, armLGroup, armRGroup].forEach(p => { robotGroup.add(p); });
     armLGroup.userData.origRot = armLGroup.rotation.clone(); armRGroup.userData.origRot = armRGroup.rotation.clone();
 
-    scene.add(robotGroup);
+    sceneBot.add(robotGroup); // Ajout scène BOT
 
     const stageSpots = [];
     [-8, -3, 3, 8].forEach((x, i) => {
         const g = new THREE.Group(); g.position.set(x, LIMITE_HAUTE_Y, 0);
         const beam = new THREE.Mesh(new THREE.ConeGeometry(0.4, 15, 32, 1, true), new THREE.MeshBasicMaterial({ color: [0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
         beam.rotateX(-Math.PI/2); beam.position.z = -7.5; g.add(beam);
-        scene.add(g); stageSpots.push({ g, beam, isOn: false, nextToggle: Math.random()*5 });
+        sceneBot.add(g); // Spots dans scène BOT
+        stageSpots.push({ g, beam, isOn: false, nextToggle: Math.random()*5 });
     });
 
     let robotState = 'intro';
@@ -282,8 +307,8 @@ function initThreeJS(canvas, bubbleEl) {
     }
 
     function pickNewTarget() {
-        const dist = camera.position.z; const vFOV = THREE.MathUtils.degToRad(camera.fov);
-        const visibleHeight = 2 * Math.tan(vFOV / 2) * dist; const visibleWidth = visibleHeight * camera.aspect;
+        const dist = cameraBot.position.z; const vFOV = THREE.MathUtils.degToRad(cameraBot.fov);
+        const visibleHeight = 2 * Math.tan(vFOV / 2) * dist; const visibleWidth = visibleHeight * cameraBot.aspect;
         const xLimit = (visibleWidth / 2) - 2.5; 
         const side = Math.random() > 0.5 ? 1 : -1;
         const randomX = SAFE_ZONE_X + (Math.random() * (xLimit - SAFE_ZONE_X)); 
@@ -329,6 +354,7 @@ function initThreeJS(canvas, bubbleEl) {
                 if (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast") || step.action?.includes("normal") || step.action?.includes("teleport")) {
                     if(step.text) showBubble(step.text, step.type);
                 }
+                
                 if(step.action === "enter_scene_slow") targetPos.set(-7, 2, -2);
                 if(step.action === "move_right_slow") targetPos.set(11, 1, -2); 
                 if(step.action === "move_left_check") targetPos.set(-11, -1, 0); 
@@ -430,7 +456,7 @@ function initThreeJS(canvas, bubbleEl) {
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
-            const headPos = robotGroup.position.clone(); headPos.y += 1.3 + (robotGroup.position.z * 0.05); headPos.project(camera);
+            const headPos = robotGroup.position.clone(); headPos.y += 1.3 + (robotGroup.position.z * 0.05); headPos.project(cameraBot);
             const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
             const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
             let leftPos = (bX - bubbleEl.offsetWidth / 2);
@@ -440,7 +466,8 @@ function initThreeJS(canvas, bubbleEl) {
             if(parseFloat(bubbleEl.style.top) < 140) bubbleEl.style.top = '140px';
         }
         lastPos.copy(robotGroup.position);
-        renderer.render(scene, camera);
+        rendererFloor.render(sceneFloor, cameraFloor); // Rendu Sol (Fond)
+        rendererBot.render(sceneBot, cameraBot); // Rendu Robot (Devant)
     }
     animate();
 }
