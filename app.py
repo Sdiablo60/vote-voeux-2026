@@ -847,7 +847,7 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - RESPONSIVE F11)
+# 3. MUR SOCIAL (VERSION FINALE - CALC F11)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -857,10 +857,10 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    # === CSS PUISSANT POUR ANCRAGE PARFAIT (F11 COMPATIBLE) ===
+    # === CSS AVEC CALCUL DE HAUTEUR STRICT ===
     st.markdown("""
     <style>
-        /* 1. Nettoyage Fondamental */
+        /* 1. Nettoyage */
         .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
             background-color: black !important;
             padding: 0 !important; margin: 0 !important;
@@ -868,7 +868,7 @@ else:
             overflow: hidden !important;
         }
 
-        /* 2. LE BANDEAU TITRE (Fixé en haut - 8vh) */
+        /* 2. LE BANDEAU TITRE (8vh) */
         .social-header { 
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 8vh !important;
@@ -884,16 +884,15 @@ else:
             margin: 0 !important; text-transform: uppercase; letter-spacing: 2px;
         }
 
-        /* 3. LA FENÊTRE DU ROBOT (ANCRAGE ELASTIQUE) */
-        /* Au lieu d'une hauteur fixe, on l'ancre en haut et en bas */
+        /* 3. LA FENÊTRE DU ROBOT (Calcul Mathématique) */
+        /* La hauteur est forcée à : Ecran Total - Hauteur Titre */
         iframe[height="1000"] {
             position: fixed !important;
-            top: 8vh !important;       /* Accroché SOUS le titre */
-            left: 0 !important;        /* Accroché à gauche */
-            right: 0 !important;       /* Accroché à droite */
-            bottom: 0 !important;      /* Accroché TOUT EN BAS */
-            width: 100% !important;
-            height: auto !important;   /* La hauteur s'adapte automatiquement */
+            top: 8vh !important;        /* Commence sous le titre */
+            left: 0 !important;
+            width: 100vw !important;
+            height: calc(100vh - 8vh) !important; /* <--- LA CORRECTION F11 EST ICI */
+            min-height: calc(100vh - 8vh) !important; /* Sécurité */
             border: none !important;
             z-index: 1 !important; 
             display: block !important;
@@ -926,9 +925,8 @@ else:
     js_config = f"""<script>window.robotConfig = {{ mode: '{robot_mode}', titre: '{safe_title}', logo: '{logo_data}' }};</script>"""
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
-    # --- CORRECTION DE LA LIGNE ROUGE ---
-    # On utilise position absolute pour coller la ligne rouge aux 4 coins de l'iframe
-    style_body_robot = "margin: 0; padding: 0; background-color: black; overflow: hidden; position: absolute; top: 0; left: 0; right: 0; bottom: 0; box-sizing: border-box; border: 4px solid red;"
+    # CSS INTERNE IFRAME (Cadre rouge)
+    style_body_robot = "margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100%; height: 100%; box-sizing: border-box; border: 4px solid red;"
 
     if mode == "attente":
         logo_img_tag = f'<img src="data:image/png;base64,{logo_data}" style="width:300px; margin-bottom:10px;">' if logo_data else ""
