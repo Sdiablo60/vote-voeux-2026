@@ -1024,7 +1024,7 @@ else:
     # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # === PODIUM & SÉQUENCE CINÉMATIQUE ===
+            # === PODIUM & SÉQUENCE CINÉMATIQUE (SCORES CACHÉS) ===
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1056,42 +1056,60 @@ else:
             <audio id="applause-sound" preload="auto"><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg"></audio>
             
             <div class="podium-container">
-                <div class="column-2"><div class="winners-box rank-2" id="win-2">{h2}</div><div class="pedestal pedestal-2"><div class="rank-score">{s2} PTS</div><div class="rank-num">2</div></div></div>
-                <div class="column-1"><div class="winners-box rank-1" id="win-1">{h1}</div><div class="pedestal pedestal-1"><div class="rank-score">{s1} PTS</div><div class="rank-num">1</div></div></div>
-                <div class="column-3"><div class="winners-box rank-3" id="win-3">{h3}</div><div class="pedestal pedestal-3"><div class="rank-score">{s3} PTS</div><div class="rank-num">3</div></div></div>
+                <div class="column-2">
+                    <div class="winners-box rank-2" id="win-2">{h2}</div>
+                    <div class="pedestal pedestal-2"><div class="rank-score" id="score-2">{s2} PTS</div><div class="rank-num">2</div></div>
+                </div>
+                <div class="column-1">
+                    <div class="winners-box rank-1" id="win-1">{h1}</div>
+                    <div class="pedestal pedestal-1"><div class="rank-score" id="score-1">{s1} PTS</div><div class="rank-num">1</div></div>
+                </div>
+                <div class="column-3">
+                    <div class="winners-box rank-3" id="win-3">{h3}</div>
+                    <div class="pedestal pedestal-3"><div class="rank-score" id="score-3">{s3} PTS</div><div class="rank-num">3</div></div>
+                </div>
             </div>
             
             <script>
             const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
             const layer=document.getElementById('intro-layer'),txt=document.getElementById('intro-txt'),num=document.getElementById('intro-num'),w1=document.getElementById('win-1'),w2=document.getElementById('win-2'),w3=document.getElementById('win-3'),audio=document.getElementById('applause-sound'),finalOverlay=document.getElementById('final-overlay');
+            
             function startConfetti(){{var script=document.createElement('script');script.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";script.onload=()=>{{var duration=15*1000;var animationEnd=Date.now()+duration;var defaults={{startVelocity:30,spread:360,ticks:60,zIndex:5500}};var random=(min,max)=>Math.random()*(max-min)+min;var interval=setInterval(function(){{var timeLeft=animationEnd-Date.now();if(timeLeft<=0){{return clearInterval(interval);}}var particleCount=50*(timeLeft/duration);confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.1,0.3),y:Math.random()-0.2}}}}));confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.7,0.9),y:Math.random()-0.2}}}}));}},250);}};document.body.appendChild(script);}}
             
             async function countdown(seconds,message){{layer.style.display='flex';layer.style.opacity='1';txt.innerText=message;for(let i=seconds;i>0;i--){{num.innerText=i;await wait(1000);}}layer.style.opacity='0';await wait(500);layer.style.display='none';}}
             
             async function runShow(){{
-                // 1. REVELATION GAGNANTS (Podium Fixe - 10 SECONDES DE SUSPENSE)
+                // 1. REVELATION 3ème (10s suspens)
                 await countdown(10,"EN TROISIÈME PLACE...");
                 w3.classList.add('visible');
+                await wait(1000); // 1s de pause
+                document.getElementById('score-3').classList.add('visible'); // SCORE
                 await wait(4000);
                 
+                // 2. REVELATION 2ème
                 await countdown(10,"EN SECONDE PLACE...");
                 w2.classList.add('visible');
+                await wait(1000); // 1s de pause
+                document.getElementById('score-2').classList.add('visible'); // SCORE
                 await wait(4000);
                 
+                // 3. REVELATION 1er
                 await countdown(10,"ET LE VAINQUEUR EST...");
                 w1.classList.add('visible');
+                await wait(1000); // 1s de pause
+                document.getElementById('score-1').classList.add('visible'); // SCORE
                 
-                // 2. FÊTE (CONFETTIS)
+                // 4. FÊTE (CONFETTIS)
                 startConfetti();
                 try{{audio.currentTime=0;audio.play();}}catch(e){{}}
                 
-                // 3. PAUSE APRES VICTOIRE (6 secondes)
+                // 5. PAUSE APRES VICTOIRE (6 secondes)
                 await wait(6000);
                 
-                // 4. APPARITION GROSSE DU LOGO (STAGE 1)
+                // 6. APPARITION GROSSE DU LOGO (STAGE 1)
                 finalOverlay.classList.add('stage-1-big');
                 
-                // 5. ZOOM ARRIERE VERS LE HAUT (STAGE 2 - Après 6 secondes)
+                // 7. ZOOM ARRIERE VERS LE HAUT (STAGE 2 - Après 6 secondes)
                 await wait(6000);
                 finalOverlay.classList.remove('stage-1-big');
                 finalOverlay.classList.add('stage-2-top');
@@ -1110,13 +1128,19 @@ else:
             .winners-box{{display:flex;flex-direction:row;flex-wrap:wrap-reverse;justify-content:center;align-items:flex-end;width:450px!important;max-width:450px!important;margin:0 auto;padding-bottom:0px;opacity:0;transform:translateY(50px) scale(0.8);transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);gap:10px;}}
             .winners-box.visible{{opacity:1;transform:translateY(0) scale(1);}}
             
-            /* PODIUM FIXE (Pas d'animation de montée) */
+            /* PODIUM FIXE */
             .pedestal{{width:100%;background:linear-gradient(to bottom,#333,#000);border-radius:20px 20px 0 0;box-shadow:0 -5px 15px rgba(255,255,255,0.1);display:flex;flex-direction:column;justify-content:flex-start;align-items:center;position:relative;padding-top:20px;}}
             .pedestal-1{{height:350px;border-top:3px solid #FFD700;color:#FFD700;}}
             .pedestal-2{{height:220px;border-top:3px solid #C0C0C0;color:#C0C0C0;}}
             .pedestal-3{{height:150px;border-top:3px solid #CD7F32;color:#CD7F32;}}
             .rank-num{{font-size:120px;font-weight:900;opacity:0.2;line-height:1;}}
-            .rank-score{{font-size:30px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.5);margin-bottom:-20px;z-index:5;}}
+            
+            /* SCORES (CACHÉS PAR DÉFAUT - OPACITY 0) */
+            .rank-score{{
+                font-size:30px;font-weight:bold;text-shadow:0 2px 4px rgba(0,0,0,0.5);margin-bottom:-20px;z-index:5;
+                opacity: 0; transform: scale(0.5); transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }}
+            .rank-score.visible{{ opacity: 1; transform: scale(1); }}
             
             /* CARTES */
             .p-card{{background:rgba(20,20,20,0.8);border-radius:15px;padding:15px;width:200px;margin:10px;backdrop-filter:blur(5px);border:2px solid rgba(255,255,255,0.3);display:flex;flex-direction:column;align-items:center;box-shadow:0 5px 15px rgba(0,0,0,0.5);flex-shrink:0;}}
