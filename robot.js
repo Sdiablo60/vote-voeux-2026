@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (MESSAGES SOUS LE TITRE)
+// 🟢 CONFIGURATION ROBOT 2026 (CIBLAGE CORRIGÉ)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -44,7 +44,6 @@ const introScript = [
     { time: 20, text: "Attendez... Quoi ?! Vraiment ?! 😮", type: "speech" },
     { time: 24, text: "Mesdames et Messieurs, on vient de m'informer...", type: "speech", action: "surprise" },
     { time: 28, text: "Je serai votre animateur officiel ce soir ! 🤖✨", type: "speech" },
-    
     // ICI : Affiche le titre de la soirée DANS LE SOUS-TITRE
     { time: 33, text: "Bienvenue à la soirée : " + config.titre + " ! 🎉", type: "speech", action: "update_title" }
 ];
@@ -179,8 +178,9 @@ function initThreeJS(canvas, bubbleEl) {
     }
 
     // Fonction qui change le SOUS-TEXTE (id='sub-text')
+    // CORRECTION ICI : Utilisation de document.getElementById au lieu de window.parent.document...
     function cycleCenterText() {
-        const subDiv = window.parent.document.getElementById('sub-text');
+        const subDiv = document.getElementById('sub-text');
         if(subDiv) {
             subDiv.style.opacity = 0;
             setTimeout(() => {
@@ -235,12 +235,12 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "move_side") pickNewTarget();
 
                 if(step.action === "update_title") {
-                    // Au moment de l'annonce, on met le titre dans le sous-texte
-                    const subDiv = window.parent.document.getElementById('sub-text');
+                    // CORRECTION ICI AUSSI : document.getElementById
+                    const subDiv = document.getElementById('sub-text');
                     if(subDiv) {
-                        subDiv.innerHTML = config.titre; // Titre dynamique
+                        subDiv.innerHTML = config.titre; 
                         subDiv.style.opacity = 1;
-                        lastTextChange = time + 10; // Commence la rotation 10s plus tard
+                        lastTextChange = time + 10; 
                     }
                 }
                 introIdx++;
@@ -251,7 +251,6 @@ function initThreeJS(canvas, bubbleEl) {
         
         else if (robotState === 'moving' || robotState === 'approaching' || robotState === 'thinking') {
             
-            // Changement de texte toutes les 10s (environ)
             if (config.mode === 'attente' && time > lastTextChange + 10) { 
                 cycleCenterText();
                 lastTextChange = time;
