@@ -865,7 +865,7 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - PODIUM CINÉMATIQUE & GRID)
+# 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID & POSITIONS)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -1124,13 +1124,12 @@ else:
             .column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}
             .column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}
             
-            /* GAGNANTS : EMPILEMENT PYRAMIDAL CORRIGÉ */
-            /* La largeur force le wrap tous les 2 cartes */
+            /* GAGNANTS : EMPILEMENT PYRAMIDAL CORRIGÉ (LARGEUR 360px pour 2 cartes) */
             .winners-box{{
                 display:flex; flex-direction:row; flex-wrap:wrap-reverse; /* Construit vers le haut */
                 justify-content:center; align-items:flex-end;
-                width:340px !important; /* Assez large pour 2 cartes max */
-                max-width:340px !important;
+                width:360px !important; /* Assez large pour 2 cartes de 160px + marges */
+                max-width:360px !important;
                 margin:0 auto; padding-bottom:0px;
                 opacity:0; transform:translateY(50px) scale(0.8);
                 transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);
@@ -1152,16 +1151,16 @@ else:
             }}
             .rank-score.visible{{ opacity: 1; transform: scale(1); }}
             
-            /* CARTES RÉDUITES (135px) POUR EMPILEMENT COTE A COTE */
+            /* CARTES AGRANDIES (160px) POUR EMPILEMENT */
             .p-card{{
                 background:rgba(20,20,20,0.8); border-radius:15px; padding:10px;
-                width:135px; margin:4px; 
+                width:160px; margin:5px; 
                 backdrop-filter:blur(5px); border:2px solid rgba(255,255,255,0.3);
                 display:flex; flex-direction:column; align-items:center;
                 box-shadow:0 5px 15px rgba(0,0,0,0.5); flex-shrink:0;
             }}
-            .p-img,.p-placeholder{{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
-            .p-name{{font-family:Arial;font-size:16px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
+            .p-img,.p-placeholder{{width:100px;height:100px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
+            .p-name{{font-family:Arial;font-size:18px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
             
             .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
             .intro-text{{color:white;font-size:40px;font-weight:bold;text-transform:uppercase;text-shadow:0 0 20px black;}}
@@ -1178,8 +1177,8 @@ else:
             .final-overlay.stage-1-big{{opacity:1;transform:scale(1.2);background-color:rgba(0,0,0,0.95);}}
             
             /* ETAPE 2 : PETIT + EN HAUT (PLUS BAS) + TRANSPARENT */
-            /* translateY(-38%) : Descend le logo pour qu'il soit visible sans couper le haut */
-            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-38%);background-color:transparent;}}
+            /* translateY(-15%) : Descendu pour éviter le plafond */
+            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-15%);background-color:transparent;}}
             
             .final-content{{text-align:center;}}
             .final-logo{{width:500px;margin-bottom:30px;}}
