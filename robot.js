@@ -1,16 +1,21 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION FINALE VALIDÉE (BORDS & LIMITES) 🟢
+// 🟢 CONFIGURATION ROBOT 2026
 // =========================================================
-const LIMITE_HAUTE_Y = 6.53; // Source cachée derrière le titre rouge
+const LIMITE_HAUTE_Y = 6.53; // Hauteur max (sous le titre)
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
 const DUREE_LECTURE = 7000; 
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 
-// --- INJECTION DU STYLE CSS (Bulles et Nuages) ---
+// --- 1. LIGNE ROUGE DE CALIBRATION (A COMMENTER LE JOUR J) ---
+// C'est ici que l'on rétablit la ligne pour voir les limites de l'iframe
+document.body.style.border = "5px solid red"; 
+document.body.style.boxSizing = "border-box"; // Pour que la bordure soit incluse dans les dimensions
+
+// --- INJECTION STYLE BULLES ---
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
@@ -25,7 +30,7 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCRIPT D'INTRODUCTION THÉÂTRALE ---
+// --- SCRIPT INTRO ---
 const introScript = [
     { time: 1, text: "Euh... C'est quoi cet endroit ? 🧐", type: "thought" },
     { time: 5, text: "Je ne reconnais pas ces serveurs... 💾", type: "thought" },
@@ -60,6 +65,7 @@ function launchFinalScene() {
     const canvas = document.createElement('canvas');
     canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
+    // On force le style ici aussi pour être sûr
     canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 10; pointer-events: none !important; background: transparent !important;`;
 
     const bubbleEl = document.createElement('div');
@@ -70,8 +76,12 @@ function launchFinalScene() {
 }
 
 function initThreeJS(canvas, bubbleEl) {
-    let width = window.innerWidth, height = window.innerHeight;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    
     const scene = new THREE.Scene();
+    
+    // CAMERA
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 12); 
 
@@ -79,26 +89,38 @@ function initThreeJS(canvas, bubbleEl) {
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
 
+    // --- 2. GESTION DU REDIMENSIONNEMENT (CRUCIAL POUR LA TV) ---
+    window.addEventListener('resize', onWindowResize, false);
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- ROBOT ---
+    // --- CONSTRUCTION DU ROBOT ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
+    
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
+    // Tête
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat);
     head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat);
     face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     
+    // Yeux & Bouche
     const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI);
     const eyeL = new THREE.Mesh(eyeGeo, neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat);
     mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
 
+    // Corps
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat);
     body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
     const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
@@ -107,10 +129,15 @@ function initThreeJS(canvas, bubbleEl) {
     rightArm.position.set(0.8, -0.8, 0); rightArm.rotation.z = -0.15;
 
     const parts = [head, body, leftArm, rightArm];
-    parts.forEach(p => { robotGroup.add(p); p.userData.origPos = p.position.clone(); p.userData.origRot = p.rotation.clone(); p.userData.velocity = new THREE.Vector3(); });
+    parts.forEach(p => { 
+        robotGroup.add(p); 
+        p.userData.origPos = p.position.clone(); 
+        p.userData.origRot = p.rotation.clone(); 
+        p.userData.velocity = new THREE.Vector3(); 
+    });
     scene.add(robotGroup);
 
-    // --- SPOTS (FIXÉS À 6.53) ---
+    // --- SPOTS ---
     const stageSpots = [];
     function createSpot(color, x, y) {
         const g = new THREE.Group(); g.position.set(x, y, 0);
@@ -118,7 +145,8 @@ function initThreeJS(canvas, bubbleEl) {
         beam.rotateX(-Math.PI/2); beam.position.z = -7.5; g.add(beam);
         scene.add(g); return { g, beam, isOn: false, nextToggle: Math.random()*5 };
     }
-    [-6, -2, 2, 6].forEach((x, i) => stageSpots.push(createSpot([0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], x, LIMITE_HAUTE_Y)));
+    // Spots plus écartés pour occuper l'espace
+    [-8, -3, 3, 8].forEach((x, i) => stageSpots.push(createSpot([0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], x, LIMITE_HAUTE_Y)));
 
     // --- ANIMATION ---
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
@@ -131,9 +159,27 @@ function initThreeJS(canvas, bubbleEl) {
         setTimeout(() => { bubbleEl.style.opacity = 0; bubbleEl.style.transform = "scale(0.9)"; }, DUREE_LECTURE); 
     }
 
+    // --- 3. CALCUL DES LIMITES DYNAMIQUES DE L'ECRAN ---
     function pickNewTarget() {
+        // Calcule la largeur visible réelle à la profondeur 0 (là où bouge le robot)
+        // Formule : 2 * tan(FOV/2) * distance * aspect_ratio
+        const dist = camera.position.z; // 12
+        const vFOV = THREE.MathUtils.degToRad(camera.fov); // Convertit 50 deg en rad
+        const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
+        const visibleWidth = visibleHeight * camera.aspect;
+        
+        // Limite X = moitié de la largeur - marge de sécurité (2 unités pour ne pas couper le bras)
+        const xLimit = (visibleWidth / 2) - 2.0;
+
         const side = Math.random() > 0.5 ? 1 : -1;
-        targetPos.set(side * (4.5 + Math.random() * 3), (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
+        
+        // Nouvelle position aléatoire respectant la largeur de VOTRE écran actuel
+        targetPos.set(
+            side * (Math.random() * xLimit), 
+            (Math.random() - 0.5) * 6, 
+            (Math.random() * 5) - 3
+        );
+
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
         nextMoveTime = Date.now() + 6000;
     }
@@ -170,16 +216,24 @@ function initThreeJS(canvas, bubbleEl) {
         else if (robotState === 'moving' || robotState === 'approaching' || robotState === 'thinking') {
             if (Date.now() > nextMoveTime || robotState === 'approaching') { robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT); }
             robotGroup.rotation.y = Math.sin(time)*0.2;
+            
             if(robotGroup.position.distanceTo(targetPos) < 0.5 && robotState !== 'thinking') {
                 if (robotState === 'approaching') {
                     if (targetPos.x > 0) { targetPos.x = -5; } else { robotState = 'moving'; pickNewTarget(); }
                 } else if (Date.now() > nextMoveTime) { pickNewTarget(); }
             }
+            
             if(time > nextEvt) {
                 const r = Math.random();
-                if(r < 0.08) { robotState = 'exploding'; showBubble("Surchauffe ! 🔥"); parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4)); setTimeout(() => { robotState = 'reassembling'; }, 3500);
-                } else if(r < 0.18) { robotState = 'thinking'; targetPos.copy(robotGroup.position); showBubble("Analyse du bonheur ambiant : 100%...", 'thought'); setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 7000);
-                } else if(r < 0.35) { robotState = 'approaching'; targetPos.set(5, (Math.random()-0.5)*2, 8); showBubble("Toc ! Toc ! Vous m'entendez ? ✨");
+                if(r < 0.08) { 
+                    robotState = 'exploding'; showBubble("Surchauffe ! 🔥"); 
+                    parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4)); 
+                    setTimeout(() => { robotState = 'reassembling'; }, 3500);
+                } else if(r < 0.18) { 
+                    robotState = 'thinking'; targetPos.copy(robotGroup.position); showBubble("Analyse du bonheur ambiant : 100%...", 'thought'); 
+                    setTimeout(() => { robotState = 'moving'; pickNewTarget(); }, 7000);
+                } else if(r < 0.35) { 
+                    robotState = 'approaching'; targetPos.set(5, (Math.random()-0.5)*2, 8); showBubble("Toc ! Toc ! Vous m'entendez ? ✨");
                 } else { 
                     const bag = MESSAGES_BAG[config.mode] || MESSAGES_BAG['attente'];
                     showBubble(bag[Math.floor(Math.random()*bag.length)]);
