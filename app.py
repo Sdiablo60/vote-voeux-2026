@@ -887,18 +887,21 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL
+# 3. MUR SOCIAL (Ce bloc remplace toute la fin du fichier, à partir du 'else:')
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
+    
     # Refresh auto pour vérifier les changements d'état
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
+    # Fond noir pour le conteneur principal
     st.markdown("""<style>.stApp { background-color: black !important; color: white !important; }</style>""", unsafe_allow_html=True)
     
-    # 🔴 TRES IMPORTANT : LE HEADER EST ICI DANS LE DOM 🔴
+    # --- ETAPE 2 : LE TITRE ROUGE (CRUCIAL) ---
+    # C'est cette ligne qui affiche le bandeau rouge fixé en haut.
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
@@ -906,13 +909,13 @@ else:
     effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
     inject_visual_effect(effect_name, 25, 15)
     
-    # --- CHARGEMENT DES FICHIERS ---
+    # --- CHARGEMENT DES FICHIERS JS/CSS ---
     try:
         with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
         with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
     except: css_content = ""; js_content = "console.error('Fichiers manquants');"
 
-    # --- CONFIGURATION DU ROBOT (TITRE ET MODE) ---
+    # --- CONFIGURATION DU ROBOT ---
     robot_mode = "attente" 
     if mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
         robot_mode = "vote_off"
@@ -920,8 +923,6 @@ else:
         robot_mode = "photos"
     
     safe_title = cfg['titre_mur'].replace("'", "\\'")
-    
-    # Préparation du logo pour le robot
     logo_data = cfg.get("logo_b64", "")
     
     # Injection des variables pour le JS
@@ -935,12 +936,12 @@ else:
     </script>
     """
     
-    # --- IMPORT MAP CORRIGÉE (Pour THREE.JS) ---
+    # Import Map Three.js
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
-    # CSS DU BODY INTERNE DE L'IFRAME (S'assure que le contenu remplit l'iframe de 92vh)
-    # LIGNE ROUGE ACTIVEE ICI
-    style_body_robot = "margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100%; box-sizing: border-box; border: 4px solid red;"
+    # --- ETAPE 3 : AJUSTEMENT DU STYLE HTML DU ROBOT ---
+    # On utilise width: 100% et height: 100% car l'iframe est déjà dimensionnée par le CSS global (92vh)
+    style_body_robot = "margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100%; height: 100%; box-sizing: border-box; border: 4px solid red;"
 
     if mode == "attente":
         logo_img_tag = f'<img src="data:image/png;base64,{logo_data}" style="width:300px; margin-bottom:10px;">' if logo_data else ""
@@ -1155,4 +1156,3 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-
