@@ -865,7 +865,7 @@ elif est_utilisateur:
         else: st.info("⏳ En attente...")
 
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - LAYOUT CORRIGÉ)
+# 3. MUR SOCIAL (VERSION FINALE - NEON ADOUCI)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -875,7 +875,7 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    # === CSS PRINCIPAL (GLOBAL) ===
+    # === CSS PRINCIPAL ===
     st.markdown("""
     <style>
         .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
@@ -884,7 +884,7 @@ else:
             width: 100vw !important; max-width: 100vw !important;
             overflow: hidden !important;
         }
-        /* HEADER ROUGE FIXE (IDENTIQUE PARTOUT) */
+        /* HEADER ROUGE FIXE */
         .social-header { 
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 8vh !important;
@@ -907,7 +907,7 @@ else:
     </style>
     """, unsafe_allow_html=True)
     
-    # AFFICHE LE TITRE TOUT LE TEMPS (Même en mode vote)
+    # AFFICHE LE TITRE TOUT LE TEMPS
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
@@ -968,7 +968,7 @@ else:
         </style>
         """
         
-        # SCRIPT GESTION TEXTE (AVEC DELAI ROBOT)
+        # SCRIPT GESTION TEXTE (AVEC DELAI ROBOT 45s)
         text_script = """<script>
         const messages = [
             "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -1024,7 +1024,7 @@ else:
     # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # === PODIUM ===
+            # === PODIUM & CORRECTION ZOOM ===
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1088,12 +1088,14 @@ else:
             </style>""", height=1000, scrolling=False)
 
         elif cfg["session_ouverte"]:
-             # === VOTES OUVERTS (LAYOUT CORRIGÉ) ===
+             # === VOTES OUVERTS (LAYOUT AJUSTÉ : LOGO AU CENTRE + CANDIDATS GROSSIS) ===
              host = st.context.headers.get('host', 'localhost')
              qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
              qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
              
-             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="height:140px; margin: 10px 0;">' if cfg.get("logo_b64") else ""
+             # Logo pour la colonne centrale
+             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:250px; margin-bottom: 20px;">' if cfg.get("logo_b64") else ""
+             
              recent_votes = load_json(DETAILED_VOTES_FILE, [])
              voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
              voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
@@ -1101,13 +1103,15 @@ else:
              cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
              left_cands = cands[:mid]; right_cands = cands[mid:]
              
+             # STYLES LISTE CANDIDATS (Augmentés)
              def gen_html_list(clist, imgs):
                  h = ""
                  for c in clist:
-                     im = '<div style="font-size:24px;">👤</div>'
-                     if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid white;">'
-                     h += f"""<div style="display:flex; align-items:center; background:rgba(255,255,255,0.15); padding:8px 15px; border-radius:30px; margin-bottom:8px; width:100%; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
-                                {im}<span style="margin-left:10px; font-size:16px; font-weight:bold; color:white; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c}</span>
+                     im = '<div style="font-size:35px;">👤</div>' 
+                     if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid white;">'
+                     # Padding 15/25, Margin 25, Font 22
+                     h += f"""<div style="display:flex; align-items:center; background:rgba(255,255,255,0.15); padding:15px 25px; border-radius:50px; margin-bottom:25px; width:100%; max-width:450px; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
+                                {im}<span style="margin-left:20px; font-size:22px; font-weight:bold; color:white; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c}</span>
                             </div>"""
                  return h
                  
@@ -1121,33 +1125,35 @@ else:
                 /* HEADER SPACING */
                 .header-spacer {{ width: 100%; height: 8vh; }}
                 
-                /* TOP SECTION : LOGO + TICKER */
-                .top-section {{ display: flex; flex-direction: column; align-items: center; width: 100%; flex: 0 0 auto; padding-top: 1vh; }}
+                /* TOP SECTION : JUSTE LE TICKER */
+                .top-section {{ display: flex; flex-direction: column; align-items: center; width: 100%; flex: 0 0 auto; padding-top: 0; }}
                 
                 /* BANDEAU DEFILANT */
-                .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 40px; display: flex; align-items: center; border-bottom: 2px solid white; margin-top: 10px; }}
-                .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 16px; text-transform: uppercase; white-space: nowrap; }}
+                .marquee-container {{ width: 100%; background: #E2001A; color: white; height: 45px; display: flex; align-items: center; border-bottom: 2px solid white; margin-top: 0; }}
+                .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; white-space: nowrap; }}
                 @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
                 
-                /* MAIN CONTENT (Centered Vertical) */
+                /* MAIN CONTENT */
                 .main-content {{ flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding-bottom: 2vh; }}
-                .content-grid {{ display: flex; justify-content: center; align-items: flex-start; width: 95%; gap: 30px; }}
+                .content-grid {{ display: flex; justify-content: center; align-items: center; width: 98%; gap: 20px; height: 100%; }}
                 
-                .col-cands {{ width: 25%; display: flex; flex-direction: column; justify-content: center; }}
+                /* COLONNES CANDIDATS */
+                .col-cands {{ width: 30%; display: flex; flex-direction: column; justify-content: center; height: 100%; }}
+                
+                /* COLONNE CENTRALE : Logo + QR */
                 .col-qr {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
                 
-                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); animation: pulse 3s infinite; text-align: center; }}
-                .qr-sub {{ margin-top: 10px; color: black; font-weight: bold; font-size: 18px; text-transform: uppercase; }}
+                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); animation: pulse 3s infinite; text-align: center; }}
+                .qr-sub {{ margin-top: 10px; color: black; font-weight: bold; font-size: 20px; text-transform: uppercase; }}
                 
-                @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 70px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
+                @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 80px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
              </style>
              
              <div class="header-spacer"></div>
              
              <div class="top-section">
-                {logo_html}
                 <div class="marquee-container">
-                    <div style="background:#C20015; height:100%; padding:0 20px; display:flex; align-items:center; font-weight:900; z-index:2;">DERNIERS VOTES :</div>
+                    <div style="background:#C20015; height:100%; padding:0 25px; display:flex; align-items:center; font-weight:900; z-index:2; font-size: 18px;">DERNIERS VOTES :</div>
                     <div style="overflow:hidden; flex:1;"><div class="marquee-content">{voter_string}</div></div>
                 </div>
              </div>
@@ -1155,12 +1161,15 @@ else:
              <div class="main-content">
                 <div class="content-grid">
                     <div class="col-cands" style="align-items: flex-end;">{left_html}</div>
+                    
                     <div class="col-qr">
+                        {logo_html}
                         <div class="qr-box">
-                            <img src="data:image/png;base64,{qr_b64}" width="260">
+                            <img src="data:image/png;base64,{qr_b64}" width="280">
                             <div class="qr-sub">Scannez pour voter</div>
                         </div>
                     </div>
+                    
                     <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
                 </div>
              </div>""", height=950)
