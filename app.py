@@ -67,163 +67,43 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 # =========================================================
 st.markdown("""
 <style>
-    /* PAR DEFAUT : FOND BLANC (Pour l'Admin) */
-    .stApp {
-        background-color: #FFFFFF;
-        color: black;
-    }
+    /* ... (Gardez le CSS du header .social-header inchangé) ... */
     
-    [data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
-    
-    .social-header { 
-        position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 8vh;  /* <--- MODIFIÉ : 8% au lieu de 12% */
-        background: #E2001A !important; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        z-index: 999999 !important; 
-        border-bottom: 3px solid white; /* Bordure un peu plus fine */
-    }
-    .social-title { 
-        color: white !important; 
-        font-size: 30px !important; /* <--- MODIFIÉ : Plus petit pour rentrer dans 8vh */
-        font-weight: bold; 
-        margin: 0; 
-        text-transform: uppercase; 
-    }
-    html, body, [data-testid="stAppViewContainer"] {
-        overflow: hidden !important;
-        height: 100vh !important;
+    /* SUPPRESSION RADICALE DES MARGES STREAMLIT */
+    .main .block-container {
+        max-width: 100vw !important;
         width: 100vw !important;
-        margin: 0 !important;
         padding: 0 !important;
-    }
-    
-    ::-webkit-scrollbar { display: none; }
-    
-    button[kind="secondary"] { 
-        color: #333 !important; 
-        border-color: #333 !important; 
-    }
-    button[kind="primary"] { 
-        color: white !important; 
-        background-color: #E2001A !important; 
-        border: none; 
-    }
-    button[kind="primary"]:hover { 
-        background-color: #C20015 !important; 
-    }
-    
-    /* DESIGN ADMIN MODERNE */
-    .session-card {
-        background-color: #f8f9fa;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-        text-align: center;
-        border: 1px solid #ddd;
-        margin-bottom: 20px;
-    }
-    .session-title {
-        color: #E2001A;
-        font-size: 24px;
-        font-weight: 900;
-        text-transform: uppercase;
-        margin-bottom: 10px;
-    }
-    
-    .login-container {
-        max-width: 400px; 
-        margin: 100px auto; 
-        padding: 40px;
-        background: #f8f9fa; 
-        border-radius: 20px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
-        text-align: center; 
-        border: 1px solid #ddd;
-    }
-    .login-title { 
-        color: #E2001A; 
-        font-size: 24px; 
-        font-weight: bold; 
-        margin-bottom: 20px; 
-        text-transform: uppercase; 
-    }
-    .stTextInput input { 
-        text-align: center; 
-        font-size: 18px; 
-    }
-    
-    section[data-testid="stSidebar"] { 
-        background-color: #f0f2f6 !important; 
-    }
-    section[data-testid="stSidebar"] button[kind="primary"] {
-        background-color: #E2001A !important; 
-        width: 100%; 
-        border-radius: 5px; 
-        margin-bottom: 5px;
-    }
-    section[data-testid="stSidebar"] button[kind="secondary"] {
-        background-color: #333333 !important; 
-        width: 100%; 
-        border-radius: 5px; 
-        margin-bottom: 5px; 
-        border: none !important; 
-        color: white !important;
-    }
-    
-    .blue-anim-btn button {
-        background-color: #2980b9 !important; 
-        color: white !important; 
-        border: none !important; 
-        transition: all 0.3s ease !important; 
-        font-weight: bold !important; 
-    }
-    .blue-anim-btn button:hover {
-        transform: scale(1.05) !important; 
-        box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important; 
-        background-color: #3498db !important; 
+        margin: 0 !important;
+        overflow: hidden !important;
     }
 
-    a.custom-link-btn {
-        display: block !important; 
-        text-align: center !important; 
-        padding: 12px 20px !important; 
-        border-radius: 8px !important; 
-        text-decoration: none !important; 
-        font-weight: bold !important; 
-        margin-bottom: 10px !important;
-        color: white !important; 
-        transition: transform 0.2s !important; 
-        width: 100% !important; 
-        box-sizing: border-box !important; 
-        line-height: 1.5 !important; 
+    [data-testid="stAppViewContainer"] {
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+        background-color: black !important; /* Fond noir pour éviter les flashs blancs */
     }
-    a.custom-link-btn:hover { 
-        transform: scale(1.02); 
-        opacity: 0.9; 
+
+    /* === LE CORRECTIF CADRAGE === */
+    iframe[title="streamlit.components.v1.components.html"] {
+        position: fixed !important;
+        top: 8vh !important;       /* Commence SOUS le bandeau de 8vh */
+        left: 0 !important;
+        width: 100vw !important;   /* Largeur totale */
+        height: 92vh !important;   /* Hauteur restante (100 - 8) */
+        border: none !important;
+        z-index: 0;
+        margin: 0 !important;
+        display: block !important;
     }
-    .btn-red { background-color: #E2001A !important; }
-    .btn-blue { background-color: #2980b9 !important; }
+
+    /* Cache le footer et menu Streamlit */
+    footer, header[data-testid="stHeader"] { display: none !important; }
     
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
-        background-color: white !important;
-    }
-    li[role="option"] {
-        color: black !important; 
-        background-color: white !important; 
-    }
-    div[data-baseweb="select"] div {
-        color: black !important; 
-    }
-    li[role="option"] span { color: black !important; }
+    /* ... (Le reste du CSS pour les boutons, admin, etc.) ... */
 </style>
 """, unsafe_allow_html=True)
-
 # =========================================================
 # 3. DONNEES & CONFIGURATIONS PAR DEFAUT
 # =========================================================
@@ -1236,4 +1116,5 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
 
