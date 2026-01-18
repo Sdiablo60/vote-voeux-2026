@@ -1,22 +1,22 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (SCÉNARIO & MESSAGES DYNAMIQUES)
+// 🟢 CONFIGURATION ROBOT 2026 (MESSAGES SOUS LE TITRE)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 5500; // Un peu plus rapide pour enchainer les dialogues
+const DUREE_LECTURE = 5500; 
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 
-// --- MESSAGES ROTATIFS DU CENTRE (APRES L'INTRO) ---
+// --- MESSAGES ROTATIFS (SOUS LE TITRE) ---
 const CENTRAL_MESSAGES = [
-    "VOTRE SOIRÉE VA BIENTÔT COMMENCER<br>MERCI DE VOUS INSTALLER",
-    "UNE SOIRÉE EXCEPTIONNELLE<br>VOUS ATTEND",
-    "VEUILLEZ COUPER LA SONNERIE<br>DE VOS TÉLÉPHONES 🔕",
-    "PROFITEZ DE L'INSTANT<br>ET DU SPECTACLE",
-    "BIENVENUE"
+    "Votre soirée va bientôt commencer...<br>Merci de vous installer",
+    "Une soirée exceptionnelle vous attend",
+    "Veuillez couper la sonnerie<br>de vos téléphones 🔕",
+    "Profitez de l'instant et du spectacle",
+    "Préparez-vous à jouer !"
 ];
 
 // --- INJECTION STYLE BULLES ---
@@ -34,21 +34,19 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO D'INTRODUCTION (Narratif) ---
+// --- SCENARIO D'INTRODUCTION ---
 const introScript = [
     { time: 1, text: "Inspection de la zone... 🧐", type: "thought", action: "move_top_left" },
     { time: 5, text: "Tout semble en ordre par ici... ✅", type: "thought", action: "move_top_right" },
     { time: 9, text: "Tiens ? Mais il y a du monde ! 😳", type: "speech", action: "move_center_close" },
     { time: 12, text: "Bonjour à tous ! 👋", type: "speech" },
-    
-    // NOUVEAU DIALOGUE RÉGIE
     { time: 16, text: "Bip Bip... Oui la régie ? Je vous reçois. 📞", type: "speech", action: "listen_regie" },
     { time: 20, text: "Attendez... Quoi ?! Vraiment ?! 😮", type: "speech" },
     { time: 24, text: "Mesdames et Messieurs, on vient de m'informer...", type: "speech", action: "surprise" },
     { time: 28, text: "Je serai votre animateur officiel ce soir ! 🤖✨", type: "speech" },
     
-    // AFFICHAGE DU TITRE ET ANNONCE
-    { time: 33, text: "Bienvenue à : " + config.titre + " ! 🎉", type: "speech", action: "update_title" }
+    // ICI : Affiche le titre de la soirée DANS LE SOUS-TITRE
+    { time: 33, text: "Bienvenue à la soirée : " + config.titre + " ! 🎉", type: "speech", action: "update_title" }
 ];
 
 const MESSAGES_BAG = {
@@ -165,35 +163,31 @@ function initThreeJS(canvas, bubbleEl) {
     }
     [-8, -3, 3, 8].forEach((x, i) => stageSpots.push(createSpot([0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], x, LIMITE_HAUTE_Y)));
 
-    // --- LOGIQUE DE MOUVEMENT ---
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
     let targetPos = new THREE.Vector3(-12, 0, -3); 
     
-    // Variables pour la rotation du texte central
+    // Variables pour la rotation du texte
     let lastTextChange = 0;
     let textMsgIndex = 0;
 
     function showBubble(text, type = 'speech') { 
-        bubbleEl.innerHTML = text; // innerHTML pour autoriser les <br>
+        bubbleEl.innerHTML = text; 
         bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
         bubbleEl.style.opacity = 1; bubbleEl.style.transform = "scale(1)";
         setTimeout(() => { bubbleEl.style.opacity = 0; bubbleEl.style.transform = "scale(0.9)"; }, DUREE_LECTURE); 
     }
 
-    // Fonction pour changer le texte central dynamiquement
+    // Fonction qui change le SOUS-TEXTE (id='sub-text')
     function cycleCenterText() {
-        const welcomeDiv = document.getElementById('welcome-text');
-        if(welcomeDiv) {
-            welcomeDiv.style.opacity = 0;
+        const subDiv = window.parent.document.getElementById('sub-text');
+        if(subDiv) {
+            subDiv.style.opacity = 0;
             setTimeout(() => {
-                welcomeDiv.innerHTML = CENTRAL_MESSAGES[textMsgIndex % CENTRAL_MESSAGES.length];
-                welcomeDiv.style.fontSize = "55px"; // Taille un peu plus petite pour les messages longs
-                welcomeDiv.style.color = "white";
-                welcomeDiv.style.textShadow = "0 0 20px rgba(255,255,255,0.5)";
-                welcomeDiv.style.opacity = 1;
+                subDiv.innerHTML = CENTRAL_MESSAGES[textMsgIndex % CENTRAL_MESSAGES.length];
+                subDiv.style.opacity = 1;
                 textMsgIndex++;
-            }, 1000); // 1s de fondu
+            }, 1000); 
         }
     }
 
@@ -228,7 +222,6 @@ function initThreeJS(canvas, bubbleEl) {
             s.g.lookAt(robotGroup.position);
         });
 
-        // --- SCENARIO INTRO ---
         if (robotState === 'intro') {
             const step = introScript[introIdx];
             if (step && time >= step.time) {
@@ -242,27 +235,24 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "move_side") pickNewTarget();
 
                 if(step.action === "update_title") {
-                    const welcomeDiv = document.getElementById('welcome-text');
-                    if(welcomeDiv) {
-                        const logoHtml = config.logo ? `<img src="data:image/png;base64,${config.logo}" style="width:250px; margin-bottom:10px;">` : "";
-                        welcomeDiv.style.fontSize = "45px";
-                        welcomeDiv.innerHTML = `${logoHtml}<br>BIENVENUE AU<br><span style="color:#E2001A; font-size:65px;">${config.titre}</span>`;
-                        // On initie le changement de texte 10s après l'affichage du titre
-                        lastTextChange = time + 10; 
+                    // Au moment de l'annonce, on met le titre dans le sous-texte
+                    const subDiv = window.parent.document.getElementById('sub-text');
+                    if(subDiv) {
+                        subDiv.innerHTML = config.titre; // Titre dynamique
+                        subDiv.style.opacity = 1;
+                        lastTextChange = time + 10; // Commence la rotation 10s plus tard
                     }
                 }
                 introIdx++;
             }
-            // Fin de l'intro vers 40s (laisser le titre affiché)
             if(time > 40) { robotState = 'moving'; pickNewTarget(); nextEvt = time + 10; }
             robotGroup.position.lerp(targetPos, 0.02);
         } 
         
-        // --- MODE LIBRE ---
         else if (robotState === 'moving' || robotState === 'approaching' || robotState === 'thinking') {
             
-            // GESTION ROTATION TEXTE CENTRAL (Uniquement en mode attente)
-            if (config.mode === 'attente' && time > lastTextChange + 12) { // Change toutes les 12 secondes (approx)
+            // Changement de texte toutes les 10s (environ)
+            if (config.mode === 'attente' && time > lastTextChange + 10) { 
                 cycleCenterText();
                 lastTextChange = time;
             }
@@ -280,14 +270,10 @@ function initThreeJS(canvas, bubbleEl) {
             
             if(time > nextEvt) {
                 const r = Math.random();
-                
-                // --- COMPORTEMENT SPÉCIFIQUE MUR PHOTOS ---
                 if (config.mode === 'photos' && r < 0.4) {
                      robotState = 'approaching'; 
-                     // Va voir à gauche ou à droite, mais pas au centre (pour laisser le QR code visible)
                      const sidePhoto = Math.random() > 0.5 ? 5.5 : -5.5;
                      targetPos.set(sidePhoto, (Math.random()-0.5)*2, 7); 
-                     
                      const bag = MESSAGES_BAG['photos'];
                      showBubble(bag[Math.floor(Math.random()*bag.length)]);
                 }
