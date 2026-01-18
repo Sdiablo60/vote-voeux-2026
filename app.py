@@ -847,7 +847,7 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - LOGO XXL & SOUS-TITRES)
+# 3. MUR SOCIAL (VERSION FINALE - VRAI NÉON & ROBOT MALIN)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -912,7 +912,7 @@ else:
     js_config = f"""<script>window.robotConfig = {{ mode: '{robot_mode}', titre: '{safe_title}', logo: '{logo_data}' }};</script>"""
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
-    # === CSS INTERNE IFRAME (Structure Accueil Modifiée) ===
+    # === CSS INTERNE IFRAME (Avec VRAI effet NÉON ROUGE SCINTILLANT) ===
     internal_css = f"""
     <style>
         body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
@@ -927,15 +927,37 @@ else:
             text-align: center; width: 80%; z-index: 5; pointer-events: none;
         }}
         #welcome-logo {{
-            width: 380px; /* LOGO AGRANDI COMME DEMANDÉ */
+            width: 380px;
             margin-bottom: 20px;
         }}
+        /* VRAI EFFET NÉON ROUGE AVEC SCINTILLEMENT */
         #welcome-title {{
-            color: white; font-family: Arial, sans-serif;
+            font-family: Arial, sans-serif;
             font-size: 70px; font-weight: 900; letter-spacing: 5px;
             margin: 0; padding: 0;
-            text-shadow: 0 0 30px black;
+            color: #fff; /* Cœur blanc */
+            text-shadow:
+                0 0 5px #fff,
+                0 0 10px #fff,
+                0 0 20px #ff00de, /* Halo magenta/rouge vif */
+                0 0 40px #ff00de,
+                0 0 80px #ff00de,
+                0 0 90px #ff00de,
+                0 0 100px #ff00de,
+                0 0 150px #ff00de;
+            animation: neon-flicker 1.5s infinite alternate;
         }}
+        @keyframes neon-flicker {{
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{
+                text-shadow:
+                    0 0 5px #fff, 0 0 10px #fff, 0 0 20px #ff00de, 0 0 40px #ff00de,
+                    0 0 80px #ff00de, 0 0 90px #ff00de, 0 0 100px #ff00de, 0 0 150px #ff00de;
+            }}
+            20%, 24%, 55% {{        
+                text-shadow: none; opacity: 0.8; /* Bref clignotement */
+            }}
+        }}
+
         #sub-text {{
             margin-top: 30px;
             color: #eeeeee; /* Blanc cassé */
@@ -951,7 +973,6 @@ else:
 
     if mode == "attente":
         logo_img_tag = f'<img id="welcome-logo" src="data:image/png;base64,{logo_data}">' if logo_data else ""
-        # STRUCTURE HTML MODIFIÉE : Logo + Titre Fixe + Sous-titre dynamique
         html_code = f"""<!DOCTYPE html><html><head>{internal_css}</head><body>{js_config}
             <div id="safe-zone"></div>
             <div id="welcome-container">
