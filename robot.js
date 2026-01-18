@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (BRAS, COUCOU & SCENARIO PHOTO OPTIMISÉ)
+// 🟢 CONFIGURATION ROBOT 2026 (TELEPORTATION VISIBLE & SYNCHRO)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -11,7 +11,7 @@ const VITESSE_MOUVEMENT = 0.008;
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
 
-// ZONE INTERDITE ÉLARGIE (En mode libre)
+// ZONE INTERDITE (Mode libre)
 const SAFE_ZONE_X = 10.0; 
 
 const CENTRAL_MESSAGES = [
@@ -106,14 +106,14 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO 1 : ACCUEIL (Ajout du coucou) ---
+// --- SCENARIO 1 : ACCUEIL ---
 const introScript_Attente = [
     { time: 4, text: "", action: "enter_scene_slow" }, 
     { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
     { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" },
     { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" },
     { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" },
-    { time: 42, text: "Bonjour tout le monde ! 👋", type: "speech", action: "wave_hands" }, // <-- COUCOU ICI
+    { time: 42, text: "Bonjour tout le monde ! 👋", type: "speech", action: "wave_hands" },
     { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech", action: "move_center_wave" }, 
     { time: 58, text: "", action: "toc_toc_approach" }, 
     { time: 60, text: "Toc ! Toc ! Vous m'entendez là-dedans ?", type: "speech" }, 
@@ -146,18 +146,18 @@ const introScript_VoteOff = [
     { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
-// --- SCENARIO 3 : PHOTOS LIVE (Corrige : Reste sur les côtés + Sorties) ---
+// --- SCENARIO 3 : PHOTOS LIVE (CORRIGÉ : Apparition VISIBLE en X=7) ---
 const introScript_Photos = [
-    { time: 2, text: "", action: "enter_teleport_right" }, // Arrive Droite (X=11)
-    { time: 8, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, // S'échauffe sur place
+    { time: 2, text: "", action: "enter_teleport_right_visible" }, // Apparait direct en X=7
+    { time: 8, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
     { time: 13, text: "", action: "dance_stop" },
-    { time: 15, text: "Coucou tout le monde ! 👋", type: "speech", action: "wave_hands" }, // Fait coucou à droite
-    { time: 22, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, // Traverse vers Gauche (X=-11)
-    { time: 30, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, // Regarde depuis la gauche
+    { time: 15, text: "Coucou tout le monde ! 👋", type: "speech", action: "wave_hands" }, 
+    { time: 22, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, 
+    { time: 30, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
     { time: 37, text: "J'adore vos sourires.", type: "speech" },
-    { time: 44, text: "Bon, je vous laisse la place...", type: "speech", action: "exit_left_normal" }, // Sort à gauche
-    { time: 52, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, // Revient à droite
-    { time: 60, text: "Allez, on se fait un petit selfie ensemble ?", type: "speech", action: "pose_selfie" } // Pose à droite
+    { time: 44, text: "Bon, je vous laisse la place...", type: "speech", action: "exit_left_normal" }, 
+    { time: 52, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, 
+    { time: 60, text: "Allez, on se fait un petit selfie ensemble ?", type: "speech", action: "pose_selfie" } 
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -233,31 +233,19 @@ function initThreeJS(canvas, bubbleEl) {
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
     
-    // --- NOUVEAUX BRAS & MAINS ---
-    // Groupe Bras Gauche (Pivot à l'épaule)
-    const armLGroup = new THREE.Group();
-    armLGroup.position.set(-0.9, -0.8, 0); // Position de l'épaule
-    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat);
-    armL.position.y = -0.2; // Le bras pend sous l'épaule
-    const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat);
-    handL.position.y = -0.5; // La main au bout du bras
+    // Bras & Mains
+    const armLGroup = new THREE.Group(); armLGroup.position.set(-0.9, -0.8, 0); 
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armL.position.y = -0.2; 
+    const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handL.position.y = -0.5; 
     armLGroup.add(armL); armLGroup.add(handL);
 
-    // Groupe Bras Droit (Pivot à l'épaule)
-    const armRGroup = new THREE.Group();
-    armRGroup.position.set(0.9, -0.8, 0);
-    const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat);
-    armR.position.y = -0.2;
-    const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat);
-    handR.position.y = -0.5;
+    const armRGroup = new THREE.Group(); armRGroup.position.set(0.9, -0.8, 0);
+    const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armR.position.y = -0.2;
+    const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
 
-    // Ajout au groupe principal
     [head, body, armLGroup, armRGroup].forEach(p => { robotGroup.add(p); });
-    
-    // Sauvegarde des positions initiales des bras pour le reset
-    armLGroup.userData.origRot = armLGroup.rotation.clone();
-    armRGroup.userData.origRot = armRGroup.rotation.clone();
+    armLGroup.userData.origRot = armLGroup.rotation.clone(); armRGroup.userData.origRot = armRGroup.rotation.clone();
 
     scene.add(robotGroup);
 
@@ -270,7 +258,7 @@ function initThreeJS(canvas, bubbleEl) {
     });
 
     let robotState = 'intro';
-    let isWaving = false; // Nouvel état pour le coucou
+    let isWaving = false; 
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
     let targetPos = new THREE.Vector3(-35, 0, 0); 
     let lastPos = new THREE.Vector3();
@@ -299,10 +287,7 @@ function initThreeJS(canvas, bubbleEl) {
         const visibleHeight = 2 * Math.tan(vFOV / 2) * dist; const visibleWidth = visibleHeight * camera.aspect;
         const xLimit = (visibleWidth / 2) - 2.5; 
         const side = Math.random() > 0.5 ? 1 : -1;
-        
-        // ZONE INTERDITE : X > 10 ou X < -10
         const randomX = SAFE_ZONE_X + (Math.random() * (xLimit - SAFE_ZONE_X)); 
-        
         targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
         nextMoveTime = Date.now() + 8000; 
@@ -352,7 +337,7 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "move_right_slow") targetPos.set(11, 1, -2); 
                 if(step.action === "move_left_check") targetPos.set(-11, -1, 0); 
                 
-                // NOUVEAUX MOUVEMENTS PHOTOS (LOIN DU CENTRE)
+                // NOUVEAUX MOUVEMENTS PHOTOS
                 if(step.action === "move_far_left") targetPos.set(-12, 0, -1);
                 if(step.action === "exit_left_normal") targetPos.set(-35, 0, 0);
 
@@ -362,14 +347,10 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
                 
-                // ACTION COUCOU
-                if(step.action === "wave_hands") {
-                    isWaving = true;
-                    setTimeout(() => { isWaving = false; }, 3000); // Coucou pendant 3s
-                }
+                if(step.action === "wave_hands") { isWaving = true; setTimeout(() => { isWaving = false; }, 3000); }
                 
                 if(step.action === "pose_selfie") { robotState = 'posing'; setTimeout(() => { robotState = 'intro'; }, 3000); }
-                if(step.action === "look_bubbles") { targetPos.set(-12, 4, 0); } // Regarde en haut depuis la gauche
+                if(step.action === "look_bubbles") { targetPos.set(-12, 4, 0); } 
 
                 if(step.action === "scan_crowd") targetPos.set(-11, 1, 4);
                 if(step.action === "phone_call") targetPos.set(11, 0, 2);
@@ -383,11 +364,23 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
                 
-                // TELEPORTATIONS
-                if(step.action === "enter_teleport_left") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
-                if(step.action === "enter_teleport_right") { robotGroup.position.set(35, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
+                // TELEPORTATIONS VISIBLES (X=7)
+                if(step.action === "enter_teleport_left") { 
+                    robotGroup.position.set(-35, 0, 0); targetPos.set(-8, 0, 0); 
+                    triggerTeleport(new THREE.Vector3(-8, 0, 0)); 
+                }
+                if(step.action === "enter_teleport_right") { 
+                    robotGroup.position.set(35, 0, 0); targetPos.set(8, 0, 0); 
+                    triggerTeleport(new THREE.Vector3(8, 0, 0)); 
+                }
+                
+                // NOUVEAU : TELEPORTATION VISIBLE DIRECTE (PHOTOS)
+                if(step.action === "enter_teleport_right_visible") {
+                    robotGroup.position.set(7, 0, 0); 
+                    targetPos.set(7, 0, 0); 
+                    triggerTeleport(new THREE.Vector3(7, 0, 0));
+                }
 
-                // DANSE
                 if(step.action === "dance_start") { robotState = 'dancing_intro'; setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); }
                 if(step.action === "dance_stop") { robotState = 'intro'; robotGroup.rotation.set(0, 0, 0); }
                 
@@ -427,12 +420,12 @@ function initThreeJS(canvas, bubbleEl) {
                     robotState = 'dancing'; showBubble("C'est ma chanson préférée !", 'speech');
                     setTimeout(() => { robotState = 'infinite_loop'; robotGroup.rotation.set(0,0,0); pickNewTarget(); }, 6000); nextEvt = time + 20;
                 }
-                else if (config.mode !== 'attente' && r < 0.35) { // Téléportation photos/vote
+                else if (config.mode !== 'attente' && r < 0.35) { // Téléportation
                     const side = Math.random() > 0.5 ? 11 : -11;
                     robotGroup.position.set(side * -1, 0, 0); targetPos.set(side, 0, 0);
                     triggerTeleport(robotGroup.position); nextEvt = time + 12;
                 }
-                else if (config.mode !== 'attente' && r < 0.50) { // Coucou aléatoire
+                else if (config.mode !== 'attente' && r < 0.50) { // Coucou
                      isWaving = true; setTimeout(() => { isWaving = false; }, 3000); nextEvt = time + 8;
                 }
                 else if (currentSpeed < SPEED_THRESHOLD) { 
@@ -441,7 +434,6 @@ function initThreeJS(canvas, bubbleEl) {
                 } else { nextEvt = time + 2; }
             }
         }
-        // --- ETATS SPECIAUX ET ANIMATIONS ---
         else if (robotState === 'exploding') { parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.05; p.userData.velocity.multiplyScalar(0.98); }); }
         else if (robotState === 'reassembling') {
             let finished = true;
@@ -452,18 +444,13 @@ function initThreeJS(canvas, bubbleEl) {
             robotGroup.rotation.y += 0.15; robotGroup.position.y = Math.abs(Math.sin(time * 5)) * 0.5; 
         }
         else if (robotState === 'posing') {
-            robotGroup.rotation.y = 0; robotGroup.rotation.z = Math.sin(time * 2) * 0.1; isWaving = true; // Pose + Coucou
+            robotGroup.rotation.y = 0; robotGroup.rotation.z = Math.sin(time * 2) * 0.1; isWaving = true; 
         }
         
-        // --- ANIMATION DES BRAS (COUCOU) ---
         if (isWaving && robotState !== 'exploding' && robotState !== 'reassembling') {
-            // Rotation sur l'axe Z des groupes d'épaules
-            armLGroup.rotation.z = Math.sin(time * 10) * 0.5; 
-            armRGroup.rotation.z = -Math.sin(time * 10) * 0.5;
+            armLGroup.rotation.z = Math.sin(time * 10) * 0.5; armRGroup.rotation.z = -Math.sin(time * 10) * 0.5;
         } else {
-            // Reset position des bras
-            armLGroup.rotation.copy(armLGroup.userData.origRot);
-            armRGroup.rotation.copy(armRGroup.userData.origRot);
+            armLGroup.rotation.copy(armLGroup.userData.origRot); armRGroup.rotation.copy(armRGroup.userData.origRot);
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
