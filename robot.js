@@ -1,19 +1,14 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026
+// 🟢 CONFIGURATION ROBOT 2026 (CLEAN)
 // =========================================================
-const LIMITE_HAUTE_Y = 6.53; // Hauteur max (sous le titre)
+const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
 const DUREE_LECTURE = 7000; 
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
-
-// --- 1. LIGNE ROUGE DE CALIBRATION (DOUBLE SÉCURITÉ) ---
-// Note : Le CSS dans app.py l'ajoute déjà, mais ceci force la main si nécessaire.
-document.body.style.border = "5px solid red"; 
-document.body.style.boxSizing = "border-box"; 
 
 // --- INJECTION STYLE BULLES ---
 const style = document.createElement('style');
@@ -65,7 +60,6 @@ function launchFinalScene() {
     const canvas = document.createElement('canvas');
     canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
-    // On force le style ici aussi pour être sûr
     canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 10; pointer-events: none !important; background: transparent !important;`;
 
     const bubbleEl = document.createElement('div');
@@ -81,7 +75,6 @@ function initThreeJS(canvas, bubbleEl) {
     
     const scene = new THREE.Scene();
     
-    // CAMERA
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 12); 
 
@@ -89,7 +82,6 @@ function initThreeJS(canvas, bubbleEl) {
     renderer.setSize(width, height);
     renderer.setPixelRatio(window.devicePixelRatio);
 
-    // --- 2. GESTION DU REDIMENSIONNEMENT (CRUCIAL POUR LA TV) ---
     window.addEventListener('resize', onWindowResize, false);
     function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -99,7 +91,6 @@ function initThreeJS(canvas, bubbleEl) {
 
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- CONSTRUCTION DU ROBOT ---
     const robotGroup = new THREE.Group();
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
@@ -107,20 +98,17 @@ function initThreeJS(canvas, bubbleEl) {
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
-    // Tête
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat);
     head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat);
     face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     
-    // Yeux & Bouche
     const eyeGeo = new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI);
     const eyeL = new THREE.Mesh(eyeGeo, neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat);
     mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
 
-    // Corps
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat);
     body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
     const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat);
@@ -137,7 +125,6 @@ function initThreeJS(canvas, bubbleEl) {
     });
     scene.add(robotGroup);
 
-    // --- SPOTS ---
     const stageSpots = [];
     function createSpot(color, x, y) {
         const g = new THREE.Group(); g.position.set(x, y, 0);
@@ -145,10 +132,8 @@ function initThreeJS(canvas, bubbleEl) {
         beam.rotateX(-Math.PI/2); beam.position.z = -7.5; g.add(beam);
         scene.add(g); return { g, beam, isOn: false, nextToggle: Math.random()*5 };
     }
-    // Spots plus écartés pour occuper l'espace
     [-8, -3, 3, 8].forEach((x, i) => stageSpots.push(createSpot([0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], x, LIMITE_HAUTE_Y)));
 
-    // --- ANIMATION ---
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
     let targetPos = new THREE.Vector3(-12, 0, -3); 
@@ -159,26 +144,15 @@ function initThreeJS(canvas, bubbleEl) {
         setTimeout(() => { bubbleEl.style.opacity = 0; bubbleEl.style.transform = "scale(0.9)"; }, DUREE_LECTURE); 
     }
 
-    // --- 3. CALCUL DES LIMITES DYNAMIQUES DE L'ECRAN ---
     function pickNewTarget() {
-        // Calcule la largeur visible réelle à la profondeur 0 (là où bouge le robot)
-        // Formule : 2 * tan(FOV/2) * distance * aspect_ratio
-        const dist = camera.position.z; // 12
-        const vFOV = THREE.MathUtils.degToRad(camera.fov); // Convertit 50 deg en rad
+        const dist = camera.position.z; 
+        const vFOV = THREE.MathUtils.degToRad(camera.fov);
         const visibleHeight = 2 * Math.tan(vFOV / 2) * dist;
         const visibleWidth = visibleHeight * camera.aspect;
         
-        // Limite X = moitié de la largeur - marge de sécurité (2 unités pour ne pas couper le bras)
         const xLimit = (visibleWidth / 2) - 2.0;
-
         const side = Math.random() > 0.5 ? 1 : -1;
-        
-        // Nouvelle position aléatoire respectant la largeur de VOTRE écran actuel
-        targetPos.set(
-            side * (Math.random() * xLimit), 
-            (Math.random() - 0.5) * 6, 
-            (Math.random() * 5) - 3
-        );
+        targetPos.set(side * (Math.random() * xLimit), (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
 
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
         nextMoveTime = Date.now() + 6000;
