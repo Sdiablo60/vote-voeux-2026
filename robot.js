@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL v5 - SOL EN ARRIÈRE-PLAN)
+// 🟢 CONFIGURATION ROBOT 2026 (VISIBLE & HIERARCHIE CORRIGÉE)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -170,8 +170,8 @@ function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
-    // Z-INDEX -1 : LE SOL ET LE ROBOT SONT EN ARRIÈRE-PLAN
-    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: -1 !important; pointer-events: none !important; background: transparent !important;`;
+    // CORRECTION ICI : z-index: 5 (Devant bulles, derrière texte)
+    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 5 !important; pointer-events: none !important; background: transparent !important;`;
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
     initThreeJS(canvas, bubbleEl);
@@ -190,10 +190,12 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
+    // SOL GRIS (Visible maintenant car Z-Index = 5)
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
     grid.position.y = -2.5; 
     scene.add(grid);
 
+    // PARTICULES
     const particleCount = 100;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
@@ -323,7 +325,6 @@ function initThreeJS(canvas, bubbleEl) {
             s.g.lookAt(robotGroup.position);
         });
 
-        // --- GESTION SCENARIOS ---
         if (robotState === 'intro') {
             const step = currentIntroScript[introIdx];
             if (step && time >= step.time) {
@@ -357,7 +358,6 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "enter_teleport_left") { robotGroup.position.set(-35, 0, 0); targetPos.set(-8, 0, 0); triggerTeleport(new THREE.Vector3(-8, 0, 0)); }
                 if(step.action === "enter_teleport_right") { robotGroup.position.set(35, 0, 0); targetPos.set(8, 0, 0); triggerTeleport(new THREE.Vector3(8, 0, 0)); }
                 
-                // TELEPORTATION VISIBLE DIRECTE (PHOTOS)
                 if(step.action === "enter_teleport_right_visible") {
                     robotGroup.position.set(7, 0, 0); 
                     targetPos.set(7, 0, 0); 
@@ -380,7 +380,6 @@ function initThreeJS(canvas, bubbleEl) {
             }
         } 
         
-        // --- BOUCLE INFINIE ---
         else if (robotState === 'infinite_loop' || robotState === 'approaching' || robotState === 'thinking') {
             if (config.mode === 'attente' && subtitlesActive && time > lastTextChange + 12) { cycleCenterText(); lastTextChange = time; }
             if (Date.now() > nextMoveTime || robotState === 'approaching') robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
