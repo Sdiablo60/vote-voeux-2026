@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL v7 - DYNAMIQUE & Z-INDEX 6)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v8 - COUPURE BORDS)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -11,6 +11,9 @@ const VITESSE_MOUVEMENT = 0.008;
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
 const SAFE_ZONE_X = 10.0; 
+
+// Limite X au-delà de laquelle le robot se tait pour ne pas couper le texte
+const MUTE_LIMIT_X = 11.0; 
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -93,8 +96,8 @@ const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
         position: fixed; padding: 20px 25px; color: black; font-family: 'Arial', sans-serif;
-        font-weight: bold; font-size: 22px; text-align: center; z-index: 6; /* Z-INDEX 6 : Devant Robot(5), Derrière Texte(10) */
-        pointer-events: none; transition: opacity 0.5s, transform 0.3s; transform: scale(0.9); 
+        font-weight: bold; font-size: 22px; text-align: center; z-index: 6; 
+        pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: scale(0.9); 
         max-width: 350px; width: max-content;
     }
     .bubble-speech { background: white; border-radius: 30px; border: 4px solid #E2001A; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
@@ -127,7 +130,8 @@ const introScript_Attente = [
     { time: 140, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
     { time: 148, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" },
     { time: 156, text: "Mince ! Je dois filer en coulisses !", type: "speech" },
-    { time: 164, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech", action: "exit_right_normal" }, 
+    { time: 162, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech" }, 
+    { time: 165, text: "", action: "exit_right_normal" }, // SORTIE SILENCIEUSE
     { time: 180, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" },
     { time: 188, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
     { time: 196, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
@@ -144,19 +148,20 @@ const introScript_VoteOff = [
     { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
-// --- SCENARIO 3 : PHOTOS LIVE (DYNAMIQUE) ---
+// --- SCENARIO 3 : PHOTOS LIVE (SORTIE CORRIGÉE) ---
 const introScript_Photos = [
     { time: 2, text: "", action: "enter_teleport_right_visible" }, 
     { time: 8, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
     { time: 13, text: "", action: "dance_stop" },
     { time: 15, text: "Coucou tout le monde ! 👋", type: "speech", action: "wave_hands" }, 
-    { time: 20, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, // Traverse vite
+    { time: 20, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, 
     { time: 28, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
-    { time: 35, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, // Repart à droite
+    { time: 35, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, 
     { time: 42, text: "Envoyez vos meilleurs sourires !", type: "speech", action: "pose_selfie" }, 
-    { time: 48, text: "Bon, je file voir la régie...", type: "speech", action: "exit_left_fast" }, // Sortie rapide
-    { time: 55, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, // Revient
-    { time: 62, text: "Allez, on se fait un petit selfie ensemble ?", type: "speech", action: "pose_selfie" } 
+    { time: 48, text: "Bon, je file voir la régie...", type: "speech" }, // PARLE D'ABORD
+    { time: 51, text: "", action: "exit_left_fast" }, // PART ENSUITE (SILENCE)
+    { time: 58, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, 
+    { time: 65, text: "Allez, on se fait un petit selfie ensemble ?", type: "speech", action: "pose_selfie" } 
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -174,7 +179,6 @@ function launchFinalScene() {
 
     const canvasBot = document.createElement('canvas'); canvasBot.id = 'robot-canvas-bot';
     document.body.appendChild(canvasBot);
-    // ROBOT = 5
     canvasBot.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 5 !important; pointer-events: none !important; background: transparent !important;`;
 
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
@@ -434,11 +438,15 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
             const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
             
-            // LA BULLE SUIT LE ROBOT MEME HORS CHAMP
-            let leftPos = (bX - bubbleEl.offsetWidth / 2);
-            bubbleEl.style.left = leftPos + 'px';
-            bubbleEl.style.top = (bY - bubbleEl.offsetHeight - 25) + 'px';
-            if(parseFloat(bubbleEl.style.top) < 140) bubbleEl.style.top = '140px';
+            // --- COUPURE AUX BORDS ---
+            if (Math.abs(robotGroup.position.x) > MUTE_LIMIT_X) {
+                bubbleEl.style.opacity = 0;
+            } else {
+                let leftPos = (bX - bubbleEl.offsetWidth / 2);
+                bubbleEl.style.left = leftPos + 'px';
+                bubbleEl.style.top = (bY - bubbleEl.offsetHeight - 25) + 'px';
+                if(parseFloat(bubbleEl.style.top) < 140) bubbleEl.style.top = '140px';
+            }
         }
         
         lastPos.copy(robotGroup.position);
