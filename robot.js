@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (SCÉNARIOS MULTIPLES & DANSE)
+// 🟢 CONFIGURATION ROBOT 2026 (TELEPORTATION & ZONE INTERDITE)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -11,7 +11,9 @@ const VITESSE_MOUVEMENT = 0.008;
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
 
-// --- MESSAGES ROTATIFS (Seulement pour Accueil) ---
+// Zone centrale interdite (pour ne pas cacher les textes)
+const SAFE_ZONE_X = 7.0; 
+
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
     "Une soirée exceptionnelle vous attend",
@@ -21,87 +23,67 @@ const CENTRAL_MESSAGES = [
     "N'oubliez pas vos sourires !"
 ];
 
-// --- BANQUE : ACCUEIL / GÉNÉRAL (50 min) ---
+// --- BANQUE : ACCUEIL / GÉNÉRAL ---
 const TEXTS_ATTENTE = [
     "Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖",
     "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
     "Pourquoi les robots n'ont-ils jamais peur ? Car ils ont des nerfs d'acier !",
-    "01001000 01101001 ! Oups, pardon, j'ai parlé en binaire.",
     "Toc toc... (C'est moi)",
     "Vous êtes très élégants ce soir !",
-    "J'aime beaucoup votre tenue, monsieur là-bas.",
     "Il fait bon ici, ou c'est mes circuits qui chauffent ?",
     "Je scanne la salle... Ambiance : 100% positive.",
     "Qui a le meilleur sourire ce soir ? Je cherche...",
     "N'oubliez pas de scanner le QR Code tout à l'heure !",
-    "Si vous voyez un boulon par terre, c'est à moi.",
     "Faites coucou à la caméra ! Ah non, c'est moi la caméra.",
-    "Hmm... Je me demande si je suis étanche...",
     "Calcul de la trajectoire optimale... Fait.",
-    "Analyse des données biométriques... Vous êtes humains.",
     "Mise à jour système en attente... Non, pas maintenant !",
-    "Je crois que j'ai un pixel mort sur ma rétine gauche.",
     "42. La réponse est 42.",
     "Je cours sans jambes. Qui suis-je ? ... Le Temps ! ⏳",
-    "Plus j'ai de gardiens, moins je suis gardé. Qui suis-je ? ... Un secret !",
     "Prêts pour le décollage ?",
-    "Attachez vos ceintures, la soirée va décoller !",
     "C'est long l'attente, hein ? Mais ça vaut le coup !",
-    "Je suis tellement content d'être votre animateur.",
-    "Bip Bip... Bip Bip...",
-    "Loading happiness... 99%..."
+    "Je suis tellement content d'être votre animateur."
 ];
 
-// --- BANQUE : VOTE OFF (Spécifique) ---
+// --- BANQUE : VOTE OFF (Thème : Chiffres, Attente, Suspense) ---
 const TEXTS_VOTE_OFF = [
     "Désolé, les votes sont clos ! 🛑",
-    "Nous effectuons le dépouillement... Enfin, la régie le fait.",
-    "Soyez patients, cela demande un peu de travail.",
-    "Je ne peux rien vous dire, c'est top secret ! 🤫",
-    "Qui sera le grand gagnant ? Le suspense est total.",
-    "Je calcule les probabilités... Trop complexe !",
+    "La régie compte les points... 1, 2, 3... beaucoup !",
+    "Soyez patients, la précision demande du temps.",
+    "Je ne peux rien dire, c'est top secret ! 🤫",
+    "Devinette : Qu'est-ce qui monte et ne descend jamais ? ... Votre impatience !",
+    "Je calcule les probabilités... Error 404 : Trop de suspense.",
     "La régie me dit que ça arrive. Promis !",
-    "J'espère que vous avez voté pour le meilleur.",
-    "C'est serré... Très serré...",
+    "J'espère que le meilleur a gagné !",
+    "C'est serré... Plus serré qu'un boulon de 12 !",
     "Analyse des résultats en cours... 📊",
-    "Ne bougez pas, on revient vers vous très vite.",
     "Je vérifie qu'il n'y a pas eu de triche... Tout est OK.",
-    "Alors ? Stressés ? Moi mes circuits sont en surchauffe !",
-    "Ça vient, ça vient... La précision demande du temps.",
-    "Un petit instant de patience s'il vous plaît.",
+    "Alors ? Stressés ? Moi mes ventilateurs tournent à fond !",
+    "Ça vient, ça vient... C'est du direct !",
     "Les résultats sont en cours de téléchargement...",
-    "Je crois qu'on a un record de participation !",
     "Merci à tous d'avoir participé, c'était intense."
 ];
 
-// --- BANQUE : PHOTOS LIVE (Spécifique & Danse) ---
+// --- BANQUE : PHOTOS LIVE (Thème : Image, Danse, Flash) ---
 const TEXTS_PHOTOS = [
     "C'est parti pour la soirée danse ! 💃",
-    "Je me chauffe les vérins... Regardez ce déhanché !",
-    "Quelqu'un a vu mon amie ? Une grille-pain très mignonne ?",
-    "Elle m'avait dit qu'elle viendrait... Bizarre.",
+    "Je me chauffe les vérins... Regardez ce style !",
+    "Quelqu'un a vu mon amie ? Une webcam très mignonne ?",
     "Oh ! Cette photo est magnifique !",
     "J'adore voir vos sourires sur grand écran.",
-    "Continuez d'envoyer vos photos, remplissez le mur !",
     "Allez, on bouge ! Même les robots savent danser !",
     "Un pas à gauche, un pas à droite... 🎵",
     "Je crois que je connais cette personne sur la photo !",
     "Vous êtes rayonnants ce soir.",
-    "N'oubliez pas le QR Code pour partager vos moments.",
-    "C'est ma chanson préférée ! (Même si je n'ai pas d'oreilles)",
-    "Ambiance de folie ce soir !",
-    "Regardez cette pose ! Top model !",
-    "J'aimerais pouvoir prendre un selfie avec vous.",
+    "Devinette : J'ai un œil mais je ne vois pas. Qui suis-je ? ... Un appareil photo ! (ou moi)",
     "Attention, je vais tenter un moonwalk...",
     "Si je tombe, ne riez pas, c'est lourd le métal.",
     "Envoyez-nous vos plus belles grimaces !",
     "La soirée ne fait que commencer !",
     "Je valide cette photo ! 👍",
-    "Hé toi là-bas ! Oui toi ! Tu danses bien !",
+    "Flash info : Vous êtes le meilleur public !",
     "Mes capteurs de rythme sont au maximum."
 ];
 
-// Sélection de la banque active
 let currentTextBank = [];
 if (config.mode === 'vote_off') currentTextBank = [...TEXTS_VOTE_OFF];
 else if (config.mode === 'photos') currentTextBank = [...TEXTS_PHOTOS];
@@ -153,9 +135,9 @@ const introScript_Attente = [
     { time: 204, text: "Installez-vous bien, je veille sur vous.", type: "speech" }
 ];
 
-// --- SCENARIO 2 : VOTE OFF ---
+// --- SCENARIO 2 : VOTE OFF (Entrée gauche, traverse, parle) ---
 const introScript_VoteOff = [
-    { time: 2, text: "", action: "enter_from_left" },
+    { time: 2, text: "", action: "enter_teleport_left" }, // RENTRE AVEC EFFET
     { time: 8, text: "Oula... C'est fini !", type: "speech" },
     { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" },
     { time: 22, text: "La régie est en train de compter les points...", type: "speech" },
@@ -163,18 +145,18 @@ const introScript_VoteOff = [
     { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
-// --- SCENARIO 3 : PHOTOS LIVE (Mode Danse) ---
+// --- SCENARIO 3 : PHOTOS LIVE (Entrée droite, danse, face public) ---
 const introScript_Photos = [
-    { time: 2, text: "", action: "enter_from_right" },
+    { time: 2, text: "", action: "enter_teleport_right" }, // RENTRE AVEC EFFET
     { time: 8, text: "Hé ! Mais c'est une soirée dansante ici ? 🕺", type: "speech" },
     { time: 15, text: "Attendez, je m'échauffe...", type: "speech", action: "dance_start" },
-    { time: 22, text: "Un, deux, un, deux... 🎵", type: "speech" },
-    { time: 29, text: "Dites, vous n'auriez pas vu une amie ?", type: "speech", action: "dance_stop" },
-    { time: 36, text: "Elle m'avait dit qu'elle viendrait... Une grille-pain très mignonne.", type: "speech", action: "look_around" },
+    { time: 20, text: "", action: "dance_stop" }, // STOP DANSE & FACE PUBLIC
+    { time: 22, text: "Pfiou ! Je suis chaud là !", type: "speech" },
+    { time: 29, text: "Dites, vous n'auriez pas vu une amie ?", type: "speech", action: "look_around" },
+    { time: 36, text: "Elle m'avait dit qu'elle viendrait... Une grille-pain très mignonne.", type: "speech" },
     { time: 43, text: "Tant pis, je danse tout seul ! 🤖✨", type: "speech", action: "dance_start" }
 ];
 
-// SÉLECTION DU BON SCÉNARIO
 let currentIntroScript = introScript_Attente;
 if (config.mode === 'vote_off') currentIntroScript = introScript_VoteOff;
 if (config.mode === 'photos') currentIntroScript = introScript_Photos;
@@ -185,7 +167,7 @@ function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
-    // Z-INDEX 1 POUR PASSER DERRIÈRE LE TEXTE HTML (qui est souvent > 1)
+    // Z-INDEX 1 pour être derrière le texte
     canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 1; pointer-events: none !important; background: transparent !important;`;
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
@@ -210,9 +192,35 @@ function initThreeJS(canvas, bubbleEl) {
     grid.position.y = -2.5; 
     scene.add(grid);
 
+    // PARTICULES (Pour téléportation)
+    const particleCount = 100;
+    const particleGeo = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(particleCount * 3);
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+    const particleMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.2, transparent: true, opacity: 0 });
+    const particles = new THREE.Points(particleGeo, particleMat);
+    scene.add(particles);
+    let explosionTime = 0;
+    let isExploding = false;
+
+    // FONCTION TELEPORTATION
+    function triggerTeleport(pos) {
+        isExploding = true;
+        explosionTime = 1.0; // Durée effet
+        particles.position.copy(pos);
+        particleMat.opacity = 1;
+        // Reset positions locales
+        for(let i=0; i<particleCount; i++) {
+            particlePositions[i*3] = (Math.random()-0.5)*2;
+            particlePositions[i*3+1] = (Math.random()-0.5)*4;
+            particlePositions[i*3+2] = (Math.random()-0.5)*2;
+        }
+        particleGeo.attributes.position.needsUpdate = true;
+    }
+
     // ROBOT
     const robotGroup = new THREE.Group(); 
-    robotGroup.position.set(-30, 0, 0); // Départ hors champ pour tout le monde
+    robotGroup.position.set(-35, 0, 0); // Départ caché par défaut
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
@@ -239,7 +247,7 @@ function initThreeJS(canvas, bubbleEl) {
 
     let robotState = 'intro';
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
-    let targetPos = new THREE.Vector3(-30, 0, 0); 
+    let targetPos = new THREE.Vector3(-35, 0, 0); 
     let lastPos = new THREE.Vector3();
     let lastTextChange = 0;
     let textMsgIndex = 0;
@@ -267,8 +275,8 @@ function initThreeJS(canvas, bubbleEl) {
         const xLimit = (visibleWidth / 2) - 2.5; 
         const side = Math.random() > 0.5 ? 1 : -1;
         
-        // ZONE INTERDITE CENTRALE : On s'assure qu'il est à GAUCHE ou à DROITE du bloc central (X > 6 ou X < -6)
-        const randomX = 6.0 + (Math.random() * (xLimit - 6.5)); 
+        // ZONE INTERDITE CENTRALE : X doit être < -SAFE_ZONE_X ou > SAFE_ZONE_X
+        const randomX = SAFE_ZONE_X + (Math.random() * (xLimit - SAFE_ZONE_X)); 
         
         targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
@@ -292,13 +300,26 @@ function initThreeJS(canvas, bubbleEl) {
         time += 0.015;
         const currentSpeed = robotGroup.position.distanceTo(lastPos);
 
+        // Animation particules
+        if(isExploding && explosionTime > 0) {
+            explosionTime -= 0.02;
+            particleMat.opacity = explosionTime;
+            const positions = particleGeo.attributes.position.array;
+            for(let i=0; i<100; i++) {
+                positions[i*3] += (Math.random()-0.5)*0.1; // X
+                positions[i*3+1] += (Math.random()-0.5)*0.1; // Y
+                positions[i*3+2] += (Math.random()-0.5)*0.1; // Z
+            }
+            particleGeo.attributes.position.needsUpdate = true;
+        }
+
         stageSpots.forEach(s => {
             if(time > s.nextToggle) { s.isOn = !s.isOn; s.nextToggle = time + Math.random()*3 + 1; }
             s.beam.material.opacity += ((s.isOn ? 0.12 : 0) - s.beam.material.opacity) * 0.1;
             s.g.lookAt(robotGroup.position);
         });
 
-        // --- GESTION DES SCENARIOS ---
+        // --- GESTION SCENARIOS ---
         if (robotState === 'intro') {
             const step = currentIntroScript[introIdx];
             if (step && time >= step.time) {
@@ -306,45 +327,52 @@ function initThreeJS(canvas, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                // Mouvements standards
+                // MOUVEMENTS CLASSIQUES
                 if(step.action === "enter_scene_slow") targetPos.set(-7, 2, -2);
-                if(step.action === "enter_from_left") { robotGroup.position.set(-30, 0, 0); targetPos.set(-8, 0, 2); }
-                if(step.action === "enter_from_right") { robotGroup.position.set(30, 0, 0); targetPos.set(8, 0, 2); }
-                
                 if(step.action === "look_around") targetPos.set(0, 0, -5);
-                if(step.action === "move_right_slow") targetPos.set(6, 1, -2);
-                if(step.action === "move_left_check") targetPos.set(-6, -1, 0);
+                if(step.action === "move_right_slow") targetPos.set(7, 1, -2); // LOIN DU CENTRE
+                if(step.action === "move_left_check") targetPos.set(-7, -1, 0); // LOIN DU CENTRE
                 if(step.action === "surprise_stop") targetPos.set(-6, 0, 4);
-                if(step.action === "move_center_wave") targetPos.set(0, 0, 5);
-                
-                // Gros plan
+                if(step.action === "move_center_wave") targetPos.set(0, 0, 5); // Exceptionnellement au centre devant
                 if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
-                
-                if(step.action === "scan_crowd") targetPos.set(-3, 1, 4);
-                if(step.action === "phone_call") targetPos.set(5, 0, 2);
-                if(step.action === "surprise") targetPos.set(5, 0, 6);
+                if(step.action === "scan_crowd") targetPos.set(-7, 1, 4);
+                if(step.action === "phone_call") targetPos.set(7, 0, 2);
+                if(step.action === "surprise") targetPos.set(7, 0, 6);
                 if(step.action === "start_subtitles") { subtitlesActive = true; cycleCenterText(); lastTextChange = time; }
-                if(step.action === "stress_pacing") targetPos.set(-5, -2, 0);
+                if(step.action === "stress_pacing") targetPos.set(-7, -2, 0);
                 if(step.action === "listen_intense") targetPos.set(0, 0, 5);
-                
-                if(step.action === "exit_right_normal") targetPos.set(25, 0, 0); 
+                if(step.action === "exit_right_normal") targetPos.set(35, 0, 0); 
                 if(step.action === "exit_right_fast") targetPos.set(35, 0, 0); 
-                
-                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-5, 0, 4); }
+                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-7, 0, 4); }
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
                 
+                // TELEPORTATIONS
+                if(step.action === "enter_teleport_left") { 
+                    robotGroup.position.set(-35, 0, 0); // Hors champ
+                    targetPos.set(-8, 0, 0); // Arrivée gauche
+                    triggerTeleport(new THREE.Vector3(-8, 0, 0));
+                }
+                if(step.action === "enter_teleport_right") { 
+                    robotGroup.position.set(35, 0, 0); 
+                    targetPos.set(8, 0, 0); 
+                    triggerTeleport(new THREE.Vector3(8, 0, 0));
+                }
+
                 // DANSE
                 if(step.action === "dance_start") { 
-                    robotState = 'dancing_intro'; // Etat temporaire pour l'intro
+                    robotState = 'dancing_intro'; 
                     setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); 
+                }
+                if(step.action === "dance_stop") {
+                    robotState = 'intro'; // Force arrêt danse
+                    robotGroup.rotation.set(0, 0, 0); // REMET DROIT
                 }
                 
                 introIdx++;
             }
             
-            // Fin de l'intro
             if(introIdx >= currentIntroScript.length) { 
                 robotState = 'infinite_loop'; pickNewTarget(); nextEvt = time + 10; 
             }
@@ -358,7 +386,7 @@ function initThreeJS(canvas, bubbleEl) {
             }
         } 
         
-        // --- MODE BOUCLE INFINIE ---
+        // --- BOUCLE INFINIE ---
         else if (robotState === 'infinite_loop' || robotState === 'approaching' || robotState === 'thinking') {
             if (config.mode === 'attente' && subtitlesActive && time > lastTextChange + 12) { cycleCenterText(); lastTextChange = time; }
             if (Date.now() > nextMoveTime || robotState === 'approaching') robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
@@ -376,11 +404,14 @@ function initThreeJS(canvas, bubbleEl) {
                     parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4)); 
                     setTimeout(() => { robotState = 'reassembling'; }, 3500); nextEvt = time + 25;
                 }
-                // Si mur PHOTOS, chance de danser
                 else if (config.mode === 'photos' && r < 0.25) {
                     robotState = 'dancing';
                     showBubble("C'est ma chanson préférée !", 'speech');
-                    setTimeout(() => { robotState = 'infinite_loop'; pickNewTarget(); }, 6000); // Danse 6s
+                    setTimeout(() => { 
+                        robotState = 'infinite_loop'; 
+                        robotGroup.rotation.set(0,0,0); // REMET DROIT APRES DANSE
+                        pickNewTarget(); 
+                    }, 6000); 
                     nextEvt = time + 20;
                 }
                 else if (currentSpeed < SPEED_THRESHOLD) { 
@@ -400,10 +431,9 @@ function initThreeJS(canvas, bubbleEl) {
                 robotState = 'infinite_loop'; nextEvt = time + 5; pickNewTarget(); nextMoveTime = 0; 
             }
         }
-        // --- LOGIQUE DE DANSE (Sautille + Tourne vite) ---
         else if (robotState === 'dancing' || robotState === 'dancing_intro') {
-            robotGroup.rotation.y += 0.15; // Tourne vite
-            robotGroup.position.y = Math.abs(Math.sin(time * 5)) * 0.5; // Sautille
+            robotGroup.rotation.y += 0.15; 
+            robotGroup.position.y = Math.abs(Math.sin(time * 5)) * 0.5; 
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
