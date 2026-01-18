@@ -957,11 +957,18 @@ else:
         <style>
             #welcome-container { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 80%; z-index: 10; pointer-events: none; }
             #welcome-logo { width: 380px; margin-bottom: 60px; }
-            #sub-text { margin-top: 50px; color: #eeeeee; font-family: 'Arial', sans-serif; font-size: 40px; font-weight: normal; opacity: 0; transition: opacity 1s ease-in-out; text-shadow: 0 0 10px black; }
+            #sub-text { 
+                margin-top: 50px; color: #eeeeee; font-family: 'Arial', sans-serif; font-size: 40px; font-weight: normal; 
+                opacity: 0; transform: translateY(30px); /* Position basse départ */
+                transition: opacity 0.8s ease-out, transform 0.8s ease-out; 
+                text-shadow: 0 0 10px black; 
+            }
+            .text-visible { opacity: 1 !important; transform: translateY(0px) !important; }
+            .text-hidden { opacity: 0 !important; transform: translateY(-30px) !important; /* Part vers le haut */ }
         </style>
         """
         
-        # SCRIPT POUR FAIRE DÉFILER LES TEXTES
+        # SCRIPT GESTION TEXTE (AVEC DELAI ROBOT)
         text_script = """<script>
         const messages = [
             "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -974,17 +981,38 @@ else:
         let msgIdx = 0;
         const textEl = document.getElementById('sub-text');
         
-        function cycleText() {
-            textEl.style.opacity = 0;
+        function updateText() {
+            // 1. Monte et disparait
+            textEl.className = 'text-hidden';
+            
             setTimeout(() => {
+                // 2. Change le texte (pendant qu'il est invisible)
                 textEl.innerHTML = messages[msgIdx % messages.length];
-                textEl.style.opacity = 1;
-                msgIdx++;
-            }, 1000);
+                // Reset position (sans transition pour le ramener en bas instantanément)
+                textEl.style.transition = 'none';
+                textEl.style.transform = 'translateY(30px)';
+                
+                setTimeout(() => {
+                    // 3. Réactive transition et affiche (Monte vers le centre)
+                    textEl.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
+                    textEl.className = 'text-visible';
+                    msgIdx++;
+                }, 100);
+            }, 800);
         }
         
-        setInterval(cycleText, 5000);
-        setTimeout(cycleText, 500);
+        function startLoop() {
+            // Affiche le premier message
+            textEl.innerHTML = messages[0];
+            textEl.className = 'text-visible';
+            msgIdx++;
+            // Lance la boucle
+            setInterval(updateText, 6000);
+        }
+
+        // IMPORTANT : On attend 45 secondes (45000 ms) que le robot finisse son intro
+        setTimeout(startLoop, 45000);
+        
         </script>"""
 
         logo_img_tag = f'<img id="welcome-logo" src="data:image/png;base64,{logo_data}">' if logo_data else ""
