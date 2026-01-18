@@ -63,13 +63,21 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
     os.makedirs(d, exist_ok=True)
 
 # =========================================================
-# 2. CSS GLOBAL
+# 2. CSS GLOBAL CORRECTIF (HEADER + PLEIN ÉCRAN)
 # =========================================================
 st.markdown("""
 <style>
-    /* ... (Gardez le CSS du header .social-header inchangé) ... */
-    
-    /* SUPPRESSION RADICALE DES MARGES STREAMLIT */
+    /* 1. NETTOYAGE STREAMLIT */
+    .stApp {
+        background-color: #FFFFFF;
+        color: black;
+    }
+    [data-testid="stHeader"], footer, header { 
+        display: none !important; 
+        height: 0 !important;
+    }
+
+    /* 2. FORCER LE PLEIN ECRAN (Suppression marges) */
     .main .block-container {
         max-width: 100vw !important;
         width: 100vw !important;
@@ -77,33 +85,83 @@ st.markdown("""
         margin: 0 !important;
         overflow: hidden !important;
     }
-
     [data-testid="stAppViewContainer"] {
         padding: 0 !important;
         margin: 0 !important;
         overflow: hidden !important;
-        background-color: black !important; /* Fond noir pour éviter les flashs blancs */
     }
 
-    /* === LE CORRECTIF CADRAGE === */
+    /* 3. LE BANDEAU ROUGE (HEADER) */
+    .social-header { 
+        position: fixed !important; 
+        top: 0 !important; 
+        left: 0 !important; 
+        width: 100vw !important; 
+        height: 8vh !important;
+        background-color: #E2001A !important;
+        display: flex !important; 
+        align-items: center !important; 
+        justify-content: center !important; 
+        z-index: 999999 !important;
+        border-bottom: 3px solid white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .social-title { 
+        color: white !important; 
+        font-family: Arial, sans-serif !important;
+        font-size: 3vh !important;
+        font-weight: 900 !important; 
+        margin: 0 !important; 
+        text-transform: uppercase; 
+        letter-spacing: 2px;
+    }
+
+    /* 4. POSITIONNEMENT IFRAME ROBOT (Sous le header) */
     iframe[title="streamlit.components.v1.components.html"] {
         position: fixed !important;
-        top: 8vh !important;       /* Commence SOUS le bandeau de 8vh */
+        top: 8vh !important;      /* Commence SOUS le bandeau */
         left: 0 !important;
-        width: 100vw !important;   /* Largeur totale */
-        height: 92vh !important;   /* Hauteur restante (100 - 8) */
+        width: 100vw !important;
+        height: 92vh !important;  /* Le reste de la hauteur */
         border: none !important;
-        z-index: 0;
+        z-index: 1 !important; 
         margin: 0 !important;
         display: block !important;
     }
-
-    /* Cache le footer et menu Streamlit */
-    footer, header[data-testid="stHeader"] { display: none !important; }
     
-    /* ... (Le reste du CSS pour les boutons, admin, etc.) ... */
+    ::-webkit-scrollbar { display: none; }
+    
+    /* 5. STYLE ADMIN & UI */
+    button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
+    button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
+    button[kind="primary"]:hover { background-color: #C20015 !important; }
+    
+    .session-card { background-color: #f8f9fa; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; margin-bottom: 20px; }
+    .session-title { color: #E2001A; font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; }
+    
+    .login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: #f8f9fa; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; }
+    .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
+    .stTextInput input { text-align: center; font-size: 18px; }
+    
+    section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
+    section[data-testid="stSidebar"] button[kind="primary"] { background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px; }
+    section[data-testid="stSidebar"] button[kind="secondary"] { background-color: #333333 !important; width: 100%; border-radius: 5px; margin-bottom: 5px; border: none !important; color: white !important; }
+    
+    .blue-anim-btn button { background-color: #2980b9 !important; color: white !important; border: none !important; transition: all 0.3s ease !important; font-weight: bold !important; }
+    .blue-anim-btn button:hover { transform: scale(1.05) !important; box-shadow: 0 5px 15px rgba(41, 128, 185, 0.4) !important; background-color: #3498db !important; }
+
+    a.custom-link-btn { display: block !important; text-align: center !important; padding: 12px 20px !important; border-radius: 8px !important; text-decoration: none !important; font-weight: bold !important; margin-bottom: 10px !important; color: white !important; transition: transform 0.2s !important; width: 100% !important; box-sizing: border-box !important; line-height: 1.5 !important; }
+    a.custom-link-btn:hover { transform: scale(1.02); opacity: 0.9; }
+    .btn-red { background-color: #E2001A !important; }
+    .btn-blue { background-color: #2980b9 !important; }
+    
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] { background-color: white !important; }
+    li[role="option"] { color: black !important; background-color: white !important; }
+    div[data-baseweb="select"] div { color: black !important; }
+    li[role="option"] span { color: black !important; }
 </style>
 """, unsafe_allow_html=True)
+
 # =========================================================
 # 3. DONNEES & CONFIGURATIONS PAR DEFAUT
 # =========================================================
@@ -863,6 +921,8 @@ else:
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
     st.markdown("""<style>.stApp { background-color: black !important; color: white !important; }</style>""", unsafe_allow_html=True)
+    
+    # 🔴 TRES IMPORTANT : LE HEADER EST ICI DANS LE DOM 🔴
     st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
     
     mode = cfg.get("mode_affichage")
@@ -902,11 +962,15 @@ else:
     # --- IMPORT MAP CORRIGÉE (Pour THREE.JS) ---
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
+    # CSS DU BODY INTERNE DE L'IFRAME (S'assure que le contenu remplit l'iframe de 92vh)
+    # LIGNE ROUGE ACTIVEE ICI
+    style_body_robot = "margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100%; box-sizing: border-box; border: 4px solid red;"
+
     if mode == "attente":
         logo_img_tag = f'<img src="data:image/png;base64,{logo_data}" style="width:300px; margin-bottom:10px;">' if logo_data else ""
         html_code = f"""
         <!DOCTYPE html><html><head><style>
-            body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
+            body {{ {style_body_robot} }}
             {css_content}
             #welcome-text {{ 
                 position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); 
@@ -919,12 +983,11 @@ else:
         <body>
             {js_config}
             <div id="welcome-text">{logo_img_tag}<br>BIENVENUE</div>
-            <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
             <div id="robot-container" style="z-index: 10; pointer-events: none;"></div>
             {import_map}
             <script type="module">{js_content}</script>
         </body></html>"""
-        components.html(html_code, height=1000, scrolling=False) # <-- CORRIGÉ : UNE SEULE PARENTHÈSE ICI
+        components.html(html_code, height=1000, scrolling=False) 
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
@@ -1068,7 +1131,7 @@ else:
             # --- VOTE OFF (ROBOT ACTIF) ---
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             overlay_html = f"""<div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 2; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events: none;'><div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>{logo_html}<h1 style='color:#E2001A; font-size:60px; margin:0; text-transform: uppercase;'>MERCI !</h1><h2 style='color:white; font-size:35px; margin-top:20px; font-weight:normal;'>Les votes sont clos.</h2><h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3></div></div>"""
-            html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}{overlay_html}<div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
+            html_code = f"""<!DOCTYPE html><html><head><style>body {{ {style_body_robot} }}{css_content}</style></head><body>{js_config}{overlay_html}<div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script></body></html>"""
             components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "photos_live":
@@ -1111,10 +1174,8 @@ else:
             }}, 500);
         </script>"""
         
-        html_code = f"""<!DOCTYPE html><html><head><style>body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}{css_content}</style></head><body>{js_config}<div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
+        html_code = f"""<!DOCTYPE html><html><head><style>body {{ {style_body_robot} }}{css_content}</style></head><body>{js_config}<div id="robot-bubble" class="bubble" style="z-index: 20;">...</div><div id="robot-container" style="z-index: 10; pointer-events: none;"></div>{import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
         components.html(html_code, height=1000, scrolling=False)
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-
-
