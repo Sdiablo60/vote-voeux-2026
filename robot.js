@@ -1,16 +1,17 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (MULTI-SCÈNES & Z-INDEX CORRIGÉ)
+// 🟢 CONFIGURATION ROBOT 2026 (SCÉNARIOS MULTIPLES & DANSE)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 7000; 
+const DUREE_LECTURE = 7500; 
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
 
+// --- MESSAGES ROTATIFS (Seulement pour Accueil) ---
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
     "Une soirée exceptionnelle vous attend",
@@ -20,14 +21,13 @@ const CENTRAL_MESSAGES = [
     "N'oubliez pas vos sourires !"
 ];
 
-// --- BANQUE DE TEXTES : MODE ATTENTE (Général) ---
-const INFINITE_TEXTS = [
+// --- BANQUE : ACCUEIL / GÉNÉRAL (50 min) ---
+const TEXTS_ATTENTE = [
     "Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖",
     "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
     "Pourquoi les robots n'ont-ils jamais peur ? Car ils ont des nerfs d'acier !",
     "01001000 01101001 ! Oups, pardon, j'ai parlé en binaire.",
     "Toc toc... (C'est moi)",
-    "J'ai une blague sur le Wi-Fi, mais je capte pas bien...",
     "Vous êtes très élégants ce soir !",
     "J'aime beaucoup votre tenue, monsieur là-bas.",
     "Il fait bon ici, ou c'est mes circuits qui chauffent ?",
@@ -41,54 +41,71 @@ const INFINITE_TEXTS = [
     "Analyse des données biométriques... Vous êtes humains.",
     "Mise à jour système en attente... Non, pas maintenant !",
     "Je crois que j'ai un pixel mort sur ma rétine gauche.",
-    "Est-ce que les moutons électriques rêvent d'androids ?",
     "42. La réponse est 42.",
+    "Je cours sans jambes. Qui suis-je ? ... Le Temps ! ⏳",
+    "Plus j'ai de gardiens, moins je suis gardé. Qui suis-je ? ... Un secret !",
     "Prêts pour le décollage ?",
     "Attachez vos ceintures, la soirée va décoller !",
-    "Direction : La bonne humeur !",
     "C'est long l'attente, hein ? Mais ça vaut le coup !",
-    "Je pourrais rester ici toute la nuit.",
-    "Regardez comme le logo brille bien.",
     "Je suis tellement content d'être votre animateur.",
-    "Pas de flash s'il vous plaît, ça m'éblouit.",
-    "Vous m'entendez bien au fond ?",
     "Bip Bip... Bip Bip...",
     "Loading happiness... 99%..."
 ];
 
-// --- BANQUE DE TEXTES : MODE VOTE OFF ---
-const VOTE_OFF_TEXTS = [
-    "Les votes sont clos ! Le suspense est total... 😬",
-    "La régie est en train de compter les points...",
-    "Qui va gagner ? J'ai ma petite idée, mais je ne dirai rien ! 🤫",
-    "Calcul des résultats en cours... Bip Bip...",
-    "J'espère que vous avez voté pour le meilleur !",
-    "Je sens la tension monter dans la salle...",
-    "Analyse statistique en cours. C'est très serré !",
-    "Les gagnants seront bientôt révélés. Restez concentrés.",
-    "Je vérifie qu'il n'y a pas eu de triche... Non, tout est nickel. ✅",
-    "Ça mouline, ça mouline... Les résultats arrivent !"
+// --- BANQUE : VOTE OFF (Spécifique) ---
+const TEXTS_VOTE_OFF = [
+    "Désolé, les votes sont clos ! 🛑",
+    "Nous effectuons le dépouillement... Enfin, la régie le fait.",
+    "Soyez patients, cela demande un peu de travail.",
+    "Je ne peux rien vous dire, c'est top secret ! 🤫",
+    "Qui sera le grand gagnant ? Le suspense est total.",
+    "Je calcule les probabilités... Trop complexe !",
+    "La régie me dit que ça arrive. Promis !",
+    "J'espère que vous avez voté pour le meilleur.",
+    "C'est serré... Très serré...",
+    "Analyse des résultats en cours... 📊",
+    "Ne bougez pas, on revient vers vous très vite.",
+    "Je vérifie qu'il n'y a pas eu de triche... Tout est OK.",
+    "Alors ? Stressés ? Moi mes circuits sont en surchauffe !",
+    "Ça vient, ça vient... La précision demande du temps.",
+    "Un petit instant de patience s'il vous plaît.",
+    "Les résultats sont en cours de téléchargement...",
+    "Je crois qu'on a un record de participation !",
+    "Merci à tous d'avoir participé, c'était intense."
 ];
 
-// --- BANQUE DE TEXTES : MODE PHOTOS LIVE ---
-const PHOTOS_TEXTS = [
-    "Oh ! Quelle belle photo vient d'arriver ! 😍",
-    "J'adore vos sourires sur cet écran géant !",
-    "Continuez d'envoyer vos moments forts, c'est génial !",
-    "Hé ! Je crois que je connais cette personne !",
-    "Très photogénique ! 📸",
-    "Allez, faites une grimace pour la prochaine !",
-    "C'est ça l'ambiance de la soirée ! Bravo !",
-    "Je scanne les photos... Taux de bonheur : 200%.",
-    "Vous êtes tous magnifiques ce soir.",
-    "Regardez celle-ci ! Trop drôle ! 😂"
+// --- BANQUE : PHOTOS LIVE (Spécifique & Danse) ---
+const TEXTS_PHOTOS = [
+    "C'est parti pour la soirée danse ! 💃",
+    "Je me chauffe les vérins... Regardez ce déhanché !",
+    "Quelqu'un a vu mon amie ? Une grille-pain très mignonne ?",
+    "Elle m'avait dit qu'elle viendrait... Bizarre.",
+    "Oh ! Cette photo est magnifique !",
+    "J'adore voir vos sourires sur grand écran.",
+    "Continuez d'envoyer vos photos, remplissez le mur !",
+    "Allez, on bouge ! Même les robots savent danser !",
+    "Un pas à gauche, un pas à droite... 🎵",
+    "Je crois que je connais cette personne sur la photo !",
+    "Vous êtes rayonnants ce soir.",
+    "N'oubliez pas le QR Code pour partager vos moments.",
+    "C'est ma chanson préférée ! (Même si je n'ai pas d'oreilles)",
+    "Ambiance de folie ce soir !",
+    "Regardez cette pose ! Top model !",
+    "J'aimerais pouvoir prendre un selfie avec vous.",
+    "Attention, je vais tenter un moonwalk...",
+    "Si je tombe, ne riez pas, c'est lourd le métal.",
+    "Envoyez-nous vos plus belles grimaces !",
+    "La soirée ne fait que commencer !",
+    "Je valide cette photo ! 👍",
+    "Hé toi là-bas ! Oui toi ! Tu danses bien !",
+    "Mes capteurs de rythme sont au maximum."
 ];
 
-// Sélection de la banque de texte active selon le mode
+// Sélection de la banque active
 let currentTextBank = [];
-if (config.mode === 'vote_off') currentTextBank = [...VOTE_OFF_TEXTS];
-else if (config.mode === 'photos') currentTextBank = [...PHOTOS_TEXTS];
-else currentTextBank = [...INFINITE_TEXTS];
+if (config.mode === 'vote_off') currentTextBank = [...TEXTS_VOTE_OFF];
+else if (config.mode === 'photos') currentTextBank = [...TEXTS_PHOTOS];
+else currentTextBank = [...TEXTS_ATTENTE];
 
 // --- STYLE CSS ---
 const style = document.createElement('style');
@@ -106,8 +123,8 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO NARRATIF (Uniquement pour le mode "attente") ---
-const introScript = [
+// --- SCENARIO 1 : ACCUEIL ---
+const introScript_Attente = [
     { time: 4, text: "", action: "enter_scene_slow" }, 
     { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
     { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" },
@@ -136,13 +153,39 @@ const introScript = [
     { time: 204, text: "Installez-vous bien, je veille sur vous.", type: "speech" }
 ];
 
+// --- SCENARIO 2 : VOTE OFF ---
+const introScript_VoteOff = [
+    { time: 2, text: "", action: "enter_from_left" },
+    { time: 8, text: "Oula... C'est fini !", type: "speech" },
+    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" },
+    { time: 22, text: "La régie est en train de compter les points...", type: "speech" },
+    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "move_left_check" },
+    { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
+];
+
+// --- SCENARIO 3 : PHOTOS LIVE (Mode Danse) ---
+const introScript_Photos = [
+    { time: 2, text: "", action: "enter_from_right" },
+    { time: 8, text: "Hé ! Mais c'est une soirée dansante ici ? 🕺", type: "speech" },
+    { time: 15, text: "Attendez, je m'échauffe...", type: "speech", action: "dance_start" },
+    { time: 22, text: "Un, deux, un, deux... 🎵", type: "speech" },
+    { time: 29, text: "Dites, vous n'auriez pas vu une amie ?", type: "speech", action: "dance_stop" },
+    { time: 36, text: "Elle m'avait dit qu'elle viendrait... Une grille-pain très mignonne.", type: "speech", action: "look_around" },
+    { time: 43, text: "Tant pis, je danse tout seul ! 🤖✨", type: "speech", action: "dance_start" }
+];
+
+// SÉLECTION DU BON SCÉNARIO
+let currentIntroScript = introScript_Attente;
+if (config.mode === 'vote_off') currentIntroScript = introScript_VoteOff;
+if (config.mode === 'photos') currentIntroScript = introScript_Photos;
+
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', launchFinalScene); } else { launchFinalScene(); }
 
 function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
-    // CORRECTION Z-INDEX ICI : z-index: 1
+    // Z-INDEX 1 POUR PASSER DERRIÈRE LE TEXTE HTML (qui est souvent > 1)
     canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 1; pointer-events: none !important; background: transparent !important;`;
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
@@ -152,7 +195,6 @@ function launchFinalScene() {
 function initThreeJS(canvas, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     const scene = new THREE.Scene();
-    
     scene.fog = new THREE.Fog(0x000000, 10, 60);
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
@@ -163,18 +205,16 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- SOL UNIFORME ---
+    // SOL GRIS
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
     grid.position.y = -2.5; 
     scene.add(grid);
 
-    // --- ROBOT ---
+    // ROBOT
     const robotGroup = new THREE.Group(); 
-    // Position de départ dépend du mode
-    if (config.mode === 'attente') robotGroup.position.set(-30, 0, 0);
-    else robotGroup.position.set(0, 0, 0); // Déjà au centre pour les autres modes
-
+    robotGroup.position.set(-30, 0, 0); // Départ hors champ pour tout le monde
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
+    
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -197,13 +237,9 @@ function initThreeJS(canvas, bubbleEl) {
         scene.add(g); stageSpots.push({ g, beam, isOn: false, nextToggle: Math.random()*5 });
     });
 
-    let robotState = (config.mode === 'attente') ? 'intro' : 'infinite_loop';
+    let robotState = 'intro';
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
-    // Cible initiale dépend du mode
-    let targetPos = new THREE.Vector3(0, 0, 0);
-    if (config.mode === 'attente') targetPos.set(-30, 0, 0);
-    else pickNewTarget();
-
+    let targetPos = new THREE.Vector3(-30, 0, 0); 
     let lastPos = new THREE.Vector3();
     let lastTextChange = 0;
     let textMsgIndex = 0;
@@ -230,19 +266,20 @@ function initThreeJS(canvas, bubbleEl) {
         const visibleHeight = 2 * Math.tan(vFOV / 2) * dist; const visibleWidth = visibleHeight * camera.aspect;
         const xLimit = (visibleWidth / 2) - 2.5; 
         const side = Math.random() > 0.5 ? 1 : -1;
-        const randomX = 4.0 + (Math.random() * (xLimit - 4.5)); 
+        
+        // ZONE INTERDITE CENTRALE : On s'assure qu'il est à GAUCHE ou à DROITE du bloc central (X > 6 ou X < -6)
+        const randomX = 6.0 + (Math.random() * (xLimit - 6.5)); 
+        
         targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
         nextMoveTime = Date.now() + 8000; 
     }
 
-    // Fonction qui pioche dans la bonne banque selon le mode
     function getNextMessage() {
         if (currentTextBank.length === 0) {
-            // Recharge la banque appropriée si vide
-            if (config.mode === 'vote_off') currentTextBank = [...VOTE_OFF_TEXTS];
-            else if (config.mode === 'photos') currentTextBank = [...PHOTOS_TEXTS];
-            else currentTextBank = [...INFINITE_TEXTS];
+            if (config.mode === 'vote_off') currentTextBank = [...TEXTS_VOTE_OFF];
+            else if (config.mode === 'photos') currentTextBank = [...TEXTS_PHOTOS];
+            else currentTextBank = [...TEXTS_ATTENTE];
         }
         const idx = Math.floor(Math.random() * currentTextBank.length);
         const msg = currentTextBank[idx];
@@ -261,20 +298,29 @@ function initThreeJS(canvas, bubbleEl) {
             s.g.lookAt(robotGroup.position);
         });
 
+        // --- GESTION DES SCENARIOS ---
         if (robotState === 'intro') {
-            const step = introScript[introIdx];
+            const step = currentIntroScript[introIdx];
             if (step && time >= step.time) {
                 if (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast") || step.action?.includes("normal")) {
                     if(step.text) showBubble(step.text, step.type);
                 }
+                
+                // Mouvements standards
                 if(step.action === "enter_scene_slow") targetPos.set(-7, 2, -2);
+                if(step.action === "enter_from_left") { robotGroup.position.set(-30, 0, 0); targetPos.set(-8, 0, 2); }
+                if(step.action === "enter_from_right") { robotGroup.position.set(30, 0, 0); targetPos.set(8, 0, 2); }
+                
                 if(step.action === "look_around") targetPos.set(0, 0, -5);
                 if(step.action === "move_right_slow") targetPos.set(6, 1, -2);
                 if(step.action === "move_left_check") targetPos.set(-6, -1, 0);
                 if(step.action === "surprise_stop") targetPos.set(-6, 0, 4);
                 if(step.action === "move_center_wave") targetPos.set(0, 0, 5);
+                
+                // Gros plan
                 if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
+                
                 if(step.action === "scan_crowd") targetPos.set(-3, 1, 4);
                 if(step.action === "phone_call") targetPos.set(5, 0, 2);
                 if(step.action === "surprise") targetPos.set(5, 0, 6);
@@ -283,22 +329,36 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "listen_intense") targetPos.set(0, 0, 5);
                 
                 if(step.action === "exit_right_normal") targetPos.set(25, 0, 0); 
+                if(step.action === "exit_right_fast") targetPos.set(35, 0, 0); 
                 
                 if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-5, 0, 4); }
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
+                
+                // DANSE
+                if(step.action === "dance_start") { 
+                    robotState = 'dancing_intro'; // Etat temporaire pour l'intro
+                    setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); 
+                }
+                
                 introIdx++;
             }
             
-            if(introIdx >= introScript.length) { robotState = 'infinite_loop'; pickNewTarget(); nextEvt = time + 10; }
+            // Fin de l'intro
+            if(introIdx >= currentIntroScript.length) { 
+                robotState = 'infinite_loop'; pickNewTarget(); nextEvt = time + 10; 
+            }
             
-            let speedFactor = VITESSE_MOUVEMENT;
-            if (step && step.action === "exit_right_normal") speedFactor = 0.015; 
-            else if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; 
-            else if(targetPos.z > 7) speedFactor = 0.02; 
-            robotGroup.position.lerp(targetPos, speedFactor);
+            if(robotState !== 'dancing_intro') {
+                let speedFactor = VITESSE_MOUVEMENT;
+                if (step && step.action === "exit_right_normal") speedFactor = 0.015; 
+                else if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; 
+                else if(targetPos.z > 7) speedFactor = 0.02; 
+                robotGroup.position.lerp(targetPos, speedFactor);
+            }
         } 
         
+        // --- MODE BOUCLE INFINIE ---
         else if (robotState === 'infinite_loop' || robotState === 'approaching' || robotState === 'thinking') {
             if (config.mode === 'attente' && subtitlesActive && time > lastTextChange + 12) { cycleCenterText(); lastTextChange = time; }
             if (Date.now() > nextMoveTime || robotState === 'approaching') robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
@@ -316,6 +376,13 @@ function initThreeJS(canvas, bubbleEl) {
                     parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4)); 
                     setTimeout(() => { robotState = 'reassembling'; }, 3500); nextEvt = time + 25;
                 }
+                // Si mur PHOTOS, chance de danser
+                else if (config.mode === 'photos' && r < 0.25) {
+                    robotState = 'dancing';
+                    showBubble("C'est ma chanson préférée !", 'speech');
+                    setTimeout(() => { robotState = 'infinite_loop'; pickNewTarget(); }, 6000); // Danse 6s
+                    nextEvt = time + 20;
+                }
                 else if (currentSpeed < SPEED_THRESHOLD) { 
                     const msg = getNextMessage(); 
                     const type = (msg.includes("Hmm") || msg.includes("Calcul") || msg.includes("Analyse")) ? 'thought' : 'speech';
@@ -332,6 +399,11 @@ function initThreeJS(canvas, bubbleEl) {
                 parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); }); 
                 robotState = 'infinite_loop'; nextEvt = time + 5; pickNewTarget(); nextMoveTime = 0; 
             }
+        }
+        // --- LOGIQUE DE DANSE (Sautille + Tourne vite) ---
+        else if (robotState === 'dancing' || robotState === 'dancing_intro') {
+            robotGroup.rotation.y += 0.15; // Tourne vite
+            robotGroup.position.y = Math.abs(Math.sin(time * 5)) * 0.5; // Sautille
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
