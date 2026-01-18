@@ -1,18 +1,17 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL v16 - FLYING & IMPULSE)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v18 - SOL & ROBOT VISIBLES)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
 const DUREE_LECTURE = 6000; 
 const ECHELLE_BOT = 0.6; 
-// Limite stricte : Si le robot dépasse 9.5 (bords), il se tait
 const MUTE_LIMIT_X = 9.5; 
 
-// Vitesses de déplacement
-const SPEED_HOVER = 0.005;   // Balade tranquille
-const SPEED_IMPULSE = 0.05;  // Traversée rapide (Fusée)
+// Vitesses
+const SPEED_HOVER = 0.005;   
+const SPEED_IMPULSE = 0.05;  
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -99,13 +98,13 @@ document.head.appendChild(style);
 
 // --- SCENARIO 1 : ACCUEIL ---
 const introScript_Attente = [
-    { time: 1, text: "", action: "teleport_in_left" }, // Arrive tout de suite
+    { time: 0.5, text: "", action: "teleport_in_left" }, 
     { time: 4, text: "Wouah... C'est grand ici !", type: "thought", action: "fly_hover_right" }, 
     { time: 12, text: "Je crois que je suis le premier...", type: "thought", action: "fly_hover_left" }, 
     { time: 20, text: "OH ! Il y a du monde ! 😳", type: "speech", action: "stop_left_front" }, 
     { time: 27, text: "Bonjour ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
     { time: 35, text: "Bienvenue à tous !", type: "speech", action: "fly_right_up" }, 
-    { time: 42, text: "", action: "impulse_cross_left" }, // IMPULSION RAPIDE (Pas de texte)
+    { time: 42, text: "", action: "impulse_cross_left" }, 
     { time: 46, text: "Ouhlà ! Ça décoiffe !", type: "speech", action: "stop_right_front" },
     { time: 54, text: "Vous êtes bien réels ? 😅", type: "speech" }, 
     { time: 62, text: "Je scanne la salle...", type: "thought", action: "fly_scan" }, 
@@ -116,7 +115,7 @@ const introScript_Attente = [
     { time: 102, text: "Je suis votre animateur officiel ! 🎤", type: "speech" },
     { time: 110, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
     { time: 118, text: "Je dois filer préparer mes fiches...", type: "speech" }, 
-    { time: 124, text: "", action: "impulse_exit_right" }, // SORTIE SILENCIEUSE
+    { time: 124, text: "", action: "impulse_exit_right" }, 
     { time: 135, text: "Me revoilà ! 😅", type: "speech", action: "teleport_in_left" }, 
     { time: 142, text: "C'était moins une !", type: "speech", action: "fly_hover_center_high" },
     { time: 150, text: "Installez-vous bien, je veille.", type: "speech" }
@@ -124,7 +123,7 @@ const introScript_Attente = [
 
 // --- SCENARIO 2 : VOTE OFF ---
 const introScript_VoteOff = [
-    { time: 1, text: "", action: "teleport_in_right" }, 
+    { time: 0.5, text: "", action: "teleport_in_right" }, 
     { time: 5, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
     { time: 12, text: "Désolé, les votes sont clos ! 🛑", type: "speech", action: "fly_left_up" },
     { time: 20, text: "La régie compte les points...", type: "speech" },
@@ -135,17 +134,17 @@ const introScript_VoteOff = [
 
 // --- SCENARIO 3 : PHOTOS LIVE ---
 const introScript_Photos = [
-    { time: 1, text: "", action: "teleport_in_left" }, 
+    { time: 0.5, text: "", action: "teleport_in_left" }, 
     { time: 5, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
     { time: 10, text: "", action: "dance_stop" },
     { time: 12, text: "Coucou ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" }, 
     { time: 18, text: "Poussez-vous, je veux voir !", type: "speech", action: "fly_right_up" }, 
     { time: 26, text: "Oh ! Superbe celle-ci !", type: "speech", action: "look_bubbles" }, 
-    { time: 33, text: "", action: "impulse_cross_left" }, // IMPULSION
+    { time: 33, text: "", action: "impulse_cross_left" }, 
     { time: 37, text: "J'ai failli percuter une bulle !", type: "speech", action: "stop_right_front" }, 
     { time: 45, text: "Un petit selfie avec Clap-E ?", type: "speech", action: "pose_selfie" }, 
     { time: 51, text: "Bon, je file voir la régie...", type: "speech" }, 
-    { time: 57, text: "", action: "impulse_exit_left" }, // SORTIE SILENCIEUSE
+    { time: 57, text: "", action: "impulse_exit_left" }, 
     { time: 66, text: "Me revoilà ! ✨", type: "speech", action: "teleport_in_right" }, 
     { time: 73, text: "Allez, tous ensemble !", type: "speech", action: "pose_selfie" } 
 ];
@@ -159,10 +158,10 @@ if (document.readyState === 'loading') { document.addEventListener('DOMContentLo
 function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble', 'robot-canvas-floor', 'robot-canvas-bot'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     
-    // UNE SEULE TOILE : ROBOT (Z-INDEX 5)
+    // CANVAS UNIQUE (Z-INDEX 0 = FOND)
     const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
-    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 5 !important; pointer-events: none !important; background: transparent !important;`;
+    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 0 !important; pointer-events: none !important; background: transparent !important;`;
 
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
@@ -173,6 +172,8 @@ function launchFinalScene() {
 function initThreeJS(canvas, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     const scene = new THREE.Scene();
+    // BROUILLARD (FOG) pour fondre le sol
+    scene.fog = new THREE.Fog(0x000000, 10, 60);
     
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 12); 
@@ -182,9 +183,13 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // PAS DE GRILLE ICI (Gérée en CSS dans app.py pour être derrière les bulles)
+    // --- SOL 3D RESTAURÉ ---
+    // Couleur 0x444444 pour être visible mais sombre
+    const grid = new THREE.GridHelper(200, 50, 0x444444, 0x444444); 
+    grid.position.y = -2.5; 
+    scene.add(grid);
 
-    // PARTICULES (Explosions)
+    // PARTICULES
     const particleCount = 500;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
@@ -208,30 +213,35 @@ function initThreeJS(canvas, bubbleEl) {
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    // ROBOT
+    // --- ROBOT (CODE COMPLET RESTAURÉ) ---
     const robotGroup = new THREE.Group(); 
-    robotGroup.position.set(-35, 0, 0); // Position Initiale Hors champ
+    robotGroup.position.set(-35, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+    
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat); head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat); face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
+    
     const armLGroup = new THREE.Group(); armLGroup.position.set(-0.9, -0.8, 0); 
     const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armL.position.y = -0.2; 
     const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handL.position.y = -0.5; 
     armLGroup.add(armL); armLGroup.add(handL);
+
     const armRGroup = new THREE.Group(); armRGroup.position.set(0.9, -0.8, 0);
     const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armR.position.y = -0.2;
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
+
     [head, body, armLGroup, armRGroup].forEach(p => { robotGroup.add(p); });
     armLGroup.userData.origRot = armLGroup.rotation.clone(); armRGroup.userData.origRot = armRGroup.rotation.clone();
+    
     scene.add(robotGroup);
 
     const stageSpots = [];
@@ -244,7 +254,7 @@ function initThreeJS(canvas, bubbleEl) {
 
     let robotState = 'intro';
     let isWaving = false;
-    let isImpulsing = false; // Mode "Fusée"
+    let isImpulsing = false; 
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
     let targetPos = new THREE.Vector3(-35, 0, 0); 
     let lastPos = new THREE.Vector3();
@@ -253,9 +263,7 @@ function initThreeJS(canvas, bubbleEl) {
     let subtitlesActive = false; 
 
     function showBubble(text, type = 'speech') { 
-        // SECURITE ABSOLUE : Si impulsion ou hors écran, PAS DE BULLE
         if(isImpulsing || Math.abs(robotGroup.position.x) > MUTE_LIMIT_X) return;
-        
         if(!text) return;
         bubbleEl.innerHTML = text; 
         bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
@@ -273,23 +281,17 @@ function initThreeJS(canvas, bubbleEl) {
 
     function pickNewTarget() {
         const r = Math.random();
-        // 30% Chance : IMPULSION (Traversée Écran)
         if (r < 0.3) { 
             isImpulsing = true;
-            // Depart hors écran
             const startSide = Math.random() > 0.5 ? -18 : 18;
             robotGroup.position.set(startSide, (Math.random()-0.5)*4, (Math.random()-0.5)*2);
-            // Cible opposée hors écran
             targetPos.set(-startSide, (Math.random()-0.5)*6, (Math.random()-0.5)*4);
         } else { 
-            // 70% Chance : VOL STATIONNAIRE (Sur les cotés visibles)
             isImpulsing = false;
             const side = Math.random() > 0.5 ? 1 : -1;
-            // X entre 8.0 et 12.0 (Zone latérale)
             const randomX = side * (8.0 + Math.random() * 4.0);
             targetPos.set(randomX, (Math.random()-0.5)*5, (Math.random()*4)-2);
         }
-        
         if(targetPos.y > 4.5) targetPos.y = 4.0;
         nextMoveTime = Date.now() + 5000; 
     }
@@ -330,11 +332,9 @@ function initThreeJS(canvas, bubbleEl) {
             s.g.lookAt(robotGroup.position);
         });
 
-        // --- GESTION SCENARIOS ---
         if (robotState === 'intro') {
             const step = currentIntroScript[introIdx];
             if (step && time >= step.time) {
-                
                 let allowText = true;
                 if(step.action && step.action.includes("impulse")) { isImpulsing = true; allowText = false; }
                 else { isImpulsing = false; }
@@ -343,16 +343,14 @@ function initThreeJS(canvas, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                // Mouvements standards "Volants"
                 if(step.action === "fly_hover_right") targetPos.set(11, 2, -1);
                 if(step.action === "fly_hover_left") targetPos.set(-11, -2, 1);
                 if(step.action === "fly_right_up") targetPos.set(12, 4, -2);
                 if(step.action === "fly_left_up") targetPos.set(-12, 4, -2);
                 if(step.action === "fly_scan") targetPos.set(-10, 3, 3);
                 if(step.action === "fly_loop") targetPos.set(10, 2, -3);
-                if(step.action === "fly_hover_center_high") targetPos.set(0, 4, 0); // Exception (Haut)
+                if(step.action === "fly_hover_center_high") targetPos.set(0, 4, 0);
 
-                // ACTIONS SPECIFIQUES
                 if(step.action === "stop_left_front") targetPos.set(-10, 0, 4);
                 if(step.action === "stop_right_front") targetPos.set(10, 0, 4);
                 if(step.action === "toc_toc_approach") targetPos.set(11, 0, 8.5); 
@@ -367,13 +365,11 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
 
-                // IMPULSIONS (Traversées rapides)
                 if(step.action === "impulse_cross_left") { robotGroup.position.set(18, 2, -2); targetPos.set(-18, -2, 2); isImpulsing = true; }
                 if(step.action === "impulse_cross_right") { robotGroup.position.set(-18, -1, 2); targetPos.set(18, 3, -2); isImpulsing = true; }
                 if(step.action === "impulse_exit_left") { targetPos.set(-25, 0, 0); isImpulsing = true; }
                 if(step.action === "impulse_exit_right") { targetPos.set(25, 0, 0); isImpulsing = true; }
 
-                // TELEPORTATIONS VISIBLES
                 if(step.action === "teleport_in_left") { robotGroup.position.set(-11, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
                 if(step.action === "teleport_in_right") { robotGroup.position.set(11, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
                 if(step.action === "enter_teleport_right_visible") { robotGroup.position.set(11, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
@@ -388,19 +384,17 @@ function initThreeJS(canvas, bubbleEl) {
             if(introIdx >= currentIntroScript.length) { robotState = 'infinite_loop'; pickNewTarget(); nextEvt = time + 10; }
             
             if(robotState !== 'dancing_intro' && robotState !== 'posing') {
-                const spd = isImpulsing ? SPEED_IMPULSE : SPEED_HOVER; // Vitesse variable
+                const spd = isImpulsing ? SPEED_IMPULSE : SPEED_HOVER; 
                 robotGroup.position.lerp(targetPos, spd);
             }
         } 
         
-        // --- BOUCLE INFINIE ---
         else if (robotState === 'infinite_loop' || robotState === 'approaching' || robotState === 'thinking') {
             if (config.mode === 'attente' && subtitlesActive && time > lastTextChange + 12) { cycleCenterText(); lastTextChange = time; }
             
             const spd = isImpulsing ? SPEED_IMPULSE : SPEED_HOVER;
             robotGroup.position.lerp(targetPos, spd);
             
-            // Animation de vol (Tangage)
             robotGroup.rotation.z = (targetPos.x - robotGroup.position.x) * -0.05; 
             robotGroup.rotation.x = (targetPos.y - robotGroup.position.y) * 0.05; 
             
@@ -441,9 +435,7 @@ function initThreeJS(canvas, bubbleEl) {
             armLGroup.rotation.copy(armLGroup.userData.origRot); armRGroup.rotation.copy(armRGroup.userData.origRot);
         }
 
-        // VISIBILITE DU TEXTE
         if(bubbleEl && bubbleEl.style.opacity == 1) {
-            // COUPURE IMMEDIATE SI HORS ZONE
             if (isImpulsing || Math.abs(robotGroup.position.x) > MUTE_LIMIT_X) {
                 bubbleEl.style.opacity = 0;
             } else {
