@@ -1064,34 +1064,35 @@ else:
             <script>
             const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
             const layer=document.getElementById('intro-layer'),txt=document.getElementById('intro-txt'),num=document.getElementById('intro-num'),w1=document.getElementById('win-1'),w2=document.getElementById('win-2'),w3=document.getElementById('win-3'),audio=document.getElementById('applause-sound'),finalOverlay=document.getElementById('final-overlay');
-            
             function startConfetti(){{var script=document.createElement('script');script.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";script.onload=()=>{{var duration=15*1000;var animationEnd=Date.now()+duration;var defaults={{startVelocity:30,spread:360,ticks:60,zIndex:5500}};var random=(min,max)=>Math.random()*(max-min)+min;var interval=setInterval(function(){{var timeLeft=animationEnd-Date.now();if(timeLeft<=0){{return clearInterval(interval);}}var particleCount=50*(timeLeft/duration);confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.1,0.3),y:Math.random()-0.2}}}}));confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.7,0.9),y:Math.random()-0.2}}}}));}},250);}};document.body.appendChild(script);}}
             
             async function countdown(seconds,message){{layer.style.display='flex';layer.style.opacity='1';txt.innerText=message;for(let i=seconds;i>0;i--){{num.innerText=i;await wait(1000);}}layer.style.opacity='0';await wait(500);layer.style.display='none';}}
             
             async function runShow(){{
-                // 1. REVELATION GAGNANTS (Podium Fixe)
-                await countdown(5,"EN TROISIÈME PLACE...");
+                // 1. REVELATION GAGNANTS (Podium Fixe - 10 SECONDES DE SUSPENSE)
+                await countdown(10,"EN TROISIÈME PLACE...");
                 w3.classList.add('visible');
-                await wait(2000);
+                await wait(4000);
                 
-                await countdown(5,"EN SECONDE PLACE...");
+                await countdown(10,"EN SECONDE PLACE...");
                 w2.classList.add('visible');
-                await wait(2000);
+                await wait(4000);
                 
-                await countdown(7,"ET LE VAINQUEUR EST...");
+                await countdown(10,"ET LE VAINQUEUR EST...");
                 w1.classList.add('visible');
                 
-                // 2. FÊTE
+                // 2. FÊTE (CONFETTIS)
                 startConfetti();
                 try{{audio.currentTime=0;audio.play();}}catch(e){{}}
                 
-                // 3. APPARITION GROSSE DU LOGO (STAGE 1)
-                await wait(2000);
+                // 3. PAUSE APRES VICTOIRE (6 secondes)
+                await wait(6000);
+                
+                // 4. APPARITION GROSSE DU LOGO (STAGE 1)
                 finalOverlay.classList.add('stage-1-big');
                 
-                // 4. ZOOM ARRIERE VERS LE HAUT (STAGE 2)
-                await wait(3000);
+                // 5. ZOOM ARRIERE VERS LE HAUT (STAGE 2 - Après 6 secondes)
+                await wait(6000);
                 finalOverlay.classList.remove('stage-1-big');
                 finalOverlay.classList.add('stage-2-top');
             }}
@@ -1136,8 +1137,8 @@ else:
             /* ETAPE 1 : GROS + FOND NOIR */
             .final-overlay.stage-1-big{{opacity:1;transform:scale(1.2);background-color:rgba(0,0,0,0.95);}}
             
-            /* ETAPE 2 : PETIT + EN HAUT + TRANSPARENT */
-            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.6) translateY(-50%);background-color:transparent;}}
+            /* ETAPE 2 : PETIT + EN HAUT + TRANSPARENT (Grossi à 0.85) */
+            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-30%);background-color:transparent;}}
             
             .final-content{{text-align:center;}}
             .final-logo{{width:500px;margin-bottom:30px;}}
@@ -1181,20 +1182,41 @@ else:
                 
                 /* 2. BANDEAU DEFILANT : FOND NOIR + DESCENDU */
                 .marquee-container {{ 
-                    width: 100%; background: black; color: white; height: 50px; 
-                    display: flex; align-items: center; border-top: 1px solid #333;
-                    border-bottom: 4px solid #E2001A; margin-top: 25px; 
+                    width: 100%; 
+                    background: black; /* Fond Noir */
+                    color: white; 
+                    height: 50px; 
+                    display: flex; align-items: center; 
+                    border-top: 1px solid #333;
+                    border-bottom: 4px solid #E2001A; /* Souligné rouge */
+                    margin-top: 25px; /* Descendu */
                 }}
-                .marquee-label {{ background: #E2001A; color: white; height: 100%; padding: 0 25px; display: flex; align-items: center; font-weight: 900; z-index: 2; font-size: 18px; }}
+                .marquee-label {{
+                    background: #E2001A; color: white; height: 100%; padding: 0 25px; display: flex; align-items: center; font-weight: 900; z-index: 2; font-size: 18px;
+                }}
                 .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 20px; text-transform: uppercase; white-space: nowrap; }}
                 @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
                 
                 .main-content {{ flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding-bottom: 2vh; }}
                 .content-grid {{ display: flex; justify-content: center; align-items: center; width: 98%; gap: 20px; height: 100%; }}
+                
                 .col-cands {{ width: 30%; display: flex; flex-direction: column; justify-content: center; height: 100%; }}
                 .col-qr {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
-                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 60px rgba(226, 0, 26, 0.6); animation: pulse 3s infinite; text-align: center; margin-bottom: 20px; }}
-                .qr-text-big {{ color: white; font-weight: 900; font-size: 32px; text-transform: uppercase; text-align: center; text-shadow: 0 0 20px #E2001A; letter-spacing: 2px; }}
+                
+                .qr-box {{ 
+                    background: white; padding: 15px; border-radius: 20px; 
+                    box-shadow: 0 0 60px rgba(226, 0, 26, 0.6); 
+                    animation: pulse 3s infinite; text-align: center; 
+                    margin-bottom: 20px; /* Espace avant le texte */
+                }}
+                
+                /* 3. TEXTE EXTERNE GROS */
+                .qr-text-big {{ 
+                    color: white; font-weight: 900; font-size: 32px; 
+                    text-transform: uppercase; text-align: center; 
+                    text-shadow: 0 0 20px #E2001A; letter-spacing: 2px;
+                }}
+                
                 @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 90px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
              </style>
              
@@ -1210,11 +1232,17 @@ else:
              <div class="main-content">
                 <div class="content-grid">
                     <div class="col-cands" style="align-items: flex-end;">{left_html}</div>
+                    
                     <div class="col-qr">
                         {logo_html}
-                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div>
+                        
+                        <div class="qr-box">
+                            <img src="data:image/png;base64,{qr_b64}" width="280">
+                        </div>
+                        
                         <div class="qr-text-big">SCANNEZ POUR VOTER</div>
                     </div>
+                    
                     <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
                 </div>
              </div>""", height=950)
