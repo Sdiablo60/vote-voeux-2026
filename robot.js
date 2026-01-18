@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (SOL UNIFORME & BOUCLE 50 MIN)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - CORRECTION "FREEZE")
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -140,8 +140,7 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- SOL (GRID HELPER) UNIFORME ---
-    // Couleur Centre et Grille identiques : GRIS SOMBRE #222222
+    // --- SOL (GRID HELPER) UNIFORME SANS LIGNE ROUGE ---
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
     grid.position.y = -2.5; 
     scene.add(grid);
@@ -289,8 +288,16 @@ function initThreeJS(canvas, bubbleEl) {
         else if (robotState === 'exploding') { parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.05; p.userData.velocity.multiplyScalar(0.98); }); }
         else if (robotState === 'reassembling') {
             let finished = true;
-            parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1; if (p.position.distanceTo(p.userData.origPos) > 0.01) finished = false; });
-            if(finished) { robotState = 'infinite_loop'; nextEvt = time + 2; pickNewTarget(); }
+            parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1; if (p.position.distanceTo(p.userData.origPos) > 0.05) finished = false; }); // Seuil augmenté à 0.05
+            
+            if(finished) { 
+                // CORRECTION FREEZE : ON FORCE LA SUITE IMMEDIATE
+                parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); }); // Snap
+                robotState = 'infinite_loop'; 
+                nextEvt = time + 5; 
+                pickNewTarget(); 
+                nextMoveTime = 0; // Force mouvement immédiat
+            }
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
