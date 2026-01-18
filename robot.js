@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL v19 - FIX VISIBILITE)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v20 - START VISIBLE)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -98,55 +98,55 @@ document.head.appendChild(style);
 
 // --- SCENARIO 1 : ACCUEIL ---
 const introScript_Attente = [
-    { time: 0.1, text: "", action: "init_visible" }, // FORCE VISIBLE IMMEDIATEMENT
-    { time: 4, text: "Wouah... C'est grand ici !", type: "thought", action: "fly_hover_right" }, 
-    { time: 12, text: "Je crois que je suis le premier...", type: "thought", action: "fly_hover_left" }, 
-    { time: 20, text: "OH ! Il y a du monde ! 😳", type: "speech", action: "stop_left_front" }, 
-    { time: 27, text: "Bonjour ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
-    { time: 35, text: "Bienvenue à tous !", type: "speech", action: "fly_right_up" }, 
-    { time: 42, text: "", action: "impulse_cross_left" }, 
-    { time: 46, text: "Ouhlà ! Ça décoiffe !", type: "speech", action: "stop_right_front" },
-    { time: 54, text: "Vous êtes bien réels ? 😅", type: "speech" }, 
-    { time: 62, text: "Je scanne la salle...", type: "thought", action: "fly_scan" }, 
-    { time: 70, text: "Hum, que des stars ce soir. 😎", type: "speech" },
-    { time: 78, text: "Excusez-moi, appel régie...", type: "speech", action: "phone_pose" }, 
-    { time: 86, text: "Allô ? Oui, ici Clap-E.", type: "speech" },
-    { time: 94, text: "C'est confirmé ?! Super !", type: "speech", action: "fly_loop" },
-    { time: 102, text: "Je suis votre animateur officiel ! 🎤", type: "speech" },
-    { time: 110, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
-    { time: 118, text: "Je dois filer préparer mes fiches...", type: "speech" }, 
-    { time: 124, text: "", action: "impulse_exit_right" }, 
-    { time: 135, text: "Me revoilà ! 😅", type: "speech", action: "teleport_in_left" }, 
-    { time: 142, text: "C'était moins une !", type: "speech", action: "fly_hover_center_high" },
-    { time: 150, text: "Installez-vous bien, je veille.", type: "speech" }
+    { time: 0.1, text: "", action: "init_visible" }, // X = -8 (Visible)
+    { time: 1.5, text: "Wouah... C'est grand ici !", type: "thought", action: "fly_hover_right" }, // Démarrage rapide
+    { time: 9, text: "Je crois que je suis le premier...", type: "thought", action: "fly_hover_left" }, 
+    { time: 17, text: "OH ! Il y a du monde ! 😳", type: "speech", action: "stop_left_front" }, 
+    { time: 24, text: "Bonjour ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
+    { time: 32, text: "Bienvenue à tous !", type: "speech", action: "fly_right_up" }, 
+    { time: 40, text: "", action: "impulse_cross_left" }, 
+    { time: 44, text: "Ouhlà ! Ça décoiffe !", type: "speech", action: "stop_right_front" },
+    { time: 52, text: "Vous êtes bien réels ? 😅", type: "speech" }, 
+    { time: 60, text: "Je scanne la salle...", type: "thought", action: "fly_scan" }, 
+    { time: 68, text: "Hum, que des stars ce soir. 😎", type: "speech" },
+    { time: 76, text: "Excusez-moi, appel régie...", type: "speech", action: "phone_pose" }, 
+    { time: 84, text: "Allô ? Oui, ici Clap-E.", type: "speech" },
+    { time: 92, text: "C'est confirmé ?! Super !", type: "speech", action: "fly_loop" },
+    { time: 100, text: "Je suis votre animateur officiel ! 🎤", type: "speech" },
+    { time: 108, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
+    { time: 116, text: "Je dois filer préparer mes fiches...", type: "speech" }, 
+    { time: 122, text: "", action: "impulse_exit_right" }, 
+    { time: 132, text: "Me revoilà ! 😅", type: "speech", action: "teleport_in_left" }, 
+    { time: 140, text: "C'était moins une !", type: "speech", action: "fly_hover_center_high" },
+    { time: 148, text: "Installez-vous bien, je veille.", type: "speech" }
 ];
 
 // --- SCENARIO 2 : VOTE OFF ---
 const introScript_VoteOff = [
     { time: 0.1, text: "", action: "init_visible_right" }, 
-    { time: 5, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
-    { time: 12, text: "Désolé, les votes sont clos ! 🛑", type: "speech", action: "fly_left_up" },
-    { time: 20, text: "La régie compte les points...", type: "speech" },
-    { time: 27, text: "", action: "impulse_cross_right" }, 
-    { time: 31, text: "Soyez patients, ça arrive !", type: "speech", action: "stop_left_front" }, 
-    { time: 38, text: "C'était serré... 🤫", type: "speech" }
+    { time: 3, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
+    { time: 10, text: "Désolé, les votes sont clos ! 🛑", type: "speech", action: "fly_left_up" },
+    { time: 18, text: "La régie compte les points...", type: "speech" },
+    { time: 25, text: "", action: "impulse_cross_right" }, 
+    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "stop_left_front" }, 
+    { time: 36, text: "C'était serré... 🤫", type: "speech" }
 ];
 
 // --- SCENARIO 3 : PHOTOS LIVE ---
 const introScript_Photos = [
     { time: 0.1, text: "", action: "init_visible" }, 
-    { time: 5, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
-    { time: 10, text: "", action: "dance_stop" },
-    { time: 12, text: "Coucou ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" }, 
-    { time: 18, text: "Poussez-vous, je veux voir !", type: "speech", action: "fly_right_up" }, 
-    { time: 26, text: "Oh ! Superbe celle-ci !", type: "speech", action: "look_bubbles" }, 
-    { time: 33, text: "", action: "impulse_cross_left" }, 
-    { time: 37, text: "J'ai failli percuter une bulle !", type: "speech", action: "stop_right_front" }, 
-    { time: 45, text: "Un petit selfie avec Clap-E ?", type: "speech", action: "pose_selfie" }, 
-    { time: 51, text: "Bon, je file voir la régie...", type: "speech" }, 
-    { time: 57, text: "", action: "impulse_exit_left" }, 
-    { time: 66, text: "Me revoilà ! ✨", type: "speech", action: "teleport_in_right" }, 
-    { time: 73, text: "Allez, tous ensemble !", type: "speech", action: "pose_selfie" } 
+    { time: 3, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
+    { time: 8, text: "", action: "dance_stop" },
+    { time: 10, text: "Coucou ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" }, 
+    { time: 16, text: "Poussez-vous, je veux voir !", type: "speech", action: "fly_right_up" }, 
+    { time: 24, text: "Oh ! Superbe celle-ci !", type: "speech", action: "look_bubbles" }, 
+    { time: 31, text: "", action: "impulse_cross_left" }, 
+    { time: 35, text: "J'ai failli percuter une bulle !", type: "speech", action: "stop_right_front" }, 
+    { time: 43, text: "Un petit selfie avec Clap-E ?", type: "speech", action: "pose_selfie" }, 
+    { time: 49, text: "Bon, je file voir la régie...", type: "speech" }, 
+    { time: 55, text: "", action: "impulse_exit_left" }, 
+    { time: 64, text: "Me revoilà ! ✨", type: "speech", action: "teleport_in_right" }, 
+    { time: 71, text: "Allez, tous ensemble !", type: "speech", action: "pose_selfie" } 
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -172,7 +172,9 @@ function launchFinalScene() {
 function initThreeJS(canvas, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     const scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x000000, 10, 60);
+    
+    // BROUILLARD PLUS LOIN = SOL PLUS VISIBLE
+    scene.fog = new THREE.Fog(0x000000, 20, 70); 
     
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
     camera.position.set(0, 0, 12); 
@@ -182,8 +184,8 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // SOL 3D VISIBLE (Gris clair)
-    const grid = new THREE.GridHelper(200, 50, 0x666666, 0x444444); 
+    // SOL 3D RESTAURÉ
+    const grid = new THREE.GridHelper(200, 50, 0x666666, 0x333333); 
     grid.position.y = -2.5; 
     scene.add(grid);
 
@@ -213,13 +215,12 @@ function initThreeJS(canvas, bubbleEl) {
 
     // ROBOT
     const robotGroup = new THREE.Group(); 
-    robotGroup.position.set(-10, 0, 0); // START VISIBLE (X=-10)
+    robotGroup.position.set(-8, 0, 0); // START X=-8 (Visible)
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-    
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat); head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat); face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
@@ -235,7 +236,7 @@ function initThreeJS(canvas, bubbleEl) {
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
     
-    // DEFINITION PARTS (Important pour éviter crash)
+    // PARTS (Evite crash)
     const parts = [head, body, armLGroup, armRGroup];
     parts.forEach(p => { 
         robotGroup.add(p); 
@@ -258,7 +259,7 @@ function initThreeJS(canvas, bubbleEl) {
     let isWaving = false;
     let isImpulsing = false; 
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
-    let targetPos = new THREE.Vector3(-10, 0, 0); // Cible initiale visible
+    let targetPos = new THREE.Vector3(-8, 0, 0); // Cible initiale X=-8
     let lastPos = new THREE.Vector3();
     let lastTextChange = 0;
     let textMsgIndex = 0;
@@ -345,14 +346,13 @@ function initThreeJS(canvas, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                // INIT VISIBLE
-                if(step.action === "init_visible") { robotGroup.position.set(-10, 0, 0); targetPos.set(-10, 0, 0); }
-                if(step.action === "init_visible_right") { robotGroup.position.set(10, 0, 0); targetPos.set(10, 0, 0); }
+                if(step.action === "init_visible") { robotGroup.position.set(-8, 0, 0); targetPos.set(-8, 0, 0); }
+                if(step.action === "init_visible_right") { robotGroup.position.set(8, 0, 0); targetPos.set(8, 0, 0); }
 
                 if(step.action === "fly_hover_right") targetPos.set(11, 2, -1);
                 if(step.action === "fly_hover_left") targetPos.set(-11, -2, 1);
-                if(step.action === "fly_right_up") targetPos.set(12, 4, -2);
-                if(step.action === "fly_left_up") targetPos.set(-12, 4, -2);
+                if(step.action === "fly_right_up") targetPos.set(12, 4, 3); // Z=3 = Devant
+                if(step.action === "fly_left_up") targetPos.set(-12, 4, 3);
                 if(step.action === "fly_scan") targetPos.set(-10, 3, 3);
                 if(step.action === "fly_loop") targetPos.set(10, 2, -3);
                 if(step.action === "fly_hover_center_high") targetPos.set(0, 4, 0);
