@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (SOL INFINI & BOUCLE 50 MIN)
+// 🟢 CONFIGURATION ROBOT 2026 (SOL UNIFORME & BOUCLE 50 MIN)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -129,7 +129,7 @@ function initThreeJS(canvas, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     const scene = new THREE.Scene();
     
-    // Ajout du Brouillard pour fondre le sol dans le noir
+    // Brouillard pour fondre le sol dans le noir
     scene.fog = new THREE.Fog(0x000000, 10, 60);
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
@@ -140,10 +140,10 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- SOL (GRID HELPER) ---
-    // Taille 200, 50 divisions. Couleur Centre: ROUGE #E2001A, Couleur Grille: GRIS SOMBRE #222222
-    const grid = new THREE.GridHelper(200, 50, 0xE2001A, 0x222222);
-    grid.position.y = -2.5; // Positionné sous le robot
+    // --- SOL (GRID HELPER) UNIFORME ---
+    // Couleur Centre et Grille identiques : GRIS SOMBRE #222222
+    const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
+    grid.position.y = -2.5; 
     scene.add(grid);
 
     const robotGroup = new THREE.Group(); robotGroup.position.set(-30, 0, 0); robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
