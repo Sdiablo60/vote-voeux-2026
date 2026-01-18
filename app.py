@@ -847,7 +847,7 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE NETTOYÉE - PRÊT POUR ÉTAPE 2)
+# 3. MUR SOCIAL (VERSION CLEAN - PRÊT POUR PROD)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
@@ -857,10 +857,10 @@ else:
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    # === CSS PRINCIPAL : IFRAME 100% ÉCRAN EN ARRIÈRE-PLAN ===
+    # === CSS : L'IFRAME PREND TOUT L'ECRAN ===
     st.markdown("""
     <style>
-        /* 1. Nettoyage global */
+        /* 1. Nettoyage */
         .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
             background-color: black !important;
             padding: 0 !important; margin: 0 !important;
@@ -868,14 +868,14 @@ else:
             overflow: hidden !important;
         }
 
-        /* 2. LE BANDEAU TITRE (Fixé devant) */
+        /* 2. LE BANDEAU TITRE (Devant l'iframe) */
         .social-header { 
             position: fixed !important; top: 0 !important; left: 0 !important; 
             width: 100vw !important; height: 8vh !important;
             background-color: #E2001A !important; 
             display: flex !important; align-items: center !important; justify-content: center !important; 
-            z-index: 999999 !important; /* Devant l'iframe */
-            border-bottom: 3px solid white; /* Gardé pour le style, dites-moi si faut l'enlever */
+            z-index: 999999 !important; 
+            border-bottom: 3px solid white;
             box-shadow: 0 5px 10px rgba(0,0,0,0.3);
         }
         .social-title { 
@@ -884,15 +884,15 @@ else:
             margin: 0 !important; text-transform: uppercase; letter-spacing: 2px;
         }
 
-        /* 3. L'IFRAME (Prend tout l'écran, placée derrière) */
+        /* 3. L'IFRAME EN ARRIÈRE-PLAN (100% ECRAN) */
         iframe {
             position: fixed !important;
-            top: 0 !important;
+            top: 0 !important;         
             left: 0 !important;
             width: 100vw !important;
-            height: 100vh !important;
+            height: 100vh !important;  
             border: none !important;
-            z-index: 0 !important; /* Derrière le bandeau */
+            z-index: 0 !important;     
             display: block !important;
         }
     </style>
@@ -923,19 +923,18 @@ else:
     js_config = f"""<script>window.robotConfig = {{ mode: '{robot_mode}', titre: '{safe_title}', logo: '{logo_data}' }};</script>"""
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
-    # === CSS INTERNE IFRAME (Nettoyé) ===
-    # La zone de sécurité (#safe-zone) est définie mais n'a plus de bordure rouge.
+    # === CSS INTERNE IFRAME (CLEAN) ===
+    # Plus de border rouge !
     internal_css = f"""
     <style>
         body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
         #safe-zone {{
             position: absolute;
-            top: 8vh; /* Commence sous le bandeau */
+            top: 8vh;
             left: 0;
             width: 100vw;
             height: 92vh;
             box-sizing: border-box;
-            /* border: 4px solid red; <--- SUPPRIMÉ */
             z-index: 100;
             pointer-events: none;
         }}
@@ -961,7 +960,7 @@ else:
 
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
-            # ... (Podium - inchangé) ...
+            # ... (Podium inchangé) ...
             v_data = load_json(VOTES_FILE, {})
             c_imgs = cfg.get("candidats_images", {})
             if not v_data: v_data = {"Personne": 0}
@@ -1008,7 +1007,7 @@ else:
              
              components.html(f"""<style>body {{ background: black; margin: 0; padding: 0; font-family: Arial, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}.marquee-container {{ width: 100%; background: #E2001A; color: white; height: 50px; position: fixed; top: 0; left: 0; z-index: 1000; display: flex; align-items: center; border-bottom: 2px solid white; }}.marquee-label {{ background: #E2001A; color: white; font-weight: 900; font-size: 18px; padding: 0 20px; height: 100%; display: flex; align-items: center; z-index: 1001; }}.marquee-wrapper {{ overflow: hidden; white-space: nowrap; flex-grow: 1; height: 100%; display: flex; align-items: center; }}.marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 20s linear infinite; font-weight: bold; font-size: 18px; text-transform: uppercase; }}@keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}.top-section {{ width: 100%; height: 35vh; margin-top: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }}.title {{ font-size: 60px; font-weight: 900; color: #E2001A; margin: 10px 0; text-transform: uppercase; letter-spacing: 3px; }}.subtitle {{ font-size: 30px; font-weight: bold; color: white; }}.bottom-section {{ width: 95%; margin: 0 auto; height: 55vh; display: flex; align-items: center; justify-content: space-between; }}.center-col {{ width: 30%; display: flex; flex-direction: column; align-items: center; }}.qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 50px rgba(226, 0, 26, 0.5); }}</style><div class="marquee-container"><div class="marquee-label">DERNIERS VOTANTS :</div><div class="marquee-wrapper"><div class="marquee-content">{voter_string}</div></div></div><div class="top-section">{logo_html}<div class="title">VOTES OUVERTS</div><div class="subtitle">Scannez pour voter</div></div><div class="bottom-section"><div class="side-col">{left_html}</div><div class="center-col"><div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="300"></div></div><div class="side-col">{right_html}</div></div>""", height=900)
         else:
-            # --- VOTE OFF - Nettoyé ---
+            # --- VOTE OFF (CLEAN) ---
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             html_code = f"""<!DOCTYPE html><html><head>{internal_css}</head><body>{js_config}
             <div id="safe-zone"></div>
@@ -1016,7 +1015,7 @@ else:
             components.html(html_code, height=1000, scrolling=False)
 
     elif mode == "photos_live":
-        # ... (Photos Live - Nettoyé) ...
+        # ... (Photos Live - CLEAN) ...
         host = st.context.headers.get('host', 'localhost')
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
