@@ -847,15 +847,17 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - CALQUES BULLTES 1 / ROBOT 5 / BULLE 6 / TEXTE 10)
+# 3. MUR SOCIAL (VERSION FINALE - NEON ADOUCI)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     
+    # Refresh auto
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
+    # === CSS PRINCIPAL ===
     st.markdown("""
     <style>
         .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
@@ -910,6 +912,7 @@ else:
     js_config = f"""<script>window.robotConfig = {{ mode: '{robot_mode}', titre: '{safe_title}', logo: '{logo_data}' }};</script>"""
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
+    # === CSS INTERNE (MODIFIÉ POUR NÉON PLUS DOUX) ===
     internal_css_base = f"""
     <style>
         body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
@@ -917,12 +920,23 @@ else:
         {css_content}
         .neon-title {{
             font-family: Arial, sans-serif; font-size: 70px; font-weight: 900; letter-spacing: 5px; margin: 0; padding: 0; color: #fff;
-            text-shadow: 0 0 5px #fff, 0 0 10px #ffcccc, 0 0 20px #ff0000, 0 0 40px #E2001A, 0 0 80px #E2001A, 0 0 90px #ff0000, 0 0 100px #E2001A, 0 0 150px #ff0000;
+            /* OMBRE REDUITE ICI : Moins de couches, rayon max 50px au lieu de 150px */
+            text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A;
             animation: neon-flicker 1.5s infinite alternate;
         }}
         @keyframes neon-flicker {{
-            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{ text-shadow: 0 0 5px #fff, 0 0 10px #ffcccc, 0 0 20px #ff0000, 0 0 40px #E2001A, 0 0 80px #E2001A, 0 0 90px #ff0000, 0 0 100px #E2001A, 0 0 150px #ff0000; }}
-            20%, 24%, 55% {{ text-shadow: none; opacity: 0.8; }}
+            /* ETAT ALLUMÉ (Intensité réduite) */
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{
+                text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A;
+            }}
+            /* ETAT ETEINT/FAIBLE */
+            20%, 24%, 55% {{
+                text-shadow: none; opacity: 0.5;
+            }}
+        }}
+        /* FORCE LE CANVAS DU ROBOT EN ARRIERE-PLAN MAIS DEVANT LE FOND */
+        #robot-canvas-final {{
+            z-index: -1 !important;
         }}
     </style>
     """
@@ -943,7 +957,7 @@ else:
                 <div id="welcome-title" class="neon-title">BIENVENUE</div>
                 <div id="sub-text"></div>
             </div>
-            <div id="robot-bubble" class="bubble" style="z-index: 6;">...</div>
+            <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
             <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
             {import_map}<script type="module">{js_content}</script></body></html>"""
         components.html(html_code, height=1000, scrolling=False) 
@@ -1003,7 +1017,7 @@ else:
                     <h3 style='color:#cccccc; font-size:25px; margin-top:10px; font-style:italic; text-shadow: 0 0 10px black;'>Veuillez patienter... Nous allons découvrir les GAGNANTS !</h3>
                 </div>
             </div>
-            <div id="robot-bubble" class="bubble" style="z-index: 6;">...</div>
+            <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
             <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
             {import_map}<script type="module">{js_content}</script></body></html>"""
             components.html(html_code, height=1000, scrolling=False)
@@ -1022,7 +1036,7 @@ else:
         
         html_code = f"""<!DOCTYPE html><html><head>{internal_css_base}</head><body>{js_config}
         <div id="safe-zone"></div>
-        <div id="robot-bubble" class="bubble" style="z-index: 6;">...</div>
+        <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
         <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
         {import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
         components.html(html_code, height=1000, scrolling=False)
