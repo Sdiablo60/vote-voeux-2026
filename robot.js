@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL v18 - SOL & ROBOT VISIBLES)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v19 - FIX VISIBILITE)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -98,7 +98,7 @@ document.head.appendChild(style);
 
 // --- SCENARIO 1 : ACCUEIL ---
 const introScript_Attente = [
-    { time: 0.5, text: "", action: "teleport_in_left" }, 
+    { time: 0.1, text: "", action: "init_visible" }, // FORCE VISIBLE IMMEDIATEMENT
     { time: 4, text: "Wouah... C'est grand ici !", type: "thought", action: "fly_hover_right" }, 
     { time: 12, text: "Je crois que je suis le premier...", type: "thought", action: "fly_hover_left" }, 
     { time: 20, text: "OH ! Il y a du monde ! 😳", type: "speech", action: "stop_left_front" }, 
@@ -123,7 +123,7 @@ const introScript_Attente = [
 
 // --- SCENARIO 2 : VOTE OFF ---
 const introScript_VoteOff = [
-    { time: 0.5, text: "", action: "teleport_in_right" }, 
+    { time: 0.1, text: "", action: "init_visible_right" }, 
     { time: 5, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
     { time: 12, text: "Désolé, les votes sont clos ! 🛑", type: "speech", action: "fly_left_up" },
     { time: 20, text: "La régie compte les points...", type: "speech" },
@@ -134,7 +134,7 @@ const introScript_VoteOff = [
 
 // --- SCENARIO 3 : PHOTOS LIVE ---
 const introScript_Photos = [
-    { time: 0.5, text: "", action: "teleport_in_left" }, 
+    { time: 0.1, text: "", action: "init_visible" }, 
     { time: 5, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
     { time: 10, text: "", action: "dance_stop" },
     { time: 12, text: "Coucou ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" }, 
@@ -158,7 +158,7 @@ if (document.readyState === 'loading') { document.addEventListener('DOMContentLo
 function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble', 'robot-canvas-floor', 'robot-canvas-bot'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     
-    // CANVAS UNIQUE (Z-INDEX 0 = FOND)
+    // CANVAS UNIQUE (Z-INDEX 0)
     const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
     canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 0 !important; pointer-events: none !important; background: transparent !important;`;
@@ -172,7 +172,6 @@ function launchFinalScene() {
 function initThreeJS(canvas, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     const scene = new THREE.Scene();
-    // BROUILLARD (FOG) pour fondre le sol
     scene.fog = new THREE.Fog(0x000000, 10, 60);
     
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
@@ -183,9 +182,8 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // --- SOL 3D RESTAURÉ ---
-    // Couleur 0x444444 pour être visible mais sombre
-    const grid = new THREE.GridHelper(200, 50, 0x444444, 0x444444); 
+    // SOL 3D VISIBLE (Gris clair)
+    const grid = new THREE.GridHelper(200, 50, 0x666666, 0x444444); 
     grid.position.y = -2.5; 
     scene.add(grid);
 
@@ -213,9 +211,9 @@ function initThreeJS(canvas, bubbleEl) {
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    // --- ROBOT (CODE COMPLET RESTAURÉ) ---
+    // ROBOT
     const robotGroup = new THREE.Group(); 
-    robotGroup.position.set(-35, 0, 0); 
+    robotGroup.position.set(-10, 0, 0); // START VISIBLE (X=-10)
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
@@ -228,19 +226,23 @@ function initThreeJS(canvas, bubbleEl) {
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
-    
     const armLGroup = new THREE.Group(); armLGroup.position.set(-0.9, -0.8, 0); 
     const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armL.position.y = -0.2; 
     const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handL.position.y = -0.5; 
     armLGroup.add(armL); armLGroup.add(handL);
-
     const armRGroup = new THREE.Group(); armRGroup.position.set(0.9, -0.8, 0);
     const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armR.position.y = -0.2;
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
-
-    [head, body, armLGroup, armRGroup].forEach(p => { robotGroup.add(p); });
-    armLGroup.userData.origRot = armLGroup.rotation.clone(); armRGroup.userData.origRot = armRGroup.rotation.clone();
+    
+    // DEFINITION PARTS (Important pour éviter crash)
+    const parts = [head, body, armLGroup, armRGroup];
+    parts.forEach(p => { 
+        robotGroup.add(p); 
+        p.userData.origPos = p.position.clone(); 
+        p.userData.origRot = p.rotation.clone(); 
+        p.userData.velocity = new THREE.Vector3(); 
+    });
     
     scene.add(robotGroup);
 
@@ -256,7 +258,7 @@ function initThreeJS(canvas, bubbleEl) {
     let isWaving = false;
     let isImpulsing = false; 
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
-    let targetPos = new THREE.Vector3(-35, 0, 0); 
+    let targetPos = new THREE.Vector3(-10, 0, 0); // Cible initiale visible
     let lastPos = new THREE.Vector3();
     let lastTextChange = 0;
     let textMsgIndex = 0;
@@ -343,6 +345,10 @@ function initThreeJS(canvas, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
+                // INIT VISIBLE
+                if(step.action === "init_visible") { robotGroup.position.set(-10, 0, 0); targetPos.set(-10, 0, 0); }
+                if(step.action === "init_visible_right") { robotGroup.position.set(10, 0, 0); targetPos.set(10, 0, 0); }
+
                 if(step.action === "fly_hover_right") targetPos.set(11, 2, -1);
                 if(step.action === "fly_hover_left") targetPos.set(-11, -2, 1);
                 if(step.action === "fly_right_up") targetPos.set(12, 4, -2);
