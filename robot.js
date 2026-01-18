@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - PHOTOS INTERACTIF)
+// 🟢 CONFIGURATION ROBOT 2026 (BRAS, COUCOU & SCENARIO PHOTO OPTIMISÉ)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -11,8 +11,8 @@ const VITESSE_MOUVEMENT = 0.008;
 const ECHELLE_BOT = 0.6; 
 const SPEED_THRESHOLD = 0.02; 
 
-// ZONE INTERDITE ÉLARGIE (Le robot reste sur les cotés en mode libre)
-const SAFE_ZONE_X = 9.0; 
+// ZONE INTERDITE ÉLARGIE (En mode libre)
+const SAFE_ZONE_X = 10.0; 
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -24,7 +24,6 @@ const CENTRAL_MESSAGES = [
 ];
 
 // --- BANQUES DE TEXTES ---
-
 const TEXTS_ATTENTE = [
     "Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖",
     "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
@@ -63,7 +62,6 @@ const TEXTS_VOTE_OFF = [
     "Merci à tous d'avoir participé, c'était intense."
 ];
 
-// --- TEXTES SPÉCIFIQUES PHOTOS (Selfies, Groupes, Avis) ---
 const TEXTS_PHOTOS = [
     "Vous pouvez me prendre en photo ? 📸",
     "Allez, on se fait un petit selfie ensemble ?",
@@ -108,15 +106,15 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO 1 : ACCUEIL ---
+// --- SCENARIO 1 : ACCUEIL (Ajout du coucou) ---
 const introScript_Attente = [
     { time: 4, text: "", action: "enter_scene_slow" }, 
     { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
     { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" },
     { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" },
     { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" },
-    { time: 42, text: "Bonjour tout le monde ! 👋", type: "speech", action: "move_center_wave" },
-    { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech" }, 
+    { time: 42, text: "Bonjour tout le monde ! 👋", type: "speech", action: "wave_hands" }, // <-- COUCOU ICI
+    { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech", action: "move_center_wave" }, 
     { time: 58, text: "", action: "toc_toc_approach" }, 
     { time: 60, text: "Toc ! Toc ! Vous m'entendez là-dedans ?", type: "speech" }, 
     { time: 68, text: "Ah ! Vous êtes bien réels ! 😅", type: "speech", action: "backup_a_bit" },
@@ -141,24 +139,25 @@ const introScript_Attente = [
 // --- SCENARIO 2 : VOTE OFF ---
 const introScript_VoteOff = [
     { time: 2, text: "", action: "enter_teleport_left" }, 
-    { time: 8, text: "Oula... C'est fini !", type: "speech" },
+    { time: 8, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
     { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" },
     { time: 22, text: "La régie est en train de compter les points...", type: "speech" },
     { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "move_left_check" }, 
     { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
 ];
 
-// --- SCENARIO 3 : PHOTOS LIVE (Interactif & Selfie) ---
+// --- SCENARIO 3 : PHOTOS LIVE (Corrige : Reste sur les côtés + Sorties) ---
 const introScript_Photos = [
-    { time: 2, text: "", action: "enter_teleport_right" }, // Arrive droite
-    { time: 8, text: "Wouah ! C'est ici le studio photo ?", type: "speech", action: "move_center_wave" }, // Va au milieu
-    { time: 15, text: "Vous pouvez me prendre en photo ? 📸", type: "speech", action: "toc_toc_approach" }, // Gros plan
-    { time: 22, text: "Attention... 3, 2, 1... Cheese !", type: "speech", action: "pose_selfie" }, // Pose fixe
-    { time: 29, text: "J'espère que je n'ai pas fermé les yeux...", type: "thought", action: "backup_a_bit" },
-    { time: 36, text: "Hop ! Je me téléporte !", type: "speech", action: "enter_teleport_left" }, // TP Gauche
-    { time: 42, text: "Oh regardez celle-ci ! Magnifique !", type: "speech", action: "look_bubbles" }, // Regarde en l'air
-    { time: 49, text: "J'ai une petite préférence pour ce sourire là-haut...", type: "speech" },
-    { time: 56, text: "Allez, soirée danse pour fêter ça !", type: "speech", action: "dance_start" }
+    { time: 2, text: "", action: "enter_teleport_right" }, // Arrive Droite (X=11)
+    { time: 8, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, // S'échauffe sur place
+    { time: 13, text: "", action: "dance_stop" },
+    { time: 15, text: "Coucou tout le monde ! 👋", type: "speech", action: "wave_hands" }, // Fait coucou à droite
+    { time: 22, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, // Traverse vers Gauche (X=-11)
+    { time: 30, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, // Regarde depuis la gauche
+    { time: 37, text: "J'adore vos sourires.", type: "speech" },
+    { time: 44, text: "Bon, je vous laisse la place...", type: "speech", action: "exit_left_normal" }, // Sort à gauche
+    { time: 52, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, // Revient à droite
+    { time: 60, text: "Allez, on se fait un petit selfie ensemble ?", type: "speech", action: "pose_selfie" } // Pose à droite
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -190,12 +189,10 @@ function initThreeJS(canvas, bubbleEl) {
     
     scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    // SOL GRIS (SANS LIGNE ROUGE)
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222);
     grid.position.y = -2.5; 
     scene.add(grid);
 
-    // PARTICULES (TELEPORTATION)
     const particleCount = 100;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
@@ -219,7 +216,7 @@ function initThreeJS(canvas, bubbleEl) {
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    // ROBOT
+    // --- ROBOT AVEC BRAS ---
     const robotGroup = new THREE.Group(); 
     robotGroup.position.set(-35, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
@@ -227,15 +224,41 @@ function initThreeJS(canvas, bubbleEl) {
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+    
+    // Tête & Corps
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat); head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat); face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
-    const leftArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat); leftArm.position.set(-0.8, -0.8, 0); leftArm.rotation.z = 0.15;
-    const rightArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.5, 4, 8), whiteMat); rightArm.position.set(0.8, -0.8, 0); rightArm.rotation.z = -0.15;
-    [head, body, leftArm, rightArm].forEach(p => { robotGroup.add(p); p.userData.origPos = p.position.clone(); p.userData.origRot = p.rotation.clone(); p.userData.velocity = new THREE.Vector3(); });
+    
+    // --- NOUVEAUX BRAS & MAINS ---
+    // Groupe Bras Gauche (Pivot à l'épaule)
+    const armLGroup = new THREE.Group();
+    armLGroup.position.set(-0.9, -0.8, 0); // Position de l'épaule
+    const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat);
+    armL.position.y = -0.2; // Le bras pend sous l'épaule
+    const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat);
+    handL.position.y = -0.5; // La main au bout du bras
+    armLGroup.add(armL); armLGroup.add(handL);
+
+    // Groupe Bras Droit (Pivot à l'épaule)
+    const armRGroup = new THREE.Group();
+    armRGroup.position.set(0.9, -0.8, 0);
+    const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat);
+    armR.position.y = -0.2;
+    const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat);
+    handR.position.y = -0.5;
+    armRGroup.add(armR); armRGroup.add(handR);
+
+    // Ajout au groupe principal
+    [head, body, armLGroup, armRGroup].forEach(p => { robotGroup.add(p); });
+    
+    // Sauvegarde des positions initiales des bras pour le reset
+    armLGroup.userData.origRot = armLGroup.rotation.clone();
+    armRGroup.userData.origRot = armRGroup.rotation.clone();
+
     scene.add(robotGroup);
 
     const stageSpots = [];
@@ -247,6 +270,7 @@ function initThreeJS(canvas, bubbleEl) {
     });
 
     let robotState = 'intro';
+    let isWaving = false; // Nouvel état pour le coucou
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
     let targetPos = new THREE.Vector3(-35, 0, 0); 
     let lastPos = new THREE.Vector3();
@@ -276,7 +300,7 @@ function initThreeJS(canvas, bubbleEl) {
         const xLimit = (visibleWidth / 2) - 2.5; 
         const side = Math.random() > 0.5 ? 1 : -1;
         
-        // ZONE INTERDITE : X > 9.0 ou X < -9.0
+        // ZONE INTERDITE : X > 10 ou X < -10
         const randomX = SAFE_ZONE_X + (Math.random() * (xLimit - SAFE_ZONE_X)); 
         
         targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
@@ -301,16 +325,11 @@ function initThreeJS(canvas, bubbleEl) {
         time += 0.015;
         const currentSpeed = robotGroup.position.distanceTo(lastPos);
 
-        // Animation particules
         if(isExploding && explosionTime > 0) {
             explosionTime -= 0.02;
             particleMat.opacity = explosionTime;
             const positions = particleGeo.attributes.position.array;
-            for(let i=0; i<100; i++) {
-                positions[i*3] += (Math.random()-0.5)*0.1; 
-                positions[i*3+1] += (Math.random()-0.5)*0.1;
-                positions[i*3+2] += (Math.random()-0.5)*0.1;
-            }
+            for(let i=0; i<100; i++) { positions[i*3] += (Math.random()-0.5)*0.1; positions[i*3+1] += (Math.random()-0.5)*0.1; positions[i*3+2] += (Math.random()-0.5)*0.1; }
             particleGeo.attributes.position.needsUpdate = true;
         }
 
@@ -328,71 +347,58 @@ function initThreeJS(canvas, bubbleEl) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                // Mouvements standards
+                // Mouvements standards Accueil
                 if(step.action === "enter_scene_slow") targetPos.set(-7, 2, -2);
+                if(step.action === "move_right_slow") targetPos.set(11, 1, -2); 
+                if(step.action === "move_left_check") targetPos.set(-11, -1, 0); 
                 
-                // ZONES SAFE pour les murs chargés (Vote/Photos)
-                if(step.action === "move_right_slow") targetPos.set(10, 1, -2); 
-                if(step.action === "move_left_check") targetPos.set(-10, -1, 0); 
-                
+                // NOUVEAUX MOUVEMENTS PHOTOS (LOIN DU CENTRE)
+                if(step.action === "move_far_left") targetPos.set(-12, 0, -1);
+                if(step.action === "exit_left_normal") targetPos.set(-35, 0, 0);
+
                 if(step.action === "look_around") targetPos.set(0, 0, -5);
                 if(step.action === "surprise_stop") targetPos.set(-6, 0, 4);
                 if(step.action === "move_center_wave") targetPos.set(0, 0, 5);
-                
-                // Gros plan & Selfie
                 if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
-                if(step.action === "pose_selfie") { robotState = 'posing'; setTimeout(() => { robotState = 'intro'; }, 3000); }
                 
-                // Regarde les bulles
-                if(step.action === "look_bubbles") { targetPos.set(0, 4, 0); }
+                // ACTION COUCOU
+                if(step.action === "wave_hands") {
+                    isWaving = true;
+                    setTimeout(() => { isWaving = false; }, 3000); // Coucou pendant 3s
+                }
+                
+                if(step.action === "pose_selfie") { robotState = 'posing'; setTimeout(() => { robotState = 'intro'; }, 3000); }
+                if(step.action === "look_bubbles") { targetPos.set(-12, 4, 0); } // Regarde en haut depuis la gauche
 
-                if(step.action === "scan_crowd") targetPos.set(-10, 1, 4);
-                if(step.action === "phone_call") targetPos.set(10, 0, 2);
-                if(step.action === "surprise") targetPos.set(10, 0, 6);
+                if(step.action === "scan_crowd") targetPos.set(-11, 1, 4);
+                if(step.action === "phone_call") targetPos.set(11, 0, 2);
+                if(step.action === "surprise") targetPos.set(11, 0, 6);
                 if(step.action === "start_subtitles") { subtitlesActive = true; cycleCenterText(); lastTextChange = time; }
-                if(step.action === "stress_pacing") targetPos.set(-10, -2, 0);
+                if(step.action === "stress_pacing") targetPos.set(-11, -2, 0);
                 if(step.action === "listen_intense") targetPos.set(0, 0, 5);
                 if(step.action === "exit_right_normal") targetPos.set(35, 0, 0); 
-                if(step.action === "exit_right_fast") targetPos.set(35, 0, 0); 
                 
-                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-10, 0, 4); }
+                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 4); }
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
                 
                 // TELEPORTATIONS
-                if(step.action === "enter_teleport_left") { 
-                    robotGroup.position.set(-35, 0, 0); 
-                    targetPos.set(-10, 0, 0); 
-                    triggerTeleport(new THREE.Vector3(-10, 0, 0));
-                }
-                if(step.action === "enter_teleport_right") { 
-                    robotGroup.position.set(35, 0, 0); 
-                    targetPos.set(10, 0, 0); 
-                    triggerTeleport(new THREE.Vector3(10, 0, 0));
-                }
+                if(step.action === "enter_teleport_left") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
+                if(step.action === "enter_teleport_right") { robotGroup.position.set(35, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
 
                 // DANSE
-                if(step.action === "dance_start") { 
-                    robotState = 'dancing_intro'; 
-                    setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); 
-                }
-                if(step.action === "dance_stop") {
-                    robotState = 'intro'; 
-                    robotGroup.rotation.set(0, 0, 0); // RESET ROTATION
-                }
+                if(step.action === "dance_start") { robotState = 'dancing_intro'; setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); }
+                if(step.action === "dance_stop") { robotState = 'intro'; robotGroup.rotation.set(0, 0, 0); }
                 
                 introIdx++;
             }
             
-            if(introIdx >= currentIntroScript.length) { 
-                robotState = 'infinite_loop'; pickNewTarget(); nextEvt = time + 10; 
-            }
+            if(introIdx >= currentIntroScript.length) { robotState = 'infinite_loop'; pickNewTarget(); nextEvt = time + 10; }
             
-            // Pas de mouvement pendant la pose selfie ou la danse
             if(robotState !== 'dancing_intro' && robotState !== 'posing') {
                 let speedFactor = VITESSE_MOUVEMENT;
-                if (step && step.action === "exit_right_normal") speedFactor = 0.015; 
+                if (step && (step.action?.includes("exit"))) speedFactor = 0.015; 
                 else if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; 
                 else if(targetPos.z > 7) speedFactor = 0.02; 
                 robotGroup.position.lerp(targetPos, speedFactor);
@@ -412,53 +418,52 @@ function initThreeJS(canvas, bubbleEl) {
             
             if(time > nextEvt) {
                 const r = Math.random();
-                if(r < 0.08) { 
+                if(r < 0.05) { // Explosion rare
                     robotState = 'exploding'; showBubble("Surchauffe ! 🔥"); 
                     parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4)); 
                     setTimeout(() => { robotState = 'reassembling'; }, 3500); nextEvt = time + 25;
                 }
-                else if (config.mode === 'photos' && r < 0.25) {
-                    robotState = 'dancing';
-                    showBubble("C'est ma chanson préférée !", 'speech');
-                    setTimeout(() => { 
-                        robotState = 'infinite_loop'; 
-                        robotGroup.rotation.set(0,0,0); 
-                        pickNewTarget(); 
-                    }, 6000); 
-                    nextEvt = time + 20;
+                else if (config.mode === 'photos' && r < 0.20) { // Danse photos
+                    robotState = 'dancing'; showBubble("C'est ma chanson préférée !", 'speech');
+                    setTimeout(() => { robotState = 'infinite_loop'; robotGroup.rotation.set(0,0,0); pickNewTarget(); }, 6000); nextEvt = time + 20;
                 }
-                // NOUVEAU : TELEPORTATION ALEATOIRE EN MODE LIBRE (Si pas accueil)
-                else if (config.mode !== 'attente' && r < 0.40) {
-                    const side = Math.random() > 0.5 ? 10 : -10;
-                    robotGroup.position.set(side * -1, 0, 0); // TP opposé
-                    targetPos.set(side, 0, 0);
-                    triggerTeleport(robotGroup.position);
-                    nextEvt = time + 10;
+                else if (config.mode !== 'attente' && r < 0.35) { // Téléportation photos/vote
+                    const side = Math.random() > 0.5 ? 11 : -11;
+                    robotGroup.position.set(side * -1, 0, 0); targetPos.set(side, 0, 0);
+                    triggerTeleport(robotGroup.position); nextEvt = time + 12;
+                }
+                else if (config.mode !== 'attente' && r < 0.50) { // Coucou aléatoire
+                     isWaving = true; setTimeout(() => { isWaving = false; }, 3000); nextEvt = time + 8;
                 }
                 else if (currentSpeed < SPEED_THRESHOLD) { 
-                    const msg = getNextMessage(); 
-                    const type = (msg.includes("Hmm") || msg.includes("Calcul") || msg.includes("Analyse")) ? 'thought' : 'speech';
-                    showBubble(msg, type);
-                    nextEvt = time + 15; 
+                    const msg = getNextMessage(); const type = (msg.includes("Hmm") || msg.includes("Calcul") || msg.includes("Analyse")) ? 'thought' : 'speech';
+                    showBubble(msg, type); nextEvt = time + 15; 
                 } else { nextEvt = time + 2; }
             }
         }
+        // --- ETATS SPECIAUX ET ANIMATIONS ---
         else if (robotState === 'exploding') { parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.05; p.userData.velocity.multiplyScalar(0.98); }); }
         else if (robotState === 'reassembling') {
             let finished = true;
             parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1; if (p.position.distanceTo(p.userData.origPos) > 0.05) finished = false; });
-            if(finished) { 
-                parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); }); 
-                robotState = 'infinite_loop'; nextEvt = time + 5; pickNewTarget(); nextMoveTime = 0; 
-            }
+            if(finished) { parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); }); robotState = 'infinite_loop'; nextEvt = time + 5; pickNewTarget(); nextMoveTime = 0; }
         }
         else if (robotState === 'dancing' || robotState === 'dancing_intro') {
-            robotGroup.rotation.y += 0.15; 
-            robotGroup.position.y = Math.abs(Math.sin(time * 5)) * 0.5; 
+            robotGroup.rotation.y += 0.15; robotGroup.position.y = Math.abs(Math.sin(time * 5)) * 0.5; 
         }
         else if (robotState === 'posing') {
-            robotGroup.rotation.y = 0; // Face caméra
-            robotGroup.rotation.z = Math.sin(time * 2) * 0.1; // Penche la tête mignon
+            robotGroup.rotation.y = 0; robotGroup.rotation.z = Math.sin(time * 2) * 0.1; isWaving = true; // Pose + Coucou
+        }
+        
+        // --- ANIMATION DES BRAS (COUCOU) ---
+        if (isWaving && robotState !== 'exploding' && robotState !== 'reassembling') {
+            // Rotation sur l'axe Z des groupes d'épaules
+            armLGroup.rotation.z = Math.sin(time * 10) * 0.5; 
+            armRGroup.rotation.z = -Math.sin(time * 10) * 0.5;
+        } else {
+            // Reset position des bras
+            armLGroup.rotation.copy(armLGroup.userData.origRot);
+            armRGroup.rotation.copy(armRGroup.userData.origRot);
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
