@@ -759,11 +759,12 @@ if est_admin:
                         else: st.error("Remplissez l'identifiant et le mot de passe.")
 
 # =========================================================
-# 2. APPLICATION MOBILE (Vote) - STYLE CORRIGÉ
+# 2. APPLICATION MOBILE (Vote)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
+    # --- CORRECTION CSS MOBILE (CONTRASTE FORCE) ---
     st.markdown("""<style>
     /* FOND NOIR GLOBAL */
     .stApp {background-color:black !important; color:white !important;} 
@@ -771,45 +772,53 @@ elif est_utilisateur:
     .block-container {padding: 1rem !important;} 
     h1, h2, h3, p, div, span, label { color: white !important; }
     
-    /* --- ZONE DE SAISIE --- */
+    /* --- ZONE DE SAISIE (INPUT) --- */
     .stMultiSelect div[data-baseweb="select"] > div { 
         background-color: #ffffff !important; 
         color: #000000 !important; 
         border: 2px solid #E2001A !important; 
         border-radius: 8px;
     }
+    /* Le texte tapé ou le placeholder */
     .stMultiSelect input { color: black !important; caret-color: black; }
     .stMultiSelect div[data-baseweb="select"] span { color: #333 !important; }
     
-    /* --- LISTE DÉROULANTE --- */
+    /* --- LISTE DÉROULANTE (DROPDOWN) --- */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] { 
         background-color: white !important; 
         border: 1px solid #ccc !important;
     }
+    
+    /* ITEMS DE LA LISTE */
     li[role="option"] {
         background-color: white !important;
-        color: black !important; 
+        color: black !important; /* TEXTE NOIR FORCE */
         border-bottom: 1px solid #eee !important;
-        padding: 12px 10px !important;
+        display: flex !important;
+        align-items: center !important;
         font-weight: bold !important;
     }
+    /* Supprimer les styles par défaut de Streamlit qui mettent du blanc */
     li[role="option"] span { color: black !important; }
+    li[role="option"] div { color: black !important; }
     
+    /* SURVOL DE LA LISTE */
     li[role="option"]:hover, li[role="option"][aria-selected="true"] {
-        background-color: #fff0f0 !important;
-        color: #E2001A !important;
-    }
-
-    /* --- TAGS SÉLECTIONNÉS (ROUGE & BLANC) --- */
-    span[data-baseweb="tag"] {
         background-color: #E2001A !important;
         color: white !important;
-        border-radius: 20px !important;
+    }
+    li[role="option"]:hover span { color: white !important; }
+
+    /* --- TAGS SÉLECTIONNÉS (DANS LA BOITE) --- */
+    span[data-baseweb="tag"] {
+        background-color: #E2001A !important; /* ROUGE TRANSDEV */
+        color: white !important;
+        border: none !important;
     }
     span[data-baseweb="tag"] span { color: white !important; }
-    span[data-baseweb="tag"] svg { fill: white !important; }
+    span[data-baseweb="tag"] svg { fill: white !important; } /* La croix X en blanc */
     
-    /* BOUTON */
+    /* BOUTON VALIDATION */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { 
         background-color: #E2001A !important; 
         color: white !important; 
@@ -1319,3 +1328,4 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
