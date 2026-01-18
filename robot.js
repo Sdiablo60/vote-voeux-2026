@@ -1,20 +1,20 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (SCÉNARIO COMPLET & RÉALISTE)
+// 🟢 CONFIGURATION ROBOT 2026 (LECTURE CONFORTABLE & CADRAGE)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-// Lecture plus lente pour laisser le temps de lire
-const DUREE_LECTURE = 7000; 
+// DUREE_LECTURE augmentée pour le confort
+const DUREE_LECTURE = 8000; 
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
 
 // SEUIL DE VITESSE : Si le robot va plus vite que ça, IL SE TAIT.
 const SPEED_THRESHOLD = 0.02; 
 
-// --- MESSAGES ROTATIFS (N'apparaissent qu'après l'annonce) ---
+// --- MESSAGES ROTATIFS ---
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
     "Une soirée exceptionnelle vous attend",
@@ -28,69 +28,68 @@ const CENTRAL_MESSAGES = [
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
-        position: fixed; padding: 15px 20px; color: black; font-family: 'Arial', sans-serif;
-        font-weight: bold; font-size: 20px; text-align: center; z-index: 2147483647;
-        pointer-events: none; transition: opacity 0.5s, transform 0.3s; transform: scale(0.9); max-width: 320px;
-        line-height: 1.4;
+        position: fixed; padding: 20px 25px; color: black; font-family: 'Arial', sans-serif;
+        font-weight: bold; font-size: 22px; text-align: center; z-index: 2147483647;
+        pointer-events: none; transition: opacity 0.5s, transform 0.3s; transform: scale(0.9); 
+        max-width: 350px; /* Bulle un peu plus large */
+        width: max-content;
     }
-    .bubble-speech { background: white; border-radius: 20px; border: 3px solid #E2001A; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+    .bubble-speech { background: white; border-radius: 30px; border: 4px solid #E2001A; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
     .bubble-speech::after { content: ''; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid #E2001A; }
-    .bubble-thought { background: white; border-radius: 50%; border: 3px solid #00ffff; box-shadow: 0 5px 15px rgba(0,0,0,0.4); font-style: italic; color: #555; }
+    .bubble-thought { background: white; border-radius: 50%; border: 4px solid #00ffff; box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-style: italic; color: #555; }
     .bubble-thought::before { content: ''; position: absolute; bottom: -10px; left: 30%; width: 15px; height: 15px; background: white; border: 2px solid #00ffff; border-radius: 50%; }
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO NARRATIF DÉTAILLÉ ---
+// --- SCENARIO NARRATIF (TIMING ÉLARGI) ---
 const introScript = [
     // 0-10s : Le robot n'est pas là.
-    { time: 5, text: "", action: "enter_scene_slow" }, // Il entre doucement
+    { time: 5, text: "", action: "enter_scene_slow" }, 
     
     // INSPECTION SOLITAIRE
-    { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
-    { time: 15, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" },
-    { time: 20, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" },
+    { time: 12, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
+    { time: 19, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" },
+    { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" },
     
     // DECOUVERTE DU PUBLIC
-    { time: 24, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" },
-    { time: 29, text: "Bonjour tout le monde ! 👋", type: "speech", action: "move_center_wave" },
-    { time: 33, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech" },
+    { time: 32, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" },
+    { time: 39, text: "Bonjour tout le monde ! 👋", type: "speech", action: "move_center_wave" },
+    { time: 46, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech" },
     
-    // INTERACTION ÉCRAN (TOC TOC)
-    { time: 38, text: "", action: "toc_toc_approach" }, // Il s'approche très près
-    { time: 40, text: "Toc ! Toc ! Vous m'entendez là-dedans ?", type: "speech" }, 
-    { time: 45, text: "Ah ! Vous êtes bien réels ! 😅", type: "speech", action: "backup_a_bit" },
-    { time: 50, text: "Votre visage me dit quelque chose monsieur...", type: "thought", action: "scan_crowd" },
-    { time: 55, text: "Hum, non, je dois confondre avec une star de cinéma. 😎", type: "speech" },
+    // INTERACTION ÉCRAN (TOC TOC) - RECENTRÉ
+    { time: 53, text: "", action: "toc_toc_approach" }, 
+    { time: 55, text: "Toc ! Toc ! Vous m'entendez là-dedans ?", type: "speech" }, 
+    { time: 62, text: "Ah ! Vous êtes bien réels ! 😅", type: "speech", action: "backup_a_bit" },
+    { time: 69, text: "Votre visage me dit quelque chose monsieur...", type: "thought", action: "scan_crowd" },
+    { time: 76, text: "Hum, non, je dois confondre avec une star de cinéma. 😎", type: "speech" },
 
     // APPEL RÉGIE 1
-    { time: 60, text: "Excusez-moi, je reçois un appel...", type: "speech", action: "phone_call" },
-    { time: 64, text: "Allô la régie ? Oui c'est le Robot.", type: "speech" },
-    { time: 69, text: "QUOI ?! C'est confirmé ?!", type: "speech", action: "surprise" },
+    { time: 83, text: "Excusez-moi, je reçois un appel...", type: "speech", action: "phone_call" },
+    { time: 90, text: "Allô la régie ? Oui c'est le Robot.", type: "speech" },
+    { time: 97, text: "QUOI ?! C'est confirmé ?!", type: "speech", action: "surprise" },
     
     // ANNONCE ANIMATEUR + DÉBUT SOUS-TITRES
-    { time: 74, text: "Incroyable ! On vient de me nommer Animateur de la soirée ! 🎤", type: "speech", action: "start_subtitles" },
-    { time: 80, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
+    { time: 104, text: "Incroyable ! On vient de me nommer Animateur de la soirée ! 🎤", type: "speech", action: "start_subtitles" },
+    { time: 112, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
     
     // STRESS & RÉFLEXION
-    { time: 86, text: "Ouhlà... Je n'ai pas préparé mes fiches...", type: "thought", action: "stress_pacing" },
-    { time: 92, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
+    { time: 120, text: "Ouhlà... Je n'ai pas préparé mes fiches...", type: "thought", action: "stress_pacing" },
+    { time: 128, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
     
     // APPEL RÉGIE 2 & SORTIE
-    { time: 98, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" },
-    { time: 103, text: "Mince ! Je dois filer en coulisses !", type: "speech" },
-    { time: 107, text: "Je reviens tout de suite, ne bougez pas ! 🏃‍♂️", type: "speech", action: "exit_right_fast" },
+    { time: 136, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" },
+    { time: 142, text: "Mince ! Je dois filer en coulisses !", type: "speech" },
+    { time: 148, text: "Je reviens tout de suite, ne bougez pas ! 🏃‍♂️", type: "speech", action: "exit_right_fast" },
     
-    // ABSENCE (15 secondes de vide)
+    // ABSENCE (Le temps de sortir et revenir)
     
     // RETOUR
-    { time: 125, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" },
-    { time: 129, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
+    { time: 165, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" },
+    { time: 172, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
     
     // ANNONCE FINALE
-    { time: 135, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
-    { time: 141, text: "Installez-vous bien, ça va être génial.", type: "speech" }
-    
-    // -> PASSAGE EN MODE LIBRE (Blagues, devinettes...)
+    { time: 180, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
+    { time: 188, text: "Installez-vous bien, ça va être génial.", type: "speech" }
 ];
 
 const MESSAGES_BAG = {
@@ -104,7 +103,7 @@ const MESSAGES_BAG = {
     jokes: [
         "Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖",
         "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce ! 😹",
-        "Pourquoi les robots ne ont-ils jamais peur ? Car ils ont des nerfs d'acier !",
+        "Pourquoi les robots n'ont-ils jamais peur ? Car ils ont des nerfs d'acier !",
         "Toc toc... (C'est moi)",
         "01001000 01101001 ! Oups, pardon, j'ai parlé en binaire."
     ],
@@ -164,7 +163,6 @@ function initThreeJS(canvas, bubbleEl) {
 
     // ROBOT
     const robotGroup = new THREE.Group();
-    // POSITION DE DÉPART : HORS ÉCRAN A GAUCHE
     robotGroup.position.set(-30, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
@@ -204,11 +202,11 @@ function initThreeJS(canvas, bubbleEl) {
 
     let robotState = (config.mode === 'attente') ? 'intro' : 'moving';
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
-    let targetPos = new THREE.Vector3(-30, 0, 0); // Commence dehors
+    let targetPos = new THREE.Vector3(-30, 0, 0); 
     let lastPos = new THREE.Vector3();
     let lastTextChange = 0;
     let textMsgIndex = 0;
-    let subtitlesActive = false; // Flag pour démarrer les sous-titres
+    let subtitlesActive = false; 
 
     function showBubble(text, type = 'speech') { 
         bubbleEl.innerHTML = text; 
@@ -230,10 +228,10 @@ function initThreeJS(canvas, bubbleEl) {
         const visibleHeight = 2 * Math.tan(vFOV / 2) * dist; const visibleWidth = visibleHeight * camera.aspect;
         const xLimit = (visibleWidth / 2) - 2.0;
         const side = Math.random() > 0.5 ? 1 : -1;
-        const randomX = 4.0 + (Math.random() * (xLimit - 4.0)); // Evite le centre
+        const randomX = 4.0 + (Math.random() * (xLimit - 4.0)); 
         targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
-        nextMoveTime = Date.now() + 8000; // Bouge moins souvent
+        nextMoveTime = Date.now() + 8000; 
     }
 
     function animate() {
@@ -251,8 +249,7 @@ function initThreeJS(canvas, bubbleEl) {
         if (robotState === 'intro') {
             const step = introScript[introIdx];
             if (step && time >= step.time) {
-                // VÉRIFICATION VITESSE : On n'affiche le texte que si on est "calme"
-                // Sauf si c'est une action de sortie/entrée rapide
+                // S'assure que le robot est presque à l'arrêt avant de parler (sauf urgence)
                 if (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast")) {
                     if(step.text) showBubble(step.text, step.type);
                 }
@@ -265,52 +262,47 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "surprise_stop") targetPos.set(-6, 0, 4);
                 if(step.action === "move_center_wave") targetPos.set(0, 0, 5);
                 
-                if(step.action === "toc_toc_approach") targetPos.set(3, 0, 9); // Très près pour toquer
-                if(step.action === "backup_a_bit") targetPos.set(3, 0, 5);
-                if(step.action === "scan_crowd") targetPos.set(-3, 1, 4);
+                // MODIFIE POUR NE PAS SORTIR DE L'ECRAN (X=1.5 au lieu de 3)
+                if(step.action === "toc_toc_approach") targetPos.set(1.5, 0, 8.5); 
+                if(step.action === "backup_a_bit") targetPos.set(1.5, 0, 5);
                 
+                if(step.action === "scan_crowd") targetPos.set(-3, 1, 4);
                 if(step.action === "phone_call") targetPos.set(5, 0, 2);
                 if(step.action === "surprise") targetPos.set(5, 0, 6);
                 
                 if(step.action === "start_subtitles") {
                     subtitlesActive = true;
-                    cycleCenterText(); // Affiche le premier message
+                    cycleCenterText(); 
                     lastTextChange = time;
                 }
                 
                 if(step.action === "stress_pacing") targetPos.set(-5, -2, 0);
                 if(step.action === "listen_intense") targetPos.set(0, 0, 5);
                 
-                // SORTIE RAPIDE
                 if(step.action === "exit_right_fast") {
-                    targetPos.set(35, 0, 0); // Sort loin à droite
+                    targetPos.set(35, 0, 0); 
                 }
-                
-                // ENTRÉE RAPIDE
                 if(step.action === "enter_left_fast") {
-                    robotGroup.position.set(-35, 0, 0); // TP à gauche
-                    targetPos.set(-5, 0, 4); // Arrive vite
+                    robotGroup.position.set(-35, 0, 0); 
+                    targetPos.set(-5, 0, 4); 
                 }
-                
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
                 if(step.action === "announce_pose") targetPos.set(0, 1, 6);
 
                 introIdx++;
             }
             
-            // Fin de l'intro après la dernière étape (~145s)
             if(introIdx >= introScript.length) { 
                 robotState = 'moving'; pickNewTarget(); nextEvt = time + 10; 
             }
             
-            // Lerp adapté : Rapide pour les entrées/sorties, lent pour l'inspection
             let speedFactor = VITESSE_MOUVEMENT;
-            if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; // Sortie rapide
-            else if(targetPos.z > 7) speedFactor = 0.02; // Approche TocToc
+            if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; 
+            else if(targetPos.z > 7) speedFactor = 0.02; 
             robotGroup.position.lerp(targetPos, speedFactor);
         } 
         
-        // --- MODE LIBRE (BOUCLE INFINIE) ---
+        // --- MODE LIBRE ---
         else if (robotState === 'moving' || robotState === 'approaching' || robotState === 'thinking') {
             if (config.mode === 'attente' && subtitlesActive && time > lastTextChange + 12) { cycleCenterText(); lastTextChange = time; }
             if (Date.now() > nextMoveTime || robotState === 'approaching') robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
@@ -323,32 +315,32 @@ function initThreeJS(canvas, bubbleEl) {
             
             if(time > nextEvt) {
                 const r = Math.random();
-                // Condition stricte : NE PARLE QUE SI VITESSE FAIBLE
                 if (currentSpeed < SPEED_THRESHOLD) { 
-                    if(r < 0.35) { // 35% Devinette / Blague
+                    if(r < 0.35) { 
                         const type = Math.random() > 0.5 ? 'jokes' : 'riddles';
                         const text = MESSAGES_BAG[type][Math.floor(Math.random()*MESSAGES_BAG[type].length)];
                         showBubble(text, 'speech');
-                    } else if (r < 0.7) { // 35% Chat
+                    } else if (r < 0.7) { 
                         const text = MESSAGES_BAG['chat'][Math.floor(Math.random()*MESSAGES_BAG['chat'].length)];
                         showBubble(text, 'speech');
-                    } else { // 30% Pensée
+                    } else { 
                         showBubble("Hmm... je réfléchis...", 'thought');
                     }
                     nextEvt = time + 15; 
-                } else { nextEvt = time + 2; } // Réessaie plus tard si trop rapide
+                } else { nextEvt = time + 2; } 
             }
         }
-
-        // --- GESTION DES MURS SPÉCIAUX (Vote/Photos) ---
-        // (Le code précédent pour exploding/reassembling est conservé ici si besoin, 
-        // mais j'ai simplifié pour la clarté du scénario principal)
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
             const headPos = robotGroup.position.clone(); headPos.y += 1.3 + (robotGroup.position.z * 0.05); headPos.project(camera);
             const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
             const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
-            bubbleEl.style.left = (bX - bubbleEl.offsetWidth / 2) + 'px';
+            
+            let leftPos = (bX - bubbleEl.offsetWidth / 2);
+            // PROTECTION ANTI-SORTIE : La bulle reste dans l'écran (marge 20px)
+            leftPos = Math.max(20, Math.min(leftPos, window.innerWidth - bubbleEl.offsetWidth - 20));
+            
+            bubbleEl.style.left = leftPos + 'px';
             bubbleEl.style.top = (bY - bubbleEl.offsetHeight - 25) + 'px';
             if(parseFloat(bubbleEl.style.top) < 140) bubbleEl.style.top = '140px';
         }
