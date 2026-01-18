@@ -1045,7 +1045,12 @@ else:
             
             components.html(f"""
             <div id="intro-layer" class="intro-overlay"><div id="intro-txt" class="intro-text"></div><div id="intro-num" class="intro-count"></div></div>
-            <div id="final-overlay" class="final-overlay"><div class="final-content">{final_logo_html}<h1 class="final-text">FÉLICITATIONS AUX GAGNANTS !</h1></div></div>
+            <div id="final-overlay" class="final-overlay">
+                <div class="final-content">
+                    {final_logo_html}
+                    <h1 class="final-text">FÉLICITATIONS<br>AUX GAGNANTS !</h1>
+                </div>
+            </div>
             <audio id="applause-sound" preload="auto"><source src="https://www.soundjay.com/human/sounds/applause-01.mp3" type="audio/mpeg"></audio>
             <div class="podium-container">
                 <div class="column-2"><div class="winners-box rank-2" id="win-2">{h2}</div><div class="pedestal pedestal-2"><div class="rank-score">{s2} PTS</div><div class="rank-num">2</div></div></div>
@@ -1055,19 +1060,20 @@ else:
             <script>
             const wait=(ms)=>new Promise(resolve=>setTimeout(resolve,ms));
             const layer=document.getElementById('intro-layer'),txt=document.getElementById('intro-txt'),num=document.getElementById('intro-num'),w1=document.getElementById('win-1'),w2=document.getElementById('win-2'),w3=document.getElementById('win-3'),audio=document.getElementById('applause-sound'),finalOverlay=document.getElementById('final-overlay');
-            function startConfetti(){{var script=document.createElement('script');script.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";script.onload=()=>{{var duration=15*1000;var animationEnd=Date.now()+duration;var defaults={{startVelocity:30,spread:360,ticks:60,zIndex:9999}};var random=(min,max)=>Math.random()*(max-min)+min;var interval=setInterval(function(){{var timeLeft=animationEnd-Date.now();if(timeLeft<=0){{return clearInterval(interval);}}var particleCount=50*(timeLeft/duration);confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.1,0.3),y:Math.random()-0.2}}}}));confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.7,0.9),y:Math.random()-0.2}}}}));}},250);}};document.body.appendChild(script);}}
+            function startConfetti(){{var script=document.createElement('script');script.src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js";script.onload=()=>{{var duration=15*1000;var animationEnd=Date.now()+duration;var defaults={{startVelocity:30,spread:360,ticks:60,zIndex:5500}};var random=(min,max)=>Math.random()*(max-min)+min;var interval=setInterval(function(){{var timeLeft=animationEnd-Date.now();if(timeLeft<=0){{return clearInterval(interval);}}var particleCount=50*(timeLeft/duration);confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.1,0.3),y:Math.random()-0.2}}}}));confetti(Object.assign({{}},defaults,{{particleCount,origin:{{x:random(0.7,0.9),y:Math.random()-0.2}}}}));}},250);}};document.body.appendChild(script);}}
             async function countdown(seconds,message){{layer.style.display='flex';layer.style.opacity='1';txt.innerText=message;for(let i=seconds;i>0;i--){{num.innerText=i;await wait(1000);}}layer.style.opacity='0';await wait(500);layer.style.display='none';}}
-            async function runShow(){{await countdown(5,"EN TROISIÈME PLACE...");w3.classList.add('visible');document.querySelector('.pedestal-3').classList.add('visible');await wait(2000);await countdown(5,"EN SECONDE PLACE...");w2.classList.add('visible');document.querySelector('.pedestal-2').classList.add('visible');await wait(2000);await countdown(7,"ET LE VAINQUEUR EST...");w1.classList.add('visible');document.querySelector('.pedestal-1').classList.add('visible');startConfetti();try{{audio.currentTime=0;audio.play();}}catch(e){{}}await wait(4000);finalOverlay.classList.add('stage-1-black');await wait(4000);finalOverlay.classList.remove('stage-1-black');finalOverlay.classList.add('stage-2-transparent');}}window.parent.document.body.style.backgroundColor="black";runShow();
+            async function runShow(){{await countdown(5,"EN TROISIÈME PLACE...");w3.classList.add('visible');document.querySelector('.pedestal-3').classList.add('visible');await wait(2000);await countdown(5,"EN SECONDE PLACE...");w2.classList.add('visible');document.querySelector('.pedestal-2').classList.add('visible');await wait(2000);await countdown(7,"ET LE VAINQUEUR EST...");w1.classList.add('visible');document.querySelector('.pedestal-1').classList.add('visible');startConfetti();try{{audio.currentTime=0;audio.play();}}catch(e){{}}await wait(3500);finalOverlay.classList.add('visible');}}window.parent.document.body.style.backgroundColor="black";runShow();
             </script>
             <style>
-            body{{margin:0;overflow:hidden;background:black;}}
+            body{{margin:0;overflow:hidden;background:black;font-family:'Arial', sans-serif;}}
             .podium-container{{position:absolute;bottom:0;left:0;width:100%;height:100vh;display:flex;justify-content:center;align-items:flex-end;padding-bottom:20px;}}
             .column-2{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-right:-20px;z-index:2;}}
             .column-1{{width:36%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;z-index:3;}}
             .column-3{{width:32%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;margin-left:-20px;z-index:2;}}
             .winners-box{{display:flex;flex-direction:row;flex-wrap:wrap-reverse;justify-content:center;align-items:flex-end;width:450px!important;max-width:450px!important;margin:0 auto;padding-bottom:0px;opacity:0;transform:translateY(50px) scale(0.8);transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);gap:10px;}}
             .winners-box.visible{{opacity:1;transform:translateY(0) scale(1);}}
-            .pedestal{{width:100%;background:linear-gradient(to bottom,#333,#000);border-radius:20px 20px 0 0;box-shadow:0 -5px 15px rgba(255,255,255,0.1);display:flex;flex-direction:column;justify-content:flex-start;align-items:center;position:relative;padding-top:20px;}}
+            .pedestal{{width:100%;background:linear-gradient(to bottom,#333,#000);border-radius:20px 20px 0 0;box-shadow:0 -5px 15px rgba(255,255,255,0.1);display:flex;flex-direction:column;justify-content:flex-start;align-items:center;position:relative;padding-top:20px;transition: transform 1s ease-out; transform: translateY(100%);}}
+            .pedestal.visible{{transform: translateY(0);}}
             .pedestal-1{{height:350px;border-top:3px solid #FFD700;color:#FFD700;}}
             .pedestal-2{{height:220px;border-top:3px solid #C0C0C0;color:#C0C0C0;}}
             .pedestal-3{{height:150px;border-top:3px solid #CD7F32;color:#CD7F32;}}
@@ -1080,11 +1086,11 @@ else:
             .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
             .intro-text{{color:white;font-size:40px;font-weight:bold;text-transform:uppercase;text-shadow:0 0 20px black;}}
             .intro-count{{color:#E2001A;font-size:100px;font-weight:900;margin-top:10px;text-shadow:0 0 20px black;}}
-            .final-overlay{{position:fixed;top:0;left:0;width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:6000;pointer-events:none;opacity:0;transition:all 1.5s ease-in-out;background-color:black;transform:scale(1.5);}}
-            .final-overlay.stage-1-black{{opacity:1;transform:scale(1);}}
-            .final-overlay.stage-2-transparent{{background-color:transparent;opacity:1;transform:scale(1);justify-content:flex-start;padding-top:5vh;}}
-            .final-logo{{width:400px;margin-bottom:20px;}}
-            .final-text{{font-size:50px;color:#E2001A;text-transform:uppercase;text-shadow:0 0 20px rgba(0,0,0,0.8);margin:0;}}
+            .final-overlay{{position:fixed;top:0;left:0;width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:6000;pointer-events:none;opacity:0;transition:all 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);transform:scale(3);background-color:rgba(0,0,0,0.85);}}
+            .final-overlay.visible{{opacity:1;transform:scale(1);}}
+            .final-content{{text-align:center;}}
+            .final-logo{{width:500px;margin-bottom:30px;}}
+            .final-text{{font-size:70px;color:#E2001A;font-weight:900;text-transform:uppercase;text-shadow:0 0 30px rgba(0,0,0,0.8);margin:0;line-height:1.2;}}
             </style>""", height=1000, scrolling=False)
 
         elif cfg["session_ouverte"]:
@@ -1119,31 +1125,21 @@ else:
              components.html(f"""
              <style>
                 body {{ background: black; margin: 0; padding: 0; font-family: 'Arial', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
-                
                 .header-spacer {{ width: 100%; height: 8vh; }}
-                
                 .top-section {{ display: flex; flex-direction: column; align-items: center; width: 100%; flex: 0 0 auto; padding-top: 0; }}
                 
                 /* 2. BANDEAU DEFILANT : FOND NOIR + DESCENDU */
                 .marquee-container {{ 
-                    width: 100%; 
-                    background: black; /* Fond Noir */
-                    color: white; 
-                    height: 50px; 
-                    display: flex; align-items: center; 
-                    border-top: 1px solid #333;
-                    border-bottom: 4px solid #E2001A; /* Souligné rouge */
-                    margin-top: 25px; /* Descendu */
+                    width: 100%; background: black; color: white; height: 50px; 
+                    display: flex; align-items: center; border-top: 1px solid #333;
+                    border-bottom: 4px solid #E2001A; margin-top: 25px; 
                 }}
-                .marquee-label {{
-                    background: #E2001A; color: white; height: 100%; padding: 0 25px; display: flex; align-items: center; font-weight: 900; z-index: 2; font-size: 18px;
-                }}
+                .marquee-label {{ background: #E2001A; color: white; height: 100%; padding: 0 25px; display: flex; align-items: center; font-weight: 900; z-index: 2; font-size: 18px; }}
                 .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 20px; text-transform: uppercase; white-space: nowrap; }}
                 @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
                 
                 .main-content {{ flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding-bottom: 2vh; }}
                 .content-grid {{ display: flex; justify-content: center; align-items: center; width: 98%; gap: 20px; height: 100%; }}
-                
                 .col-cands {{ width: 30%; display: flex; flex-direction: column; justify-content: center; height: 100%; }}
                 .col-qr {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
                 
@@ -1151,16 +1147,11 @@ else:
                     background: white; padding: 15px; border-radius: 20px; 
                     box-shadow: 0 0 60px rgba(226, 0, 26, 0.6); 
                     animation: pulse 3s infinite; text-align: center; 
-                    margin-bottom: 20px; /* Espace avant le texte */
+                    margin-bottom: 20px; 
                 }}
                 
                 /* 3. TEXTE EXTERNE GROS */
-                .qr-text-big {{ 
-                    color: white; font-weight: 900; font-size: 32px; 
-                    text-transform: uppercase; text-align: center; 
-                    text-shadow: 0 0 20px #E2001A; letter-spacing: 2px;
-                }}
-                
+                .qr-text-big {{ color: white; font-weight: 900; font-size: 32px; text-transform: uppercase; text-align: center; text-shadow: 0 0 20px #E2001A; letter-spacing: 2px; }}
                 @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 90px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
              </style>
              
@@ -1176,17 +1167,11 @@ else:
              <div class="main-content">
                 <div class="content-grid">
                     <div class="col-cands" style="align-items: flex-end;">{left_html}</div>
-                    
                     <div class="col-qr">
                         {logo_html}
-                        
-                        <div class="qr-box">
-                            <img src="data:image/png;base64,{qr_b64}" width="280">
-                        </div>
-                        
+                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div>
                         <div class="qr-text-big">SCANNEZ POUR VOTER</div>
                     </div>
-                    
                     <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
                 </div>
              </div>""", height=950)
