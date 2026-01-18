@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (HIERARCHIE VISUELLE CORRIGÉE)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v5 - SOL EN ARRIÈRE-PLAN)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -170,8 +170,8 @@ function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
     document.body.appendChild(canvas);
-    // Z-INDEX 5 (Devant les bulles mais derrière le texte)
-    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 5; pointer-events: none !important; background: transparent !important;`;
+    // Z-INDEX -1 : LE SOL ET LE ROBOT SONT EN ARRIÈRE-PLAN
+    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: -1 !important; pointer-events: none !important; background: transparent !important;`;
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
     initThreeJS(canvas, bubbleEl);
@@ -380,6 +380,7 @@ function initThreeJS(canvas, bubbleEl) {
             }
         } 
         
+        // --- BOUCLE INFINIE ---
         else if (robotState === 'infinite_loop' || robotState === 'approaching' || robotState === 'thinking') {
             if (config.mode === 'attente' && subtitlesActive && time > lastTextChange + 12) { cycleCenterText(); lastTextChange = time; }
             if (Date.now() > nextMoveTime || robotState === 'approaching') robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
