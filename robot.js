@@ -1,19 +1,18 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (CENTRE INTERDIT STRICTEMENT)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL v21 - MUTE SORTIE & FX)
 // =========================================================
-const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 7500; 
-const VITESSE_MOUVEMENT = 0.008; 
+const DUREE_LECTURE = 6000; 
 const ECHELLE_BOT = 0.6; 
-const SPEED_THRESHOLD = 0.02; 
+// Limite stricte pour couper la parole (X > 9.5)
+const MUTE_LIMIT_X = 9.5; 
 
-// ZONE INTERDITE STRICTE (Aucun arrêt entre -9 et 9)
-const SAFE_ZONE_X = 10.0; 
-const MUTE_LIMIT_X = 13.5; 
+// Vitesses
+const SPEED_HOVER = 0.005;   
+const SPEED_IMPULSE = 0.05;  
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -26,65 +25,55 @@ const CENTRAL_MESSAGES = [
 
 // --- BANQUES DE TEXTES ---
 const TEXTS_ATTENTE = [
-    "Que fait Clap-E quand il s'ennuie ? ... Il se range ! 🤖",
-    "Je m'appelle Clap-E, votre serviteur dévoué !",
-    "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
-    "Pourquoi les robots n'ont-ils jamais peur ? Car ils ont des nerfs d'acier !",
-    "Toc toc... (C'est encore Clap-E !)",
+    "Clap-E vérifie les niveaux... Tout est OK !",
+    "Je vole, je vole ! 🤖",
+    "Toc toc... C'est encore Clap-E !",
     "Vous êtes très élégants ce soir !",
-    "Il fait bon ici, ou c'est mes circuits qui chauffent ?",
+    "Il fait bon ici, ou c'est mes réacteurs ?",
     "Clap-E scanne la salle... Ambiance : 100% positive.",
     "Qui a le meilleur sourire ce soir ? Je cherche...",
-    "N'oubliez pas de scanner le QR Code tout à l'heure !",
-    "Faites coucou à la caméra ! Ah non, c'est moi la caméra.",
-    "Calcul de la trajectoire optimale... Fait.",
-    "Mise à jour de Clap-E en attente... Non, pas maintenant !",
-    "42. La réponse est 42.",
-    "Je cours sans jambes. Qui suis-je ? ... Le Temps ! ⏳",
-    "Prêts pour le décollage avec la compagnie Clap-E Airlines ?",
-    "C'est long l'attente, hein ? Mais ça vaut le coup !",
+    "N'oubliez pas de scanner le QR Code !",
+    "Faites coucou à la caméra ! C'est moi !",
+    "Calcul de la trajectoire... Fait.",
+    "42. La réponse est toujours 42.",
+    "Je suis plus rapide que l'éclair (ou presque).",
+    "Prêts pour le décollage avec Clap-E Airlines ?",
+    "C'est long l'attente ? Courage !",
     "Retenez bien mon nom : C'est Clap-E !"
 ];
 
 const TEXTS_VOTE_OFF = [
-    "Désolé, les votes sont clos ! Clap-E est formel. 🛑",
-    "La régie compte les points... Et moi je compte les moutons électriques.",
-    "Soyez patients, la précision demande du temps.",
+    "Votes clos ! Clap-E a verrouillé les urnes. 🛑",
+    "La régie compte... Moi je fais des loopings.",
+    "Patience, ça arrive !",
     "Je ne peux rien dire, c'est top secret ! 🤫",
-    "Devinette : Qu'est-ce qui monte et ne descend jamais ? ... Votre impatience !",
-    "Clap-E calcule les probabilités... Error 404 : Trop de suspense.",
-    "La régie me dit que ça arrive. Promis !",
+    "C'est plus serré qu'un boulon de 12 !",
+    "Clap-E calcule les probabilités... Suspense.",
     "J'espère que le meilleur a gagné !",
-    "C'est serré... Plus serré qu'un boulon de 12 !",
     "Analyse des résultats en cours... 📊",
-    "Je vérifie qu'il n'y a pas eu de triche... Tout est OK.",
-    "Alors ? Stressés ? Moi mes ventilateurs tournent à fond !",
-    "Ça vient, ça vient... C'est du direct !",
-    "Les résultats sont en cours de téléchargement...",
-    "Merci à tous d'avoir participé, c'était intense."
+    "Pas de triche, Clap-E a tout vu.",
+    "Alors ? Stressés ? Moi je surchauffe !",
+    "Les résultats arrivent par fibre optique...",
+    "Merci à tous d'avoir participé."
 ];
 
 const TEXTS_PHOTOS = [
-    "Vous pouvez prendre une photo avec Clap-E ? 📸",
-    "Allez, on se fait un petit selfie ensemble ?",
-    "Rapprochez-vous pour une photo de groupe !",
-    "Oh ! Quelle belle photo vient d'apparaître !",
-    "Clap-E a une petite préférence pour celle-ci... (Chut !)",
+    "Prenez une photo avec Clap-E ! 📸",
+    "Allez, un petit selfie ?",
+    "Rapprochez-vous pour la photo !",
+    "Wouah ! Quelle belle photo !",
+    "Clap-E adore celle-ci... (Chut !)",
     "Regardez ce sourire ! Magnifique !",
     "C'est parti pour la soirée danse ! 💃",
-    "Je me chauffe les vérins... Regardez le style de Clap-E !",
-    "Quelqu'un a vu mon amie ? Une webcam très mignonne ?",
-    "Continuez d'envoyer vos photos, c'est génial !",
+    "Regardez mon style aérien !",
+    "Continuez d'envoyer vos photos !",
     "Je valide cette pose ! Top model !",
-    "Attention le petit oiseau va sortir... Ah non c'est un pixel.",
-    "Cadrez bien mes antennes s'il vous plait.",
+    "Attention le petit oiseau va sortir...",
+    "Cadrez bien mes antennes svp.",
     "Vous êtes rayonnants ce soir.",
-    "Devinette : J'ai un œil mais je ne vois pas. Qui suis-je ? ... Un appareil photo !",
-    "Attention, Clap-E va tenter un moonwalk...",
+    "Attention, Clap-E va traverser l'écran !",
     "Envoyez-nous vos plus belles grimaces !",
-    "Flash info : Vous êtes le meilleur public !",
-    "On veut plus de photos de groupe ! Serrez-vous !",
-    "Mes capteurs de rythme sont au maximum."
+    "Flash info : Vous êtes le meilleur public !"
 ];
 
 let currentTextBank = [];
@@ -98,7 +87,7 @@ style.innerHTML = `
     .robot-bubble-base {
         position: fixed; padding: 20px 25px; color: black; font-family: 'Arial', sans-serif;
         font-weight: bold; font-size: 22px; text-align: center; z-index: 6; 
-        pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: scale(0.9); 
+        pointer-events: none; transition: opacity 0.1s, transform 0.3s; transform: scale(0.9); 
         max-width: 350px; width: max-content;
     }
     .bubble-speech { background: white; border-radius: 30px; border: 4px solid #E2001A; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
@@ -108,66 +97,59 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO 1 : ACCUEIL (CORRIGÉ - TOUT SUR LES COTÉS) ---
+// --- SCENARIO 1 : ACCUEIL ---
 const introScript_Attente = [
-    { time: 4, text: "", action: "enter_scene_slow" }, // Arrive à -12 (GAUCHE)
-    { time: 10, text: "Wouah... C'est grand ici !", type: "thought", action: "look_around" },
-    { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" }, // Va à 12 (DROITE)
-    { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" }, // Va à -12 (GAUCHE)
-    { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" }, // Stop à -12
-    
-    { time: 42, text: "Bonjour tout le monde ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
-    
-    { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech", action: "move_far_right" }, // Va à 12
-    { time: 58, text: "", action: "toc_toc_approach" }, // S'approche à 11 (DROITE)
-    { time: 60, text: "Toc ! Toc ! Vous m'entendez là-dedans ?", type: "speech" }, 
-    { time: 68, text: "Ah ! Vous êtes bien réels ! 😅", type: "speech", action: "backup_a_bit" }, // Recule à 12
-    { time: 76, text: "Votre visage me dit quelque chose monsieur...", type: "thought", action: "scan_crowd" }, // Va à -12
-    { time: 84, text: "Hum, non, je dois confondre avec une star. 😎", type: "speech" },
-    
-    { time: 92, text: "Excusez-moi, je reçois un appel...", type: "speech", action: "phone_call" }, // Va à 12
-    { time: 100, text: "Allô la régie ? Oui, ici Clap-E, je vous écoute.", type: "speech" },
-    { time: 108, text: "QUOI ?! C'est confirmé ?!", type: "speech", action: "surprise" },
-    { time: 116, text: "Incroyable ! On vient de me nommer Animateur de la soirée ! 🎤", type: "speech", action: "start_subtitles" },
-    { time: 124, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
-    { time: 132, text: "Ouhlà... Je n'ai pas préparé mes fiches...", type: "thought", action: "stress_pacing" }, // Va à -12
-    { time: 140, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
-    { time: 148, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" }, 
-    { time: 156, text: "Mince ! Clap-E doit filer en coulisses !", type: "speech" },
-    
-    { time: 162, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech" }, 
-    { time: 169, text: "", action: "exit_right_normal" }, // SORTIE
-    
-    { time: 184, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" }, // Rentre à -12
-    { time: 192, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
-    { time: 200, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
-    { time: 208, text: "Installez-vous bien, Clap-E veille sur vous.", type: "speech" }
+    { time: 0.1, text: "", action: "init_visible" }, 
+    { time: 1.5, text: "Wouah... C'est grand ici !", type: "thought", action: "fly_hover_right" }, 
+    { time: 9, text: "Je crois que je suis le premier...", type: "thought", action: "fly_hover_left" }, 
+    { time: 17, text: "OH ! Il y a du monde ! 😳", type: "speech", action: "stop_left_front" }, 
+    { time: 24, text: "Bonjour ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" },
+    { time: 32, text: "Bienvenue à tous !", type: "speech", action: "fly_right_up" }, 
+    { time: 40, text: "", action: "impulse_cross_left" }, 
+    { time: 44, text: "Ouhlà ! Ça décoiffe !", type: "speech", action: "stop_right_front" },
+    { time: 52, text: "Vous êtes bien réels ? 😅", type: "speech" }, 
+    { time: 60, text: "Je scanne la salle...", type: "thought", action: "fly_scan" }, 
+    { time: 68, text: "Hum, que des stars ce soir. 😎", type: "speech" },
+    { time: 76, text: "Excusez-moi, appel régie...", type: "speech", action: "phone_pose" }, 
+    { time: 84, text: "Allô ? Oui, ici Clap-E.", type: "speech" },
+    { time: 92, text: "C'est confirmé ?! Super !", type: "speech", action: "fly_loop" },
+    { time: 100, text: "Je suis votre animateur officiel ! 🎤", type: "speech" },
+    { time: 108, text: "Bienvenue à : " + config.titre + " !", type: "speech" },
+    { time: 116, text: "Je dois filer préparer mes fiches...", type: "speech" }, 
+    // FIN PAROLE AVANT SORTIE
+    { time: 124, text: "", action: "impulse_exit_right" }, 
+    { time: 135, text: "Me revoilà ! 😅", type: "speech", action: "teleport_in_left" }, 
+    { time: 142, text: "C'était moins une !", type: "speech", action: "fly_hover_center_high" },
+    { time: 150, text: "Installez-vous bien, je veille.", type: "speech" }
 ];
 
 // --- SCENARIO 2 : VOTE OFF ---
 const introScript_VoteOff = [
-    { time: 2, text: "", action: "enter_teleport_left" }, // Arrive -12
-    { time: 8, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
-    { time: 15, text: "Désolé les amis, les votes sont clos ! 🛑", type: "speech", action: "move_right_slow" }, // Va 12
-    { time: 22, text: "La régie est en train de compter les points...", type: "speech" },
-    { time: 29, text: "Soyez patients, Clap-E surveille tout ça !", type: "speech", action: "move_left_check" }, // Va -12
-    { time: 36, text: "Je ne dis rien, mais c'était serré... 🤫", type: "speech" }
+    { time: 0.1, text: "", action: "init_visible_right" }, 
+    { time: 3, text: "Oula... C'est fini !", type: "speech", action: "wave_hands" },
+    { time: 10, text: "Désolé, les votes sont clos ! 🛑", type: "speech", action: "fly_left_up" },
+    { time: 18, text: "La régie compte les points...", type: "speech" },
+    { time: 25, text: "", action: "impulse_cross_right" }, 
+    { time: 29, text: "Soyez patients, ça arrive !", type: "speech", action: "stop_left_front" }, 
+    { time: 36, text: "C'était serré... 🤫", type: "speech" }
 ];
 
 // --- SCENARIO 3 : PHOTOS LIVE ---
 const introScript_Photos = [
-    { time: 2, text: "", action: "enter_teleport_right_visible" }, // Arrive 11
-    { time: 8, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
-    { time: 13, text: "", action: "dance_stop" },
-    { time: 15, text: "Coucou ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" }, 
-    { time: 20, text: "Poussez-vous, je dois voir les photos !", type: "speech", action: "move_far_left" }, // Va -12
-    { time: 28, text: "Oh ! Regardez celle-ci ! Superbe !", type: "speech", action: "look_bubbles" }, 
-    { time: 35, text: "Je crois que je connais cette personne...", type: "speech", action: "move_right_slow" }, // Va 12
-    { time: 42, text: "Un petit selfie avec Clap-E ?", type: "speech", action: "pose_selfie" }, 
-    { time: 48, text: "Bon, je file voir la régie...", type: "speech" }, 
-    { time: 55, text: "", action: "exit_left_fast" }, 
-    { time: 62, text: "Me revoilà de l'autre côté ! ✨", type: "speech", action: "enter_teleport_right" }, 
-    { time: 69, text: "Allez, tous ensemble pour la photo !", type: "speech", action: "pose_selfie" } 
+    { time: 0.1, text: "", action: "init_visible" }, 
+    { time: 3, text: "Hé ! C'est ici le studio photo ? 📸", type: "speech", action: "dance_start" }, 
+    { time: 8, text: "", action: "dance_stop" },
+    { time: 10, text: "Coucou ! Je suis Clap-E ! 👋", type: "speech", action: "wave_hands" }, 
+    { time: 16, text: "Poussez-vous, je veux voir !", type: "speech", action: "fly_right_up" }, 
+    { time: 24, text: "Oh ! Superbe celle-ci !", type: "speech", action: "look_bubbles" }, 
+    { time: 31, text: "", action: "impulse_cross_left" }, 
+    { time: 35, text: "J'ai failli percuter une bulle !", type: "speech", action: "stop_right_front" }, 
+    { time: 43, text: "Un petit selfie avec Clap-E ?", type: "speech", action: "pose_selfie" }, 
+    { time: 49, text: "Bon, je file voir la régie...", type: "speech" }, 
+    // SILENCE AVANT SORTIE
+    { time: 55, text: "", action: "impulse_exit_left" }, 
+    { time: 64, text: "Me revoilà ! ✨", type: "speech", action: "teleport_in_right" }, 
+    { time: 71, text: "Allez, tous ensemble !", type: "speech", action: "pose_selfie" } 
 ];
 
 let currentIntroScript = introScript_Attente;
@@ -179,63 +161,65 @@ if (document.readyState === 'loading') { document.addEventListener('DOMContentLo
 function launchFinalScene() {
     ['robot-container', 'robot-canvas-overlay', 'robot-canvas-final', 'robot-bubble', 'robot-canvas-floor', 'robot-canvas-bot'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
     
-    const canvasFloor = document.createElement('canvas'); canvasFloor.id = 'robot-canvas-floor';
-    document.body.appendChild(canvasFloor);
-    canvasFloor.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 0 !important; pointer-events: none !important; background: transparent !important;`;
-
-    const canvasBot = document.createElement('canvas'); canvasBot.id = 'robot-canvas-bot';
-    document.body.appendChild(canvasBot);
-    // ROBOT = 5
-    canvasBot.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 5 !important; pointer-events: none !important; background: transparent !important;`;
+    // CANVAS UNIQUE (Z-INDEX 0)
+    const canvas = document.createElement('canvas'); canvas.id = 'robot-canvas-final';
+    document.body.appendChild(canvas);
+    canvas.style.cssText = `position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; z-index: 0 !important; pointer-events: none !important; background: transparent !important;`;
 
     const bubbleEl = document.createElement('div'); bubbleEl.id = 'robot-bubble';
     document.body.appendChild(bubbleEl);
     
-    initThreeJS(canvasFloor, canvasBot, bubbleEl);
+    initThreeJS(canvas, bubbleEl);
 }
 
-function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
+function initThreeJS(canvas, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
+    const scene = new THREE.Scene();
+    // Brouillard plus loin pour voir le sol
+    scene.fog = new THREE.Fog(0x000000, 20, 70); 
     
-    const sceneFloor = new THREE.Scene(); sceneFloor.fog = new THREE.Fog(0x000000, 10, 60);
-    const cameraFloor = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); cameraFloor.position.set(0, 0, 12);
-    const rendererFloor = new THREE.WebGLRenderer({ canvas: canvasFloor, antialias: true, alpha: true });
-    rendererFloor.setSize(width, height); rendererFloor.setPixelRatio(window.devicePixelRatio);
-    const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222); grid.position.y = -2.5; sceneFloor.add(grid);
-
-    const sceneBot = new THREE.Scene();
-    const cameraBot = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); cameraBot.position.set(0, 0, 12);
-    const rendererBot = new THREE.WebGLRenderer({ canvas: canvasBot, antialias: true, alpha: true });
-    rendererBot.setSize(width, height); rendererBot.setPixelRatio(window.devicePixelRatio);
-
-    window.addEventListener('resize', () => { 
-        const w = window.innerWidth, h = window.innerHeight;
-        cameraFloor.aspect = w / h; cameraFloor.updateProjectionMatrix(); rendererFloor.setSize(w, h);
-        cameraBot.aspect = w / h; cameraBot.updateProjectionMatrix(); rendererBot.setSize(w, h);
-    });
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+    camera.position.set(0, 0, 12); 
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    renderer.setSize(width, height); renderer.setPixelRatio(window.devicePixelRatio);
+    window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
     
-    sceneBot.add(new THREE.AmbientLight(0xffffff, 2.0));
+    scene.add(new THREE.AmbientLight(0xffffff, 2.0));
 
-    const particleCount = 100;
+    // SOL 3D VISIBLE
+    const grid = new THREE.GridHelper(200, 50, 0x666666, 0x444444); 
+    grid.position.y = -2.5; 
+    scene.add(grid);
+
+    // PARTICULES
+    const particleCount = 500;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
     particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
-    const particleMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.2, transparent: true, opacity: 0 });
+    const particleMat = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.3, transparent: true, opacity: 0 });
     const particles = new THREE.Points(particleGeo, particleMat);
-    sceneBot.add(particles);
+    scene.add(particles);
+    const teleportLight = new THREE.PointLight(0x00ffff, 0, 20);
+    scene.add(teleportLight);
+
     let explosionTime = 0;
     let isExploding = false;
 
     function triggerTeleport(pos) {
         isExploding = true; explosionTime = 1.0; 
-        particles.position.copy(pos); particleMat.opacity = 1;
+        particles.position.copy(pos); teleportLight.position.copy(pos); teleportLight.intensity = 8;
+        particleMat.opacity = 1;
         for(let i=0; i<particleCount; i++) {
-            particlePositions[i*3] = (Math.random()-0.5)*2; particlePositions[i*3+1] = (Math.random()-0.5)*4; particlePositions[i*3+2] = (Math.random()-0.5)*2;
+            particlePositions[i*3] = (Math.random()-0.5)*3; particlePositions[i*3+1] = (Math.random()-0.5)*5; particlePositions[i*3+2] = (Math.random()-0.5)*3;
         }
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    const robotGroup = new THREE.Group(); robotGroup.position.set(-35, 0, 0); robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
+    // ROBOT
+    const robotGroup = new THREE.Group(); 
+    robotGroup.position.set(-8, 0, 0); // START VISIBLE
+    robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
+    
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -253,28 +237,38 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armR.position.y = -0.2;
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
-    [head, body, armLGroup, armRGroup].forEach(p => { robotGroup.add(p); });
-    armLGroup.userData.origRot = armLGroup.rotation.clone(); armRGroup.userData.origRot = armRGroup.rotation.clone();
-    sceneBot.add(robotGroup); 
+    
+    // PARTS (Important pour crash)
+    const parts = [head, body, armLGroup, armRGroup];
+    parts.forEach(p => { 
+        robotGroup.add(p); 
+        p.userData.origPos = p.position.clone(); 
+        p.userData.origRot = p.rotation.clone(); 
+        p.userData.velocity = new THREE.Vector3(); 
+    });
+    
+    scene.add(robotGroup);
 
     const stageSpots = [];
     [-8, -3, 3, 8].forEach((x, i) => {
-        const g = new THREE.Group(); g.position.set(x, LIMITE_HAUTE_Y, 0);
+        const g = new THREE.Group(); g.position.set(x, 6.5, 0);
         const beam = new THREE.Mesh(new THREE.ConeGeometry(0.4, 15, 32, 1, true), new THREE.MeshBasicMaterial({ color: [0xff0000, 0x00ff00, 0x0088ff, 0xffaa00][i%4], transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
         beam.rotateX(-Math.PI/2); beam.position.z = -7.5; g.add(beam);
-        sceneBot.add(g); stageSpots.push({ g, beam, isOn: false, nextToggle: Math.random()*5 });
+        scene.add(g); stageSpots.push({ g, beam, isOn: false, nextToggle: Math.random()*5 });
     });
 
     let robotState = 'intro';
-    let isWaving = false; 
+    let isWaving = false;
+    let isImpulsing = false; 
     let time = 0, nextEvt = 0, nextMoveTime = 0, introIdx = 0;
-    let targetPos = new THREE.Vector3(-35, 0, 0); 
+    let targetPos = new THREE.Vector3(-8, 0, 0); 
     let lastPos = new THREE.Vector3();
     let lastTextChange = 0;
     let textMsgIndex = 0;
     let subtitlesActive = false; 
 
     function showBubble(text, type = 'speech') { 
+        if(isImpulsing || Math.abs(robotGroup.position.x) > MUTE_LIMIT_X) return;
         if(!text) return;
         bubbleEl.innerHTML = text; 
         bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
@@ -291,17 +285,20 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     }
 
     function pickNewTarget() {
-        const dist = cameraBot.position.z; const vFOV = THREE.MathUtils.degToRad(cameraBot.fov);
-        const visibleHeight = 2 * Math.tan(vFOV / 2) * dist; const visibleWidth = visibleHeight * cameraBot.aspect;
-        const xLimit = (visibleWidth / 2) - 2.5; 
-        const side = Math.random() > 0.5 ? 1 : -1;
-        
-        // CIBLE EXTERIEURE : X > 10 ou X < -10
-        const randomX = SAFE_ZONE_X + (Math.random() * (xLimit - SAFE_ZONE_X)); 
-        
-        targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
-        if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
-        nextMoveTime = Date.now() + 8000; 
+        const r = Math.random();
+        if (r < 0.3) { 
+            isImpulsing = true;
+            const startSide = Math.random() > 0.5 ? -18 : 18;
+            robotGroup.position.set(startSide, (Math.random()-0.5)*4, (Math.random()-0.5)*2);
+            targetPos.set(-startSide, (Math.random()-0.5)*6, (Math.random()-0.5)*4);
+        } else { 
+            isImpulsing = false;
+            const side = Math.random() > 0.5 ? 1 : -1;
+            const randomX = side * (8.0 + Math.random() * 4.0);
+            targetPos.set(randomX, (Math.random()-0.5)*5, (Math.random()*4)-2);
+        }
+        if(targetPos.y > 4.5) targetPos.y = 4.0;
+        nextMoveTime = Date.now() + 5000; 
     }
 
     function getNextMessage() {
@@ -324,8 +321,13 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         if(isExploding && explosionTime > 0) {
             explosionTime -= 0.02;
             particleMat.opacity = explosionTime;
+            teleportLight.intensity = explosionTime * 5;
             const positions = particleGeo.attributes.position.array;
-            for(let i=0; i<100; i++) { positions[i*3] += (Math.random()-0.5)*0.1; positions[i*3+1] += (Math.random()-0.5)*0.1; positions[i*3+2] += (Math.random()-0.5)*0.1; }
+            for(let i=0; i<particleCount; i++) { 
+                positions[i*3] += (Math.random()-0.5)*0.3; 
+                positions[i*3+1] += (Math.random()-0.5)*0.3; 
+                positions[i*3+2] += (Math.random()-0.5)*0.3; 
+            }
             particleGeo.attributes.position.needsUpdate = true;
         }
 
@@ -338,104 +340,95 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         if (robotState === 'intro') {
             const step = currentIntroScript[introIdx];
             if (step && time >= step.time) {
-                if (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast") || step.action?.includes("normal") || step.action?.includes("teleport")) {
+                let allowText = true;
+                if(step.action && step.action.includes("impulse")) { isImpulsing = true; allowText = false; }
+                else { isImpulsing = false; }
+
+                if (allowText && (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast") || step.action?.includes("normal") || step.action?.includes("teleport"))) {
                     if(step.text) showBubble(step.text, step.type);
                 }
                 
-                // --- ACTIONS AVEC COORDONNÉES DÉPORTÉES ---
-                if(step.action === "enter_scene_slow") targetPos.set(-12, 2, -2);
-                if(step.action === "move_right_slow") targetPos.set(12, 1, -2); // Traverse vers 12
-                if(step.action === "move_left_check") targetPos.set(-12, -1, 0); // Traverse vers -12
-                if(step.action === "move_far_left") targetPos.set(-12, 0, -1);
-                if(step.action === "move_far_right") targetPos.set(12, 0, -1);
-                if(step.action === "exit_left_normal") targetPos.set(-35, 0, 0);
-                if(step.action === "exit_left_fast") targetPos.set(-35, 0, 0);
-                if(step.action === "exit_right_normal") targetPos.set(35, 0, 0);
-                
-                if(step.action === "look_around") targetPos.set(0, 0, -5); 
-                if(step.action === "surprise_stop") targetPos.set(-12, 0, 4); // Stop Gauche
-                if(step.action === "move_center_wave") targetPos.set(11, 0, 5); // Stop Droite (vague)
-                
-                // TOC TOC DEPORTÉ A DROITE
+                if(step.action === "init_visible") { robotGroup.position.set(-8, 0, 0); targetPos.set(-8, 0, 0); }
+                if(step.action === "init_visible_right") { robotGroup.position.set(8, 0, 0); targetPos.set(8, 0, 0); }
+
+                if(step.action === "fly_hover_right") targetPos.set(11, 2, -1);
+                if(step.action === "fly_hover_left") targetPos.set(-11, -2, 1);
+                if(step.action === "fly_right_up") targetPos.set(12, 4, 3); // Z=3
+                if(step.action === "fly_left_up") targetPos.set(-12, 4, 3);
+                if(step.action === "fly_scan") targetPos.set(-10, 3, 3);
+                if(step.action === "fly_loop") targetPos.set(10, 2, -3);
+                if(step.action === "fly_hover_center_high") targetPos.set(0, 4, 0);
+
+                if(step.action === "stop_left_front") targetPos.set(-10, 0, 4);
+                if(step.action === "stop_right_front") targetPos.set(10, 0, 4);
                 if(step.action === "toc_toc_approach") targetPos.set(11, 0, 8.5); 
                 if(step.action === "backup_a_bit") targetPos.set(11, 0, 5);
-                
                 if(step.action === "wave_hands") { isWaving = true; setTimeout(() => { isWaving = false; }, 3000); }
                 if(step.action === "pose_selfie") { robotState = 'posing'; setTimeout(() => { robotState = 'intro'; }, 3000); }
                 if(step.action === "look_bubbles") { targetPos.set(-12, 4, 0); } 
-                
-                if(step.action === "scan_crowd") targetPos.set(-12, 1, 4);
-                if(step.action === "phone_call") targetPos.set(12, 0, 2);
-                if(step.action === "surprise") targetPos.set(12, 0, 6);
+                if(step.action === "phone_call") targetPos.set(11, 0, 2);
+                if(step.action === "surprise") targetPos.set(11, 0, 6);
                 if(step.action === "start_subtitles") { subtitlesActive = true; cycleCenterText(); lastTextChange = time; }
-                if(step.action === "stress_pacing") targetPos.set(-12, -2, 0);
-                if(step.action === "listen_intense") targetPos.set(-12, 0, 5);
-                
-                if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-12, 0, 4); }
-                if(step.action === "center_breath") targetPos.set(0, 0, 3);
+                if(step.action === "listen_intense") targetPos.set(-11, 0, 5);
                 if(step.action === "announce_pose") targetPos.set(-5, 1, 6); 
-                
-                if(step.action === "enter_teleport_left") { robotGroup.position.set(-35, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
-                if(step.action === "enter_teleport_right") { robotGroup.position.set(35, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
-                
-                if(step.action === "enter_teleport_right_visible") {
-                    robotGroup.position.set(11, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0));
-                }
+                if(step.action === "center_breath") targetPos.set(0, 0, 3);
+
+                if(step.action === "impulse_cross_left") { robotGroup.position.set(18, 2, -2); targetPos.set(-18, -2, 2); isImpulsing = true; }
+                if(step.action === "impulse_cross_right") { robotGroup.position.set(-18, -1, 2); targetPos.set(18, 3, -2); isImpulsing = true; }
+                if(step.action === "impulse_exit_left") { targetPos.set(-25, 0, 0); isImpulsing = true; }
+                if(step.action === "impulse_exit_right") { targetPos.set(25, 0, 0); isImpulsing = true; }
+
+                if(step.action === "teleport_in_left") { robotGroup.position.set(-11, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
+                if(step.action === "teleport_in_right") { robotGroup.position.set(11, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
+                if(step.action === "enter_teleport_right_visible") { robotGroup.position.set(11, 0, 0); targetPos.set(11, 0, 0); triggerTeleport(new THREE.Vector3(11, 0, 0)); }
+                if(step.action === "enter_teleport_left_visible") { robotGroup.position.set(-11, 0, 0); targetPos.set(-11, 0, 0); triggerTeleport(new THREE.Vector3(-11, 0, 0)); }
 
                 if(step.action === "dance_start") { robotState = 'dancing_intro'; setTimeout(() => { if(robotState === 'dancing_intro') robotState = 'intro'; }, 5000); }
                 if(step.action === "dance_stop") { robotState = 'intro'; robotGroup.rotation.set(0, 0, 0); }
+                
                 introIdx++;
             }
             
             if(introIdx >= currentIntroScript.length) { robotState = 'infinite_loop'; pickNewTarget(); nextEvt = time + 10; }
             
             if(robotState !== 'dancing_intro' && robotState !== 'posing') {
-                let speedFactor = VITESSE_MOUVEMENT;
-                if (step && (step.action?.includes("exit"))) speedFactor = 0.03; 
-                else if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; 
-                else if(targetPos.z > 7) speedFactor = 0.02; 
-                robotGroup.position.lerp(targetPos, speedFactor);
+                const spd = isImpulsing ? SPEED_IMPULSE : SPEED_HOVER; 
+                robotGroup.position.lerp(targetPos, spd);
             }
         } 
         
         else if (robotState === 'infinite_loop' || robotState === 'approaching' || robotState === 'thinking') {
             if (config.mode === 'attente' && subtitlesActive && time > lastTextChange + 12) { cycleCenterText(); lastTextChange = time; }
-            if (Date.now() > nextMoveTime || robotState === 'approaching') robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
-            robotGroup.rotation.y = Math.sin(time)*0.2;
             
-            if(robotGroup.position.distanceTo(targetPos) < 0.5 && robotState !== 'thinking') {
-                if (robotState === 'approaching') { robotState = 'infinite_loop'; pickNewTarget(); }
-                else if (Date.now() > nextMoveTime) pickNewTarget(); 
+            const spd = isImpulsing ? SPEED_IMPULSE : SPEED_HOVER;
+            robotGroup.position.lerp(targetPos, spd);
+            
+            robotGroup.rotation.z = (targetPos.x - robotGroup.position.x) * -0.05; 
+            robotGroup.rotation.x = (targetPos.y - robotGroup.position.y) * 0.05; 
+            
+            if(robotGroup.position.distanceTo(targetPos) < 1.0) {
+                if(isImpulsing) { isImpulsing = false; }
+                pickNewTarget();
             }
             
-            if(time > nextEvt) {
+            if(time > nextEvt && !isImpulsing) { 
                 const r = Math.random();
-                if(r < 0.05) { 
-                    robotState = 'exploding'; showBubble("Surchauffe ! 🔥"); 
-                    parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4)); 
-                    setTimeout(() => { robotState = 'reassembling'; }, 3500); nextEvt = time + 25;
-                }
-                else if (config.mode === 'photos' && r < 0.20) {
-                    robotState = 'dancing'; showBubble("C'est ma chanson préférée !", 'speech');
-                    setTimeout(() => { robotState = 'infinite_loop'; robotGroup.rotation.set(0,0,0); pickNewTarget(); }, 6000); nextEvt = time + 20;
-                }
-                else if (config.mode !== 'attente' && r < 0.35) {
-                    const side = Math.random() > 0.5 ? 11 : -11;
-                    robotGroup.position.set(side * -1, 0, 0); targetPos.set(side, 0, 0);
-                    triggerTeleport(robotGroup.position); nextEvt = time + 12;
-                }
+                if(r < 0.05) { robotState = 'exploding'; showBubble("Surchauffe ! 🔥"); setTimeout(() => { robotState = 'reassembling'; }, 3500); nextEvt = time + 25; }
+                else if (config.mode === 'photos' && r < 0.20) { robotState = 'dancing'; showBubble("J'adore ce son !", 'speech'); setTimeout(() => { robotState = 'infinite_loop'; robotGroup.rotation.set(0,0,0); pickNewTarget(); }, 6000); nextEvt = time + 20; }
                 else if (config.mode !== 'attente' && r < 0.50) { isWaving = true; setTimeout(() => { isWaving = false; }, 3000); nextEvt = time + 8; }
                 else if (currentSpeed < SPEED_THRESHOLD) { 
-                    const msg = getNextMessage(); const type = (msg.includes("Hmm") || msg.includes("Calcul") || msg.includes("Analyse")) ? 'thought' : 'speech';
-                    showBubble(msg, type); nextEvt = time + 15; 
+                    const msg = getNextMessage(); 
+                    showBubble(msg, 'speech'); 
+                    nextEvt = time + 15; 
                 } else { nextEvt = time + 2; }
             }
         }
+        
         else if (robotState === 'exploding') { parts.forEach(p => { p.position.add(p.userData.velocity); p.rotation.x += 0.05; p.userData.velocity.multiplyScalar(0.98); }); }
         else if (robotState === 'reassembling') {
             let finished = true;
-            parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1; if (p.position.distanceTo(p.userData.origPos) > 0.05) finished = false; });
-            if(finished) { parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); }); robotState = 'infinite_loop'; nextEvt = time + 5; pickNewTarget(); nextMoveTime = 0; }
+            parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); if (p.position.distanceTo(p.userData.origPos) > 0.05) finished = false; });
+            if(finished) { parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); }); robotState = 'infinite_loop'; nextEvt = time + 5; pickNewTarget(); }
         }
         else if (robotState === 'dancing' || robotState === 'dancing_intro') {
             robotGroup.rotation.y += 0.15; robotGroup.position.y = Math.abs(Math.sin(time * 5)) * 0.5; 
@@ -451,14 +444,12 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
-            const headPos = robotGroup.position.clone(); headPos.y += 1.3 + (robotGroup.position.z * 0.05); headPos.project(cameraBot);
-            const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
-            const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
-            
-            // --- COUPURE AUX BORDS ---
-            if (Math.abs(robotGroup.position.x) > MUTE_LIMIT_X) {
+            if (isImpulsing || Math.abs(robotGroup.position.x) > MUTE_LIMIT_X) {
                 bubbleEl.style.opacity = 0;
             } else {
+                const headPos = robotGroup.position.clone(); headPos.y += 1.3; headPos.project(camera);
+                const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
+                const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
                 let leftPos = (bX - bubbleEl.offsetWidth / 2);
                 bubbleEl.style.left = leftPos + 'px';
                 bubbleEl.style.top = (bY - bubbleEl.offsetHeight - 25) + 'px';
@@ -467,8 +458,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
         
         lastPos.copy(robotGroup.position);
-        rendererFloor.render(sceneFloor, cameraFloor); 
-        rendererBot.render(sceneBot, cameraBot); 
+        renderer.render(scene, camera); 
     }
     animate();
 }
