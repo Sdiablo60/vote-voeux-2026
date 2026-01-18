@@ -759,11 +759,12 @@ if est_admin:
                         else: st.error("Remplissez l'identifiant et le mot de passe.")
 
 # =========================================================
-# 2. APPLICATION MOBILE (Vote) - STYLE CORRIGÉ
+# 2. APPLICATION MOBILE (Vote)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
     
+    # --- CORRECTION CSS MOBILE (STYLE PROPRE) ---
     st.markdown("""<style>
     /* FOND NOIR GLOBAL */
     .stApp {background-color:black !important; color:white !important;} 
@@ -800,16 +801,17 @@ elif est_utilisateur:
         color: #E2001A !important;
     }
 
-    /* --- TAGS SÉLECTIONNÉS (ROUGE & BLANC) --- */
+    /* --- TAGS SÉLECTIONNÉS (MODIFIÉ : FOND BLANC / BORD ROUGE) --- */
     span[data-baseweb="tag"] {
-        background-color: #E2001A !important;
-        color: white !important;
-        border-radius: 20px !important;
+        background-color: white !important; 
+        color: black !important;
+        border-radius: 15px !important;
+        border: 2px solid #E2001A !important; /* Bordure rouge */
     }
-    span[data-baseweb="tag"] span { color: white !important; }
-    span[data-baseweb="tag"] svg { fill: white !important; }
+    span[data-baseweb="tag"] span { color: black !important; font-weight: bold !important; }
+    span[data-baseweb="tag"] svg { fill: #E2001A !important; } /* Croix rouge */
     
-    /* BOUTON */
+    /* BOUTON VALIDATION */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { 
         background-color: #E2001A !important; 
         color: white !important; 
@@ -2185,5 +2187,6 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
 
 
