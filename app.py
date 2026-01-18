@@ -847,17 +847,15 @@ elif est_utilisateur:
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
 # =========================================================
-# 3. MUR SOCIAL (VERSION FINALE - NEON ADOUCI)
+# 3. MUR SOCIAL (VERSION FINALE v16 - SOL CSS)
 # =========================================================
 else:
     from streamlit_autorefresh import st_autorefresh
     cfg = load_json(CONFIG_FILE, default_config)
     
-    # Refresh auto
     refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
     st_autorefresh(interval=refresh_rate, key="wall_refresh")
     
-    # === CSS PRINCIPAL ===
     st.markdown("""
     <style>
         .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
@@ -912,7 +910,7 @@ else:
     js_config = f"""<script>window.robotConfig = {{ mode: '{robot_mode}', titre: '{safe_title}', logo: '{logo_data}' }};</script>"""
     import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
     
-    # === CSS INTERNE (MODIFIÉ POUR NÉON PLUS DOUX) ===
+    # === CSS INTERNE (SOL EN CSS GRILLE) ===
     internal_css_base = f"""
     <style>
         body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
@@ -920,23 +918,20 @@ else:
         {css_content}
         .neon-title {{
             font-family: Arial, sans-serif; font-size: 70px; font-weight: 900; letter-spacing: 5px; margin: 0; padding: 0; color: #fff;
-            /* OMBRE REDUITE ICI : Moins de couches, rayon max 50px au lieu de 150px */
             text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A;
             animation: neon-flicker 1.5s infinite alternate;
         }}
         @keyframes neon-flicker {{
-            /* ETAT ALLUMÉ (Intensité réduite) */
-            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{
-                text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A;
-            }}
-            /* ETAT ETEINT/FAIBLE */
-            20%, 24%, 55% {{
-                text-shadow: none; opacity: 0.5;
-            }}
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{ text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A; }}
+            20%, 24%, 55% {{ text-shadow: none; opacity: 0.5; }}
         }}
-        /* FORCE LE CANVAS DU ROBOT EN ARRIERE-PLAN MAIS DEVANT LE FOND */
-        #robot-canvas-final {{
-            z-index: -1 !important;
+        /* LE SOL EN CSS (Z-INDEX 0) */
+        .floor-grid {{
+            position: fixed; bottom: 0; left: 0; width: 100vw; height: 40vh; z-index: 0; pointer-events: none;
+            background: linear-gradient(to top, rgba(30,30,30,1), transparent),
+                        repeating-linear-gradient(90deg, transparent 0, transparent 49px, #333 50px),
+                        repeating-linear-gradient(0deg, transparent 0, transparent 49px, #333 50px);
+            perspective: 500px; transform: perspective(500px) rotateX(45deg) scale(2) translateY(100px); opacity: 0.6;
         }}
     </style>
     """
@@ -951,7 +946,7 @@ else:
         """
         logo_img_tag = f'<img id="welcome-logo" src="data:image/png;base64,{logo_data}">' if logo_data else ""
         html_code = f"""<!DOCTYPE html><html><head>{internal_css}</head><body>{js_config}
-            <div id="safe-zone"></div>
+            <div class="floor-grid"></div> <div id="safe-zone"></div>
             <div id="welcome-container">
                 {logo_img_tag}
                 <div id="welcome-title" class="neon-title">BIENVENUE</div>
@@ -1008,7 +1003,7 @@ else:
         else:
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
             html_code = f"""<!DOCTYPE html><html><head>{internal_css_base}</head><body>{js_config}
-            <div id="safe-zone"></div>
+            <div class="floor-grid"></div> <div id="safe-zone"></div>
             <div style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index: 10; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events: none;'>
                 <div style='border: 5px solid #E2001A; padding: 40px; border-radius: 30px; background: rgba(0,0,0,0.85); max-width: 800px; text-align: center; box-shadow: 0 0 50px black;'>
                     {logo_html}
@@ -1031,11 +1026,11 @@ else:
         img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
         center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8); pointer-events: none;'><h1 class="neon-title" style='font-size:28px; margin:0 0 15px 0;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3; text-shadow: 0 0 10px black;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
         
-        # Z-INDEX 1 POUR LES BULLES (ENTRE SOL ET ROBOT)
+        # Z-INDEX 1 POUR LES BULLES (DEVANT LE SOL CSS, DERRIERE LE ROBOT)
         bubbles_script = f"""<script>setTimeout(function() {{ var container = document.createElement('div'); container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;pointer-events:none;'; document.body.appendChild(container); var centerDiv = document.createElement('div'); centerDiv.innerHTML = `{center_html_content}`; document.body.appendChild(centerDiv); const imgs = {img_js}; const bubbles = []; imgs.forEach((src, i) => {{ const bSize = Math.floor(Math.random() * 300) + 150; const el = document.createElement('img'); el.src = src; el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; z-index:50; opacity:0.9;'; let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize); let angle = Math.random() * Math.PI * 2; let speed = 1.5 + Math.random() * 1.5; container.appendChild(el); bubbles.push({{el, x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, size: bSize}}); }}); function animateBubbles() {{ bubbles.forEach(b => {{ b.x += b.vx; b.y += b.vy; if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1; if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1; b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)'; }}); requestAnimationFrame(animateBubbles); }} animateBubbles(); }}, 500);</script>"""
         
         html_code = f"""<!DOCTYPE html><html><head>{internal_css_base}</head><body>{js_config}
-        <div id="safe-zone"></div>
+        <div class="floor-grid"></div> <div id="safe-zone"></div>
         <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
         <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
         {import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
