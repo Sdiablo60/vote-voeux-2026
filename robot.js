@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - MOUVEMENT NATUREL)
+// 🟢 CONFIGURATION ROBOT 2026 (BOUCLE INFINIE 50 MIN)
 // =========================================================
 const LIMITE_HAUTE_Y = 6.53; 
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
@@ -9,10 +9,9 @@ const config = window.robotConfig || { mode: 'attente', titre: 'Événement', lo
 const DUREE_LECTURE = 7000; 
 const VITESSE_MOUVEMENT = 0.008; 
 const ECHELLE_BOT = 0.6; 
+const SPEED_THRESHOLD = 0.02; // Seuil pour parler
 
-// SEUIL DE VITESSE (Le robot se tait s'il bouge trop vite)
-const SPEED_THRESHOLD = 0.02; 
-
+// --- MESSAGES ROTATIFS SOUS LE TITRE ---
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
     "Une soirée exceptionnelle vous attend",
@@ -21,6 +20,66 @@ const CENTRAL_MESSAGES = [
     "Préparez-vous à jouer !",
     "N'oubliez pas vos sourires !"
 ];
+
+// --- BANQUE DE TEXTES MASSIVE (POUR TENIR 50 MIN) ---
+// Le robot puisera ici sans répétition
+const INFINITE_TEXTS = [
+    // BLAGUES
+    "Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖",
+    "Le comble pour un robot ? Avoir un chat dans la gorge alors qu'il a une puce !",
+    "Pourquoi les robots n'ont-ils jamais peur ? Car ils ont des nerfs d'acier !",
+    "01001000 01101001 ! Oups, pardon, j'ai parlé en binaire.",
+    "Toc toc... (C'est moi)",
+    "J'ai une blague sur le Wi-Fi, mais je capte pas bien...",
+    
+    // INTERACTION PUBLIC
+    "Vous êtes très élégants ce soir !",
+    "J'aime beaucoup votre tenue, monsieur là-bas.",
+    "Il fait bon ici, ou c'est mes circuits qui chauffent ?",
+    "Je scanne la salle... Ambiance : 100% positive.",
+    "Qui a le meilleur sourire ce soir ? Je cherche...",
+    "N'oubliez pas de scanner le QR Code tout à l'heure !",
+    "J'espère que le buffet sera bon... Ah zut, je ne mange pas.",
+    "Si vous voyez un boulon par terre, c'est à moi.",
+    "Faites coucou à la caméra ! Ah non, c'est moi la caméra.",
+    
+    // REFLEXIONS (Thought)
+    "Hmm... Je me demande si je suis étanche...",
+    "Calcul de la trajectoire optimale... Fait.",
+    "Analyse des données biométriques... Vous êtes humains.",
+    "J'espère que j'ai bien éteint le gaz chez moi...",
+    "Mise à jour système en attente... Non, pas maintenant !",
+    "Je crois que j'ai un pixel mort sur ma rétine gauche.",
+    "Est-ce que les moutons électriques rêvent d'androids ?",
+    "42. La réponse est 42.",
+    
+    // DEVINETTES
+    "Je cours sans jambes. Qui suis-je ? ... Le Temps ! ⏳",
+    "Plus j'ai de gardiens, moins je suis gardé. Qui suis-je ? ... Un secret !",
+    "J'ai des villes, mais pas de maisons. Qui suis-je ? ... Une carte !",
+    "Je commence la nuit et je finis le matin. Qui suis-je ? ... La lettre N !",
+    
+    // CONTEXTE TRANSDEV / AEROPORT (Adapté au titre)
+    "Prêts pour le décollage ?",
+    "Attachez vos ceintures, la soirée va décoller !",
+    "J'adore les avions, ils ont des ailes comme moi... ah non.",
+    "Direction : La bonne humeur !",
+    "Vérification des portes : armement des toboggans.",
+    
+    // FILLERS
+    "C'est long l'attente, hein ? Mais ça vaut le coup !",
+    "Je pourrais rester ici toute la nuit.",
+    "Regardez comme le logo brille bien.",
+    "Je suis tellement content d'être votre animateur.",
+    "Pas de flash s'il vous plaît, ça m'éblouit.",
+    "Vous m'entendez bien au fond ?",
+    "J'ai l'impression de grandir... Ah non, je vole juste plus haut.",
+    "Bip Bip... Bip Bip...",
+    "Loading happiness... 99%..."
+];
+
+// On crée une copie pour piocher dedans
+let availableTexts = [...INFINITE_TEXTS];
 
 // --- STYLE CSS ---
 const style = document.createElement('style');
@@ -38,7 +97,7 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-// --- SCENARIO NARRATIF ---
+// --- SCENARIO D'INTRODUCTION (Fixe) ---
 const introScript = [
     { time: 4, text: "", action: "enter_scene_slow" }, 
     
@@ -47,7 +106,7 @@ const introScript = [
     { time: 18, text: "Je crois que je suis le premier arrivé...", type: "thought", action: "move_right_slow" },
     { time: 26, text: "Tiens ? C'est quoi cette lumière ?", type: "thought", action: "move_left_check" },
     
-    // DECOUVERTE
+    // DECOUVERTE DU PUBLIC
     { time: 34, text: "OH ! Mais... Il y a du monde en fait ! 😳", type: "speech", action: "surprise_stop" },
     { time: 42, text: "Bonjour tout le monde ! 👋", type: "speech", action: "move_center_wave" },
     { time: 50, text: "Vous êtes nombreux ce soir ! Bienvenue !", type: "speech" }, 
@@ -74,27 +133,21 @@ const introScript = [
     { time: 132, text: "Ouhlà... Je n'ai pas préparé mes fiches...", type: "thought", action: "stress_pacing" },
     { time: 140, text: "Est-ce que ma batterie est assez chargée ? 🔋", type: "thought" },
     
-    // APPEL 2 & SORTIE (Ralentie)
+    // APPEL 2 & SORTIE (Vitesse corrigée)
     { time: 148, text: "Oui Régie ? Il manque un câble ?", type: "speech", action: "listen_intense" },
     { time: 156, text: "Mince ! Je dois filer en coulisses !", type: "speech" },
-    { time: 162, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech", action: "exit_right_fast" }, 
+    { time: 164, text: "Je reviens tout de suite ! 🏃‍♂️", type: "speech", action: "exit_right_normal" }, // <-- Vitesse normale
+    
+    // ABSENCE
     
     // RETOUR
-    { time: 178, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" },
-    { time: 185, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
+    { time: 180, text: "Me revoilà ! 😅", type: "speech", action: "enter_left_fast" },
+    { time: 188, text: "C'était moins une, on a failli perdre le wifi !", type: "speech", action: "center_breath" },
     
-    // FINALE
-    { time: 193, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
-    { time: 201, text: "Installez-vous bien, ça va être génial.", type: "speech" }
+    // FINALE INTRO
+    { time: 196, text: "La régie me confirme : La soirée va bientôt commencer ! 🎉", type: "speech", action: "announce_pose" },
+    { time: 204, text: "Installez-vous bien, je veille sur vous.", type: "speech" }
 ];
-
-const MESSAGES_BAG = {
-    chat: ["J'espère que vous passez un bon moment.", "Vous êtes très élégants ce soir !", "N'oubliez pas le QR Code !"],
-    jokes: ["Que fait un robot quand il s'ennuie ? ... Il se range ! 🤖", "Toc toc... (C'est moi)", "01001000 01101001 ! Oups !"],
-    riddles: ["Je cours sans jambes. Qui suis-je ? ... Le Temps ! ⏳", "Plus j'ai de gardiens, moins je suis gardé... Un secret !"],
-    photos: ["Oh ! Quelle belle photo ! 📸", "J'adore vos sourires !", "Hé ! Je connais cette personne !"],
-    reflexion: ["Hmm... Je me demande si...", "Calcul en cours...", "Je crois que j'ai laissé le fer à repasser allumé..."]
-};
 
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', launchFinalScene); } else { launchFinalScene(); }
 
@@ -165,15 +218,31 @@ function initThreeJS(canvas, bubbleEl) {
         }
     }
 
+    // Fonction améliorée pour éviter le centre ET l'extrême droite (là où les bulles coupent)
     function pickNewTarget() {
         const dist = camera.position.z; const vFOV = THREE.MathUtils.degToRad(camera.fov);
         const visibleHeight = 2 * Math.tan(vFOV / 2) * dist; const visibleWidth = visibleHeight * camera.aspect;
-        const xLimit = (visibleWidth / 2) - 2.0;
+        const xLimit = (visibleWidth / 2) - 2.5; // Marge de sécurité
+        
         const side = Math.random() > 0.5 ? 1 : -1;
-        const randomX = 4.0 + (Math.random() * (xLimit - 4.0)); 
+        // On évite la zone centrale (-4 à +4) et on reste dans les limites
+        const randomX = 4.0 + (Math.random() * (xLimit - 4.5)); 
+        
         targetPos.set(side * randomX, (Math.random() - 0.5) * 6, (Math.random() * 5) - 3);
         if(targetPos.y > LIMITE_HAUTE_Y - 2.5) targetPos.y = LIMITE_HAUTE_Y - 3;
+        
         nextMoveTime = Date.now() + 8000; 
+    }
+
+    // Fonction pour tirer un texte au hasard SANS répétition
+    function getNextMessage() {
+        if (availableTexts.length === 0) {
+            availableTexts = [...INFINITE_TEXTS]; // Recharge le sac quand vide
+        }
+        const idx = Math.floor(Math.random() * availableTexts.length);
+        const msg = availableTexts[idx];
+        availableTexts.splice(idx, 1); // Retire le message du sac
+        return msg;
     }
 
     function animate() {
@@ -190,9 +259,10 @@ function initThreeJS(canvas, bubbleEl) {
         if (robotState === 'intro') {
             const step = introScript[introIdx];
             if (step && time >= step.time) {
-                if (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast")) {
+                if (currentSpeed < SPEED_THRESHOLD || step.action?.includes("fast") || step.action?.includes("normal")) {
                     if(step.text) showBubble(step.text, step.type);
                 }
+                
                 if(step.action === "enter_scene_slow") targetPos.set(-7, 2, -2);
                 if(step.action === "look_around") targetPos.set(0, 0, -5);
                 if(step.action === "move_right_slow") targetPos.set(6, 1, -2);
@@ -207,45 +277,53 @@ function initThreeJS(canvas, bubbleEl) {
                 if(step.action === "start_subtitles") { subtitlesActive = true; cycleCenterText(); lastTextChange = time; }
                 if(step.action === "stress_pacing") targetPos.set(-5, -2, 0);
                 if(step.action === "listen_intense") targetPos.set(0, 0, 5);
-                if(step.action === "exit_right_fast") targetPos.set(35, 0, 0); 
+                
+                // SORTIE CORRIGÉE (Plus lente)
+                if(step.action === "exit_right_normal") targetPos.set(25, 0, 0); 
+                
                 if(step.action === "enter_left_fast") { robotGroup.position.set(-35, 0, 0); targetPos.set(-5, 0, 4); }
                 if(step.action === "center_breath") targetPos.set(0, 0, 3);
-                if(step.action === "announce_pose") targetPos.set(0, 1, 6);
+                if(step.action === "announce_pose") targetPos.set(-5, 1, 6); // Se met un peu à gauche pour la fin
                 introIdx++;
             }
             
-            if(introIdx >= introScript.length) { robotState = 'moving'; pickNewTarget(); nextEvt = time + 10; }
+            // Fin de l'intro : Passage en BOUCLE INFINIE
+            if(introIdx >= introScript.length) { 
+                robotState = 'infinite_loop'; // Changement d'état
+                pickNewTarget(); 
+                nextEvt = time + 10; 
+            }
             
             let speedFactor = VITESSE_MOUVEMENT;
-            // CORRECTION VITESSE SORTIE : On limite la vitesse max (0.025 au lieu de 0.04)
-            if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.025; 
+            if (step && step.action === "exit_right_normal") speedFactor = 0.015; // Vitesse de marche rapide mais visible
+            else if(targetPos.x > 20 || targetPos.x < -20) speedFactor = 0.04; // Entrée rapide
             else if(targetPos.z > 7) speedFactor = 0.02; 
             robotGroup.position.lerp(targetPos, speedFactor);
         } 
         
-        else if (robotState === 'moving' || robotState === 'approaching' || robotState === 'thinking') {
+        // --- MODE BOUCLE INFINIE (50 MIN) ---
+        else if (robotState === 'infinite_loop' || robotState === 'approaching' || robotState === 'thinking') {
             if (config.mode === 'attente' && subtitlesActive && time > lastTextChange + 12) { cycleCenterText(); lastTextChange = time; }
             if (Date.now() > nextMoveTime || robotState === 'approaching') robotGroup.position.lerp(targetPos, VITESSE_MOUVEMENT);
             robotGroup.rotation.y = Math.sin(time)*0.2;
             
             if(robotGroup.position.distanceTo(targetPos) < 0.5 && robotState !== 'thinking') {
-                if (robotState === 'approaching') { robotState = 'moving'; pickNewTarget(); }
+                if (robotState === 'approaching') { robotState = 'infinite_loop'; pickNewTarget(); }
                 else if (Date.now() > nextMoveTime) pickNewTarget(); 
             }
             
             if(time > nextEvt) {
                 const r = Math.random();
-                if(r < 0.08) { // EXPLOSION (8%)
+                if(r < 0.08) { // Explosion (Rare)
                     robotState = 'exploding'; showBubble("Surchauffe ! 🔥"); 
                     parts.forEach(p => p.userData.velocity.set((Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4, (Math.random()-0.5)*0.4)); 
                     setTimeout(() => { robotState = 'reassembling'; }, 3500); nextEvt = time + 25;
                 }
-                else if (currentSpeed < SPEED_THRESHOLD) { 
-                    if(r < 0.40) { showBubble(MESSAGES_BAG.reflexion[Math.floor(Math.random()*MESSAGES_BAG.reflexion.length)], 'thought'); }
-                    else { 
-                        const type = Math.random() > 0.5 ? 'jokes' : 'chat';
-                        showBubble(MESSAGES_BAG[type][Math.floor(Math.random()*MESSAGES_BAG[type].length)], 'speech');
-                    }
+                else if (currentSpeed < SPEED_THRESHOLD) { // Parle
+                    const msg = getNextMessage(); // Pioche sans répétition
+                    // Détection type de message (pensée ou parole)
+                    const type = (msg.includes("Hmm") || msg.includes("Calcul") || msg.includes("Analyse")) ? 'thought' : 'speech';
+                    showBubble(msg, type);
                     nextEvt = time + 15; 
                 } else { nextEvt = time + 2; }
             }
@@ -254,7 +332,7 @@ function initThreeJS(canvas, bubbleEl) {
         else if (robotState === 'reassembling') {
             let finished = true;
             parts.forEach(p => { p.position.lerp(p.userData.origPos, 0.1); p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1; if (p.position.distanceTo(p.userData.origPos) > 0.01) finished = false; });
-            if(finished) { robotState = 'moving'; nextEvt = time + 2; pickNewTarget(); }
+            if(finished) { robotState = 'infinite_loop'; nextEvt = time + 2; pickNewTarget(); }
         }
 
         if(bubbleEl && bubbleEl.style.opacity == 1) {
@@ -262,7 +340,7 @@ function initThreeJS(canvas, bubbleEl) {
             const bX = (headPos.x * 0.5 + 0.5) * window.innerWidth;
             const bY = (headPos.y * -0.5 + 0.5) * window.innerHeight;
             let leftPos = (bX - bubbleEl.offsetWidth / 2);
-            leftPos = Math.max(20, Math.min(leftPos, window.innerWidth - bubbleEl.offsetWidth - 20));
+            leftPos = Math.max(20, Math.min(leftPos, window.innerWidth - bubbleEl.offsetWidth - 20)); // Protection bords
             bubbleEl.style.left = leftPos + 'px';
             bubbleEl.style.top = (bY - bubbleEl.offsetHeight - 25) + 'px';
             if(parseFloat(bubbleEl.style.top) < 140) bubbleEl.style.top = '140px';
