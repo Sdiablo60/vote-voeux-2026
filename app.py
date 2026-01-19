@@ -765,39 +765,6 @@ if est_admin:
                             st.session_state.selected_images = []
                             st.success("Suppression OK"); time.sleep(1); st.rerun()
 
-            elif menu == "📊 DATA" and (is_super_admin or "data" in perms):
-                st.title("📊 DONNÉES & RÉSULTATS")
-                votes = load_json(VOTES_FILE, {})
-                vote_counts, nb_unique_voters, rank_dist = get_advanced_stats()
-                
-                all_cands_data = []
-                total_points_session = 0
-                for c in cfg["candidats"]:
-                    p = votes.get(c, 0)
-                    total_points_session += p
-                    all_cands_data.append({"Candidat": c, "Points": p, "Nb Votes": vote_counts.get(c, 0)})
-                
-                df_totals = pd.DataFrame(all_cands_data).sort_values(by='Points', ascending=False)
-                
-                st.subheader("🏆 Classement Général")
-                c_chart, c_data = st.columns([1, 1]) 
-                with c_chart:
-                    chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
-                        x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'), tooltip=['Candidat', 'Points', 'Nb Votes']
-                    ).properties(height=350) 
-                    st.altair_chart(chart, use_container_width=True)
-                with c_data: st.table(df_totals)
-                
-                st.markdown("##### 📥 Exporter le Rapport de Résultats")
-                c1, c2, c3 = st.columns(3)
-                if PDF_AVAILABLE:
-                    st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                    c1.download_button("📄 Rés. + Graphique (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals, nb_unique_voters, total_points_session), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                c3.download_button("📊 Données Résultats (CSV)", data=df_totals.to_csv(index=False).encode('utf-8'), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
             elif menu == "👥 UTILISATEURS" and is_super_admin:
                 st.title("👥 GESTION DES UTILISATEURS")
                 
@@ -1283,8 +1250,8 @@ else:
             .winners-box{{
                 display:flex; flex-direction:row; flex-wrap:wrap-reverse; /* Construit vers le haut */
                 justify-content:center; align-items:flex-end;
-                width:550px !important; /* LARGEUR FORCEE POUR 2 CARTES MAX */
-                max-width:550px !important;
+                width:600px !important; /* LARGEUR FORCEE POUR 2 CARTES MAX */
+                max-width:600px !important;
                 margin:0 auto; padding-bottom:0px;
                 opacity:0; transform:translateY(50px) scale(0.8);
                 transition:all 1s cubic-bezier(0.175,0.885,0.32,1.275);
@@ -1306,15 +1273,15 @@ else:
             }}
             .rank-score.visible{{ opacity: 1; transform: scale(1); }}
             
-            /* CARTES 170px */
+            /* CARTES 220px */
             .p-card{{
                 background:rgba(20,20,20,0.8); border-radius:15px; padding:8px;
-                width:180px; margin:4px; 
+                width:220px; margin:4px; 
                 backdrop-filter:blur(5px); border:2px solid rgba(255,255,255,0.3);
                 display:flex; flex-direction:column; align-items:center;
                 box-shadow:0 5px 15px rgba(0,0,0,0.5); flex-shrink:0;
             }}
-            .p-img,.p-placeholder{{width:110px;height:110px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
+            .p-img,.p-placeholder{{width:150px;height:150px;border-radius:50%;object-fit:cover;border:3px solid white;margin-bottom:5px;}}
             .p-name{{font-family:Arial;font-size:15px;font-weight:bold;color:white;text-transform:uppercase;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;}}
             
             .intro-overlay{{position:fixed;top:15vh;left:0;width:100vw;z-index:5000;display:flex;flex-direction:column;align-items:center;text-align:center;transition:opacity 0.5s;pointer-events:none;}}
@@ -1331,8 +1298,8 @@ else:
             /* ETAPE 1 : GROS + FOND NOIR */
             .final-overlay.stage-1-big{{opacity:1;transform:scale(1.2);background-color:rgba(0,0,0,0.95);}}
             
-            /* ETAPE 2 : PETIT + EN HAUT (REMONTE A -42%) + TRANSPARENT */
-            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-42%);background-color:transparent;}}
+            /* ETAPE 2 : PETIT + EN HAUT (REMONTE A -28%) + TRANSPARENT */
+            .final-overlay.stage-2-top{{opacity:1;transform:scale(0.85) translateY(-28%);background-color:transparent;}}
             
             .final-content{{text-align:center;}}
             .final-logo{{width:500px;margin-bottom:30px;}}
