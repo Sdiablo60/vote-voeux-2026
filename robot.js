@@ -1,21 +1,21 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (INTELLIGENT & FLUIDE)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 6000; // Un peu plus long pour lire les blagues
+const DUREE_LECTURE = 6000; 
 const ECHELLE_BOT = 0.65; 
 
-// LIMITES ECRAN (Zone de sécurité)
+// LIMITES ECRAN
 const X_MIN = -11.0;
 const X_MAX = 11.0;
 const Y_MIN = -3.5;
 const Y_MAX = 2.0; 
 
 const Z_NORMAL = 0;
-const Z_CLOSEUP = 6.0; // Zoom proche caméra
+const Z_CLOSEUP = 6.0;
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -27,40 +27,33 @@ const CENTRAL_MESSAGES = [
 ];
 
 // =========================================================
-// 💬 BANQUES DE TEXTES (ENRICHIES)
+// 💬 BANQUES DE TEXTES
 // =========================================================
 
-// --- 1. GLOBAL : RÉGIE (Disponible partout) ---
+// 1. RÉGIE (Rare - 5%)
 const TEXTS_REGIE = [
     "Allô la Régie ? Le son est nickel !",
     "Un petit clin d'œil à l'équipe technique là-bas 👋",
-    "Régie, vous pouvez monter un peu la lumière sur moi ?",
     "La Régie assure ce soir, comme d'habitude !",
     "Je capte de bonnes ondes depuis la table de mixage.",
-    "Hey la technique ! On boit un coup d'huile après ?",
-    "Check micro... Un, deux... C'est bon la régie ?",
-    "Régie, ne touchez pas au bouton rouge SVP !",
     "Si je bug, c'est la faute du Wi-Fi, pas de la régie !",
-    "Big up aux ingénieurs du son !",
     "C'est la régie qui a les manettes, soyez sympas avec eux."
 ];
 
-// --- 2. GLOBAL : BLAGUES (Disponible partout) ---
+// 2. BLAGUES (Occasionnel - 10%)
 const TEXTS_BLAGUES = [
     "Que fait un robot pour rire ? Il se bidonne ! 🤣",
     "Toc Toc ? (Qui est là ?) C'est votre robot préféré !",
     "Le comble pour un robot ? Avoir un chat dans la gorge... mécanique.",
-    "J'ai voulu faire une blague sur le Wi-Fi, mais elle a pas bien capté.",
     "0100100... Oups, pardon, j'ai juré en binaire !",
     "Pourquoi les robots n'ont pas peur ? Parce qu'ils ont des nerfs d'acier.",
     "J'ai une blague sur les ascenseurs... mais elle ne vole pas haut.",
     "Que dit un robot amoureux ? Tu fais fondre mes circuits ♥️",
-    "C'est l'histoire d'un robot qui mange un sandwich... aux puces.",
     "Je ne ronfle pas, je fais des mises à jour nocturnes.",
     "Vous connaissez la danse du robot ? ... Ah bah oui, c'est moi."
 ];
 
-// --- 3. CONTEXTE : ACCUEIL / ATTENTE ---
+// 3. CONTEXTE : ACCUEIL / ATTENTE (Majoritaire)
 const TEXTS_ATTENTE = [
     "Je scanne la salle... Vous êtes magnifiques !",
     "Installez-vous confortablement, je gère l'ambiance.",
@@ -76,7 +69,7 @@ const TEXTS_ATTENTE = [
     "Prêts pour le décollage ? La soirée va commencer."
 ];
 
-// --- 4. CONTEXTE : VOTE OFF (Dépouillement / Suspense) ---
+// 4. CONTEXTE : VOTE OFF (Majoritaire)
 const TEXTS_VOTE_OFF = [
     "Les jeux sont faits ! Rien ne va plus 🎲",
     "La régie compte les points... Suspense terrible !",
@@ -92,7 +85,7 @@ const TEXTS_VOTE_OFF = [
     "Je sens que le podium va être surprenant."
 ];
 
-// --- 5. CONTEXTE : PHOTOS LIVE ---
+// 5. CONTEXTE : PHOTOS LIVE (Majoritaire)
 const TEXTS_PHOTOS = [
     "Waouh ! Quelle photo incroyable !",
     "Allez, faites-moi votre plus beau sourire !",
@@ -108,7 +101,7 @@ const TEXTS_PHOTOS = [
     "Attention le petit oiseau... Ah non, le petit robot va sortir !"
 ];
 
-// --- 6. PENSÉES (Bulles nuages) ---
+// 6. PENSÉES
 const TEXTS_THOUGHTS = [
     "Hmm... J'ai faim de volts.",
     "Est-ce que je suis réel ou virtuel ?",
@@ -119,18 +112,17 @@ const TEXTS_THOUGHTS = [
     "Bip Bip ? Non, Bip Bop.",
     "Analyse faciale... 450 sourires détectés.",
     "Je crois que j'ai laissé le gaz allumé... Ah non, je suis un robot.",
-    "Pourquoi les humains ont-ils deux yeux ?",
     "Chargement de ma personnalité... 99%.",
-    "J'aimerais bien avoir des jambes pour descendre dans la salle."
+    "J'aimerais bien avoir des jambes pour descendre."
 ];
 
-// --- SÉLECTION DU DICTIONNAIRE PRINCIPAL ---
+// SÉLECTION DU DICTIONNAIRE PRINCIPAL
 let contextBank = [];
 if (config.mode === 'vote_off') contextBank = [...TEXTS_VOTE_OFF];
 else if (config.mode === 'photos') contextBank = [...TEXTS_PHOTOS];
 else contextBank = [...TEXTS_ATTENTE];
 
-// --- STYLE CSS (Bulles) ---
+// --- NOUVEAU STYLE CSS (NUAGE AMÉLIORÉ) ---
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
@@ -139,24 +131,41 @@ style.innerHTML = `
         pointer-events: none; transition: opacity 0.5s, transform 0.5s; transform: scale(0.8); 
         max-width: 350px; width: max-content;
     }
-    /* Bulle Parole (Carrée arrondie + Pointe) */
-    .bubble-speech { background: white; border-radius: 30px; border: 4px solid #E2001A; box-shadow: 0 10px 30px rgba(0,0,0,0.7); }
-    .bubble-speech::after { content: ''; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid #E2001A; }
     
-    /* Bulle Pensée (Nuage + Ronds) */
+    /* BULLE PAROLE (Carrée arrondie + Pointe) */
+    .bubble-speech { 
+        background: white; border-radius: 30px; border: 4px solid #E2001A; 
+        box-shadow: 0 10px 30px rgba(0,0,0,0.7); 
+    }
+    .bubble-speech::after { 
+        content: ''; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); 
+        border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid #E2001A; 
+    }
+    
+    /* BULLE PENSÉE (NUAGEUX ☁️) */
     .bubble-thought { 
-        background: #f0f8ff; border-radius: 40px; border: 3px solid #00aaff; 
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-style: italic; color: #333;
+        background: #f0f8ff; /* Bleu très pâle */
+        color: #444;
+        border-radius: 60px; /* Très rond */
+        box-shadow: 0 8px 25px rgba(255, 255, 255, 0.4); 
+        border: 4px solid #cceeff; /* Bordure douce */
+        font-style: italic;
     }
+    
+    /* Petit rond moyen */
     .bubble-thought::before { 
-        content: 'o'; position: absolute; bottom: -25px; left: 40%; 
-        font-size: 30px; color: #00aaff; font-style: normal; font-weight: bold;
-        text-shadow: 2px 2px 0 #fff;
+        content: ''; position: absolute; bottom: -20px; left: 40px; 
+        width: 25px; height: 25px; 
+        background: #f0f8ff; border: 4px solid #cceeff; border-radius: 50%;
+        z-index: 10;
     }
+    
+    /* Tout petit rond (vers le robot) */
     .bubble-thought::after {
-        content: 'o'; position: absolute; bottom: -15px; left: 45%; 
-        font-size: 15px; color: #00aaff; font-style: normal; font-weight: bold;
-        text-shadow: 1px 1px 0 #fff;
+        content: ''; position: absolute; bottom: -40px; left: 30px; 
+        width: 15px; height: 15px; 
+        background: #f0f8ff; border: 4px solid #cceeff; border-radius: 50%;
+        z-index: 10;
     }
 `;
 document.head.appendChild(style);
@@ -231,7 +240,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
 
     // CONSTRUCTION ROBOT & PARTS
     const robotGroup = new THREE.Group(); 
-    robotGroup.position.set(-8, 0, 0); // Départ sur le coté
+    robotGroup.position.set(-8, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
     const parts = []; 
@@ -278,8 +287,8 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
 
     // LOGIQUE MOTEUR
     let time = 0;
-    let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL); // Cible actuelle
-    let state = 'idle'; // idle, thinking, closeup, exploding, reassembling, teleporting
+    let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL);
+    let state = 'idle'; 
     let nextEventTime = time + 2; 
     let isWaving = false;
     let textMsgIndex = 0;
@@ -301,7 +310,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
     }
 
-    // --- INTELLIGENCE DE PAROLE MIXTE ---
+    // --- CERVEAU AJUSTÉ (PRIORITÉ AUX MURS) ---
     function getNextMessage() {
         // Recharge si vide
         if (contextBank.length === 0) {
@@ -312,21 +321,21 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
 
         const rand = Math.random();
         
-        // 15% de chance de parler à la régie
-        if (rand < 0.15) {
+        // 5% : RÉGIE (Très rare)
+        if (rand < 0.05) {
             const idx = Math.floor(Math.random() * TEXTS_REGIE.length);
             return TEXTS_REGIE[idx];
         }
-        // 15% de chance de dire une blague
-        else if (rand < 0.30) {
+        // 10% : BLAGUES (Rare)
+        else if (rand < 0.15) {
              const idx = Math.floor(Math.random() * TEXTS_BLAGUES.length);
             return TEXTS_BLAGUES[idx];
         }
-        // 70% de chance de dire un truc contextuel
+        // 85% : CONTEXTE DU MUR (Priorité absolue)
         else {
             const idx = Math.floor(Math.random() * contextBank.length);
             const msg = contextBank[idx];
-            contextBank.splice(idx, 1); // Retire pour éviter répétition immédiate
+            contextBank.splice(idx, 1);
             return msg;
         }
     }
@@ -335,46 +344,34 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         return TEXTS_THOUGHTS[Math.floor(Math.random() * TEXTS_THOUGHTS.length)];
     }
 
-    // --- CERVEAU DU ROBOT ---
     function pickRandomSafePosition() {
-        // X : entre MIN et MAX
         let x = (Math.random() * (X_MAX - X_MIN)) + X_MIN;
-        
-        // EVITEMENT DOUX DU CENTRE :
-        // Si X tombe entre -3 et 3 (le centre strict), on le pousse un peu
         if (x > -3.0 && x < 3.0) {
             x = (x > 0) ? 5.0 : -5.0; 
         }
-
-        // Y : entre MIN et MAX
         const y = (Math.random() * (Y_MAX - Y_MIN)) + Y_MIN;
-        
         return new THREE.Vector3(x, y, Z_NORMAL);
     }
 
     function decideNextAction() {
         const r = Math.random();
         
-        // 1. ZOOM PUBLIC (12%) - MODIFIE POUR ETRE "PROCHE DU TEXTE" (PAS CACHÉ)
+        // ZOOM (12%)
         if (r < 0.12) {
             state = 'closeup';
             const side = Math.random() > 0.5 ? 1 : -1;
-            // X réduit à 5.5 pour être proche du centre mais pas dessus
-            // Y abaissé à -2.0 pour être sous le texte
             targetPos.set(side * 5.5, -2.0, Z_CLOSEUP); 
             showBubble("Je vous vois de près !", 'thought');
-            setTimeout(() => { state = 'idle'; }, 5000); // Reste 5 sec
+            setTimeout(() => { state = 'idle'; }, 5000);
         }
-        
-        // 2. REFLEXION (15%)
+        // PENSÉE (15%)
         else if (r < 0.27) {
             state = 'thinking';
             targetPos = pickRandomSafePosition();
             showBubble(getThoughtText(), 'thought');
             setTimeout(() => { state = 'idle'; }, 5000);
         }
-
-        // 3. EXPLOSION (8%)
+        // EXPLOSION (8%)
         else if (r < 0.35) {
             state = 'exploding';
             showBubble("Oups ! Surchauffe !", 'thought');
@@ -384,32 +381,25 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             triggerTeleportEffect(robotGroup.position);
             setTimeout(() => { state = 'reassembling'; }, 2000);
         }
-
-        // 4. TELEPORTATION (10%)
+        // TÉLÉPORTATION (10%)
         else if (r < 0.45) {
             state = 'teleporting';
             triggerTeleportEffect(robotGroup.position);
-            
             setTimeout(() => {
                 const currentX = robotGroup.position.x;
                 const newX = (currentX < 0) ? 6.5 : -6.5; 
                 const newY = (Math.random() * (Y_MAX - Y_MIN)) + Y_MIN;
-                
                 robotGroup.position.set(newX, newY, 0);
                 targetPos.set(newX, newY, 0);
-                
                 triggerTeleportEffect(robotGroup.position);
                 showBubble("Hop ! Magie !", 'speech');
                 state = 'idle';
             }, 600);
         }
-
-        // 5. MOUVEMENT GLISSÉ + PAROLE (55%)
+        // GLISSADE + PAROLE (55%)
         else {
             state = 'idle';
             targetPos = pickRandomSafePosition();
-            
-            // Parle de temps en temps
             if (Math.random() > 0.4) {
                 const msg = getNextMessage();
                 showBubble(msg, 'speech');
@@ -417,10 +407,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(isWaving) setTimeout(() => { isWaving = false; }, 3000);
             }
         }
-
-        // --- CHANGEMENT MAJEUR POUR EFFET "GLISSEMENT" ---
-        // On change la cible TRES souvent (toutes les 3 à 6 secondes)
-        // Comme le robot met du temps à arriver (lerp lent), il ne s'arrête jamais vraiment.
         nextEventTime = time + 3 + Math.random() * 3;
     }
 
@@ -428,7 +414,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         requestAnimationFrame(animate);
         time += 0.012; 
 
-        // PARTICULES EFFECT
         if(isTeleportingEffect && explosionTime > 0) {
             explosionTime -= 0.03;
             particleMat.opacity = explosionTime;
@@ -441,26 +426,17 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             particleGeo.attributes.position.needsUpdate = true;
         }
 
-        // TEXTE CENTRAL (ATTENTE)
         if (config.mode === 'attente' && time > lastTextChange + 10) { 
             cycleCenterText(); lastTextChange = time; 
         }
 
-        // LOGIQUE D'ETATS & MOUVEMENTS
         if (state === 'idle' || state === 'closeup' || state === 'thinking') {
-            
-            // --- CŒUR DU GLISSEMENT ---
-            // On utilise un facteur de lerp TRÈS bas (0.005 au lieu de 0.03)
-            // Cela donne une inertie lourde, comme dans l'espace ou sous l'eau.
-            // Il glisse vers la cible sans s'arrêter brusquement.
+            // GLISSADE FLUIDE (0.005)
             robotGroup.position.lerp(targetPos, 0.005);
             
-            // Floating effect (respiration)
             robotGroup.position.y += Math.sin(time * 2.0) * 0.005;
-            
-            // Rotation subtile
-            robotGroup.rotation.z = Math.cos(time * 1.2) * 0.05; // Tangage
-            robotGroup.rotation.y = Math.sin(time * 0.6) * 0.12; // Regard gauche/droite
+            robotGroup.rotation.z = Math.cos(time * 1.2) * 0.05; 
+            robotGroup.rotation.y = Math.sin(time * 0.6) * 0.12; 
 
             if (state === 'thinking') {
                 armRGroup.rotation.z = Math.abs(Math.sin(time * 15)) * 2 + 1; 
@@ -481,18 +457,17 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             parts.forEach(p => {
                 p.position.add(p.userData.velocity);
                 p.rotation.x += 0.1; p.rotation.y += 0.1;
-                p.userData.velocity.multiplyScalar(0.94); // Freinage
+                p.userData.velocity.multiplyScalar(0.94);
             });
         }
         
         else if (state === 'reassembling') {
             let done = true;
             parts.forEach(p => {
-                p.position.lerp(p.userData.origPos, 0.08); // Retour rapide
+                p.position.lerp(p.userData.origPos, 0.08); 
                 p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.15;
                 p.rotation.y += (p.userData.origRot.y - p.rotation.y) * 0.15;
                 p.rotation.z += (p.userData.origRot.z - p.rotation.z) * 0.15;
-                
                 if (p.position.distanceTo(p.userData.origPos) > 0.01) done = false;
             });
             if (done) {
@@ -507,10 +482,8 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             const headPos = robotGroup.position.clone();
             headPos.y += 1.6; 
             headPos.project(cameraBot);
-            
             const x = (headPos.x * .5 + .5) * width;
             const y = (headPos.y * -.5 + .5) * height;
-            
             bubbleEl.style.left = (x - bubbleEl.offsetWidth/2) + 'px';
             bubbleEl.style.top = (y - bubbleEl.offsetHeight - 20) + 'px';
         }
