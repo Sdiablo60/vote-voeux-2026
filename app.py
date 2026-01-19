@@ -1168,80 +1168,192 @@ else:
             </style>""", height=1000, scrolling=False)
 
         elif cfg["session_ouverte"]:
-             # === VOTES OUVERTS (LAYOUT FINAL : LOGO XXL, BANDEAU NOIR, TEXTE EXTERNE) ===
-             host = st.context.headers.get('host', 'localhost')
-             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
-             qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
-             
-             # 1. LOGO GROSSIT (380px)
-             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:380px; margin-bottom: 30px;">' if cfg.get("logo_b64") else ""
-             
-             recent_votes = load_json(DETAILED_VOTES_FILE, [])
-             voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
-             voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
-             
-             cands = cfg["candidats"]; mid = (len(cands) + 1) // 2
-             left_cands = cands[:mid]; right_cands = cands[mid:]
-             
-             def gen_html_list(clist, imgs):
-                 h = ""
-                 for c in clist:
-                     im = '<div style="font-size:35px;">👤</div>' 
-                     if c in imgs: im = f'<img src="data:image/png;base64,{imgs[c]}" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:3px solid white;">'
-                     h += f"""<div style="display:flex; align-items:center; background:rgba(255,255,255,0.15); padding:15px 25px; border-radius:50px; margin-bottom:25px; width:100%; max-width:450px; box-shadow:0 4px 10px rgba(0,0,0,0.3);">
-                                {im}<span style="margin-left:20px; font-size:22px; font-weight:bold; color:white; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{c}</span>
-                            </div>"""
-                 return h
-                 
-             left_html = gen_html_list(left_cands, cfg.get("candidats_images", {}))
-             right_html = gen_html_list(right_cands, cfg.get("candidats_images", {}))
-
-             components.html(f"""
-             <style>
-                body {{ background: black; margin: 0; padding: 0; font-family: 'Arial', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }}
-                .header-spacer {{ width: 100%; height: 8vh; }}
-                .top-section {{ display: flex; flex-direction: column; align-items: center; width: 100%; flex: 0 0 auto; padding-top: 0; }}
-                
-                /* 2. BANDEAU DEFILANT : FOND NOIR + DESCENDU */
-                .marquee-container {{ 
-                    width: 100%; background: black; color: white; height: 50px; 
-                    display: flex; align-items: center; border-top: 1px solid #333;
-                    border-bottom: 4px solid #E2001A; margin-top: 25px; 
-                }}
-                .marquee-label {{ background: #E2001A; color: white; height: 100%; padding: 0 25px; display: flex; align-items: center; font-weight: 900; z-index: 2; font-size: 18px; }}
-                .marquee-content {{ display: inline-block; padding-left: 100%; animation: marquee 25s linear infinite; font-weight: bold; font-size: 20px; text-transform: uppercase; white-space: nowrap; }}
-                @keyframes marquee {{ 0% {{ transform: translate(0, 0); }} 100% {{ transform: translate(-100%, 0); }} }}
-                
-                .main-content {{ flex: 1; display: flex; align-items: center; justify-content: center; width: 100%; padding-bottom: 2vh; }}
-                .content-grid {{ display: flex; justify-content: center; align-items: center; width: 98%; gap: 20px; height: 100%; }}
-                .col-cands {{ width: 30%; display: flex; flex-direction: column; justify-content: center; height: 100%; }}
-                .col-qr {{ width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
-                .qr-box {{ background: white; padding: 15px; border-radius: 20px; box-shadow: 0 0 60px rgba(226, 0, 26, 0.6); animation: pulse 3s infinite; text-align: center; margin-bottom: 20px; }}
-                .qr-text-big {{ color: white; font-weight: 900; font-size: 32px; text-transform: uppercase; text-align: center; text-shadow: 0 0 20px #E2001A; letter-spacing: 2px; }}
-                @keyframes pulse {{ 0% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} 50% {{ box-shadow: 0 0 90px rgba(226, 0, 26, 0.9); }} 100% {{ box-shadow: 0 0 40px rgba(226, 0, 26, 0.6); }} }}
-             </style>
-             
-             <div class="header-spacer"></div>
-             
-             <div class="top-section">
-                <div class="marquee-container">
-                    <div class="marquee-label">DERNIERS VOTES :</div>
-                    <div style="overflow:hidden; flex:1;"><div class="marquee-content">{voter_string}</div></div>
-                </div>
-             </div>
-             
-             <div class="main-content">
-                <div class="content-grid">
-                    <div class="col-cands" style="align-items: flex-end;">{left_html}</div>
-                    <div class="col-qr">
-                        {logo_html}
-                        <div class="qr-box"><img src="data:image/png;base64,{qr_b64}" width="280"></div>
-                        <div class="qr-text-big">SCANNEZ POUR VOTER</div>
+            # === VOTES OUVERTS (LAYOUT IDENTIQUE CAPTURE : 3 COLONNES + INSTRUCTIONS) ===
+            host = st.context.headers.get('host', 'localhost')
+            qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
+            qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
+            
+            # 1. LOGO (Transdev)
+            logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" class="logo-img">' if cfg.get("logo_b64") else ""
+            
+            # 2. MARQUEE (Derniers votes)
+            recent_votes = load_json(DETAILED_VOTES_FILE, [])
+            voter_names = [v['Utilisateur'] for v in recent_votes[-20:]][::-1]
+            voter_string = " &nbsp;&nbsp;•&nbsp;&nbsp; ".join(voter_names) if voter_names else "En attente des premiers votes..."
+            
+            # 3. LISTES CANDIDATS (GAUCHE / DROITE)
+            cands = cfg["candidats"]
+            mid = (len(cands) + 1) // 2
+            left_cands = cands[:mid]
+            right_cands = cands[mid:]
+            
+            def gen_pill_html(clist, imgs):
+                h = ""
+                for c in clist:
+                    # Avatar par défaut ou Image Custom
+                    im_html = '<div class="default-avatar">👤</div>' 
+                    if c in imgs: 
+                        im_html = f'<img src="data:image/png;base64,{imgs[c]}" class="custom-avatar">'
+                    
+                    h += f"""
+                    <div class="cand-pill">
+                        <div class="pill-icon">{im_html}</div>
+                        <div class="pill-name">{c}</div>
                     </div>
-                    <div class="col-cands" style="align-items: flex-start;">{right_html}</div>
+                    """
+                return h
+                
+            left_html = gen_pill_html(left_cands, cfg.get("candidats_images", {}))
+            right_html = gen_pill_html(right_cands, cfg.get("candidats_images", {}))
+
+            # 4. RENDU HTML/CSS COMPLET
+            components.html(f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap');
+                
+                body {{ 
+                    background-color: black; margin: 0; padding: 0; 
+                    font-family: 'Roboto', sans-serif; overflow: hidden; height: 100vh;
+                    display: flex; flex-direction: column;
+                }}
+
+                /* --- HEADER ROUGE --- */
+                .header-top {{
+                    background-color: #E2001A;
+                    height: 8vh; width: 100%;
+                    display: flex; align-items: center; justify-content: center;
+                    border-bottom: 3px solid white;
+                    z-index: 10;
+                }}
+                .header-title {{
+                    color: white; font-weight: 900; font-size: 3vh; text-transform: uppercase; letter-spacing: 1px;
+                }}
+
+                /* --- MARQUEE ROUGE FONCÉ --- */
+                .marquee-bar {{
+                    background-color: #C20015; /* Rouge légèrement plus sombre */
+                    height: 5vh; width: 100%;
+                    display: flex; align-items: center;
+                    color: white; font-weight: bold; font-size: 1.8vh;
+                    overflow: hidden;
+                    border-bottom: 1px solid #333;
+                }}
+                .marquee-label {{
+                    background: #90000e; padding: 0 20px; height: 100%; 
+                    display: flex; align-items: center; z-index: 2; white-space: nowrap;
+                }}
+                .marquee-text {{
+                    display: inline-block; padding-left: 100%; animation: scroll 20s linear infinite; white-space: nowrap;
+                }}
+                @keyframes scroll {{ 0% {{ transform: translateX(0); }} 100% {{ transform: translateX(-100%); }} }}
+
+                /* --- CONTENU PRINCIPAL (GRID 3 COLONNES) --- */
+                .main-container {{
+                    flex: 1; display: flex; width: 100%; height: 87vh;
+                    align-items: center; justify-content: center;
+                    padding-top: 2vh; box-sizing: border-box;
+                }}
+                .col-side {{ width: 25%; display: flex; flex-direction: column; justify-content: center; padding: 0 2vw; }}
+                .col-center {{ width: 40%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
+
+                /* --- ELEMENTS CENTRAUX --- */
+                .logo-img {{ height: 8vh; margin-bottom: 1vh; }}
+                .main-title {{ 
+                    color: #E2001A; font-size: 6vh; font-weight: 900; margin: 0; 
+                    text-transform: uppercase; text-shadow: 0 0 20px rgba(226,0,26,0.5);
+                }}
+                .sub-title {{ color: white; font-size: 2.5vh; margin: 0 0 2vh 0; font-weight: normal; }}
+                
+                .info-box {{
+                    background-color: #1a1a1a; border: 1px solid #333;
+                    border-radius: 15px; padding: 1.5vh 2vw;
+                    text-align: center; color: #ccc; font-size: 1.8vh;
+                    margin-bottom: 3vh; width: 80%;
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+                }}
+                .info-highlight {{ color: white; font-weight: bold; margin-bottom: 5px; display: block; }}
+                .warning-text {{ color: #ff4444; font-weight: bold; font-size: 1.6vh; margin-top: 5px; display: block; }}
+                
+                .qr-container {{
+                    background: white; padding: 15px; border-radius: 20px;
+                    box-shadow: 0 0 50px rgba(255,255,255,0.1);
+                    animation: pulse-qr 3s infinite alternate;
+                }}
+                .qr-img {{ width: 22vh; height: 22vh; display: block; }}
+
+                @keyframes pulse-qr {{ from {{ box-shadow: 0 0 20px rgba(255,255,255,0.1); }} to {{ box-shadow: 0 0 40px rgba(255,255,255,0.3); }} }}
+
+                /* --- PILLS CANDIDATS --- */
+                .cand-pill {{
+                    background: #1e1e1e; /* Gris foncé comme sur l'image */
+                    border-radius: 50px;
+                    padding: 1vh 1vw; margin-bottom: 1.5vh;
+                    display: flex; align-items: center;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+                    border: 1px solid #2a2a2a;
+                    transition: transform 0.2s;
+                }}
+                .cand-pill:hover {{ transform: scale(1.02); border-color: #E2001A; }}
+                
+                .pill-icon {{
+                    width: 5vh; height: 5vh; border-radius: 50%; background: #2c2c2c;
+                    display: flex; align-items: center; justify-content: center;
+                    margin-right: 15px; overflow: hidden; flex-shrink: 0;
+                }}
+                .default-avatar {{ font-size: 3vh; }}
+                .custom-avatar {{ width: 100%; height: 100%; object-fit: cover; }}
+                
+                .pill-name {{
+                    color: white; font-weight: bold; font-size: 2vh; text-transform: uppercase;
+                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+                }}
+
+            </style>
+            </head>
+            <body>
+                <div class="header-top">
+                    <div class="header-title">{cfg['titre_mur']}</div>
                 </div>
-             </div>""", height=950)
-             
+
+                <div class="marquee-bar">
+                    <div class="marquee-label">DERNIERS VOTES :</div>
+                    <div style="flex:1; overflow:hidden; position:relative; height:100%;">
+                        <div class="marquee-text">{voter_string}</div>
+                    </div>
+                </div>
+
+                <div class="main-container">
+                    <div class="col-side" style="align-items: flex-end;">
+                        {left_html}
+                    </div>
+
+                    <div class="col-center">
+                        {logo_html}
+                        <h1 class="main-title">VOTES OUVERTS</h1>
+                        <h3 class="sub-title">Scannez pour voter</h3>
+                        
+                        <div class="info-box">
+                            <span class="info-highlight">3 choix par préférence :</span>
+                            🥇 1er (5 pts) &nbsp;|&nbsp; 🥈 2ème (3 pts) &nbsp;|&nbsp; 🥉 3ème (1 pt)
+                            <span class="warning-text">🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</span>
+                        </div>
+
+                        <div class="qr-container">
+                            <img src="data:image/png;base64,{qr_b64}" class="qr-img">
+                        </div>
+                    </div>
+
+                    <div class="col-side" style="align-items: flex-start;">
+                        {right_html}
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, height=980, scrolling=False)
+            
         else:
             # VOTE FERMÉ (Attente)
             logo_html = f'<img src="data:image/png;base64,{cfg["logo_b64"]}" style="width:350px; margin-bottom:10px;">' if cfg.get("logo_b64") else ""
@@ -1280,7 +1392,3 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-
-
-
-
