@@ -604,37 +604,251 @@ if est_admin:
                         if nu and np: users_db[nu] = {"pwd": np, "role": "Régie", "perms": []}; save_json(USERS_FILE, users_db); st.success("OK"); st.rerun()
 
 # =========================================================
-# 2. APPLICATION MOBILE
+# 2. APPLICATION MOBILE (Vote)
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("<style>.stApp {background:black;color:white;} header{display:none;} button{width:100%;}</style>", unsafe_allow_html=True)
+    
+    # --- CSS SPÉCIFIQUE MOBILE CORRIGÉ ---
+    st.markdown("""
+    <style>
+        /* 1. Fond général NOIR */
+        .stApp {
+            background-color: black !important; 
+            color: white !important;
+        }
+        
+        /* Cache le header/footer */
+        [data-testid='stHeader'], footer { display: none !important; }
+        .block-container { padding: 1rem !important; }
+        
+        /* Textes généraux en BLANC */
+        h1, h2, h3, p, label, span, div.stMarkdown { color: white !important; }
+
+        /* 2. CHAMP DE SAISIE (PSEUDO) : FOND BLANC / TEXTE NOIR */
+        div[data-testid="stTextInput"] input {
+            background-color: white !important;
+            color: black !important;
+            border-radius: 5px;
+            border: 2px solid #ccc;
+        }
+        div[data-testid="stTextInput"] label {
+            font-size: 18px !important;
+            font-weight: bold !important;
+            margin-bottom: 5px;
+        }
+
+        /* 3. BOUTONS (VALIDATION) : FOND ROUGE / TEXTE BLANC */
+        button[kind="primary"], button[kind="secondary"], div.stButton > button {
+            background-color: #E2001A !important;
+            color: white !important;
+            border: 1px solid #E2001A !important;
+            font-weight: bold !important;
+            font-size: 18px !important;
+            padding: 0.5rem 1rem !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease;
+        }
+        /* Survol et Focus */
+        button:hover, button:focus, button:active {
+            background-color: #C20015 !important;
+            color: white !important;
+            border-color: white !important;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        /* Force la couleur du texte à l'intérieur du bouton */
+        button p, button div { color: white !important; }
+
+        /* 4. MENUS DÉROULANTS (MULTISELECT) : LISTE BLANCHE / TEXTE NOIR */
+        
+        /* La boite de sélection principale */
+        div[data-baseweb="select"] > div {
+            background-color: white !important;
+            color: black !important;
+            border-radius: 5px;
+        }
+        
+        /* Les "Pills" (choix sélectionnés) */
+        span[data-baseweb="tag"] {
+             background-color: #333 !important; /* Gris foncé */
+             color: white !important;
+        }
+        span[data-baseweb="tag"] span { color: white !important; }
+
+        /* Le menu déroulant (Options) */
+        div[data-baseweb="popover"], ul[role="listbox"], div[data-baseweb="menu"] {
+            background-color: white !important;
+        }
+        
+        /* Les options individuelles */
+        li[role="option"] {
+            background-color: white !important;
+            color: black !important;
+            border-bottom: 1px solid #eee;
+        }
+        /* Texte des options */
+        li[role="option"] div, li[role="option"] span {
+            color: black !important;
+        }
+        
+        /* Survol des options */
+        li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+            background-color: #f0f0f0 !important;
+            font-weight: bold;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    curr_sess = cfg.get("session_id", "init")
+    if "vote_success" not in st.session_state: st.session_state.vote_success = False
+    if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
+    if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
+    
+    # Gestion du pseudo "Anonyme"
     if cfg["mode_affichage"] == "photos_live":
         if "user_pseudo" not in st.session_state: st.session_state.user_pseudo = "Anonyme"
-        st.info("📸 MUR PHOTOS"); up = st.file_uploader("Galerie", type=['jpg','png']); cam = st.camera_input("Camera")
-        fin = up if up else cam
-        if fin:
-            with open(os.path.join(LIVE_DIR, f"live_{uuid.uuid4().hex}.jpg"), "wb") as f: f.write(fin.getbuffer())
-            st.success("Envoyé !"); time.sleep(1); st.rerun()
-    elif cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin):
-        if st.session_state.get("vote_success"):
-            st.balloons(); st.success("VOTE ENREGISTRÉ !"); st.stop()
-        if "user_pseudo" not in st.session_state:
-            pseudo = st.text_input("Votre Prénom")
-            if st.button("Entrer") and pseudo:
-                st.session_state.user_pseudo = pseudo
-                p = load_json(PARTICIPANTS_FILE, []); p.append(pseudo); save_json(PARTICIPANTS_FILE, p); st.rerun()
+    elif cfg["mode_affichage"] == "votes":
+        # Si on passe en mode vote alors qu'on était en anonyme (photos), on force la re-saisie
+        if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": 
+            del st.session_state["user_pseudo"]
+            st.rerun()
+
+    # Script LocalStorage (Anti-Double Vote)
+    if cfg["mode_affichage"] != "photos_live":
+        if not is_test_admin:
+            components.html(f"""<script>
+                var sS = "{curr_sess}";
+                var lS = localStorage.getItem('VOTE_SID_2026');
+                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
+                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
+            </script>""", height=0)
         else:
-            choix = st.multiselect("3 Choix", cfg["candidats"], max_selections=3)
-            if len(choix)==3 and st.button("Valider"):
-                v = load_json(VOTES_FILE, {})
-                for c, p in zip(choix, [5,3,1]): v[c] = v.get(c, 0) + p
-                save_json(VOTES_FILE, v)
-                d = load_json(DETAILED_VOTES_FILE, [])
-                d.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1": choix[0], "Choix 2": choix[1], "Choix 3": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
-                save_json(DETAILED_VOTES_FILE, d)
-                st.session_state.vote_success = True; st.rerun()
-    else: st.info("En attente...")
+            st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
+        
+    # --- ECRAN DE LOGIN / SAISIE PSEUDO ---
+    if "user_pseudo" not in st.session_state:
+        st.subheader("Identification")
+        if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
+        
+        # INPUT PSEUDO (Devrait être Blanc maintenant grâce au CSS)
+        pseudo = st.text_input("Veuillez entrer votre Prénom :", placeholder="Ex: Thomas")
+        
+        if st.button("ENTRER", type="primary", use_container_width=True):
+            if pseudo:
+                st.session_state.user_pseudo = pseudo.strip()
+                # Enregistrement participant
+                parts = load_json(PARTICIPANTS_FILE, [])
+                if pseudo.strip() not in parts: # Evite doublons exacts dans la liste simple
+                    parts.append(pseudo.strip())
+                    save_json(PARTICIPANTS_FILE, parts)
+                st.rerun()
+            else:
+                st.warning("Merci d'écrire votre prénom.")
+
+    else:
+        # --- ECRAN PRINCIPAL UTILISATEUR ---
+        
+        # 1. MODE PHOTO
+        if cfg["mode_affichage"] == "photos_live":
+            st.info("📸 ENVOYER UNE PHOTO")
+            up_key = f"uploader_{st.session_state.cam_reset_id}"
+            cam_key = f"camera_{st.session_state.cam_reset_id}"
+            
+            uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
+            cam_file = st.camera_input("Prendre une photo", key=cam_key)
+            
+            final_file = uploaded_file if uploaded_file else cam_file
+            
+            if final_file:
+                fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
+                try:
+                    with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
+                    st.success("Photo envoyée sur le mur ! 🚀")
+                    st.session_state.cam_reset_id += 1 # Reset les widgets
+                    time.sleep(1.5)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erreur envoi: {e}")
+
+        # 2. MODE VOTE
+        elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
+            # Ecran de succès après vote
+            if st.session_state.vote_success:
+                 st.balloons()
+                 st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
+                 
+                 # Blocage localstorage (Sauf si test admin)
+                 if not is_test_admin: 
+                     components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                 else: 
+                     st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
+                 st.stop()
+            
+            # Ecran de vote
+            st.write(f"Bonjour **{st.session_state.user_pseudo}**")
+            
+            if not st.session_state.rules_accepted:
+                st.info("⚠️ **RÈGLES DU VOTE**")
+                st.markdown("""
+                **VOTE PAR PRÉFÉRENCE (3 CHOIX)**
+                
+                <span style='color:#ff4b4b; font-weight:bold;'>🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</span>
+                
+                1. Sélectionnez **3 vidéos**.
+                2. 🥇 1er = **5 pts**
+                3. 🥈 2ème = **3 pts**
+                4. 🥉 3ème = **1 pt**
+                
+                **Vote unique et définitif.**
+                """, unsafe_allow_html=True)
+                
+                if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): 
+                    st.session_state.rules_accepted = True
+                    st.rerun()
+            else:
+                st.warning("⚠️ RAPPEL : Vote UNIQUE.")
+                # Multiselect (CSS corrigé plus haut pour fond blanc)
+                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+                
+                if len(choix) == 3:
+                    st.write("---")
+                    st.write(f"🥇 **{choix[0]}** (5 pts)")
+                    st.write(f"🥈 **{choix[1]}** (3 pts)")
+                    st.write(f"🥉 **{choix[2]}** (1 pt)")
+                    st.write("---")
+                    
+                    if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
+                        # Enregistrement
+                        vts = load_json(VOTES_FILE, {})
+                        pts = cfg.get("points_ponderation", [5, 3, 1])
+                        
+                        for v, p in zip(choix, pts): 
+                            vts[v] = vts.get(v, 0) + p
+                        save_json(VOTES_FILE, vts)
+                        
+                        # Détails
+                        details = load_json(DETAILED_VOTES_FILE, [])
+                        details.append({
+                            "Utilisateur": st.session_state.user_pseudo, 
+                            "Choix 1": choix[0], 
+                            "Choix 2": choix[1], 
+                            "Choix 3": choix[2], 
+                            "Date": datetime.now().strftime("%H:%M:%S")
+                        })
+                        save_json(DETAILED_VOTES_FILE, details)
+                        
+                        st.session_state.vote_success = True
+                        st.rerun()
+        
+        elif is_test_admin and cfg["mode_affichage"] == "votes":
+             st.subheader("🛠️ MODE TEST ADMIN")
+             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+             if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
+                 st.success("Test OK")
+                 time.sleep(1)
+                 st.rerun()
+        else:
+            st.info("⏳ En attente de l'ouverture des votes...")
 # =========================================================
 # 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
 # =========================================================
@@ -1197,4 +1411,5 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
 
