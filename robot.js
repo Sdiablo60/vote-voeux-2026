@@ -31,14 +31,22 @@ const CENTRAL_MESSAGES = [
 
 // --- SÉQUENCE : ACCUEIL ---
 const SEQ_ACCUEIL = [
-    "Bonsoir à toutes et à tous ! Je suis Clap-E, votre assistant virtuel.",
+    "Bonsoir à toutes et à tous ! Je suis Clap-E, votre animateur virtuel pour cette soirée de gala.",
     "Quel plaisir de voir autant de monde réuni. Vous êtes tous très élégants ce soir !",
-    "C'est un honneur d'apparaître sur cet écran. Mon processeur est ravi !",
-    "Je ne serai pas seul : un animateur humain sera présent pour vous guider.",
-    "Nous formerons un duo de choc : lui sur scène pour l'humain, et moi ici pour le digital !",
-    "Voici le programme : Accueil, Votes, Analyse des scores, Podium... et Photos Live !",
-    "Tout va se passer ici. Mais pour l'instant, installez-vous et profitez de l'ambiance.",
+    "C'est un honneur d'être votre maître de cérémonie digital. Mon processeur est ravi !",
+    "Nous allons passer un moment inoubliable ensemble, rythmé par la technologie et la convivialité.",
+    "Laissez-moi vous présenter le déroulement des festivités... Écoutez bien !",
+    "Tout d'abord, profitez de ce moment d'accueil pour échanger, boire un verre et vous détendre.",
+    "Dans quelques instants, nous ouvrirons officiellement la session de **VOTE**.",
+    "Vous découvrirez les candidats et vous pourrez élire vos favoris directement depuis vos smartphones.",
+    "Une fois les votes clos, mon algorithme analysera les résultats en temps réel. Précision garantie !",
+    "Ensuite viendra le moment tant attendu : la révélation du **PODIUM** et le sacre des gagnants.",
+    "Mais ce n'est pas tout ! Nous ouvrirons également le **Mur Photos Live**.",
+    "Vous pourrez scanner un QR Code et projeter vos selfies instantanément sur cet écran géant.",
+    "Alors gardez vos téléphones à portée de main, mais n'oubliez pas de couper la sonnerie !",
+    "Pour l'instant, je vous laisse profiter de l'ambiance et de la musique.",
     "Je reste ici pour veiller sur vous. Excellente soirée à toutes et à tous !"
+];
 ];
 
 // --- SÉQUENCE : VOTE OFF ---
