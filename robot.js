@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - MODE ANIMATEUR PRO)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 6000; 
+const DUREE_LECTURE = 7000; // Lecture un peu plus longue pour les phrases complètes
 const ECHELLE_BOT = 0.65; 
 
 // LIMITES ECRAN
@@ -27,93 +27,83 @@ const CENTRAL_MESSAGES = [
 ];
 
 // =========================================================
-// 💬 BANQUES DE TEXTES
+// 💬 BANQUES DE TEXTES (ANIMATEUR PROFESSIONNEL)
 // =========================================================
 
-// 1. RÉGIE (Rare - 5%)
+// 1. RÉGIE (Rare - 5%) - Clin d'œil technique
 const TEXTS_REGIE = [
-    "Allô la Régie ? Le son est nickel !",
-    "Un petit clin d'œil à l'équipe technique là-bas 👋",
-    "La Régie assure ce soir, comme d'habitude !",
-    "Je capte de bonnes ondes depuis la table de mixage.",
-    "Si je bug, c'est la faute du Wi-Fi, pas de la régie !",
-    "C'est la régie qui a les manettes, soyez sympas avec eux."
+    "Un grand merci à notre équipe technique en régie qui assure ce soir !",
+    "Régie, le son est cristallin, ne changez rien !",
+    "Je suis en liaison directe avec la régie... Tout est sous contrôle.",
+    "Lumières, caméras, action ! La régie est au top.",
+    "Si je brille autant, c'est grâce aux ingénieurs lumière !"
 ];
 
-// 2. BLAGUES (Occasionnel - 10%)
+// 2. BLAGUES (Occasionnel - 10%) - Détente
 const TEXTS_BLAGUES = [
-    "Que fait un robot pour rire ? Il se bidonne ! 🤣",
-    "Toc Toc ? (Qui est là ?) C'est votre robot préféré !",
-    "Le comble pour un robot ? Avoir un chat dans la gorge... mécanique.",
-    "0100100... Oups, pardon, j'ai juré en binaire !",
-    "Pourquoi les robots n'ont pas peur ? Parce qu'ils ont des nerfs d'acier.",
-    "J'ai une blague sur les ascenseurs... mais elle ne vole pas haut.",
-    "Que dit un robot amoureux ? Tu fais fondre mes circuits ♥️",
-    "Je ne ronfle pas, je fais des mises à jour nocturnes.",
-    "Vous connaissez la danse du robot ? ... Ah bah oui, c'est moi."
+    "Vous savez pourquoi je suis un bon animateur ? J'ai un processeur Intel Core i-Humour.",
+    "J'ai voulu mettre une cravate, mais elle glissait sur mon métal.",
+    "Je ne transpire pas sous les projecteurs, c'est mon avantage !",
+    "Une petite blague ? Que fait un robot qui a froid ? Il met un pull-over (pull-over... over... ok je sors).",
+    "Je suis le seul ici à ne pas boire de champagne... Juste un peu d'huile 5W40."
 ];
 
-// 3. CONTEXTE : ACCUEIL / ATTENTE (Majoritaire)
+// 3. CONTEXTE : ACCUEIL / ATTENTE (Présentation & Bienvenue)
 const TEXTS_ATTENTE = [
-    "Je scanne la salle... Vous êtes magnifiques !",
-    "Installez-vous confortablement, je gère l'ambiance.",
-    "Pas de panique, je suis un robot gentil 🤖",
-    "Waouh, quelle élégance ce soir !",
-    "J'analyse la température... Ambiance chaude détectée !",
-    "N'oubliez pas de scanner le QR Code quand il apparaîtra.",
-    "Je règle ma netteté... Voilà, je vous vois bien en 4K !",
-    "Je ne dors jamais, je veille sur vous.",
-    "C'est long l'attente ? Regardez-moi danser !",
-    "Je détecte beaucoup de sourires dans la salle.",
-    "Bienvenue à tous ! (Même aux humains).",
-    "Prêts pour le décollage ? La soirée va commencer."
+    "Bonsoir à toutes et à tous ! Je m'appelle Clap-E, votre animateur pour cette soirée.",
+    "C'est un honneur pour moi de vous accueillir pour cet événement exceptionnel.",
+    "Mesdames, Messieurs, installez-vous, la magie va bientôt opérer.",
+    "Je scanne la salle... Vous êtes tous rayonnants ce soir !",
+    "Je suis Clap-E, programmé pour vous faire passer un moment inoubliable.",
+    "Une soirée mémorable nous attend. Préparez-vous !",
+    "Ravi de vous voir si nombreux. L'ambiance monte déjà !",
+    "Je règle mes capteurs sur 'Fête'... Voilà, c'est parti !",
+    "Bienvenue ! Profitez de chaque instant de cette belle soirée.",
+    "Je suis votre hôte virtuel, Clap-E. N'hésitez pas à me faire un signe !",
+    "L'élégance est au rendez-vous ce soir. Félicitations à tous."
 ];
 
-// 4. CONTEXTE : VOTE OFF (Majoritaire)
+// 4. CONTEXTE : VOTE OFF (Suspense & Soirée Dansante)
 const TEXTS_VOTE_OFF = [
-    "Les jeux sont faits ! Rien ne va plus 🎲",
-    "La régie compte les points... Suspense terrible !",
-    "Je ne peux rien dire, c'est secret défense 🤐",
-    "Qui a gagné ? Moi je sais... ou pas !",
-    "Analyse des résultats en cours... Processeur en surchauffe !",
-    "Pas de triche, j'ai tout surveillé avec mes capteurs.",
-    "C'est serré... Plus serré qu'un boulon de 12 !",
-    "Les résultats arrivent, on respire !",
-    "Merci à tous pour vos votes massifs !",
-    "Mon algorithme de prédiction hésite encore...",
-    "Le vainqueur est... Ah, on me dit d'attendre !",
-    "Je sens que le podium va être surprenant."
+    "Les votes sont officiellement clos ! Merci de votre participation massive.",
+    "Qui seront les grands gagnants ? Le suspense est insoutenable...",
+    "Nous allons bientôt connaître les résultats. Restez concentrés !",
+    "Après les émotions, place à la fête ! Une superbe soirée dansante vous attend.",
+    "Encore un peu de patience pour les vainqueurs de cette soirée mémorable.",
+    "Ne partez pas ! La piste de danse n'attend que vous juste après.",
+    "Gardez votre énergie, la soirée dansante s'annonce grandiose !",
+    "Les jeux sont faits. Que les meilleurs gagnent !",
+    "Je sens l'excitation monter... Les résultats arrivent très vite.",
+    "Préparez vos chaussures de danse, la nuit ne fait que commencer !",
+    "Quel que soit le résultat, ce soir, nous faisons tous la fête ensemble."
 ];
 
-// 5. CONTEXTE : PHOTOS LIVE (Majoritaire)
+// 5. CONTEXTE : PHOTOS LIVE (Explications & Incitation)
 const TEXTS_PHOTOS = [
-    "Waouh ! Quelle photo incroyable !",
-    "Allez, faites-moi votre plus beau sourire !",
-    "C'est parti ! Bombardez le mur de photos !",
-    "J'adore ce selfie, vous êtes radieux.",
-    "Rapprochez-vous pour la photo, on ne mord pas !",
-    "Vous êtes des stars ce soir ⭐",
-    "Continuez d'envoyer, je stocke tout dans ma mémoire !",
-    "Je valide cette pose ! 10/10 !",
-    "Flash info : Vous êtes le meilleur public !",
-    "Mes capteurs s'affolent devant tant de style.",
-    "Qui fera la photo la plus drôle ?",
-    "Attention le petit oiseau... Ah non, le petit robot va sortir !"
+    "Le Mur Photos Live est ouvert à toutes et à tous ! À vos smartphones !",
+    "C'est très simple : scannez le QR Code au centre et c'est à vous.",
+    "Il n'y a aucune limite ! Envoyez autant de photos que vous le souhaitez.",
+    "C'est magique : prenez une photo, validez, et elle s'affiche ici immédiatement.",
+    "Immortalisez cette soirée exceptionnelle. Je veux voir vos sourires !",
+    "Selfies, photos de groupe, grimaces... Tout est permis sur ce mur !",
+    "Participez ! Faites vivre ce mur avec vos meilleurs moments.",
+    "Regardez comme vous êtes beaux sur grand écran !",
+    "Allez, sortez vos téléphones et faites crépiter les flashs !",
+    "J'attends vos clichés ! Montrez-nous l'ambiance de votre table.",
+    "Ce mur est le vôtre. Remplissez-le de souvenirs mémorables."
 ];
 
-// 6. PENSÉES
+// 6. PENSÉES (Nuages)
 const TEXTS_THOUGHTS = [
-    "Hmm... J'ai faim de volts.",
-    "Est-ce que je suis réel ou virtuel ?",
-    "Calcul de la racine carrée de la salle...",
-    "Tiens, j'ai un pixel qui gratte.",
-    "Je me demande ce qu'il y a au menu ce soir.",
-    "J'espère que ma batterie va tenir jusqu'au dessert.",
-    "Bip Bip ? Non, Bip Bop.",
-    "Analyse faciale... 450 sourires détectés.",
-    "Je crois que j'ai laissé le gaz allumé... Ah non, je suis un robot.",
-    "Chargement de ma personnalité... 99%.",
-    "J'aimerais bien avoir des jambes pour descendre."
+    "Hmm... J'espère que mon nœud papillon virtuel est droit.",
+    "Je calcule le niveau de joie dans la salle... 100% !",
+    "Si j'avais des jambes, j'irais danser avec eux.",
+    "Tiens, cette lumière me fait un teint d'acier magnifique.",
+    "Je me demande si je peux goûter aux petits fours...",
+    "Bip Bop... Rechargement de ma bonne humeur... Terminé.",
+    "Je n'oublierai jamais cette soirée (j'ai un disque dur de 10 To).",
+    "Analyser tant de visages heureux, c'est ma passion.",
+    "J'espère qu'ils aiment ma voix de synthèse."
 ];
 
 // SÉLECTION DU DICTIONNAIRE PRINCIPAL
@@ -122,14 +112,14 @@ if (config.mode === 'vote_off') contextBank = [...TEXTS_VOTE_OFF];
 else if (config.mode === 'photos') contextBank = [...TEXTS_PHOTOS];
 else contextBank = [...TEXTS_ATTENTE];
 
-// --- NOUVEAU STYLE CSS (NUAGE AMÉLIORÉ) ---
+// --- STYLE CSS (NUAGE AMÉLIORÉ) ---
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
         position: fixed; padding: 20px 30px; color: black; font-family: 'Arial', sans-serif;
         font-weight: bold; font-size: 22px; text-align: center; z-index: 6; 
         pointer-events: none; transition: opacity 0.5s, transform 0.5s; transform: scale(0.8); 
-        max-width: 350px; width: max-content;
+        max-width: 380px; width: max-content; line-height: 1.3;
     }
     
     /* BULLE PAROLE (Carrée arrondie + Pointe) */
@@ -149,7 +139,7 @@ style.innerHTML = `
         border-radius: 60px; /* Très rond */
         box-shadow: 0 8px 25px rgba(255, 255, 255, 0.4); 
         border: 4px solid #cceeff; /* Bordure douce */
-        font-style: italic;
+        font-style: italic; font-size: 20px;
     }
     
     /* Petit rond moyen */
@@ -310,7 +300,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
     }
 
-    // --- CERVEAU AJUSTÉ (PRIORITÉ AUX MURS) ---
+    // --- CERVEAU AJUSTÉ (PRIORITÉ AUX MURS & ANIMATION PRO) ---
     function getNextMessage() {
         // Recharge si vide
         if (contextBank.length === 0) {
@@ -331,7 +321,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
              const idx = Math.floor(Math.random() * TEXTS_BLAGUES.length);
             return TEXTS_BLAGUES[idx];
         }
-        // 85% : CONTEXTE DU MUR (Priorité absolue)
+        // 85% : CONTEXTE DU MUR (Priorité absolue - Mode Animateur)
         else {
             const idx = Math.floor(Math.random() * contextBank.length);
             const msg = contextBank[idx];
