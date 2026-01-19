@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - INTRO SCÉNARISÉE)
+// 🟢 CONFIGURATION ROBOT 2026 (PRESENTATION 10 MIN)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -26,9 +26,8 @@ const CENTRAL_MESSAGES = [
 ];
 
 // =========================================================
-// 📜 SÉQUENCE D'INTRODUCTION (PRIORITAIRE SUR ACCUEIL)
+// 📜 SÉQUENCE D'INTRODUCTION (PRIORITAIRE & VERROUILLÉE)
 // =========================================================
-// Ces phrases seront dites DANS L'ORDRE au tout début.
 const STARTUP_SEQUENCE = [
     "Bonsoir à toutes et à tous ! Je suis Clap-E, votre animateur virtuel.",
     "C'est un honneur d'animer cette soirée d'exception. Je serai votre guide !",
@@ -37,7 +36,9 @@ const STARTUP_SEQUENCE = [
 ];
 
 let startupQueue = []; 
-// On ne remplit la file d'attente que si on est en mode "attente"
+let lastPresentationTime = 0; // Pour relancer la présentation plus tard
+
+// On charge la file uniquement en mode accueil
 if (config.mode === 'attente') {
     startupQueue = [...STARTUP_SEQUENCE];
 }
@@ -46,7 +47,6 @@ if (config.mode === 'attente') {
 // 💬 BANQUES DE TEXTES (ALEATOIRE)
 // =========================================================
 
-// 1. RÉGIE (Rare - 5%)
 const TEXTS_REGIE = [
     "Un grand merci à notre équipe technique en régie qui assure ce soir !",
     "Régie, le son est cristallin, ne changez rien !",
@@ -55,7 +55,6 @@ const TEXTS_REGIE = [
     "Si je brille autant, c'est grâce aux ingénieurs lumière !"
 ];
 
-// 2. BLAGUES (Occasionnel - 10%)
 const TEXTS_BLAGUES = [
     "Vous savez pourquoi je suis un bon animateur ? J'ai un processeur Intel Core i-Humour.",
     "J'ai voulu mettre une cravate, mais elle glissait sur mon métal.",
@@ -64,7 +63,6 @@ const TEXTS_BLAGUES = [
     "Je suis le seul ici à ne pas boire de champagne... Juste un peu d'huile."
 ];
 
-// 3. CONTEXTE : ACCUEIL / ATTENTE (Une fois l'intro finie)
 const TEXTS_ATTENTE = [
     "Mesdames, Messieurs, la magie va bientôt opérer.",
     "Je scanne la salle... Vous êtes tous rayonnants ce soir !",
@@ -76,7 +74,6 @@ const TEXTS_ATTENTE = [
     "Je reste ici pour veiller au bon déroulement de la soirée."
 ];
 
-// 4. CONTEXTE : VOTE OFF
 const TEXTS_VOTE_OFF = [
     "Les votes sont officiellement clos ! Merci de votre participation.",
     "Qui seront les grands gagnants ? Le suspense est insoutenable...",
@@ -91,7 +88,6 @@ const TEXTS_VOTE_OFF = [
     "Quel que soit le résultat, ce soir, nous faisons tous la fête ensemble."
 ];
 
-// 5. CONTEXTE : PHOTOS LIVE
 const TEXTS_PHOTOS = [
     "Le Mur Photos Live est ouvert à toutes et à tous ! À vos smartphones !",
     "C'est très simple : scannez le QR Code au centre et c'est à vous.",
@@ -106,7 +102,6 @@ const TEXTS_PHOTOS = [
     "Ce mur est le vôtre. Remplissez-le de souvenirs mémorables."
 ];
 
-// 6. PENSÉES
 const TEXTS_THOUGHTS = [
     "Hmm... J'espère que mon nœud papillon virtuel est droit.",
     "Je calcule le niveau de joie dans la salle... 100% !",
@@ -119,7 +114,6 @@ const TEXTS_THOUGHTS = [
     "J'espère qu'ils aiment ma voix de synthèse."
 ];
 
-// SÉLECTION DU DICTIONNAIRE PRINCIPAL
 let contextBank = [];
 if (config.mode === 'vote_off') contextBank = [...TEXTS_VOTE_OFF];
 else if (config.mode === 'photos') contextBank = [...TEXTS_PHOTOS];
@@ -132,9 +126,8 @@ style.innerHTML = `
         position: fixed; padding: 20px 30px; color: black; font-family: 'Arial', sans-serif;
         font-weight: bold; font-size: 22px; text-align: center; z-index: 6; 
         pointer-events: none; transition: opacity 0.5s, transform 0.5s; transform: scale(0.8); 
-        max-width: 400px; width: max-content; line-height: 1.3;
+        max-width: 420px; width: max-content; line-height: 1.3;
     }
-    
     .bubble-speech { 
         background: white; border-radius: 30px; border: 4px solid #E2001A; 
         box-shadow: 0 10px 30px rgba(0,0,0,0.7); 
@@ -143,7 +136,6 @@ style.innerHTML = `
         content: ''; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); 
         border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid #E2001A; 
     }
-    
     .bubble-thought { 
         background: #f0f8ff; color: #444; border-radius: 60px; 
         box-shadow: 0 8px 25px rgba(255, 255, 255, 0.4); 
@@ -182,14 +174,12 @@ function launchFinalScene() {
 function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     
-    // SCENE SOL
     const sceneFloor = new THREE.Scene(); sceneFloor.fog = new THREE.Fog(0x000000, 10, 60);
     const cameraFloor = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); cameraFloor.position.set(0, 0, 12);
     const rendererFloor = new THREE.WebGLRenderer({ canvas: canvasFloor, antialias: true, alpha: true });
     rendererFloor.setSize(width, height); rendererFloor.setPixelRatio(window.devicePixelRatio);
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222); grid.position.y = -4.5; sceneFloor.add(grid);
 
-    // SCENE ROBOT
     const sceneBot = new THREE.Scene();
     const cameraBot = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); cameraBot.position.set(0, 0, 12);
     const rendererBot = new THREE.WebGLRenderer({ canvas: canvasBot, antialias: true, alpha: true });
@@ -206,7 +196,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     dirLight.position.set(5, 10, 7);
     sceneBot.add(dirLight);
 
-    // PARTICULES (TELEPORT)
     const particleCount = 200;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
@@ -228,7 +217,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    // CONSTRUCTION ROBOT
     const robotGroup = new THREE.Group(); 
     robotGroup.position.set(-8, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
@@ -243,24 +231,19 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
-    
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
-    
     const armLGroup = new THREE.Group(); armLGroup.position.set(-0.9, -0.8, 0); 
     const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armL.position.y = -0.2; 
     const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handL.position.y = -0.5; 
     armLGroup.add(armL); armLGroup.add(handL);
-    
     const armRGroup = new THREE.Group(); armRGroup.position.set(0.9, -0.8, 0);
     const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armR.position.y = -0.2;
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
-
     [head, body, armLGroup, armRGroup].forEach(p => { 
         robotGroup.add(p); parts.push(p);
         p.userData = { origPos: p.position.clone(), origRot: p.rotation.clone(), velocity: new THREE.Vector3() };
     });
-    
     armLGroup.userData.origRot = new THREE.Euler(0,0,0);
     armRGroup.userData.origRot = new THREE.Euler(0,0,0);
     sceneBot.add(robotGroup); 
@@ -268,22 +251,18 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     // LOGIQUE MOTEUR
     let time = 0;
     let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL);
-    let state = 'idle'; 
+    let state = 'idle'; // Peut être 'presenting'
     let nextEventTime = time + 2; 
     let isWaving = false;
     let textMsgIndex = 0;
     let lastTextChange = 0;
 
-    // --- FONCTION AFFICHAGE BULLE (Durée dynamique) ---
     function showBubble(text, type = 'speech') { 
         if(!text) return;
         bubbleEl.innerHTML = text; 
         bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
         bubbleEl.style.opacity = 1; bubbleEl.style.transform = "scale(1)";
-        
-        // TEMPS LECTURE : 4s min, ou plus selon longueur
-        const dureeCalculee = Math.max(4000, text.length * 80);
-
+        const dureeCalculee = Math.max(5000, text.length * 80);
         setTimeout(() => { 
             bubbleEl.style.opacity = 0; 
             bubbleEl.style.transform = "scale(0.8)"; 
@@ -298,20 +277,12 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
     }
 
-    // --- CERVEAU DU MESSAGE ---
     function getNextMessage() {
-        // 1. PRIORITÉ : SÉQUENCE D'INTRO (Si Accueil et file non vide)
-        if (config.mode === 'attente' && startupQueue.length > 0) {
-            return startupQueue.shift(); // Prend le premier et le retire
-        }
-
-        // 2. SINON : LOGIQUE ALÉATOIRE
         if (contextBank.length === 0) {
             if (config.mode === 'vote_off') contextBank = [...TEXTS_VOTE_OFF];
             else if (config.mode === 'photos') contextBank = [...TEXTS_PHOTOS];
             else contextBank = [...TEXTS_ATTENTE];
         }
-        
         const rand = Math.random();
         if (rand < 0.05) return TEXTS_REGIE[Math.floor(Math.random() * TEXTS_REGIE.length)];
         else if (rand < 0.15) return TEXTS_BLAGUES[Math.floor(Math.random() * TEXTS_BLAGUES.length)];
@@ -334,11 +305,36 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         return new THREE.Vector3(x, y, Z_NORMAL);
     }
 
-    // --- CERVEAU AJUSTÉ (MOINS D'EXPLOSION / MOINS DE ZOOM) ---
+    // --- CERVEAU AVEC PRIORITÉ PRÉSENTATION ---
     function decideNextAction() {
+        // 1. GESTION DU MODE PRÉSENTATION (Priorité Absolue)
+        if (config.mode === 'attente') {
+            // Relance automatique après 10 minutes (600 secondes)
+            if (startupQueue.length === 0 && (time - lastPresentationTime > 600)) {
+                startupQueue = [...STARTUP_SEQUENCE];
+            }
+
+            // Si la file d'attente contient des phrases, on est en mode PRESENTATION
+            if (startupQueue.length > 0) {
+                state = 'presenting'; 
+                const msg = startupQueue.shift();
+                showBubble(msg, 'speech');
+                
+                targetPos = pickRandomSafePosition();
+                isWaving = true; 
+                setTimeout(() => { isWaving = false; }, 3000);
+
+                if (startupQueue.length === 0) lastPresentationTime = time;
+
+                nextEventTime = time + 8; 
+                return; // ARRÊT (VERROUILLAGE)
+            }
+        }
+
+        // 2. MODE LIBRE
         const r = Math.random();
         
-        // 5% : CLOSEUP (Zoom) - REDUIT
+        // 5% : ZOOM
         if (r < 0.05) {
             state = 'closeup';
             const side = Math.random() > 0.5 ? 1 : -1;
@@ -353,7 +349,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             showBubble(getThoughtText(), 'thought');
             setTimeout(() => { state = 'idle'; }, 5000);
         }
-        // 3% : EXPLOSION (Surchauffe) - TRES REDUIT
+        // 3% : SURCHAUFFE
         else if (r < 0.23) {
             state = 'exploding';
             showBubble("Oups ! Surchauffe !", 'thought');
@@ -382,15 +378,13 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         else {
             state = 'idle';
             targetPos = pickRandomSafePosition();
-            // On parle presque tout le temps pour écouler l'intro
-            if (Math.random() > 0.2) { 
+            if (Math.random() > 0.4) {
                 const msg = getNextMessage();
                 showBubble(msg, 'speech');
                 isWaving = Math.random() > 0.6; 
                 if(isWaving) setTimeout(() => { isWaving = false; }, 3000);
             }
         }
-        // Temps entre actions (4 à 8 sec)
         nextEventTime = time + 4 + Math.random() * 4;
     }
 
@@ -414,8 +408,8 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             cycleCenterText(); lastTextChange = time; 
         }
 
-        if (state === 'idle' || state === 'closeup' || state === 'thinking') {
-            robotGroup.position.lerp(targetPos, 0.005); // Glissade lente
+        if (state === 'idle' || state === 'closeup' || state === 'thinking' || state === 'presenting') {
+            robotGroup.position.lerp(targetPos, 0.005); 
             robotGroup.position.y += Math.sin(time * 2.0) * 0.005;
             robotGroup.rotation.z = Math.cos(time * 1.2) * 0.05; 
             robotGroup.rotation.y = Math.sin(time * 0.6) * 0.12; 
