@@ -200,6 +200,17 @@ def reset_app_data(init_mode="blank", preserve_config=False):
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
+# NOUVELLES FONCTIONS DE RESET SPECIFIQUES
+def reset_only_data():
+    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
+        if os.path.exists(f): os.remove(f)
+    st.session_state.config["session_id"] = str(uuid.uuid4())
+    save_config()
+
+def reset_only_photos():
+    files = glob.glob(f"{LIVE_DIR}/*")
+    for f in files: os.remove(f)
+
 def archive_current_session():
     current_cfg = load_json(CONFIG_FILE, default_config)
     titre = current_cfg.get("titre_mur", "Session")
@@ -475,8 +486,11 @@ if est_admin:
                     if st.button("📊 DATA", type="primary" if st.session_state.admin_menu == "📊 DATA" else "secondary"): 
                         st.session_state.admin_menu = "📊 DATA"; st.rerun()
                 
+                # NOUVEAU MENU REINITIALISATION
                 if is_super_admin:
                     st.markdown("---")
+                    if st.button("♻️ RÉINITIALISATION", type="primary" if st.session_state.admin_menu == "♻️ RÉINITIALISATION" else "secondary"):
+                        st.session_state.admin_menu = "♻️ RÉINITIALISATION"; st.rerun()
                     if st.button("👥 UTILISATEURS", type="primary" if st.session_state.admin_menu == "👥 UTILISATEURS" else "secondary"): 
                         st.session_state.admin_menu = "👥 UTILISATEURS"; st.rerun()
 
@@ -512,17 +526,64 @@ if est_admin:
                 
                 st.markdown("---")
                 st.button("📸 MUR PHOTOS LIVE", use_container_width=True, type="primary" if cfg["mode_affichage"]=="photos_live" else "secondary", on_click=set_state, args=("photos_live", False, False))
-                
-                if is_super_admin:
-                    st.divider()
-                    with st.expander("🚨 ZONE DE DANGER"):
-                        st.write("Attention : Cela efface tous les votes et les photos.")
-                        if st.button("🗑️ RESET DONNÉES (Session en cours)", type="primary"): 
-                            reset_app_data(preserve_config=True)
-                            st.success("Données remises à zéro !")
-                            time.sleep(1)
-                            st.rerun()
             
+            elif menu == "♻️ RÉINITIALISATION" and is_super_admin:
+                st.title("♻️ ZONE DE RÉINITIALISATION")
+                st.warning("⚠️ ATTENTION : Les actions ci-dessous sont irréversibles. Soyez prudent.")
+                
+                c1, c2, c3 = st.columns(3)
+                
+                # 1. RESET DATA ONLY
+                with c1:
+                    with st.container(border=True):
+                        st.subheader("📊 Données Seules")
+                        st.caption("Efface : Votes, Participants, Résultats.")
+                        st.caption("Conserve : Photos.")
+                        if st.button("Préparer Reset Données"):
+                            st.session_state.confirm_reset_data = True
+                        
+                        if st.session_state.get("confirm_reset_data"):
+                            st.error("Êtes-vous sûr ?")
+                            if st.button("⚠️ CONFIRMER LA SUPPRESSION DES DONNÉES", type="primary"):
+                                reset_only_data()
+                                st.success("Données effacées !")
+                                st.session_state.confirm_reset_data = False
+                                time.sleep(1); st.rerun()
+
+                # 2. RESET PHOTOS ONLY
+                with c2:
+                    with st.container(border=True):
+                        st.subheader("📸 Photos Seules")
+                        st.caption("Efface : Toutes les photos de la médiathèque.")
+                        st.caption("Conserve : Votes, Résultats.")
+                        if st.button("Préparer Reset Photos"):
+                            st.session_state.confirm_reset_photos = True
+                        
+                        if st.session_state.get("confirm_reset_photos"):
+                            st.error("Êtes-vous sûr ?")
+                            if st.button("⚠️ CONFIRMER LA SUPPRESSION DES PHOTOS", type="primary"):
+                                reset_only_photos()
+                                st.success("Médiathèque vidée !")
+                                st.session_state.confirm_reset_photos = False
+                                time.sleep(1); st.rerun()
+
+                # 3. RESET ALL
+                with c3:
+                    with st.container(border=True):
+                        st.subheader("🧨 TOUT (Usine)")
+                        st.caption("Efface : TOUT (Données + Photos).")
+                        st.caption("Remise à zéro complète de la session.")
+                        if st.button("Préparer Reset TOTAL"):
+                            st.session_state.confirm_reset_all = True
+                        
+                        if st.session_state.get("confirm_reset_all"):
+                            st.error("Êtes-vous VRAIMENT sûr ?")
+                            if st.button("⚠️ CONFIRMER LE RESET TOTAL", type="primary"):
+                                reset_app_data(preserve_config=True)
+                                st.success("Session remise à zéro !")
+                                st.session_state.confirm_reset_all = False
+                                time.sleep(1); st.rerun()
+
             elif menu == "📱 TEST MOBILE" and (is_super_admin or "test_mobile" in perms):
                 st.title("📱 TEST & SIMULATION")
                 st.markdown('<div style="background-color:#e8f4f8; padding:20px; border-radius:10px; border-left:5px solid #2980b9;"><strong>Note :</strong> Ce menu permet de tester l\'application mobile et de simuler des votes.</div><br>', unsafe_allow_html=True)
@@ -1476,8 +1537,13 @@ else:
         qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
         qr_b64 = base64.b64encode(qr_buf.getvalue()).decode()
         logo_data = cfg.get("logo_b64", "")
-        photos = glob.glob(f"{LIVE_DIR}/*")
-        img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in photos[-40:]]) if photos else "[]"
+        
+        # --- LOGIQUE ROLLING : CHARGE SEULEMENT LES 50 DERNIERES ---
+        all_photos = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime)
+        display_photos = all_photos[-50:] # Garde les 50 plus récentes
+        
+        img_js = json.dumps([f"data:image/jpeg;base64,{base64.b64encode(open(f, 'rb').read()).decode()}" for f in display_photos]) if display_photos else "[]"
+        
         center_html_content = f"""<div id='center-box' style='position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:10; text-align:center; background:rgba(0,0,0,0.85); padding:20px; border-radius:30px; border:2px solid #E2001A; width:400px; box-shadow:0 0 50px rgba(0,0,0,0.8); pointer-events: none;'><h1 class="neon-title" style='font-size:28px; margin:0 0 15px 0;'>MUR PHOTOS LIVE</h1>{f'<img src="data:image/png;base64,{logo_data}" style="width:350px; margin-bottom:10px;">' if logo_data else ''}<div style='background:white; padding:15px; border-radius:15px; display:inline-block;'><img src='data:image/png;base64,{qr_b64}' style='width:250px;'></div><h2 style='color:white; margin-top:15px; font-size:22px; font-family:Arial; line-height:1.3; text-shadow: 0 0 10px black;'>Partagez vos sourires<br>et vos moments forts !</h2></div>"""
         
         bubbles_script = f"""<script>setTimeout(function() {{ var container = document.createElement('div'); container.id = 'live-container'; container.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1;overflow:hidden;background:transparent;pointer-events:none;'; document.body.appendChild(container); var centerDiv = document.createElement('div'); centerDiv.innerHTML = `{center_html_content}`; document.body.appendChild(centerDiv); const imgs = {img_js}; const bubbles = []; imgs.forEach((src, i) => {{ const bSize = Math.floor(Math.random() * 300) + 150; const el = document.createElement('img'); el.src = src; el.style.cssText = 'position:absolute; width:'+bSize+'px; height:'+bSize+'px; border-radius:50%; border:4px solid #E2001A; object-fit:cover; z-index:50; opacity:0.9;'; let x = Math.random() * (window.innerWidth - bSize); let y = Math.random() * (window.innerHeight - bSize); let angle = Math.random() * Math.PI * 2; let speed = 1.5 + Math.random() * 1.5; container.appendChild(el); bubbles.push({{el, x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, size: bSize}}); }}); function animateBubbles() {{ bubbles.forEach(b => {{ b.x += b.vx; b.y += b.vy; if(b.x <= 0 || b.x + b.size >= window.innerWidth) b.vx *= -1; if(b.y <= 0 || b.y + b.size >= window.innerHeight) b.vy *= -1; b.el.style.transform = 'translate3d(' + b.x + 'px, ' + b.y + 'px, 0)'; }}); requestAnimationFrame(animateBubbles); }} animateBubbles(); }}, 500);</script>"""
