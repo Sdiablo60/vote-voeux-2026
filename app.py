@@ -200,12 +200,15 @@ def reset_app_data(init_mode="blank", preserve_config=False):
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
-# NOUVELLES FONCTIONS DE RESET SPECIFIQUES
-def reset_only_data():
-    for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
+# --- NOUVELLES FONCTIONS DE RESET GRANULAIRES ---
+def reset_only_votes():
+    for f in [VOTES_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
-    st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
+
+def reset_only_participants():
+    for f in [PARTICIPANTS_FILE, VOTERS_FILE]:
+        if os.path.exists(f): os.remove(f)
 
 def reset_only_photos():
     files = glob.glob(f"{LIVE_DIR}/*")
@@ -531,27 +534,43 @@ if est_admin:
                 st.title("♻️ ZONE DE RÉINITIALISATION")
                 st.warning("⚠️ ATTENTION : Les actions ci-dessous sont irréversibles. Soyez prudent.")
                 
-                c1, c2, c3 = st.columns(3)
+                c1, c2 = st.columns(2)
                 
-                # 1. RESET DATA ONLY
+                # 1. VOTES & RESULTATS
                 with c1:
                     with st.container(border=True):
-                        st.subheader("📊 Données Seules")
-                        st.caption("Efface : Votes, Participants, Résultats.")
-                        st.caption("Conserve : Photos.")
-                        if st.button("Préparer Reset Données"):
-                            st.session_state.confirm_reset_data = True
-                        
-                        if st.session_state.get("confirm_reset_data"):
-                            st.error("Êtes-vous sûr ?")
-                            if st.button("⚠️ CONFIRMER LA SUPPRESSION DES DONNÉES", type="primary"):
-                                reset_only_data()
-                                st.success("Données effacées !")
-                                st.session_state.confirm_reset_data = False
+                        st.subheader("🗳️ Votes & Résultats")
+                        st.caption("Efface : Votes, Détails des votes.")
+                        st.caption("Conserve : Participants, Photos.")
+                        if st.button("Préparer Reset Votes"): st.session_state.confirm_reset_votes = True
+                        if st.session_state.get("confirm_reset_votes"):
+                            st.error("Confirmer ?")
+                            if st.button("🗑️ EFFACER VOTES", type="primary"):
+                                reset_only_votes()
+                                st.success("Votes effacés !")
+                                st.session_state.confirm_reset_votes = False
                                 time.sleep(1); st.rerun()
 
-                # 2. RESET PHOTOS ONLY
+                # 2. PARTICIPANTS
                 with c2:
+                    with st.container(border=True):
+                        st.subheader("👥 Participants")
+                        st.caption("Efface : Liste des inscrits (Pseudo/Voters).")
+                        st.caption("Conserve : Votes (Anonymisés), Photos.")
+                        if st.button("Préparer Reset Participants"): st.session_state.confirm_reset_parts = True
+                        if st.session_state.get("confirm_reset_parts"):
+                            st.error("Confirmer ?")
+                            if st.button("🗑️ EFFACER PARTICIPANTS", type="primary"):
+                                reset_only_participants()
+                                st.success("Participants effacés !")
+                                st.session_state.confirm_reset_parts = False
+                                time.sleep(1); st.rerun()
+
+                st.markdown("---")
+                c3, c4 = st.columns(2)
+
+                # 3. RESET PHOTOS ONLY
+                with c3:
                     with st.container(border=True):
                         st.subheader("📸 Photos Seules")
                         st.caption("Efface : Toutes les photos de la médiathèque.")
@@ -567,8 +586,8 @@ if est_admin:
                                 st.session_state.confirm_reset_photos = False
                                 time.sleep(1); st.rerun()
 
-                # 3. RESET ALL
-                with c3:
+                # 4. RESET ALL
+                with c4:
                     with st.container(border=True):
                         st.subheader("🧨 TOUT (Usine)")
                         st.caption("Efface : TOUT (Données + Photos).")
