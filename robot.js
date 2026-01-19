@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - PROTECT CENTER)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - TIMING CORRIGÉ)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -338,13 +338,10 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     function pickStrictSidePosition() {
         // Choisi soit à Gauche (< -6), soit à Droite (> 6)
         const side = Math.random() > 0.5 ? 1 : -1;
-        
         const minX = 6.5; 
         const maxX = 10.5;
-        
         let x = (Math.random() * (maxX - minX) + minX) * side;
-        const y = (Math.random() * (1.5 - (-2.5)) + (-2.5)); // Y entre -2.5 et 1.5
-        
+        const y = (Math.random() * (1.5 - (-2.5)) + (-2.5));
         return new THREE.Vector3(x, y, Z_NORMAL);
     }
 
@@ -369,30 +366,35 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             else if (config.mode === 'photos') startupQueue = [...SEQ_PHOTOS];
         }
 
-        // MODE PRESENTATION (EVITEMENT DU CENTRE)
+        // MODE PRESENTATION (EVITEMENT DU CENTRE + TIMING FIX)
         if (startupQueue.length > 0) {
             state = 'presenting'; 
             const msg = startupQueue.shift();
-            showBubble(msg, 'speech');
             
             // Choix d'une position STRICTE sur les cotés
             const newTarget = pickStrictSidePosition();
             
             // Vérification : Doit-on traverser le centre ?
-            // Si le signe de X change (ex: de -8 à +8), on traverse 0.
             const isCrossing = (robotGroup.position.x < 0 && newTarget.x > 0) || (robotGroup.position.x > 0 && newTarget.x < 0);
 
             if (isCrossing) {
                 // TÉLÉPORTATION POUR NE PAS TRAVERSER LE TEXTE
                 triggerTeleportEffect(robotGroup.position);
+                
+                // On attend que la téléportation se fasse AVANT de parler
                 setTimeout(() => {
                     robotGroup.position.copy(newTarget);
                     targetPos.copy(newTarget);
                     triggerTeleportEffect(newTarget);
-                }, 500);
+                    
+                    // LE ROBOT PARLE MAINTENANT QU'IL EST ARRIVÉ
+                    showBubble(msg, 'speech');
+                }, 600);
             } else {
                 // MÊME COTÉ : GLISSADE AUTORISÉE
                 targetPos.copy(newTarget);
+                // Le robot parle tout de suite (glissade douce)
+                showBubble(msg, 'speech');
             }
 
             isWaving = true; 
