@@ -1319,17 +1319,20 @@ else:
                     color: white; font-weight: 900; font-size: 3vh; text-transform: uppercase; letter-spacing: 1px;
                 }}
 
-                /* --- MARQUEE ROUGE FONCÉ --- */
+                /* --- MARQUEE NOIR ET BLANC --- */
                 .marquee-bar {{
-                    background-color: #C20015; /* Rouge légèrement plus sombre */
-                    height: 5vh; width: 100%;
+                    background-color: #000000; /* FOND NOIR */
+                    height: 6vh; width: 100%;
                     display: flex; align-items: center;
                     color: white; font-weight: bold; font-size: 1.8vh;
                     overflow: hidden;
                     border-bottom: 1px solid #333;
+                    border-top: 1px solid #333;
+                    margin-top: 4vh; /* DESCENDRE LE BANDEAU */
                 }}
                 .marquee-label {{
-                    background: #90000e; padding: 0 20px; height: 100%; 
+                    background: #E2001A; /* LABEL ROUGE */
+                    padding: 0 20px; height: 100%; 
                     display: flex; align-items: center; z-index: 2; white-space: nowrap;
                 }}
                 .marquee-text {{
@@ -1339,15 +1342,20 @@ else:
 
                 /* --- CONTENU PRINCIPAL (GRID 3 COLONNES) --- */
                 .main-container {{
-                    flex: 1; display: flex; width: 100%; height: 87vh;
-                    align-items: center; justify-content: center;
+                    flex: 1; display: flex; width: 100%; height: 85vh;
+                    align-items: center; /* VERTICAL CENTER */
+                    justify-content: center;
                     padding-top: 2vh; box-sizing: border-box;
                 }}
-                .col-side {{ width: 25%; display: flex; flex-direction: column; justify-content: center; padding: 0 2vw; }}
+                .col-side {{ 
+                    width: 25%; display: flex; flex-direction: column; 
+                    justify-content: center; /* VERTICAL CENTER */
+                    padding: 0 2vw; height: 100%;
+                }}
                 .col-center {{ width: 40%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
 
                 /* --- ELEMENTS CENTRAUX --- */
-                .logo-img {{ height: 8vh; margin-bottom: 1vh; }}
+                .logo-img {{ height: 14vh; margin-bottom: 2vh; }} /* LOGO PLUS GROS */
                 .main-title {{ 
                     color: #E2001A; font-size: 6vh; font-weight: 900; margin: 0; 
                     text-transform: uppercase; text-shadow: 0 0 20px rgba(226,0,26,0.5);
@@ -1414,7 +1422,9 @@ else:
 
                 <div class="main-container">
                     <div class="col-side" style="align-items: flex-end;">
-                        {left_html}
+                        <div style="display:flex; flex-direction:column; gap:15px; width:100%; align-items:flex-end;">
+                            {left_html}
+                        </div>
                     </div>
 
                     <div class="col-center">
@@ -1434,7 +1444,9 @@ else:
                     </div>
 
                     <div class="col-side" style="align-items: flex-start;">
-                        {right_html}
+                        <div style="display:flex; flex-direction:column; gap:15px; width:100%; align-items:flex-start;">
+                            {right_html}
+                        </div>
                     </div>
                 </div>
             </body>
