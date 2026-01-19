@@ -1,23 +1,22 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (INTELLIGENT & NON-INTRUSIF)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL : GLISSE & CONTENU)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 5500; 
+const DUREE_LECTURE = 6000; 
 const ECHELLE_BOT = 0.65; 
 
-// LIMITES ECRAN (Le robot ne sort jamais de ces bornes)
-// X : Largeur (-12 à 12)
-// Y : Hauteur (-3.5 à 2.2 pour ne pas toucher le titre en haut)
-const X_MIN = -11.5;
-const X_MAX = 11.5;
-const Y_MIN = -3.5;
-const Y_MAX = 2.2; // Plafond abaissé pour ne pas cacher le titre
+// LIMITES ECRAN (Cage virtuelle)
+const X_LIMIT = 9.5;   
+const Y_TOP = 1.7; // Sécurité Titre    
+const Y_BOTTOM = -2.8; 
 
+// CONFIGURATION DU ZOOM (CLOSE-UP)
 const Z_NORMAL = 0;
-const Z_CLOSEUP = 6.5; // Proche de l'écran
+const Z_CLOSEUP = 5.5; 
+const X_CLOSEUP_OFFSET = 4.5; // Se met à +/- 4.5 du centre (tout près du texte)
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -28,63 +27,129 @@ const CENTRAL_MESSAGES = [
     "N'oubliez pas vos sourires !"
 ];
 
-// --- BANQUES DE TEXTES ---
+// --- 1. SCÉNARIO NARRATIF (ACCUEIL) ---
+// Le robot joue cette séquence précise au démarrage
+const SCENARIO_ACCUEIL = [
+    { type: 'thought', text: "Wouah... Quelle grande salle !", action: 'move', time: 6 },
+    { type: 'thought', text: "Eh oh... Il y a quelqu'un ?", action: 'move', time: 6 },
+    { type: 'thought', text: "Bon... Apparemment je suis seul.", action: 'move', time: 6 },
+    { type: 'speech', text: "Oh ! Mais... Il y a un public en fait !", action: 'closeup', time: 8 }, 
+    { type: 'thought', text: "Pourquoi toutes ces personnes sont réunies ?", action: 'move', time: 6 },
+    { type: 'speech', text: "Bonjour ! Je m'appelle Clap-E !", action: 'wave', time: 5 },
+    { type: 'speech', text: "Il y a une soirée ? Je peux me joindre à vous ?", action: 'move', time: 6 },
+    { type: 'speech', text: "Chut ! Je reçois un appel de l'organisateur...", action: 'phone', time: 6 },
+    { type: 'speech', text: "C'est vrai ?! C'est confirmé ?!", action: 'jump', time: 4 }, 
+    { type: 'speech', text: "Incroyable ! Je suis votre animateur préféré ce soir !", action: 'move', time: 6 },
+    { type: 'thought', text: "Ouhlà... Je stresse...", action: 'explode', time: 5 },
+    { type: 'speech', text: "Ça va mieux ! Vous allez bien ce soir ?", action: 'move', time: 6 },
+    { type: 'speech', text: "Je vous informe qu'un vote va être organisé !", action: 'move', time: 6 },
+    { type: 'speech', text: "Je compte sur vous pour bien respecter les règles !", action: 'move', time: 6 },
+    { type: 'speech', text: "Allô Régie ? Oui... D'accord.", action: 'phone', time: 5 },
+    { type: 'speech', text: "La Régie me confirme : Le début est imminent !", action: 'move', time: 6 },
+];
+
+// --- 2. BANQUES DE TEXTES ENRICHIES (+30 phrases) ---
 
 const TEXTS_ATTENTE = [
-    "Je vous observe... Vous êtes magnifiques !",
-    "Je m'appelle Clap-E, votre serviteur !",
-    "Pas de panique, je suis un robot gentil.",
-    "Toc toc... Quelqu'un m'entend ?",
-    "Vous êtes très élégants ce soir !",
-    "Il fait bon ici, mes circuits sont à température optimale.",
-    "J'analyse l'ambiance... Résultat : 100% !",
-    "N'oubliez pas de scanner le QR Code !",
-    "Je règle ma netteté... Voilà, je vous vois bien !",
-    "Je ne dors jamais, je veille sur vous.",
-    "C'est long l'attente ? Je suis là pour vous divertir !",
-    "Je capte de bonnes ondes ici."
+    // Classiques
+    "Installez-vous confortablement !",
+    "Je vérifie mes fiches... Ah mince, je suis numérique.",
+    "Vous êtes rayonnants ce soir.",
+    "J'espère que vous avez révisé pour le vote !",
+    "La pression monte... ou c'est ma température ?",
+    "Regardez-moi, je suis beau non ?",
+    "N'oubliez pas de scanner le QR Code tout à l'heure.",
+    "Je suis programmé pour mettre l'ambiance.",
+    "Qui veut un autographe numérique ?",
+    "Patience, ça va être génial.",
+    // Nouveaux
+    "Je scanne la salle... 100% de bonne humeur détectée !",
+    "Est-ce que ma cravate virtuelle est droite ?",
+    "N'oubliez pas d'éteindre vos téléphones... Sauf pour voter !",
+    "Je capte une énergie incroyable ici.",
+    "Vous êtes prêts ? Moi mes circuits sont chauds !",
+    "Je crois que j'ai vu quelqu'un que je connais au fond.",
+    "Si je bugue, promis, c'est pas ma faute.",
+    "J'ai mis mon plus beau costume de pixels pour vous.",
+    "C'est moi ou il fait chaud ici ?",
+    "Je compte les chaises... 1, 2, 3... Beaucoup !"
 ];
 
 const TEXTS_VOTE_OFF = [
     // Classiques
-    "Les jeux sont faits !",
-    "La régie compte les points... Suspense !",
-    "Je ne peux rien dire, c'est secret défense.",
-    "Qui a gagné ? Moi je sais... ou pas !",
-    "Analyse des résultats en cours... 📊",
-    "Pas de triche, j'ai tout surveillé.",
-    "C'est serré... Plus serré qu'un boulon de 12 !",
-    "Ça arrive, encore un peu de patience.",
-    "Merci à tous pour vos votes !",
-    
-    // Régie
-    "Allô la Régie ? On en est où des scores ?",
-    "La Régie me dit dans l'oreillette que c'est presque prêt.",
-    "Hey la Régie ! N'oubliez pas de m'envoyer le vainqueur !",
+    "Les jeux sont faits, rien ne va plus !",
+    "Le bureau de vote est fermé. Clap-E a avalé la clé.",
+    "Stop ! On ne touche plus à rien !",
+    "Qui sera le grand gagnant ? Suspense...",
+    "Merci pour votre participation massive !",
+    "Je vois des chiffres défiler dans ma tête... C'est bon signe.",
+    "Analyse des données : 99% terminé...",
+    "Pas de panique, la technologie travaille pour vous.",
     "Le grand ordinateur central chauffe pour calculer !",
-    "Régie, vous me recevez ? 5 sur 5.",
-    
-    // Blagues
-    "C'est l'histoire d'un robot qui rentre dans un bar... Et paf le bug !",
-    "Que fait un robot quand il s'ennuie ? Il se range !",
-    "Toc Toc ? (C'est Clap-E !)",
-    "Je ne suis pas programmé pour l'impatience...",
-    "Vous savez danser le Robot ? Moi oui !",
-    "J'ai une blague sur les ascenseurs... mais elle ne vole pas haut.",
-    "0100100... Oups pardon, je parle en binaire sous le stress."
+    "C'est serré... Plus serré qu'un boulon de 12 !",
+    // Nouveaux
+    "J'espère que votre favori a gagné.",
+    "Les résultats arrivent par fibre optique spéciale.",
+    "Je ne suis pas corruptible, inutile d'insister !",
+    "Le dépouillement est en cours...",
+    "Même moi je ne connais pas encore le résultat !",
+    "Quel suspense insoutenable !",
+    "Ça calcule, ça calcule...",
+    "Je croise mes doigts virtuels pour vous.",
+    "Attention, résultat imminent !",
+    "La tension est palpable !"
 ];
 
 const TEXTS_PHOTOS = [
-    "Waouh ! Quelle photo !",
-    "Allez, faites-moi un sourire !",
-    "C'est parti pour la soirée !",
-    "J'adore cette photo !",
-    "Rapprochez-vous pour le selfie !",
-    "Vous êtes des stars ce soir.",
-    "Continuez d'envoyer vos photos !",
-    "Je valide cette pose !",
-    "Flash info : Vous êtes le meilleur public !",
-    "Mes capteurs s'affolent devant tant de style."
+    // Classiques
+    "Waouh ! Quelle photo magnifique !",
+    "Celle-ci, c'est ma préférée !",
+    "Allez, faites-moi votre plus beau sourire !",
+    "On veut voir toute la salle sur le mur !",
+    "Flash ! Ah non, c'est mon œil.",
+    "Ne soyez pas timides, montrez-vous !",
+    "Rapprochez-vous pour un selfie de groupe !",
+    "Qui fera la grimace la plus drôle ?",
+    "J'enregistre tout dans ma mémoire (et c'est du solide).",
+    "Vous êtes des stars, le tapis rouge est pour vous.",
+    // Nouveaux
+    "Envoyez vos photos, je veux voir l'ambiance !",
+    "Attention, le petit oiseau va sortir... Bip Bop.",
+    "Vous êtes bien plus photogéniques que mon ami le grille-pain.",
+    "Encore une ! Encore une !",
+    "Ça c'est de l'art moderne !",
+    "Quel style ! J'adore cette pose.",
+    "Vous êtes tous beaux ce soir !",
+    "La caméra vous aime, et moi aussi.",
+    "Vite, une autre photo avant que je cligne des yeux !",
+    "Ce mur va devenir légendaire grâce à vous."
+];
+
+const TEXTS_JOKES = [
+    "C'est l'histoire d'un robot qui rentre dans un bar... Et paf le bug !",
+    "Que fait un robot quand il s'ennuie ? Il se range !",
+    "Pourquoi les plongeurs plongent-ils en arrière ? Sinon ils tombent dans le bateau.",
+    "Vous connaissez la blague du petit déjeuner ? Pas de bol.",
+    "Que fait une fraise sur un cheval ? Tagada Tagada !",
+    "C'est l'histoire d'un pingouin qui respire par les fesses. Il s'assoit et il meurt.",
+    "Quel est le comble pour un électricien ? De ne pas être au courant.",
+    "Que dit un chat quand il est content ? C'est miau-gnifique.",
+    "Pourquoi les poissons vivent dans l'eau salée ? Parce que le poivre les fait éternuer.",
+    "Quel est le sport préféré des insectes ? Le cricket.",
+    "01001110... Oups pardon, je parle en binaire pour rire.",
+    "J'ai une blague sur les ascenseurs... mais elle ne vole pas haut."
+];
+
+const TEXTS_REGIE = [
+    "Allô la Régie ? On en est où ?",
+    "La Régie me dit dans l'oreillette que c'est presque prêt.",
+    "Hey la Régie ! N'oubliez pas de m'envoyer les infos !",
+    "Régie, vous me recevez ? 5 sur 5.",
+    "Un instant, je fais un point technique avec la tour de contrôle.",
+    "La régie me confirme que tout est sous contrôle.",
+    "Allô ? Oui Régie, je transmets au public.",
+    "Petit message de la régie : Vous êtes au top !",
+    "La régie me demande de vérifier mes niveaux d'huile."
 ];
 
 const TEXTS_THOUGHTS = [
@@ -112,29 +177,18 @@ const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
         position: fixed; padding: 18px 28px; color: black; font-family: 'Arial', sans-serif;
-        font-weight: bold; font-size: 20px; text-align: center; z-index: 6; 
-        pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: scale(0.9); 
+        font-weight: bold; font-size: 22px; text-align: center; z-index: 6; 
+        pointer-events: none; transition: opacity 0.5s, transform 0.5s; transform: scale(0.9); 
         max-width: 320px; width: max-content;
     }
-    /* Bulle Parole (Carrée arrondie + Pointe) */
     .bubble-speech { background: white; border-radius: 30px; border: 4px solid #E2001A; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
     .bubble-speech::after { content: ''; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid #E2001A; }
-    
-    /* Bulle Pensée (Nuage + Ronds) */
     .bubble-thought { 
         background: #f0f8ff; border-radius: 40px; border: 3px solid #00aaff; 
         box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-style: italic; color: #333;
     }
-    .bubble-thought::before { 
-        content: 'o'; position: absolute; bottom: -25px; left: 40%; 
-        font-size: 30px; color: #00aaff; font-style: normal; font-weight: bold;
-        text-shadow: 2px 2px 0 #fff;
-    }
-    .bubble-thought::after {
-        content: 'o'; position: absolute; bottom: -15px; left: 45%; 
-        font-size: 15px; color: #00aaff; font-style: normal; font-weight: bold;
-        text-shadow: 1px 1px 0 #fff;
-    }
+    .bubble-thought::before { content: 'o'; position: absolute; bottom: -25px; left: 40%; font-size: 30px; color: #00aaff; font-weight: bold; text-shadow: 2px 2px 0 #fff; }
+    .bubble-thought::after { content: 'o'; position: absolute; bottom: -15px; left: 45%; font-size: 15px; color: #00aaff; font-weight: bold; text-shadow: 1px 1px 0 #fff; }
 `;
 document.head.appendChild(style);
 
@@ -160,14 +214,12 @@ function launchFinalScene() {
 function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     let width = window.innerWidth, height = window.innerHeight;
     
-    // SCENE SOL
     const sceneFloor = new THREE.Scene(); sceneFloor.fog = new THREE.Fog(0x000000, 10, 60);
     const cameraFloor = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); cameraFloor.position.set(0, 0, 12);
     const rendererFloor = new THREE.WebGLRenderer({ canvas: canvasFloor, antialias: true, alpha: true });
     rendererFloor.setSize(width, height); rendererFloor.setPixelRatio(window.devicePixelRatio);
     const grid = new THREE.GridHelper(200, 50, 0x222222, 0x222222); grid.position.y = -4.5; sceneFloor.add(grid);
 
-    // SCENE ROBOT
     const sceneBot = new THREE.Scene();
     const cameraBot = new THREE.PerspectiveCamera(50, width / height, 0.1, 100); cameraBot.position.set(0, 0, 12);
     const rendererBot = new THREE.WebGLRenderer({ canvas: canvasBot, antialias: true, alpha: true });
@@ -184,7 +236,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     dirLight.position.set(5, 10, 7);
     sceneBot.add(dirLight);
 
-    // PARTICULES (TELEPORT)
+    // PARTICULES
     const particleCount = 200;
     const particleGeo = new THREE.BufferGeometry();
     const particlePositions = new Float32Array(particleCount * 3);
@@ -206,62 +258,46 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    // CONSTRUCTION ROBOT & PARTS
+    // ROBOT
     const robotGroup = new THREE.Group(); 
-    robotGroup.position.set(-8, 0, 0); // Départ sur le coté
+    robotGroup.position.set(-8, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
     const parts = []; 
-
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
     
-    // Tête
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat); head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat); face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
-    
-    // Corps
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
-    
-    // Bras
     const armLGroup = new THREE.Group(); armLGroup.position.set(-0.9, -0.8, 0); 
     const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armL.position.y = -0.2; 
     const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handL.position.y = -0.5; 
     armLGroup.add(armL); armLGroup.add(handL);
-    
     const armRGroup = new THREE.Group(); armRGroup.position.set(0.9, -0.8, 0);
     const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armR.position.y = -0.2;
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
 
-    // Ajout au groupe et sauvegarde pour explosion
     [head, body, armLGroup, armRGroup].forEach(p => { 
-        robotGroup.add(p); 
-        parts.push(p);
-        p.userData = { 
-            origPos: p.position.clone(), 
-            origRot: p.rotation.clone(),
-            velocity: new THREE.Vector3() 
-        };
+        robotGroup.add(p); parts.push(p);
+        p.userData = { origPos: p.position.clone(), origRot: p.rotation.clone(), velocity: new THREE.Vector3() };
     });
-    
     armLGroup.userData.origRot = new THREE.Euler(0,0,0);
     armRGroup.userData.origRot = new THREE.Euler(0,0,0);
-
     sceneBot.add(robotGroup); 
 
-    // LOGIQUE MOTEUR
+    // VARIABLES ETAT
     let time = 0;
-    let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL); // Cible actuelle
-    let state = 'idle'; // idle, thinking, closeup, exploding, reassembling, teleporting
-    let nextEventTime = time + 3; // Premier événement rapide
-    let isWaving = false;
-    let textMsgIndex = 0;
-    let lastTextChange = 0;
+    let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL);
+    let state = 'move'; 
+    let nextEventTime = 0; // Démarrage immédiat
+    let isWaving = false, isJumping = false, isPhoning = false;
+    let textMsgIndex = 0, lastTextChange = 0, scenarioIndex = 0;
 
     function showBubble(text, type = 'speech') { 
         if(!text) return;
@@ -281,7 +317,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
 
     function getNextMessage(bank = currentTextBank) {
         if (bank.length === 0) {
-            // Recharge
             if (config.mode === 'vote_off') currentTextBank = [...TEXTS_VOTE_OFF];
             else if (config.mode === 'photos') currentTextBank = [...TEXTS_PHOTOS];
             else currentTextBank = [...TEXTS_ATTENTE];
@@ -293,144 +328,150 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         return msg;
     }
 
-    function getThoughtText() {
-        return TEXTS_THOUGHTS[Math.floor(Math.random() * TEXTS_THOUGHTS.length)];
-    }
+    function getThoughtText() { return TEXTS_THOUGHTS[Math.floor(Math.random() * TEXTS_THOUGHTS.length)]; }
+    function getJokeText() { return TEXTS_JOKES[Math.floor(Math.random() * TEXTS_JOKES.length)]; }
+    function getRegieText() { return TEXTS_REGIE[Math.floor(Math.random() * TEXTS_REGIE.length)]; }
 
-    // --- CERVEAU DU ROBOT ---
-    function pickRandomSafePosition() {
-        // X : entre MIN et MAX
-        let x = (Math.random() * (X_MAX - X_MIN)) + X_MIN;
-        
-        // INTERDICTION CENTRE : Si X tombe entre -4 et 4, on le pousse
-        if (x > -4.5 && x < 4.5) {
-            x = (x > 0) ? 6.5 : -6.5; 
-        }
-
-        // Y : entre MIN et MAX
-        const y = (Math.random() * (Y_MAX - Y_MIN)) + Y_MIN;
-        
+    function pickNextSafePosition() {
+        const currentX = robotGroup.position.x;
+        const goingRight = (currentX < 0);
+        let min, max;
+        // PING PONG : Si gauche -> va droite (5 à 9.5), si droite -> va gauche (-9.5 à -5)
+        if (goingRight) { min = 5.0; max = X_LIMIT; } 
+        else { min = -X_LIMIT; max = -5.0; }
+        const x = Math.random() * (max - min) + min;
+        const y = Math.random() * (Y_MAX - Y_MIN) + Y_MIN;
         return new THREE.Vector3(x, y, Z_NORMAL);
     }
 
     function decideNextAction() {
-        const r = Math.random();
-        
-        // 1. ZOOM PUBLIC (15%) - Se met sur le coté pour regarder
-        if (r < 0.15) {
-            state = 'closeup';
-            const side = Math.random() > 0.5 ? 1 : -1;
-            // Se met très en avant, mais décalé (6 ou -6) pour ne pas cacher le centre
-            targetPos.set(side * 7.5, -1.5, Z_CLOSEUP); 
-            showBubble("Je vous vois de près !", 'thought');
-            setTimeout(() => { targetPos.z = Z_NORMAL; state = 'idle'; }, 4500);
-        }
-        
-        // 2. REFLEXION (20%)
-        else if (r < 0.35) {
-            state = 'thinking';
-            targetPos = pickRandomSafePosition(); // Bouge doucement
-            showBubble(getThoughtText(), 'thought');
-            setTimeout(() => { state = 'idle'; }, 5000);
+        // RESET ETAT
+        isWaving = false; isJumping = false; isPhoning = false;
+
+        // SCENARIO
+        if (config.mode === 'attente' && scenarioIndex < SCENARIO_ACCUEIL.length) {
+            const step = SCENARIO_ACCUEIL[scenarioIndex];
+            showBubble(step.text, step.type);
+            
+            if (step.action === 'closeup') {
+                state = 'closeup';
+                // SE MET PRES DU CENTRE (4.5) mais du coté où il est déjà
+                const side = (robotGroup.position.x > 0) ? 1 : -1; 
+                targetPos.set(side * X_CLOSEUP_OFFSET, -1.0, Z_CLOSEUP); 
+                // Force retour après
+                setTimeout(() => { if(state === 'closeup') { state = 'move'; targetPos = pickNextSafePosition(); } }, step.time * 1000);
+            } else {
+                if (step.action === 'wave') { state = 'move'; isWaving = true; }
+                else if (step.action === 'jump') { state = 'move'; isJumping = true; }
+                else if (step.action === 'phone') { state = 'move'; isPhoning = true; }
+                else if (step.action === 'explode') {
+                    state = 'exploding';
+                    parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6); });
+                    triggerTeleportEffect(robotGroup.position);
+                    setTimeout(() => { state = 'reassembling'; }, 2000);
+                } else {
+                    state = 'move';
+                    targetPos = pickNextSafePosition();
+                }
+            }
+            scenarioIndex++;
+            nextEventTime = time + step.time + 1; 
+            return;
         }
 
-        // 3. EXPLOSION (10%)
-        else if (r < 0.45) {
-            state = 'exploding';
-            showBubble("Oups ! Surchauffe !", 'thought');
-            parts.forEach(p => {
-                p.userData.velocity.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6);
-            });
+        // ALEATOIRE
+        const r = Math.random();
+        let duration = 7; // Durée par défaut
+
+        if (r < 0.15) { // CLOSEUP
+            state = 'closeup';
+            const side = (robotGroup.position.x > 0) ? 1 : -1;
+            targetPos.set(side * X_CLOSEUP_OFFSET, -1.0, Z_CLOSEUP); 
+            showBubble("Je vous vois de près !", 'thought');
+            duration = 6;
+            setTimeout(() => { if(state === 'closeup') { state = 'move'; targetPos = pickNextSafePosition(); } }, 6000);
+        }
+        else if (r < 0.25) { // REGIE
+            state = 'move'; targetPos = pickNextSafePosition();
+            isPhoning = true; showBubble(getRegieText(), 'speech');
+        }
+        else if (r < 0.40) { // THINKING
+            state = 'thinking'; targetPos = pickNextSafePosition(); 
+            showBubble(getThoughtText(), 'thought');
+        }
+        else if (r < 0.50) { // EXPLOSION
+            state = 'exploding'; showBubble("Oups ! Surchauffe !", 'thought');
+            parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6); });
             triggerTeleportEffect(robotGroup.position);
             setTimeout(() => { state = 'reassembling'; }, 2000);
+            duration = 5;
         }
-
-        // 4. TELEPORTATION (15%) - Change de coté
-        else if (r < 0.60) {
-            state = 'teleporting';
-            triggerTeleportEffect(robotGroup.position);
-            
+        else if (r < 0.60) { // TELEPORT
+            state = 'teleporting'; triggerTeleportEffect(robotGroup.position);
             setTimeout(() => {
-                // Si à gauche, va à droite, sinon inverse
-                const currentX = robotGroup.position.x;
-                const newX = (currentX < 0) ? 7.5 : -7.5; 
+                const newX = (robotGroup.position.x < 0) ? 7.5 : -7.5; 
                 const newY = (Math.random() * (Y_MAX - Y_MIN)) + Y_MIN;
-                
                 robotGroup.position.set(newX, newY, 0);
-                targetPos.set(newX, newY, 0); // Reste là bas
-                
+                targetPos.set(newX, newY, 0); 
                 triggerTeleportEffect(robotGroup.position);
                 showBubble("Hop ! Magie !", 'speech');
-                state = 'idle';
+                state = 'move';
             }, 600);
+            duration = 4;
         }
-
-        // 5. MOUVEMENT STANDARD + PAROLE (40%)
-        else {
-            state = 'idle';
-            targetPos = pickRandomSafePosition();
-            
-            // Parfois parle, parfois juste bouge
+        else { // STANDARD
+            state = 'move'; targetPos = pickNextSafePosition();
             if (Math.random() > 0.3) {
-                const msg = getNextMessage();
+                const msg = (Math.random() > 0.8) ? getJokeText() : getNextMessage();
                 showBubble(msg, 'speech');
-                isWaving = Math.random() > 0.6; 
-                if(isWaving) setTimeout(() => { isWaving = false; }, 3000);
+                if (Math.random() > 0.7) isWaving = true;
+                else if (Math.random() > 0.8) isJumping = true;
             }
+            duration = 8;
         }
-
-        // Prochaine décision dans 5 à 9 secondes (plus dynamique)
-        nextEventTime = time + 5 + Math.random() * 4;
+        nextEventTime = time + duration; 
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        time += 0.012; // Légèrement plus rapide pour fluidité
+        time += 0.01; 
 
-        // PARTICULES EFFECT
         if(isTeleportingEffect && explosionTime > 0) {
             explosionTime -= 0.03;
             particleMat.opacity = explosionTime;
-            const positions = particleGeo.attributes.position.array;
-            for(let i=0; i<particleCount; i++) {
-                positions[i*3] += (Math.random()-0.5)*0.2; 
-                positions[i*3+1] += (Math.random()-0.5)*0.2; 
-                positions[i*3+2] += (Math.random()-0.5)*0.2;
-            }
             particleGeo.attributes.position.needsUpdate = true;
         }
 
-        // TEXTE CENTRAL (ATTENTE)
         if (config.mode === 'attente' && time > lastTextChange + 10) { 
             cycleCenterText(); lastTextChange = time; 
         }
 
-        // LOGIQUE D'ETATS & MOUVEMENTS
-        if (state === 'idle' || state === 'closeup' || state === 'thinking') {
-            // Mouvement Fluide (Lerp) vers targetPos
-            // Facteur 0.03 pour une bonne inertie
-            robotGroup.position.lerp(targetPos, 0.03);
+        if (state === 'move' || state === 'closeup' || state === 'thinking') {
+            // MOVEMENT GLISSÉ (LERP) - Facteur 0.01 = Doux et continu
+            robotGroup.position.lerp(targetPos, 0.01);
             
-            // Floating effect (respiration permanente)
-            robotGroup.position.y += Math.sin(time * 2.5) * 0.008;
-            
-            // Rotation subtile
-            robotGroup.rotation.z = Math.cos(time * 1.5) * 0.08; // Tangage
-            robotGroup.rotation.y = Math.sin(time * 0.8) * 0.15; // Regard gauche/droite
+            // FLOTTEMENT
+            robotGroup.position.y += Math.sin(time * 2.0) * 0.005; 
 
-            if (state === 'thinking') {
-                // Gratte la tête ? (Rotation rapide bras droit)
+            // ROTATION
+            const diffX = targetPos.x - robotGroup.position.x;
+            robotGroup.rotation.y = THREE.MathUtils.lerp(robotGroup.rotation.y, (diffX * 0.05), 0.05);
+            robotGroup.rotation.z = Math.cos(time * 1.5) * 0.05; 
+
+            if (isJumping) robotGroup.position.y += Math.abs(Math.sin(time * 10)) * 0.1;
+            
+            if (isPhoning) {
+                armRGroup.rotation.z = 2.5; armRGroup.rotation.x = 0.5; robotGroup.rotation.z = 0.2;
+            } else if (state === 'thinking') {
                 armRGroup.rotation.z = Math.abs(Math.sin(time * 15)) * 2 + 1; 
             } else if (isWaving) {
-                armLGroup.rotation.z = Math.sin(time * 12) * 0.6;
-                armRGroup.rotation.z = -Math.sin(time * 12) * 0.6;
+                armLGroup.rotation.z = Math.sin(time * 12) * 0.6; armRGroup.rotation.z = -Math.sin(time * 12) * 0.6;
             } else {
-                // Bras ballants naturels
-                armLGroup.rotation.z = Math.sin(time * 3) * 0.1;
-                armRGroup.rotation.z = -Math.sin(time * 3) * 0.1;
+                armLGroup.rotation.z = Math.sin(time * 3) * 0.1; armRGroup.rotation.z = -Math.sin(time * 3) * 0.1;
+                armRGroup.rotation.x = 0;
             }
 
-            // Gestion de l'événement suivant
+            // MOTEUR TEMPOREL
             if (time > nextEventTime && state !== 'closeup') {
                 decideNextAction();
             }
@@ -440,37 +481,32 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             parts.forEach(p => {
                 p.position.add(p.userData.velocity);
                 p.rotation.x += 0.1; p.rotation.y += 0.1;
-                p.userData.velocity.multiplyScalar(0.94); // Freinage
+                p.userData.velocity.multiplyScalar(0.94);
             });
         }
         
         else if (state === 'reassembling') {
             let done = true;
             parts.forEach(p => {
-                p.position.lerp(p.userData.origPos, 0.1); // Retour rapide
-                p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.15;
-                p.rotation.y += (p.userData.origRot.y - p.rotation.y) * 0.15;
-                p.rotation.z += (p.userData.origRot.z - p.rotation.z) * 0.15;
-                
+                p.position.lerp(p.userData.origPos, 0.08); 
+                p.rotation.x += (p.userData.origRot.x - p.rotation.x) * 0.1;
+                p.rotation.y += (p.userData.origRot.y - p.rotation.y) * 0.1;
+                p.rotation.z += (p.userData.origRot.z - p.rotation.z) * 0.1;
                 if (p.position.distanceTo(p.userData.origPos) > 0.01) done = false;
             });
             if (done) {
-                // Force reset exact
                 parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); });
-                state = 'idle';
+                state = 'move';
                 nextEventTime = time + 2;
             }
         }
 
-        // POSITION BULLE TEXTE (Suivi du robot)
         if(bubbleEl && bubbleEl.style.opacity == 1) {
             const headPos = robotGroup.position.clone();
-            headPos.y += 1.6; // Un peu au dessus de la tête
+            headPos.y += 1.6; 
             headPos.project(cameraBot);
-            
             const x = (headPos.x * .5 + .5) * width;
             const y = (headPos.y * -.5 + .5) * height;
-            
             bubbleEl.style.left = (x - bubbleEl.offsetWidth/2) + 'px';
             bubbleEl.style.top = (y - bubbleEl.offsetHeight - 20) + 'px';
         }
@@ -478,5 +514,8 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         rendererFloor.render(sceneFloor, cameraFloor); 
         rendererBot.render(sceneBot, cameraBot); 
     }
+    
+    // START
+    decideNextAction();
     animate();
 }
