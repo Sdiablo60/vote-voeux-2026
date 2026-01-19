@@ -46,7 +46,6 @@ is_blocked = qp.get("blocked") == "true"
 is_test_admin = qp.get("test_admin") == "true"
 
 est_admin = (admin_url == "true")
-# On est utilisateur SEULEMENT si c'est écrit "vote" explicitement
 est_utilisateur = (mode_url == "vote")
 
 # DOSSIERS & FICHIERS
@@ -64,104 +63,51 @@ for d in [LIVE_DIR, ARCHIVE_DIR]:
 
 st.markdown("""
 <style>
-    /* === CSS GLOBAL (ADMIN & DÉFAUT) === */
-    
-    /* 1. Configuration de base : Fond Blanc pour l'Admin */
-    .stApp {
-        background-color: #FFFFFF;
-        color: black;
-    }
-    
-    /* ANTI-FLASH BLANC : Force le fond noir pour les iframes lors du chargement */
-    iframe, .stIFrame {
-        background-color: black !important;
-    }
-    
-    /* 2. Masquer le menu hamburger et le footer Streamlit partout */
-    [data-testid="stHeader"], footer, header { 
-        display: none !important; 
-        height: 0 !important;
-        visibility: hidden !important;
-    }
-
-    /* 3. Style des Boutons (Commun) */
+    /* === CSS GLOBAL === */
+    .stApp { background-color: #FFFFFF; color: black; }
+    iframe, .stIFrame { background-color: black !important; }
+    [data-testid="stHeader"], footer, header { display: none !important; height: 0 !important; visibility: hidden !important; }
     button[kind="secondary"] { color: #333 !important; border-color: #333 !important; }
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
     
-    /* STYLE BOUTON LIEN (POUR MUR SOCIAL) */
     a.custom-link-btn {
-        display: inline-block;
-        text-decoration: none;
-        background-color: #E2001A;
-        color: white !important;
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        text-align: center;
-        width: 100%;
-        font-weight: 500;
-        margin-bottom: 10px;
-        border: 1px solid rgba(250, 250, 250, 0.2);
-        box-sizing: border-box; 
+        display: inline-block; text-decoration: none; background-color: #E2001A; color: white !important;
+        padding: 0.5rem 1rem; border-radius: 0.5rem; text-align: center; width: 100%;
+        font-weight: 500; margin-bottom: 10px; border: 1px solid rgba(250, 250, 250, 0.2); box-sizing: border-box; 
     }
-    a.custom-link-btn:hover {
-        background-color: #C20015;
-        color: white !important;
-        border-color: #C20015;
-    }
+    a.custom-link-btn:hover { background-color: #C20015; color: white !important; border-color: #C20015; }
     
-    /* 4. Styles Admin Spécifiques (Cartes, Login, Sidebar) */
     .session-card { background-color: #f8f9fa; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; margin-bottom: 20px; }
     .session-title { color: #E2001A; font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; }
     .login-container { max-width: 400px; margin: 100px auto; padding: 40px; background: #f8f9fa; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; }
     .login-title { color: #E2001A; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-transform: uppercase; }
     .stTextInput input { text-align: center; font-size: 18px; }
-    
     section[data-testid="stSidebar"] { background-color: #f0f2f6 !important; }
     section[data-testid="stSidebar"] button[kind="primary"] { background-color: #E2001A !important; width: 100%; border-radius: 5px; margin-bottom: 5px; }
-    
-    /* Cache les ascenseurs */
     ::-webkit-scrollbar { display: none; }
 </style>
 """, unsafe_allow_html=True)
+
 # =========================================================
 # 3. DONNEES & CONFIGURATIONS PAR DEFAUT
 # =========================================================
 blank_config = {
-    "mode_affichage": "attente", 
-    "titre_mur": "TITRE À DÉFINIR", 
-    "session_ouverte": False, 
-    "reveal_resultats": False,
-    "timestamp_podium": 0,
-    "logo_b64": None, 
-    "candidats": [], 
-    "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1],
-    "effect_intensity": 25, 
-    "effect_speed": 15, 
-    "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
+    "mode_affichage": "attente", "titre_mur": "TITRE À DÉFINIR", "session_ouverte": False, "reveal_resultats": False,
+    "timestamp_podium": 0, "logo_b64": None, "candidats": [], "candidats_images": {}, "points_ponderation": [5, 3, 1],
+    "effect_intensity": 25, "effect_speed": 15, "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
     "session_id": ""
 }
-
 default_config = {
-    "mode_affichage": "attente", 
-    "titre_mur": "CONCOURS VIDÉO 2026", 
-    "session_ouverte": False, 
-    "reveal_resultats": False,
-    "timestamp_podium": 0,
-    "logo_b64": None,
+    "mode_affichage": "attente", "titre_mur": "CONCOURS VIDÉO 2026", "session_ouverte": False, "reveal_resultats": False,
+    "timestamp_podium": 0, "logo_b64": None,
     "candidats": ["BU PAX", "BU FRET", "BU B2B", "RH", "IT", "DPMI", "FINANCES", "AO", "QSSE", "DIRECTION"],
-    "candidats_images": {}, 
-    "points_ponderation": [5, 3, 1],
-    "effect_intensity": 25, 
-    "effect_speed": 15, 
+    "candidats_images": {}, "points_ponderation": [5, 3, 1],
+    "effect_intensity": 25, "effect_speed": 15, 
     "screen_effects": {"attente": "Aucun", "votes_open": "Aucun", "votes_closed": "Aucun", "podium": "Aucun", "photos_live": "Aucun"},
     "session_id": str(uuid.uuid4())
 }
-
-default_users = {
-    "admin": {"pwd": "ADMIN_LIVE_MASTER", "role": "Super Admin", "perms": ["all"]}
-}
+default_users = { "admin": {"pwd": "ADMIN_LIVE_MASTER", "role": "Super Admin", "perms": ["all"]} }
 
 # =========================================================
 # 4. FONCTIONS UTILITAIRES
@@ -185,29 +131,24 @@ def load_json(file, default):
 def save_json(file, data):
     try:
         safe_data = clean_for_json(data)
-        with open(str(file), "w", encoding='utf-8') as f:
-            json.dump(safe_data, f, ensure_ascii=False, indent=4)
+        with open(str(file), "w", encoding='utf-8') as f: json.dump(safe_data, f, ensure_ascii=False, indent=4)
     except Exception as e: print(f"Erreur Save: {e}")
 
-def save_config():
-    save_json(CONFIG_FILE, st.session_state.config)
+def save_config(): save_json(CONFIG_FILE, st.session_state.config)
 
 def reset_app_data(init_mode="blank", preserve_config=False):
     for f in [VOTES_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
-    files = glob.glob(f"{LIVE_DIR}/*")
-    for f in files: os.remove(f)
+    for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
     if not preserve_config:
         if os.path.exists(CONFIG_FILE): os.remove(CONFIG_FILE)
         if init_mode == "blank": st.session_state.config = copy.deepcopy(blank_config)
         elif init_mode == "demo": st.session_state.config = copy.deepcopy(default_config)
-    
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
-# --- NOUVELLES FONCTIONS DE RESET GRANULAIRES ---
 def reset_only_votes():
-    for f in [VOTES_FILE, DETAILED_VOTES_FILE]:
+    for f in [VOTES_FILE, DETAILED_VOTES_FILE]: 
         if os.path.exists(f): os.remove(f)
     save_config()
 
@@ -216,8 +157,7 @@ def reset_only_participants():
         if os.path.exists(f): os.remove(f)
 
 def reset_only_photos():
-    files = glob.glob(f"{LIVE_DIR}/*")
-    for f in files: os.remove(f)
+    for f in glob.glob(f"{LIVE_DIR}/*"): os.remove(f)
 
 def archive_current_session():
     current_cfg = load_json(CONFIG_FILE, default_config)
@@ -229,34 +169,26 @@ def archive_current_session():
     os.makedirs(archive_path, exist_ok=True)
     for f in [VOTES_FILE, CONFIG_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): shutil.copy2(f, archive_path)
-    live_archive = os.path.join(archive_path, "galerie_live_users")
-    if os.path.exists(LIVE_DIR): shutil.copytree(LIVE_DIR, live_archive)
+    if os.path.exists(LIVE_DIR): shutil.copytree(LIVE_DIR, os.path.join(archive_path, "galerie_live_users"))
     return folder_name
 
 def restore_session_from_archive(folder_name):
     source_path = os.path.join(ARCHIVE_DIR, folder_name)
     reset_app_data(init_mode="none")
     for f in [VOTES_FILE, CONFIG_FILE, VOTERS_FILE, PARTICIPANTS_FILE, DETAILED_VOTES_FILE]:
-        src_f = os.path.join(source_path, f)
-        if os.path.exists(src_f): shutil.copy2(src_f, ".")
-    src_live = os.path.join(source_path, "galerie_live_users")
-    if os.path.exists(src_live):
+        if os.path.exists(os.path.join(source_path, f)): shutil.copy2(os.path.join(source_path, f), ".")
+    if os.path.exists(os.path.join(source_path, "galerie_live_users")):
         if os.path.exists(LIVE_DIR): shutil.rmtree(LIVE_DIR)
-        shutil.copytree(src_live, LIVE_DIR)
+        shutil.copytree(os.path.join(source_path, "galerie_live_users"), LIVE_DIR)
 
 def delete_archived_session(folder_name):
-    path = os.path.join(ARCHIVE_DIR, folder_name)
-    if os.path.exists(path): shutil.rmtree(path)
-
-def sanitize_filename(name):
-    return re.sub(r'[\\/*?:"<>|]', "", name).replace(" ", "_")
+    if os.path.exists(os.path.join(ARCHIVE_DIR, folder_name)): shutil.rmtree(os.path.join(ARCHIVE_DIR, folder_name))
 
 def process_logo(uploaded_file):
     try:
         img = Image.open(uploaded_file)
         img.thumbnail((600, 600), Image.Resampling.BICUBIC)
-        buf = BytesIO()
-        img.save(buf, format="PNG", optimize=True)
+        buf = BytesIO(); img.save(buf, format="PNG", optimize=True)
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
@@ -265,8 +197,7 @@ def process_participant_image(uploaded_file):
         img = Image.open(uploaded_file)
         if img.mode != "RGB": img = img.convert("RGB")
         img.thumbnail((300, 300), Image.Resampling.BICUBIC)
-        buf = BytesIO()
-        img.save(buf, format="JPEG", quality=60, optimize=True)
+        buf = BytesIO(); img.save(buf, format="JPEG", quality=60, optimize=True)
         return base64.b64encode(buf.getvalue()).decode()
     except: return None
 
@@ -277,9 +208,7 @@ def inject_visual_effect(effect_name, intensity, speed):
     pass 
 
 def set_state(mode, open_s, reveal):
-    st.session_state.config["mode_affichage"] = mode
-    st.session_state.config["session_ouverte"] = open_s
-    st.session_state.config["reveal_resultats"] = reveal
+    st.session_state.config["mode_affichage"] = mode; st.session_state.config["session_ouverte"] = open_s; st.session_state.config["reveal_resultats"] = reveal
     if reveal: st.session_state.config["timestamp_podium"] = time.time()
     save_config()
 
@@ -288,239 +217,170 @@ def reset_vote_callback():
     if "widget_choix" in st.session_state: st.session_state.widget_choix = []
     if "widget_choix_force" in st.session_state: st.session_state.widget_choix_force = []
 
-# --- STATS ---
 def get_advanced_stats():
     details = load_json(DETAILED_VOTES_FILE, [])
-    vote_counts = {}
-    rank_dist = {}
-    unique_voters = set()
+    vote_counts = {}; rank_dist = {}; unique_voters = set()
     for record in details:
         unique_voters.add(record.get('Utilisateur'))
-        for idx, k in enumerate(["Choix 1", "Choix 2", "Choix 3"]): # Clés simplifiées pour match
-            # Adaptation si les clés contiennent (5pts) etc.
+        for idx, k in enumerate(["Choix 1", "Choix 2", "Choix 3"]):
             cand = record.get(k)
-            # Fallback si anciennes clés
             if not cand: cand = record.get(f"{k} ({[5,3,1][idx]}pts)")
-            
             if cand:
                 vote_counts[cand] = vote_counts.get(cand, 0) + 1
                 if cand not in rank_dist: rank_dist[cand] = {1:0, 2:0, 3:0}
                 rank_dist[cand][idx+1] += 1
     return vote_counts, len(unique_voters), rank_dist
 
+# --- RAPPORTS PDF ---
 if PDF_AVAILABLE:
     class PDFReport(FPDF):
         def header(self):
             if "logo_b64" in st.session_state.config and st.session_state.config["logo_b64"]:
                 try:
-                    logo_data = base64.b64decode(st.session_state.config["logo_b64"])
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-                        tmp.write(logo_data)
+                        tmp.write(base64.b64decode(st.session_state.config["logo_b64"]))
                         tmp_path = tmp.name
-                    self.image(tmp_path, 10, 8, 45) 
-                    os.unlink(tmp_path) 
+                    self.image(tmp_path, 10, 8, 45); os.unlink(tmp_path) 
                 except: pass
-            self.set_font('Arial', 'B', 15)
-            self.set_text_color(226, 0, 26)
-            self.cell(50) 
-            self.cell(0, 10, f"{st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'L')
-            self.set_font('Arial', 'I', 10)
-            self.set_text_color(100, 100, 100)
-            self.cell(50)
-            self.cell(0, 10, f"Rapport généré le: {datetime.now().strftime('%d/%m/%Y à %H:%M')}", 0, 1, 'L')
-            self.ln(20)
+            self.set_font('Arial', 'B', 15); self.set_text_color(226, 0, 26)
+            self.cell(50); self.cell(0, 10, f"{st.session_state.config.get('titre_mur', 'Session')}", 0, 1, 'L')
+            self.set_font('Arial', 'I', 10); self.set_text_color(100, 100, 100)
+            self.cell(50); self.cell(0, 10, f"Généré le: {datetime.now().strftime('%d/%m/%Y à %H:%M')}", 0, 1, 'L'); self.ln(20)
         def footer(self):
-            self.set_y(-15)
-            self.set_font('Arial', 'I', 8)
-            self.set_text_color(128)
+            self.set_y(-15); self.set_font('Arial', 'I', 8); self.set_text_color(128)
             self.cell(0, 10, f'Page {self.page_no()}', 0, 0, 'C')
 
     def draw_summary_box(pdf, nb_voters, nb_votes, total_points):
-        pdf.set_fill_color(245, 245, 245)
-        pdf.set_draw_color(200, 200, 200)
-        pdf.rect(10, pdf.get_y(), 190, 15, 'DF') 
-        pdf.set_y(pdf.get_y() + 4)
-        pdf.set_font("Arial", 'B', 10)
-        pdf.set_text_color(50, 50, 50)
-        pdf.cell(63, 8, f"TOTAL VOTANTS (UNIQUES): {nb_voters}", 0, 0, 'C')
-        pdf.cell(63, 8, f"TOTAL VOTES: {nb_votes}", 0, 0, 'C')
-        pdf.cell(63, 8, f"TOTAL POINTS DISTRIBUÉS: {total_points}", 0, 1, 'C')
-        pdf.ln(12) 
+        pdf.set_fill_color(245, 245, 245); pdf.set_draw_color(200, 200, 200)
+        pdf.rect(10, pdf.get_y(), 190, 15, 'DF'); pdf.set_y(pdf.get_y() + 4)
+        pdf.set_font("Arial", 'B', 10); pdf.set_text_color(50, 50, 50)
+        pdf.cell(63, 8, f"VOTANTS: {nb_voters}", 0, 0, 'C')
+        pdf.cell(63, 8, f"VOTES: {nb_votes}", 0, 0, 'C')
+        pdf.cell(63, 8, f"POINTS: {total_points}", 0, 1, 'C'); pdf.ln(12) 
 
     def create_pdf_results(title, df, nb_voters, total_points):
-        pdf = PDFReport()
-        pdf.add_page()
-        pdf.set_auto_page_break(auto=False)
-        nb_votes_total = df['Nb Votes'].sum()
-        draw_summary_box(pdf, nb_voters, nb_votes_total, total_points)
-        pdf.set_font("Arial", 'B', 12)
-        pdf.set_text_color(0)
-        pdf.cell(0, 8, txt="VISUALISATION ANALYTIQUE DES SCORES", ln=True, align='L')
-        pdf.ln(1)
+        pdf = PDFReport(); pdf.add_page(); pdf.set_auto_page_break(auto=False)
+        draw_summary_box(pdf, nb_voters, df['Nb Votes'].sum(), total_points)
+        pdf.set_font("Arial", 'B', 12); pdf.set_text_color(0)
+        pdf.cell(0, 8, txt="CLASSEMENT OFFICIEL", ln=True, align='L'); pdf.ln(1)
         max_points = df['Points'].max() if not df.empty else 1
-        page_width = pdf.w - 2 * pdf.l_margin
-        label_width = 50
-        max_bar_width = page_width - label_width - 25
-        bar_height = 3.0
-        spacing = 1.5
-        pdf.set_font("Arial", size=9)
+        page_width = pdf.w - 2 * pdf.l_margin; label_width = 50; max_bar_width = page_width - label_width - 25; bar_height = 5.0; spacing = 2.0
+        pdf.set_font("Arial", size=10)
         for i, row in df.iterrows():
             cand = str(row['Candidat']).encode('latin-1', 'replace').decode('latin-1')
-            points = row['Points']
-            pdf.set_text_color(0)
-            pdf.cell(label_width, bar_height, cand, 0, 0, 'R')
-            if max_points > 0: width = (points / max_points) * max_bar_width
-            else: width = 0
-            x_start = pdf.get_x() + 2
-            y_start = pdf.get_y()
-            pdf.set_fill_color(245, 245, 245)
-            pdf.rect(x_start, y_start, max_bar_width, bar_height, 'F')
-            pdf.set_fill_color(226, 0, 26) 
-            if width > 0: pdf.rect(x_start, y_start, width, bar_height, 'F')
+            points = row['Points']; width = (points / max_points) * max_bar_width if max_points > 0 else 0
+            pdf.set_text_color(0); pdf.cell(label_width, bar_height, f"#{i+1} {cand}", 0, 0, 'R')
+            x_start = pdf.get_x() + 2; y_start = pdf.get_y()
+            pdf.set_fill_color(245, 245, 245); pdf.rect(x_start, y_start, max_bar_width, bar_height, 'F')
+            pdf.set_fill_color(226, 0, 26); pdf.rect(x_start, y_start, width, bar_height, 'F') if width > 0 else None
             pdf.set_xy(x_start + max_bar_width + 4, y_start)
-            pdf.cell(20, bar_height, f"{points} pts", 0, 1, 'L')
-            pdf.ln(bar_height + spacing)
+            pdf.cell(20, bar_height, f"{points} pts", 0, 1, 'L'); pdf.ln(bar_height + spacing)
+        return pdf.output(dest='S').encode('latin-1')
+
+    def create_pdf_details(title, data):
+        pdf = PDFReport(); pdf.add_page()
+        pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "JOURNAL DES VOTES", 0, 1, 'L'); pdf.ln(2)
+        pdf.set_font("Arial", 'B', 9); pdf.set_fill_color(230, 230, 230)
+        cols = [45, 35, 35, 35, 25]; headers = ["Utilisateur", "Choix 1", "Choix 2", "Choix 3", "Heure"]
+        for i, h in enumerate(headers): pdf.cell(cols[i], 8, h, 1, 0, 'C', True)
+        pdf.ln()
+        pdf.set_font("Arial", '', 8)
+        for row in data:
+            u = str(row.get('Utilisateur','')).encode('latin-1','replace').decode('latin-1')
+            c1 = str(row.get('Choix 1','')).encode('latin-1','replace').decode('latin-1')
+            c2 = str(row.get('Choix 2','')).encode('latin-1','replace').decode('latin-1')
+            c3 = str(row.get('Choix 3','')).encode('latin-1','replace').decode('latin-1')
+            t = str(row.get('Date',''))
+            pdf.cell(cols[0], 7, u, 1); pdf.cell(cols[1], 7, c1, 1); pdf.cell(cols[2], 7, c2, 1); pdf.cell(cols[3], 7, c3, 1); pdf.cell(cols[4], 7, t, 1); pdf.ln()
+        return pdf.output(dest='S').encode('latin-1')
+
+    def create_pdf_participants(title, data):
+        pdf = PDFReport(); pdf.add_page()
+        pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, f"LISTE D'ÉMARGEMENT ({len(data)})", 0, 1, 'L'); pdf.ln(5)
+        pdf.set_font("Arial", '', 10)
+        col_width = 60; start_y = pdf.get_y(); x = pdf.l_margin
+        for i, p in enumerate(data):
+            safe_p = str(p).encode('latin-1','replace').decode('latin-1')
+            pdf.cell(col_width, 8, f"[ ] {safe_p}", 0, 1)
+            if pdf.get_y() > 270: 
+                pdf.add_page(); x = pdf.l_margin; pdf.set_y(15)
         return pdf.output(dest='S').encode('latin-1')
 
 # --- INIT SESSION ---
-if "config" not in st.session_state:
-    st.session_state.config = load_json(CONFIG_FILE, default_config)
+if "config" not in st.session_state: st.session_state.config = load_json(CONFIG_FILE, default_config)
 
 # =========================================================
 # 1. CONSOLE ADMIN
 # =========================================================
 if est_admin:
-    
     if "auth" not in st.session_state: st.session_state["auth"] = False
     if "user_role" not in st.session_state: st.session_state["user_role"] = None
     if "user_perms" not in st.session_state: st.session_state["user_perms"] = []
     
-    # Chargement DB Users
     users_db = load_json(USERS_FILE, default_users)
-    if "admin" not in users_db: 
-        users_db["admin"] = default_users["admin"]
-        save_json(USERS_FILE, users_db)
+    if "admin" not in users_db: users_db["admin"] = default_users["admin"]; save_json(USERS_FILE, users_db)
 
-    # --- ECRAN DE LOGIN ---
     if not st.session_state["auth"]:
         c1, c2, c3 = st.columns([1, 2, 1])
         with c2:
             st.markdown('<div class="login-container"><div class="login-title">🔒 ADMIN ACCESS</div>', unsafe_allow_html=True)
             username = st.text_input("Identifiant", label_visibility="collapsed", placeholder="Identifiant")
             pwd = st.text_input("Mot de passe", type="password", label_visibility="collapsed", placeholder="Mot de passe")
-            
             if st.button("ENTRER", use_container_width=True, type="primary"):
                 if username in users_db and users_db[username]["pwd"] == pwd:
-                    st.session_state["auth"] = True
-                    st.session_state["current_user"] = username
+                    st.session_state["auth"] = True; st.session_state["current_user"] = username
                     st.session_state["user_role"] = users_db[username].get("role", "Utilisateur")
-                    st.session_state["user_perms"] = users_db[username].get("perms", [])
-                    st.session_state["session_active"] = False 
-                    st.rerun()
+                    st.session_state["user_perms"] = users_db[username].get("perms", []); st.session_state["session_active"] = False; st.rerun()
                 else: st.error("Identifiants incorrects")
             st.markdown('</div>', unsafe_allow_html=True)
-            
     else:
-        # --- LOGIQUE PERMISSIONS ---
-        perms = st.session_state["user_perms"]
-        is_super_admin = "all" in perms
-        
-        # --- DASHBOARD SESSIONS ---
+        perms = st.session_state["user_perms"]; is_super_admin = "all" in perms
         if "session_active" not in st.session_state or not st.session_state["session_active"]:
             st.markdown("<br>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns([1, 2, 1])
             with c2:
                 st.markdown(f'<div class="session-card"><div class="session-title">🗂️ GESTIONNAIRE DE SESSIONS</div>', unsafe_allow_html=True)
                 st.write(f"Connecté en tant que : **{st.session_state['user_role']}**")
-                
                 st.button(f"📂 OUVRIR : {st.session_state.config.get('titre_mur', 'Session')}", type="primary", use_container_width=True, on_click=lambda: st.session_state.update({"session_active": True}))
-                
                 if is_super_admin or "config" in perms:
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.button("✨ CRÉER UNE NOUVELLE SESSION VIERGE", type="secondary", use_container_width=True, on_click=lambda: (archive_current_session(), reset_app_data("blank"), st.session_state.update({"session_active": True})))
-                
-                st.markdown('</div>', unsafe_allow_html=True) # Fin card
-                
-                st.divider()
-                st.subheader("📦 Archives des sessions")
+                st.markdown('</div>', unsafe_allow_html=True)
+                st.divider(); st.subheader("📦 Archives")
                 archives = sorted([d for d in os.listdir(ARCHIVE_DIR) if os.path.isdir(os.path.join(ARCHIVE_DIR, d))], reverse=True)
-                
-                if not archives:
-                    st.caption("Aucune archive disponible.")
+                if not archives: st.caption("Aucune archive.")
                 else:
                     for arc in archives:
-                        # Affichage en mode liste propre
-                        c_name, c_act = st.columns([3, 1])
-                        c_name.text(f"📁 {arc}")
-                        
+                        c_name, c_act = st.columns([3, 1]); c_name.text(f"📁 {arc}")
                         sub_c1, sub_c2 = c_act.columns(2)
-                        if sub_c1.button("♻️", key=f"res_{arc}", help="Restaurer"):
-                             archive_current_session()
-                             restore_session_from_archive(arc)
-                             st.session_state.config = load_json(CONFIG_FILE, default_config)
-                             st.session_state["session_active"] = True
-                             st.toast("Session restaurée !")
-                             time.sleep(1); st.rerun()
-                        
-                        if is_super_admin:
-                             if sub_c2.button("🗑️", key=f"del_{arc}", help="Supprimer"):
-                                  delete_archived_session(arc); st.rerun()
-                        
+                        if sub_c1.button("♻️", key=f"res_{arc}"):
+                             archive_current_session(); restore_session_from_archive(arc)
+                             st.session_state.config = load_json(CONFIG_FILE, default_config); st.session_state["session_active"] = True; st.rerun()
+                        if is_super_admin and sub_c2.button("🗑️", key=f"del_{arc}"): delete_archived_session(arc); st.rerun()
         else:
-            # --- INTERFACE ADMIN COMPLETE ---
             cfg = st.session_state.config
             with st.sidebar:
-                if st.button("⬅️ CHANGER DE SESSION"):
-                    st.session_state["session_active"] = False; st.rerun()
+                if st.button("⬅️ CHANGER DE SESSION"): st.session_state["session_active"] = False; st.rerun()
                 st.divider()
                 if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), use_container_width=True)
                 st.header(f"MENU ({st.session_state['current_user']})")
-                
                 if "admin_menu" not in st.session_state: st.session_state.admin_menu = "🔴 PILOTAGE LIVE"
-
-                if is_super_admin or "pilotage" in perms:
-                    if st.button("🔴 PILOTAGE LIVE", type="primary" if st.session_state.admin_menu == "🔴 PILOTAGE LIVE" else "secondary"): 
-                        st.session_state.admin_menu = "🔴 PILOTAGE LIVE"; st.rerun()
-                
-                if is_super_admin or "test_mobile" in perms:
-                    if st.button("📱 TEST MOBILE", type="primary" if st.session_state.admin_menu == "📱 TEST MOBILE" else "secondary"): 
-                        st.session_state.admin_menu = "📱 TEST MOBILE"; st.rerun()
-                
-                if is_super_admin or "config" in perms:
-                    if st.button("⚙️ CONFIG", type="primary" if st.session_state.admin_menu == "⚙️ CONFIG" else "secondary"): 
-                        st.session_state.admin_menu = "⚙️ CONFIG"; st.rerun()
-                
-                if is_super_admin or "mediatheque" in perms:
-                    if st.button("📸 MÉDIATHÈQUE", type="primary" if st.session_state.admin_menu == "📸 MÉDIATHÈQUE" else "secondary"): 
-                        st.session_state.admin_menu = "📸 MÉDIATHÈQUE"; st.rerun()
-                
-                if is_super_admin or "data" in perms:
-                    if st.button("📊 DATA", type="primary" if st.session_state.admin_menu == "📊 DATA" else "secondary"): 
-                        st.session_state.admin_menu = "📊 DATA"; st.rerun()
-                
-                # NOUVEAU MENU REINITIALISATION
+                for m, perm in [("🔴 PILOTAGE LIVE","pilotage"), ("📱 TEST MOBILE","test_mobile"), ("⚙️ CONFIG","config"), ("📸 MÉDIATHÈQUE","mediatheque"), ("📊 DATA","data")]:
+                    if is_super_admin or perm in perms:
+                        if st.button(m, type="primary" if st.session_state.admin_menu == m else "secondary"): st.session_state.admin_menu = m; st.rerun()
                 if is_super_admin:
                     st.markdown("---")
-                    if st.button("♻️ RÉINITIALISATION", type="primary" if st.session_state.admin_menu == "♻️ RÉINITIALISATION" else "secondary"):
-                        st.session_state.admin_menu = "♻️ RÉINITIALISATION"; st.rerun()
-                    if st.button("👥 UTILISATEURS", type="primary" if st.session_state.admin_menu == "👥 UTILISATEURS" else "secondary"): 
-                        st.session_state.admin_menu = "👥 UTILISATEURS"; st.rerun()
-
+                    if st.button("♻️ RÉINITIALISATION", type="primary" if st.session_state.admin_menu == "♻️ RÉINITIALISATION" else "secondary"): st.session_state.admin_menu = "♻️ RÉINITIALISATION"; st.rerun()
+                    if st.button("👥 UTILISATEURS", type="primary" if st.session_state.admin_menu == "👥 UTILISATEURS" else "secondary"): st.session_state.admin_menu = "👥 UTILISATEURS"; st.rerun()
                 st.divider()
-                # BOUTON MUR SOCIAL (FORCE MODE WALL) AVEC STYLE BOUTON CORRIGÉ
                 host_url = st.context.headers.get("host", "")
                 st.markdown(f'<a href="https://{host_url}/?mode=wall" target="_blank" class="custom-link-btn">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
-                
-                if st.button("🔓 DÉCONNEXION"): 
-                    st.session_state["auth"] = False
-                    st.session_state["session_active"] = False
-                    st.rerun()
+                if st.button("🔓 DÉCONNEXION"): st.session_state["auth"] = False; st.session_state["session_active"] = False; st.rerun()
 
             menu = st.session_state.admin_menu
 
             if menu == "🔴 PILOTAGE LIVE" and (is_super_admin or "pilotage" in perms):
-                st.title("🔴 PILOTAGE LIVE")
-                st.subheader("Séquenceur")
+                st.title("🔴 PILOTAGE LIVE"); st.subheader("Séquenceur")
                 etat = "Inconnu"
                 if cfg["mode_affichage"] == "attente": etat = "ACCUEIL"
                 elif cfg["mode_affichage"] == "votes":
@@ -529,162 +389,101 @@ if est_admin:
                     else: etat = "VOTES FERMÉS"
                 elif cfg["mode_affichage"] == "photos_live": etat = "PHOTOS LIVE"
                 st.info(f"État actuel : **{etat}**")
-                
                 c1, c2, c3, c4 = st.columns(4)
                 c1.button("🏠 ACCUEIL", use_container_width=True, type="primary" if cfg["mode_affichage"]=="attente" else "secondary", on_click=set_state, args=("attente", False, False))
                 c2.button("🗳️ VOTES ON", use_container_width=True, type="primary" if (cfg["mode_affichage"]=="votes" and cfg["session_ouverte"]) else "secondary", on_click=set_state, args=("votes", True, False))
                 c3.button("🔒 VOTES OFF", use_container_width=True, type="primary" if (cfg["mode_affichage"]=="votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]) else "secondary", on_click=set_state, args=("votes", False, False))
                 c4.button("🏆 PODIUM", use_container_width=True, type="primary" if cfg["reveal_resultats"] else "secondary", on_click=set_state, args=("votes", False, True))
-                
                 st.markdown("---")
                 st.button("📸 MUR PHOTOS LIVE", use_container_width=True, type="primary" if cfg["mode_affichage"]=="photos_live" else "secondary", on_click=set_state, args=("photos_live", False, False))
             
             elif menu == "♻️ RÉINITIALISATION" and is_super_admin:
-                st.title("♻️ ZONE DE RÉINITIALISATION")
-                st.warning("⚠️ ATTENTION : Les actions ci-dessous sont irréversibles. Soyez prudent.")
-                
+                st.title("♻️ ZONE DE RÉINITIALISATION"); st.warning("⚠️ ATTENTION : Les actions ci-dessous sont irréversibles.")
                 c1, c2 = st.columns(2)
-                
-                # 1. VOTES & RESULTATS
                 with c1:
                     with st.container(border=True):
-                        st.subheader("🗳️ Votes & Résultats")
-                        st.caption("Efface : Votes, Détails des votes.")
-                        st.caption("Conserve : Participants, Photos.")
+                        st.subheader("🗳️ Votes & Résultats"); st.caption("Efface : Votes, Détails."); st.caption("Conserve : Participants, Photos.")
                         if st.button("Préparer Reset Votes"): st.session_state.confirm_reset_votes = True
                         if st.session_state.get("confirm_reset_votes"):
                             st.error("Confirmer ?")
-                            if st.button("🗑️ EFFACER VOTES", type="primary"):
-                                reset_only_votes()
-                                st.success("Votes effacés !")
-                                st.session_state.confirm_reset_votes = False
-                                time.sleep(1); st.rerun()
-
-                # 2. PARTICIPANTS
+                            if st.button("🗑️ EFFACER VOTES", type="primary"): reset_only_votes(); st.success("Fait !"); st.session_state.confirm_reset_votes = False; time.sleep(1); st.rerun()
                 with c2:
                     with st.container(border=True):
-                        st.subheader("👥 Participants")
-                        st.caption("Efface : Liste des inscrits (Pseudo/Voters).")
-                        st.caption("Conserve : Votes (Anonymisés), Photos.")
+                        st.subheader("👥 Participants"); st.caption("Efface : Liste inscrits."); st.caption("Conserve : Votes, Photos.")
                         if st.button("Préparer Reset Participants"): st.session_state.confirm_reset_parts = True
                         if st.session_state.get("confirm_reset_parts"):
                             st.error("Confirmer ?")
-                            if st.button("🗑️ EFFACER PARTICIPANTS", type="primary"):
-                                reset_only_participants()
-                                st.success("Participants effacés !")
-                                st.session_state.confirm_reset_parts = False
-                                time.sleep(1); st.rerun()
-
-                st.markdown("---")
+                            if st.button("🗑️ EFFACER PARTICIPANTS", type="primary"): reset_only_participants(); st.success("Fait !"); st.session_state.confirm_reset_parts = False; time.sleep(1); st.rerun()
                 c3, c4 = st.columns(2)
-
-                # 3. RESET PHOTOS ONLY
                 with c3:
                     with st.container(border=True):
-                        st.subheader("📸 Photos Seules")
-                        st.caption("Efface : Toutes les photos de la médiathèque.")
-                        st.caption("Conserve : Votes, Résultats.")
-                        if st.button("Préparer Reset Photos"):
-                            st.session_state.confirm_reset_photos = True
-                        
+                        st.subheader("📸 Photos Seules"); st.caption("Efface : Médiathèque."); st.caption("Conserve : Le reste.")
+                        if st.button("Préparer Reset Photos"): st.session_state.confirm_reset_photos = True
                         if st.session_state.get("confirm_reset_photos"):
-                            st.error("Êtes-vous sûr ?")
-                            if st.button("⚠️ CONFIRMER LA SUPPRESSION DES PHOTOS", type="primary"):
-                                reset_only_photos()
-                                st.success("Médiathèque vidée !")
-                                st.session_state.confirm_reset_photos = False
-                                time.sleep(1); st.rerun()
-
-                # 4. RESET ALL
+                            st.error("Sûr ?")
+                            if st.button("⚠️ CONFIRMER SUPPRESSION PHOTOS", type="primary"): reset_only_photos(); st.success("Fait !"); st.session_state.confirm_reset_photos = False; time.sleep(1); st.rerun()
                 with c4:
                     with st.container(border=True):
-                        st.subheader("🧨 TOUT (Usine)")
-                        st.caption("Efface : TOUT (Données + Photos).")
-                        st.caption("Remise à zéro complète de la session.")
-                        if st.button("Préparer Reset TOTAL"):
-                            st.session_state.confirm_reset_all = True
-                        
+                        st.subheader("🧨 TOUT (Usine)"); st.caption("Efface : TOUT."); st.caption("Remise à zéro.")
+                        if st.button("Préparer Reset TOTAL"): st.session_state.confirm_reset_all = True
                         if st.session_state.get("confirm_reset_all"):
-                            st.error("Êtes-vous VRAIMENT sûr ?")
-                            if st.button("⚠️ CONFIRMER LE RESET TOTAL", type="primary"):
-                                reset_app_data(preserve_config=True)
-                                st.success("Session remise à zéro !")
-                                st.session_state.confirm_reset_all = False
-                                time.sleep(1); st.rerun()
+                            st.error("VRAIMENT SÛR ?")
+                            if st.button("⚠️ CONFIRMER RESET TOTAL", type="primary"): reset_app_data(preserve_config=True); st.success("Fait !"); st.session_state.confirm_reset_all = False; time.sleep(1); st.rerun()
 
             elif menu == "📱 TEST MOBILE" and (is_super_admin or "test_mobile" in perms):
                 st.title("📱 TEST & SIMULATION")
-                st.markdown('<div style="background-color:#e8f4f8; padding:20px; border-radius:10px; border-left:5px solid #2980b9;"><strong>Note :</strong> Ce menu permet de tester l\'application mobile et de simuler des votes.</div><br>', unsafe_allow_html=True)
-                st.markdown('<a href="/?mode=vote&test_admin=true" target="_blank" class="custom-link-btn btn-blue">📱 OUVRIR SIMULATEUR MOBILE (VOTE ILLIMITÉ)</a>', unsafe_allow_html=True)
-                st.divider()
-                st.subheader("🧪 GÉNÉRATEUR DE VOTES AUTO")
-                with st.expander("Ouvrir le simulateur"):
-                    nb_simu = st.number_input("Nombre de votes à générer", min_value=1, max_value=100, value=10)
+                st.markdown('<a href="/?mode=vote&test_admin=true" target="_blank" class="custom-link-btn">📱 OUVRIR SIMULATEUR</a>', unsafe_allow_html=True)
+                st.divider(); st.subheader("🧪 GÉNÉRATEUR AUTO")
+                with st.expander("Simulateur de votes"):
+                    nb_simu = st.number_input("Nombre de votes", min_value=1, max_value=500, value=10)
                     if st.button("🚀 GÉNÉRER"):
-                        votes = load_json(VOTES_FILE, {})
-                        details = load_json(DETAILED_VOTES_FILE, [])
-                        cands = cfg["candidats"]
-                        if len(cands) >= 3:
+                        votes = load_json(VOTES_FILE, {}); details = load_json(DETAILED_VOTES_FILE, [])
+                        if len(cfg["candidats"]) >= 3:
                             for _ in range(nb_simu):
-                                ch = random.sample(cands, 3)
+                                ch = random.sample(cfg["candidats"], 3)
                                 for v, p in zip(ch, [5, 3, 1]): votes[v] = votes.get(v, 0) + p
-                                details.append({
-                                    "Utilisateur": f"Bot_{random.randint(1000,9999)}",
-                                    "Choix 1": ch[0], "Choix 2": ch[1], "Choix 3": ch[2],
-                                    "Date": datetime.now().strftime("%H:%M:%S")
-                                })
-                            save_json(VOTES_FILE, votes)
-                            save_json(DETAILED_VOTES_FILE, details)
-                            st.success(f"{nb_simu} votes ajoutés !")
-                        else:
-                            st.error("Pas assez de candidats.")
+                                details.append({"Utilisateur": f"Bot_{random.randint(1000,9999)}", "Choix 1": ch[0], "Choix 2": ch[1], "Choix 3": ch[2], "Date": datetime.now().strftime("%H:%M:%S")})
+                            save_json(VOTES_FILE, votes); save_json(DETAILED_VOTES_FILE, details); st.success(f"{nb_simu} ajoutés !")
+                        else: st.error("Pas assez de candidats.")
 
             elif menu == "⚙️ CONFIG" and (is_super_admin or "config" in perms):
                 st.title("⚙️ CONFIGURATION")
-                t1, t2 = st.tabs(["Général", "Candidats & Images"])
+                t1, t2 = st.tabs(["Général", "Candidats"])
                 with t1:
                     new_t = st.text_input("Titre", value=cfg["titre_mur"])
                     if st.button("Sauver Titre"): st.session_state.config["titre_mur"] = new_t; save_config(); st.rerun()
-                    upl = st.file_uploader("Logo (PNG Transparent)", type=["png", "jpg"])
+                    upl = st.file_uploader("Logo (PNG)", type=["png", "jpg"])
                     if upl: 
-                        processed_logo = process_logo(upl)
-                        if processed_logo:
-                            st.session_state.config["logo_b64"] = processed_logo
-                            save_config(); st.rerun()
+                        processed = process_logo(upl)
+                        if processed: st.session_state.config["logo_b64"] = processed; save_config(); st.rerun()
                 with t2:
-                    st.subheader(f"Liste des participants ({len(cfg['candidats'])}/15)")
+                    st.subheader(f"Participants ({len(cfg['candidats'])})")
                     c_add, c_btn = st.columns([4, 1])
-                    new_cand = c_add.text_input("Nouveau participant", key="new_cand_input")
-                    if c_btn.button("➕ Ajouter") and new_cand:
-                        if new_cand.strip() not in cfg['candidats']:
-                            cfg['candidats'].append(new_cand.strip())
-                            save_config(); st.rerun()
-                        else: st.error("Existe déjà !")
+                    new_cand = c_add.text_input("Nouveau", key="new_cand_input")
+                    if c_btn.button("➕") and new_cand:
+                        if new_cand.strip() not in cfg['candidats']: cfg['candidats'].append(new_cand.strip()); save_config(); st.rerun()
                     st.divider()
-                    candidates_to_remove = []
+                    to_remove = []
                     for i, cand in enumerate(cfg['candidats']):
                         c1, c2, c3 = st.columns([0.5, 3, 2])
-                        with c1:
+                        with c1: 
                             if cand in cfg.get("candidats_images", {}): st.image(BytesIO(base64.b64decode(cfg["candidats_images"][cand])), width=40)
-                            else: st.write("🚫")
                         with c2:
-                            new_name = st.text_input(f"Participant {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
+                            new_name = st.text_input(f"Nom {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
                             if new_name != cand and new_name:
                                 cfg['candidats'][i] = new_name
                                 if cand in cfg.get("candidats_images", {}): cfg["candidats_images"][new_name] = cfg["candidats_images"].pop(cand)
                                 save_config(); st.rerun()
                         with c3:
                             col_up, col_del = st.columns([3, 1])
-                            up_img = col_up.file_uploader(f"Img {cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
-                            if up_img: 
-                                if "candidats_images" not in st.session_state.config: st.session_state.config["candidats_images"] = {}
-                                processed = process_participant_image(up_img)
-                                if processed:
-                                    st.session_state.config["candidats_images"][cand] = processed
-                                    save_config(); st.toast(f"✅ Image {cand} sauvegardée"); time.sleep(0.5); st.rerun()
-                            if col_del.button("🗑️", key=f"del_{i}"): candidates_to_remove.append(cand)
-                    if candidates_to_remove:
-                        for c in candidates_to_remove:
+                            up = col_up.file_uploader(f"I_{cand}", type=["png", "jpg"], key=f"up_{i}", label_visibility="collapsed")
+                            if up:
+                                if "candidats_images" not in cfg: cfg["candidats_images"] = {}
+                                proc = process_participant_image(up)
+                                if proc: cfg["candidats_images"][cand] = proc; save_config(); st.rerun()
+                            if col_del.button("🗑️", key=f"del_{i}"): to_remove.append(cand)
+                    if to_remove:
+                        for c in to_remove:
                             cfg['candidats'].remove(c)
                             if c in cfg.get("candidats_images", {}): del cfg["candidats_images"][c]
                         save_config(); st.rerun()
@@ -692,414 +491,150 @@ if est_admin:
             elif menu == "📸 MÉDIATHÈQUE" and (is_super_admin or "mediatheque" in perms):
                 st.title("📸 MÉDIATHÈQUE")
                 files = sorted(glob.glob(f"{LIVE_DIR}/*"), key=os.path.getmtime, reverse=True)
-                
-                if not files: 
-                    st.info("Aucune photo dans la galerie.")
+                if not files: st.info("Vide.")
                 else:
-                    # GESTION SELECTION
                     if "selected_images" not in st.session_state: st.session_state.selected_images = []
-
-                    # BOUTONS D'ACTION
-                    c_global_1, c_global_2 = st.columns(2)
-                    with c_global_1:
-                         # ZIP TOUT
-                         zip_buffer_all = BytesIO()
-                         with zipfile.ZipFile(zip_buffer_all, "w") as zf:
-                            for idx, file_path in enumerate(files):
-                                ext = os.path.splitext(file_path)[1]
-                                new_name = f"photo_{idx+1:03d}{ext}"
-                                zf.write(file_path, arcname=new_name)
-                         st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                         st.download_button("📥 TOUT TÉLÉCHARGER (ZIP)", data=zip_buffer_all.getvalue(), file_name=f"galerie_complete.zip", mime="application/zip", use_container_width=True)
-                         st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    with c_global_2:
-                         # ZIP SELECTION
+                    c1, c2 = st.columns(2)
+                    with c1:
+                         zip_b = BytesIO()
+                         with zipfile.ZipFile(zip_b, "w") as zf:
+                            for idx, f in enumerate(files): zf.write(f, arcname=f"photo_{idx:03d}{os.path.splitext(f)[1]}")
+                         st.download_button("📥 TOUT ZIP", data=zip_b.getvalue(), file_name="all.zip", mime="application/zip", use_container_width=True)
+                    with c2:
                          if st.session_state.selected_images:
-                             zip_buffer_sel = BytesIO()
-                             with zipfile.ZipFile(zip_buffer_sel, "w") as zf:
-                                for idx, file_path in enumerate(st.session_state.selected_images):
-                                    ext = os.path.splitext(file_path)[1]
-                                    new_name = f"selection_{idx+1:03d}{ext}"
-                                    zf.write(file_path, arcname=new_name)
-                             st.download_button(f"📥 TÉLÉCHARGER SÉLECTION ({len(st.session_state.selected_images)})", data=zip_buffer_sel.getvalue(), file_name="selection.zip", mime="application/zip", use_container_width=True, type="primary")
-                         else:
-                             st.button("Sélectionnez des images...", disabled=True, use_container_width=True)
-
+                             zip_s = BytesIO()
+                             with zipfile.ZipFile(zip_s, "w") as zf:
+                                for idx, f in enumerate(st.session_state.selected_images): zf.write(f, arcname=f"sel_{idx:03d}{os.path.splitext(f)[1]}")
+                             st.download_button(f"📥 SELECTION ({len(st.session_state.selected_images)})", data=zip_s.getvalue(), file_name="select.zip", mime="application/zip", use_container_width=True, type="primary")
+                         else: st.button("Sélectionner...", disabled=True, use_container_width=True)
                     st.divider()
-                    
-                    # TOGGLE VUE (GRILLE / LISTE)
-                    view_mode = st.radio("Affichage :", ["🖼️ Grille", "📄 Liste"], horizontal=True, label_visibility="collapsed")
-                    
-                    if view_mode == "🖼️ Grille":
-                        # GRILLE D'IMAGES AVEC CHECKBOX
-                        cols = st.columns(5)
-                        for i, f in enumerate(files):
-                            with cols[i % 5]:
-                                st.image(f, use_container_width=True)
-                                is_sel = f in st.session_state.selected_images
-                                if st.checkbox("Select", key=f"sel_{f}", value=is_sel, label_visibility="collapsed"):
-                                    if f not in st.session_state.selected_images: st.session_state.selected_images.append(f)
-                                else:
-                                    if f in st.session_state.selected_images: st.session_state.selected_images.remove(f)
-                    else:
-                        # VUE LISTE
-                        for f in files:
-                            c1, c2, c3 = st.columns([1, 4, 1])
-                            with c1:
-                                st.image(f, width=60)
-                            with c2:
-                                st.write(f"**{os.path.basename(f)}**")
-                                st.caption(f"Date: {datetime.fromtimestamp(os.path.getmtime(f)).strftime('%H:%M:%S')}")
-                            with c3:
-                                is_sel = f in st.session_state.selected_images
-                                if st.checkbox("Sélectionner", key=f"list_sel_{f}", value=is_sel):
-                                    if f not in st.session_state.selected_images: st.session_state.selected_images.append(f)
-                                else:
-                                    if f in st.session_state.selected_images: st.session_state.selected_images.remove(f)
-                            st.divider()
-
-                st.markdown("<br><br><br>", unsafe_allow_html=True)
+                    cols = st.columns(5)
+                    for i, f in enumerate(files):
+                        with cols[i % 5]:
+                            st.image(f, use_container_width=True)
+                            sel = f in st.session_state.selected_images
+                            if st.checkbox("V", key=f"s_{f}", value=sel, label_visibility="collapsed"):
+                                if not sel: st.session_state.selected_images.append(f)
+                            else:
+                                if sel: st.session_state.selected_images.remove(f)
                 if is_super_admin:
-                    with st.expander("🚨 ZONE DE DANGER (SUPPRESSION TOTALE)"):
-                        st.write("Attention, cette action est irréversible.")
-                        if st.button("🗑️ TOUT SUPPRIMER DÉFINITIVEMENT", type="primary", use_container_width=True):
-                            files = glob.glob(f"{LIVE_DIR}/*")
-                            for f in files: os.remove(f)
-                            st.session_state.selected_images = []
-                            st.success("Suppression OK"); time.sleep(1); st.rerun()
+                    st.divider()
+                    if st.button("🗑️ VIDER TOUTE LA GALERIE"): reset_only_photos(); st.session_state.selected_images = []; st.rerun()
 
             elif menu == "📊 DATA" and (is_super_admin or "data" in perms):
                 st.title("📊 DONNÉES & RÉSULTATS")
-                
-                # 1. Chargement et Calcul des données
                 scores_data = load_json(VOTES_FILE, {})
                 vote_counts, nb_voters, rank_dist = get_advanced_stats()
                 total_points_all = sum(scores_data.values()) if scores_data else 0
-                
-                # Chargement des participants
                 participants_list = load_json(PARTICIPANTS_FILE, [])
                 
-                # 2. Affichage des indicateurs clés (KPIs)
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("👥 Votants (Ayant voté)", nb_voters)
-                c2.metric("📝 Inscrits (Total)", len(participants_list))
-                c3.metric("🏆 Total Points", total_points_all)
-                c4.metric("🎥 Candidats", len(cfg["candidats"]))
-                
+                c1.metric("👥 Votants", nb_voters); c2.metric("📝 Inscrits", len(participants_list))
+                c3.metric("🏆 Points", total_points_all); c4.metric("🎥 Candidats", len(cfg["candidats"]))
                 st.divider()
                 
                 if scores_data:
-                    # 3. Préparation des données pour le tableau et le graphique
                     df = pd.DataFrame(list(scores_data.items()), columns=["Candidat", "Points"])
                     df['Nb Votes'] = df['Candidat'].map(vote_counts).fillna(0).astype(int)
+                    df = df.sort_values("Points", ascending=False).reset_index(drop=True); df.index += 1 
                     
-                    df = df.sort_values("Points", ascending=False).reset_index(drop=True)
-                    df.index += 1 
-                    
-                    # 4. Affichage Tableau & Graphique
                     c_tab, c_graph = st.columns([1, 2])
-                    
-                    with c_tab:
-                        st.subheader("Classement")
-                        st.dataframe(df, use_container_width=True, height=400)
-                        
+                    with c_tab: st.subheader("Classement"); st.dataframe(df, use_container_width=True, height=350)
                     with c_graph:
-                        st.subheader("Visualisation")
-                        chart = alt.Chart(df.reset_index()).mark_bar().encode(
-                            x=alt.X('Points', title='Points cumulés'),
-                            y=alt.Y('Candidat', sort='-x', title=''),
-                            color=alt.Color('Points', legend=None, scale=alt.Scale(scheme='reds')),
-                            tooltip=['Candidat', 'Points', 'Nb Votes']
-                        ).properties(height=400)
-                        st.altair_chart(chart, use_container_width=True)
+                        st.subheader("Tendance")
+                        ch = alt.Chart(df.reset_index()).mark_bar().encode(x='Points', y=alt.Y('Candidat', sort='-x'), color='Points', tooltip=['Candidat', 'Points'])
+                        st.altair_chart(ch, use_container_width=True)
                     
-                    st.divider()
+                    st.divider(); st.subheader("📥 Exports PDF & CSV")
+                    c_res, c_det, c_par = st.columns(3)
                     
-                    # 5. Zone d'Export (PDF & CSV)
-                    st.subheader("📥 Téléchargements")
-                    col_pdf, col_csv, col_part = st.columns(3) # 3 COLONNES
-                    
-                    with col_pdf:
+                    with c_res:
+                        st.markdown("**1. Résultats (Podium)**")
                         if PDF_AVAILABLE:
                             try:
-                                pdf_bytes = create_pdf_results(cfg["titre_mur"], df, nb_voters, total_points_all)
-                                st.download_button(
-                                    label="📄 RÉSULTATS (PDF)",
-                                    data=pdf_bytes,
-                                    file_name=f"Rapport_Resultats_{datetime.now().strftime('%H%M')}.pdf",
-                                    mime="application/pdf",
-                                    type="primary",
-                                    use_container_width=True
-                                )
-                            except Exception as e:
-                                st.error(f"Erreur PDF: {e}")
-                        else:
-                            st.warning("⚠️ Module 'fpdf' manquant.")
-                            
-                    with col_csv:
+                                pdf_res = create_pdf_results(cfg["titre_mur"], df, nb_voters, total_points_all)
+                                st.download_button("📄 PDF Résultats", pdf_res, "Resultats.pdf", "application/pdf", use_container_width=True)
+                            except: st.warning("Err PDF")
+                    
+                    with c_det:
+                        st.markdown("**2. Journal des Votes**")
                         details = load_json(DETAILED_VOTES_FILE, [])
                         if details:
-                            df_details = pd.DataFrame(details)
-                            csv_data = df_details.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label="📊 DÉTAIL VOTES (CSV)",
-                                data=csv_data,
-                                file_name="votes_detailles.csv",
-                                mime="text/csv",
-                                use_container_width=True
-                            )
-                        else:
-                            st.info("Pas de votes.")
+                            if PDF_AVAILABLE:
+                                try:
+                                    pdf_det = create_pdf_details("Journal", details)
+                                    st.download_button("📄 PDF Détails", pdf_det, "Journal_Votes.pdf", "application/pdf", use_container_width=True)
+                                except: pass
+                            csv_det = pd.DataFrame(details).to_csv(index=False).encode('utf-8')
+                            st.download_button("📊 CSV Détails", csv_det, "votes_raw.csv", "text/csv", use_container_width=True)
 
-                    with col_part:
+                    with c_par:
+                        st.markdown("**3. Liste Participants**")
                         if participants_list:
-                            df_part = pd.DataFrame(participants_list, columns=["Pseudo"])
-                            csv_part = df_part.to_csv(index=False).encode('utf-8')
-                            st.download_button(
-                                label="👥 LISTE INSCRITS (CSV)",
-                                data=csv_part,
-                                file_name="participants.csv",
-                                mime="text/csv",
-                                use_container_width=True
-                            )
-                        else:
-                            st.info("Aucun inscrit.")
+                            if PDF_AVAILABLE:
+                                try:
+                                    pdf_par = create_pdf_participants("Participants", participants_list)
+                                    st.download_button("📄 PDF Participants", pdf_par, "Participants.pdf", "application/pdf", use_container_width=True)
+                                except: pass
+                            csv_par = pd.DataFrame(participants_list, columns=["Pseudo"]).to_csv(index=False).encode('utf-8')
+                            st.download_button("📊 CSV Participants", csv_par, "participants.csv", "text/csv", use_container_width=True)
                     
-                    st.markdown("---")
-                    st.subheader("🕵️‍♂️ Inspection Détaillée des Votes (LOGS)")
-                    details = load_json(DETAILED_VOTES_FILE, [])
-                    if details:
-                        df_details = pd.DataFrame(details)
-                        # Inverser pour voir les derniers votes en premier
-                        st.dataframe(df_details.iloc[::-1], use_container_width=True, height=300)
-                    else:
-                        st.caption("Le journal est vide.")
-
-                else:
-                    st.info("ℹ️ Aucun vote n'a encore été enregistré. La session est en attente.")
+                    st.divider()
+                    st.subheader("🕵️‍♂️ Journal en Direct")
+                    if details: st.dataframe(pd.DataFrame(details).iloc[::-1], use_container_width=True, height=300)
+                else: st.info("En attente de votes...")
 
             elif menu == "👥 UTILISATEURS" and is_super_admin:
-                st.title("👥 GESTION DES UTILISATEURS")
-                
-                # --- LISTE & MODIFICATION ---
-                st.subheader("📋 Liste des utilisateurs existants")
-                st.info("Sélectionnez un utilisateur dans la liste ci-dessous pour modifier ses droits.")
-                
+                st.title("👥 GESTION UTILISATEURS")
                 user_list = list(users_db.keys())
-                selected_user = st.selectbox("👤 Sélectionner l'utilisateur à modifier", user_list)
-                
-                if selected_user:
-                    st.markdown(f"### ✏️ Édition de : **{selected_user}**")
+                sel = st.selectbox("Utilisateur", user_list)
+                if sel:
                     with st.container(border=True):
-                        if selected_user == "admin":
-                            st.warning("⚠️ Le compte Super Admin ne peut pas être renommé ou supprimé.")
-                        
-                        user_data = users_db[selected_user]
-                        c_edit_1, c_edit_2 = st.columns(2)
-                        new_pwd_edit = c_edit_1.text_input("Nouveau mot de passe", value=user_data["pwd"], type="password")
-                        
-                        roles_list = ["Assistant", "Régie", "Client"]
-                        current_role_val = user_data.get("role", "Régie")
-                        if current_role_val in roles_list: idx_role = roles_list.index(current_role_val)
-                        else: idx_role = 0
-                            
-                        new_role_edit = c_edit_2.selectbox("Rôle", roles_list, index=idx_role, disabled=(selected_user=="admin"))
-                        
-                        st.write("Permissions :")
-                        current_perms = user_data.get("perms", [])
-                        c1, c2, c3 = st.columns(3)
-                        p_pilot_e = c1.checkbox("Pilotage Live", value=("pilotage" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
-                        p_conf_e = c2.checkbox("Configuration", value=("config" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
-                        p_media_e = c3.checkbox("Médiathèque", value=("mediatheque" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
-                        c4, c5 = st.columns(2)
-                        p_data_e = c4.checkbox("Data / Résultats", value=("data" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
-                        p_test_e = c5.checkbox("Test Mobile", value=("test_mobile" in current_perms or "all" in current_perms), disabled=(selected_user=="admin"))
-                        
-                        col_save, col_del = st.columns([1, 4])
-                        
-                        if col_save.button("💾 Mettre à jour", type="primary", use_container_width=True):
-                            new_perms_list = []
-                            if selected_user == "admin": new_perms_list = ["all"]
-                            else:
-                                if p_pilot_e: new_perms_list.append("pilotage")
-                                if p_conf_e: new_perms_list.append("config")
-                                if p_media_e: new_perms_list.append("mediatheque")
-                                if p_data_e: new_perms_list.append("data")
-                                if p_test_e: new_perms_list.append("test_mobile")
-                            
-                            users_db[selected_user] = {"pwd": new_pwd_edit, "role": new_role_edit if selected_user != "admin" else "Super Admin", "perms": new_perms_list}
-                            save_json(USERS_FILE, users_db)
-                            st.success(f"Utilisateur {selected_user} mis à jour avec succès !")
-                            time.sleep(1); st.rerun()
-                        
-                        if selected_user != "admin":
-                            if col_del.button("🗑️ Supprimer l'utilisateur", type="primary"):
-                                del users_db[selected_user]
-                                save_json(USERS_FILE, users_db)
-                                st.success(f"Utilisateur {selected_user} supprimé.")
-                                time.sleep(1); st.rerun()
-
-                st.divider()
-                
-                # --- CREATION ---
-                with st.expander("➕ Créer un NOUVEL utilisateur", expanded=False):
-                    new_u = st.text_input("Nouvel Identifiant (ex: client1)")
-                    new_p = st.text_input("Nouveau Mot de passe")
-                    new_r = st.selectbox("Nouveau Rôle", ["Assistant", "Régie", "Client"])
-                    st.write("Permissions pour le nouveau compte :")
-                    c1, c2, c3 = st.columns(3); p_pilot = c1.checkbox("Pilotage Live", key="new_p1"); p_conf = c2.checkbox("Configuration", key="new_p2"); p_media = c3.checkbox("Médiathèque", key="new_p3")
-                    c4, c5 = st.columns(2); p_data = c4.checkbox("Data / Résultats", key="new_p4"); p_test = c5.checkbox("Test Mobile", key="new_p5")
-                    
-                    if st.button("Créer l'utilisateur", key="btn_create"):
-                        if new_u and new_p:
-                            if new_u in users_db: st.error("Cet utilisateur existe déjà.")
-                            else:
-                                perms_list = []
-                                if p_pilot: perms_list.append("pilotage")
-                                if p_conf: perms_list.append("config")
-                                if p_media: perms_list.append("mediatheque")
-                                if p_data: perms_list.append("data")
-                                if p_test: perms_list.append("test_mobile")
-                                users_db[new_u] = {"pwd": new_p, "role": new_r, "perms": perms_list}
-                                save_json(USERS_FILE, users_db)
-                                st.success(f"Utilisateur {new_u} créé !"); time.sleep(1); st.rerun()
-                        else: st.error("Remplissez l'identifiant et le mot de passe.")
+                        st.markdown(f"**{sel}**")
+                        ud = users_db[sel]
+                        pwd = st.text_input("Mot de passe", value=ud["pwd"], type="password")
+                        rl = st.selectbox("Rôle", ["Assistant", "Régie", "Client"], index=0)
+                        if st.button("Sauvegarder"):
+                            users_db[sel]["pwd"] = pwd; users_db[sel]["role"] = rl; save_json(USERS_FILE, users_db); st.success("OK"); st.rerun()
+                        if sel != "admin" and st.button("Supprimer"): del users_db[sel]; save_json(USERS_FILE, users_db); st.rerun()
+                st.markdown("---")
+                with st.expander("Créer un utilisateur"):
+                    nu = st.text_input("ID"); np = st.text_input("PWD")
+                    if st.button("Créer"): 
+                        if nu and np: users_db[nu] = {"pwd": np, "role": "Régie", "perms": []}; save_json(USERS_FILE, users_db); st.success("OK"); st.rerun()
 
 # =========================================================
-# 2. APPLICATION MOBILE (Vote)
+# 2. APPLICATION MOBILE
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("""<style>
-    .stApp {background-color:black !important; color:white !important;} 
-    [data-testid='stHeader'] {display:none;} .block-container {padding: 1rem !important;} 
-    h1, h2, h3, p, div, span, label { color: white !important; }
-    
-    /* FIX EXTREME POUR LE TEXTE NOIR DANS LES DROPDOWNS */
-    
-    /* 1. Force le fond BLANC pour le conteneur du menu */
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
-        background-color: white !important;
-    }
-
-    /* 2. Force le texte NOIR pour toutes les options */
-    li[role="option"] {
-        background-color: white !important;
-        color: black !important;
-    }
-    
-    /* 3. Force la couleur noire sur les enfants (span, div) de l'option */
-    li[role="option"] * {
-        color: black !important;
-    }
-
-    /* 4. Gestion du survol (Hover) : Gris clair */
-    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
-        background-color: #f0f0f0 !important;
-    }
-
-    /* 5. Le champ de sélection (input) reste sur fond noir avec texte blanc */
-    div[data-baseweb="select"] > div {
-        background-color: #333 !important;
-        color: white !important;
-    }
-    
-    /* 6. Tags sélectionnés (Pills) */
-    span[data-baseweb="tag"] {
-         background-color: #444 !important;
-         color: white !important;
-    }
-
-    /* BOUTON ROUGE */
-    button[kind="primary"], div[data-testid="stBaseButton-primary"] button { background-color: #E2001A !important; color: white !important; border: 1px solid #E2001A !important; }
-    button[kind="primary"]:hover { background-color: #C20015 !important; }
-    </style>""", unsafe_allow_html=True)
-    
-    curr_sess = cfg.get("session_id", "init")
-    if "vote_success" not in st.session_state: st.session_state.vote_success = False
-    if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
-    if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
-    
+    st.markdown("<style>.stApp {background:black;color:white;} header{display:none;} button{width:100%;}</style>", unsafe_allow_html=True)
     if cfg["mode_affichage"] == "photos_live":
         if "user_pseudo" not in st.session_state: st.session_state.user_pseudo = "Anonyme"
-    elif cfg["mode_affichage"] == "votes":
-        if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": del st.session_state["user_pseudo"]; st.rerun()
-
-    if cfg["mode_affichage"] != "photos_live":
-        if not is_test_admin:
-            components.html(f"""<script>
-                var sS = "{curr_sess}";
-                var lS = localStorage.getItem('VOTE_SID_2026');
-                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
-                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
-            </script>""", height=0)
+        st.info("📸 MUR PHOTOS"); up = st.file_uploader("Galerie", type=['jpg','png']); cam = st.camera_input("Camera")
+        fin = up if up else cam
+        if fin:
+            with open(os.path.join(LIVE_DIR, f"live_{uuid.uuid4().hex}.jpg"), "wb") as f: f.write(fin.getbuffer())
+            st.success("Envoyé !"); time.sleep(1); st.rerun()
+    elif cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin):
+        if st.session_state.get("vote_success"):
+            st.balloons(); st.success("VOTE ENREGISTRÉ !"); st.stop()
+        if "user_pseudo" not in st.session_state:
+            pseudo = st.text_input("Votre Prénom")
+            if st.button("Entrer") and pseudo:
+                st.session_state.user_pseudo = pseudo
+                p = load_json(PARTICIPANTS_FILE, []); p.append(pseudo); save_json(PARTICIPANTS_FILE, p); st.rerun()
         else:
-            st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
-        
-    if "user_pseudo" not in st.session_state:
-        st.subheader("Identification")
-        if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
-        pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
-        if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            st.session_state.user_pseudo = pseudo.strip()
-            parts = load_json(PARTICIPANTS_FILE, [])
-            parts.append(pseudo.strip())
-            save_json(PARTICIPANTS_FILE, parts)
-            st.rerun()
-    else:
-        if cfg["mode_affichage"] == "photos_live":
-            st.info("📸 ENVOYER UNE PHOTO"); up_key = f"uploader_{st.session_state.cam_reset_id}"; cam_key = f"camera_{st.session_state.cam_reset_id}"
-            uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
-            cam_file = st.camera_input("Prendre une photo", key=cam_key)
-            final_file = uploaded_file if uploaded_file else cam_file
-            if final_file:
-                fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
-                with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
-                st.success("Envoyé !"); st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
-
-        elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
-            if st.session_state.vote_success:
-                 st.balloons()
-                 st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-                 if not is_test_admin: components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-                 else: st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
-                 st.stop()
-            st.write(f"Bonjour **{st.session_state.user_pseudo}**")
-            if not st.session_state.rules_accepted:
-                st.info("⚠️ **RÈGLES DU VOTE**")
-                st.markdown("""
-                **VOTE PAR PRÉFÉRENCE (3 CHOIX)**
-                
-                <span style='color:#ff4b4b; font-weight:bold;'>🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</span>
-                
-                1. Sélectionnez **3 vidéos**.
-                2. 🥇 1er = **5 pts**
-                3. 🥈 2ème = **3 pts**
-                4. 🥉 3ème = **1 pt**
-                
-                **Vote unique et définitif.**
-                """, unsafe_allow_html=True)
-                
-                if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
-            else:
-                st.warning("⚠️ RAPPEL : Vote UNIQUE.")
-                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
-                if len(choix) == 3:
-                    if st.button("VALIDER (DÉFINITIF)", type="primary"):
-                        vts = load_json(VOTES_FILE, {}); pts = cfg.get("points_ponderation", [5, 3, 1])
-                        for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
-                        save_json(VOTES_FILE, vts)
-                        details = load_json(DETAILED_VOTES_FILE, [])
-                        details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1": choix[0], "Choix 2": choix[1], "Choix 3": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
-                        save_json(DETAILED_VOTES_FILE, details)
-                        st.session_state.vote_success = True; st.rerun()
-        
-        elif is_test_admin and cfg["mode_affichage"] == "votes":
-             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
-             if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
-                 st.success("Test OK"); time.sleep(1); st.rerun()
-        else: st.info("⏳ En attente...")
+            choix = st.multiselect("3 Choix", cfg["candidats"], max_selections=3)
+            if len(choix)==3 and st.button("Valider"):
+                v = load_json(VOTES_FILE, {})
+                for c, p in zip(choix, [5,3,1]): v[c] = v.get(c, 0) + p
+                save_json(VOTES_FILE, v)
+                d = load_json(DETAILED_VOTES_FILE, [])
+                d.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1": choix[0], "Choix 2": choix[1], "Choix 3": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
+                save_json(DETAILED_VOTES_FILE, d)
+                st.session_state.vote_success = True; st.rerun()
+    else: st.info("En attente...")
 # =========================================================
 # 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
 # =========================================================
@@ -1662,3 +1197,4 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
