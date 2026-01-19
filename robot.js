@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - DUO ROBOT/HUMAIN)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - LOGIQUE MULTI-MURS)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -26,36 +26,59 @@ const CENTRAL_MESSAGES = [
 ];
 
 // =========================================================
-// 📜 SÉQUENCE D'INTRODUCTION (PRIORITAIRE & ÉTENDUE)
+// 📜 SÉQUENCES PRIORITAIRES (INTRODUCTION)
 // =========================================================
-const STARTUP_SEQUENCE = [
-    "Bonsoir à toutes et à tous ! Je suis Clap-E, votre assistant virtuel pour cette soirée de gala.",
+
+// --- SÉQUENCE : ACCUEIL ---
+const SEQ_ACCUEIL = [
+    "Bonsoir à toutes et à tous ! Je suis Clap-E, votre assistant virtuel.",
     "Quel plaisir de voir autant de monde réuni. Vous êtes tous très élégants ce soir !",
     "C'est un honneur d'apparaître sur cet écran. Mon processeur est ravi !",
-    "Cependant, rassurez-vous, je ne serai pas seul aux commandes.",
-    "Un animateur sera présent parmi vous tout au long de la soirée pour vous guider.",
-    "Il prendra la parole très bientôt pour vous expliquer en détail le déroulement des festivités.",
+    "Je ne serai pas seul : un animateur humain sera présent pour vous guider.",
     "Nous formerons un duo de choc : lui sur scène pour l'humain, et moi ici pour le digital !",
-    "Ensemble, nous allons vous faire passer un moment inoubliable, rythmé par la technologie et la convivialité.",
-    "Laissez-moi tout de même vous donner un aperçu du programme... Écoutez bien !",
-    "Tout d'abord, profitez de ce moment d'accueil pour échanger, boire un verre et vous détendre.",
-    "Dans quelques instants, nous ouvrirons officiellement la session de **VOTE**.",
-    "Vous découvrirez les candidats et vous pourrez élire vos favoris directement depuis vos smartphones.",
-    "Une fois les votes clos, mon algorithme analysera les résultats en temps réel. Précision garantie !",
-    "Ensuite viendra le moment tant attendu : la révélation du **PODIUM** et le sacre des gagnants.",
-    "Mais ce n'est pas tout ! Nous ouvrirons également le **Mur Photos Live**.",
-    "Vous pourrez scanner un QR Code et projeter vos selfies instantanément sur cet écran géant.",
-    "Alors gardez vos téléphones à portée de main, mais n'oubliez pas de couper la sonnerie !",
-    "Pour l'instant, je laisse la place à votre animateur et je vous laisse profiter de l'ambiance.",
+    "Voici le programme : Accueil, Votes, Analyse des scores, Podium... et Photos Live !",
+    "Tout va se passer ici. Mais pour l'instant, installez-vous et profitez de l'ambiance.",
     "Je reste ici pour veiller sur vous. Excellente soirée à toutes et à tous !"
 ];
 
-let startupQueue = []; 
-let lastPresentationTime = 0; // Pour relancer la présentation plus tard
+// --- SÉQUENCE : VOTE OFF (Annonce fermeture) ---
+const SEQ_VOTE_OFF = [
+    "Mesdames et Messieurs, votre attention s'il vous plaît : les votes sont officiellement clos !",
+    "Merci à tous pour votre participation massive. C'était intense !",
+    "Actuellement, mon processeur tourne à plein régime pour analyser les résultats.",
+    "Je vérifie chaque voix, je calcule chaque point... La précision est ma devise.",
+    "Le suspense est à son comble. Les vainqueurs seront révélés très bientôt.",
+    "Et n'oubliez pas : une superbe soirée dansante vous attend juste après le podium !",
+    "En attendant, détendez-vous, les résultats arrivent !"
+];
 
-// On charge la file uniquement en mode accueil
+// --- SÉQUENCE : PHOTOS LIVE (Consignes) ---
+const SEQ_PHOTOS = [
+    "Et maintenant, place au fun ! Le Mur Photos Live est officiellement ouvert !",
+    "C'est le moment de briller ! Sortez vos smartphones et scannez le QR Code au centre.",
+    "Le principe est simple : prenez une photo, validez, et hop ! Elle apparaît ici instantanément.",
+    "Selfies, grimaces, photos de groupe... Lâchez-vous ! Il n'y a aucune limite de nombre.",
+    "Faites vivre cet écran géant avec vos plus beaux sourires. C'est votre mur !",
+    "Alors, qui sera le premier à envoyer sa photo ? Je vous regarde !"
+];
+
+// --- INITIALISATION DE LA FILE D'ATTENTE ---
+let startupQueue = [];
+let repeatInterval = 600; // Par défaut 10 min
+let maxRepeatTime = Infinity; // Par défaut illimité
+
 if (config.mode === 'attente') {
-    startupQueue = [...STARTUP_SEQUENCE];
+    startupQueue = [...SEQ_ACCUEIL];
+    repeatInterval = 600; // 10 minutes
+} 
+else if (config.mode === 'vote_off') { // "vote_off" correspond au mode votes fermés (mais pas encore podium)
+    startupQueue = [...SEQ_VOTE_OFF];
+    repeatInterval = 300; // Rappel toutes les 5 minutes que c'est fini
+}
+else if (config.mode === 'photos') {
+    startupQueue = [...SEQ_PHOTOS];
+    repeatInterval = 300; // Rappel toutes les 5 minutes
+    maxRepeatTime = 1800; // Arrêt des répétitions après 30 minutes
 }
 
 // =========================================================
@@ -90,27 +113,24 @@ const TEXTS_ATTENTE = [
 ];
 
 const TEXTS_VOTE_OFF = [
-    "Les votes sont officiellement clos ! Merci de votre participation.",
+    "Analyse des données en cours... Veuillez patienter.",
+    "C'est serré... Plus serré qu'un boulon de 12 !",
     "Qui seront les grands gagnants ? Le suspense est insoutenable...",
     "Nous allons bientôt connaître les résultats. Restez concentrés !",
-    "Après les émotions, place à la fête ! Une superbe soirée dansante vous attend.",
-    "Encore un peu de patience pour les vainqueurs de cette soirée mémorable.",
     "Ne partez pas ! La piste de danse n'attend que vous juste après.",
     "Gardez votre énergie, la soirée dansante s'annonce grandiose !",
     "Les jeux sont faits. Que les meilleurs gagnent !",
     "Je sens l'excitation monter... Les résultats arrivent très vite.",
-    "Préparez vos chaussures de danse, la nuit ne fait que commencer !",
-    "Quel que soit le résultat, ce soir, nous faisons tous la fête ensemble."
+    "Préparez vos chaussures de danse, la nuit ne fait que commencer !"
 ];
 
 const TEXTS_PHOTOS = [
-    "Le Mur Photos Live est ouvert à toutes et à tous ! À vos smartphones !",
-    "C'est très simple : scannez le QR Code au centre et c'est à vous.",
-    "Il n'y a aucune limite ! Envoyez autant de photos que vous le souhaitez.",
-    "C'est magique : prenez une photo, validez, et elle s'affiche ici immédiatement.",
-    "Immortalisez cette soirée exceptionnelle. Je veux voir vos sourires !",
-    "Selfies, photos de groupe, grimaces... Tout est permis sur ce mur !",
-    "Participez ! Faites vivre ce mur avec vos meilleurs moments.",
+    "Waouh ! Quelle photo incroyable !",
+    "Allez, faites-moi votre plus beau sourire !",
+    "Continuez d'envoyer, je stocke tout dans ma mémoire !",
+    "C'est magique : prenez une photo, validez, et elle s'affiche ici.",
+    "Immortalisez cette soirée exceptionnelle.",
+    "Selfies, photos de groupe, grimaces... Tout est permis !",
     "Regardez comme vous êtes beaux sur grand écran !",
     "Allez, sortez vos téléphones et faites crépiter les flashs !",
     "J'attends vos clichés ! Montrez-nous l'ambiance de votre table.",
@@ -263,11 +283,13 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     armRGroup.userData.origRot = new THREE.Euler(0,0,0);
     sceneBot.add(robotGroup); 
 
-    // LOGIQUE MOTEUR
-    let time = 0;
+    // LOGIQUE MOTEUR ET TEMPS
+    let time = 0; // Temps Animation (Vagues)
+    let clock = new THREE.Clock(); // Temps Réel (Logique)
+    let lastPresentationTime = 0; // Dernier temps de fin de présentation
     let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL);
     let state = 'idle'; 
-    let nextEventTime = time + 2; 
+    let nextEventTime = 2; // Premier event à 2 sec
     let isWaving = false;
     let textMsgIndex = 0;
     let lastTextChange = 0;
@@ -320,30 +342,36 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         return new THREE.Vector3(x, y, Z_NORMAL);
     }
 
-    // --- CERVEAU AVEC PRIORITÉ PRÉSENTATION ---
+    // --- CERVEAU INTELLIGENT ---
     function decideNextAction() {
-        // 1. GESTION DU MODE PRÉSENTATION (Priorité Absolue)
-        if (config.mode === 'attente') {
-            // Relance automatique après 10 minutes (600 secondes)
-            if (startupQueue.length === 0 && (time - lastPresentationTime > 600)) {
-                startupQueue = [...STARTUP_SEQUENCE];
-            }
+        const elapsedTime = clock.getElapsedTime(); // Temps en secondes depuis le chargement
 
-            // Si la file d'attente contient des phrases, on est en mode PRESENTATION
-            if (startupQueue.length > 0) {
-                state = 'presenting'; 
-                const msg = startupQueue.shift();
-                showBubble(msg, 'speech');
-                
-                targetPos = pickRandomSafePosition();
-                isWaving = true; 
-                setTimeout(() => { isWaving = false; }, 3000);
+        // 1. GESTION DES PRÉSENTATIONS PRIORITAIRES (Multi-modes)
+        // Vérifie si on doit recharger la séquence (Intervalle respecté + Pas dépassé la limite globale)
+        if (startupQueue.length === 0 && 
+            (elapsedTime - lastPresentationTime > repeatInterval) && 
+            (elapsedTime < maxRepeatTime)) {
+            
+            if (config.mode === 'attente') startupQueue = [...SEQ_ACCUEIL];
+            else if (config.mode === 'vote_off') startupQueue = [...SEQ_VOTE_OFF];
+            else if (config.mode === 'photos') startupQueue = [...SEQ_PHOTOS];
+        }
 
-                if (startupQueue.length === 0) lastPresentationTime = time;
+        // Si la file d'attente contient des phrases, on est en mode PRESENTATION
+        if (startupQueue.length > 0) {
+            state = 'presenting'; 
+            const msg = startupQueue.shift();
+            showBubble(msg, 'speech');
+            
+            targetPos = pickRandomSafePosition();
+            isWaving = true; 
+            setTimeout(() => { isWaving = false; }, 3000);
 
-                nextEventTime = time + 8; // On laisse bien le temps de lire
-                return; // ARRÊT (VERROUILLAGE)
-            }
+            if (startupQueue.length === 0) lastPresentationTime = elapsedTime;
+
+            // Temps de lecture long pour les infos importantes
+            nextEventTime = elapsedTime + 8; 
+            return; // ARRÊT (VERROUILLAGE)
         }
 
         // 2. MODE LIBRE
@@ -400,12 +428,14 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(isWaving) setTimeout(() => { isWaving = false; }, 3000);
             }
         }
-        nextEventTime = time + 4 + Math.random() * 4;
+        // Prochaine action aléatoire
+        nextEventTime = elapsedTime + 4 + Math.random() * 4;
     }
 
     function animate() {
         requestAnimationFrame(animate);
         time += 0.012; 
+        const elapsedTime = clock.getElapsedTime();
 
         if(isTeleportingEffect && explosionTime > 0) {
             explosionTime -= 0.03;
@@ -439,7 +469,8 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 armRGroup.rotation.z = -Math.sin(time * 3) * 0.1;
             }
 
-            if (time > nextEventTime && state !== 'closeup') {
+            // Utilisation du temps réel pour décider
+            if (elapsedTime > nextEventTime && state !== 'closeup') {
                 decideNextAction();
             }
         }
@@ -462,7 +493,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             if (done) {
                 parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); });
                 state = 'idle';
-                nextEventTime = time + 2;
+                nextEventTime = elapsedTime + 2;
             }
         }
 
