@@ -72,6 +72,11 @@ st.markdown("""
         color: black;
     }
     
+    /* ANTI-FLASH BLANC : Force le fond noir pour les iframes lors du chargement */
+    iframe, .stIFrame {
+        background-color: black !important;
+    }
+    
     /* 2. Masquer le menu hamburger et le footer Streamlit partout */
     [data-testid="stHeader"], footer, header { 
         display: none !important; 
@@ -759,39 +764,6 @@ if est_admin:
                             for f in files: os.remove(f)
                             st.session_state.selected_images = []
                             st.success("Suppression OK"); time.sleep(1); st.rerun()
-
-            elif menu == "📊 DATA" and (is_super_admin or "data" in perms):
-                st.title("📊 DONNÉES & RÉSULTATS")
-                votes = load_json(VOTES_FILE, {})
-                vote_counts, nb_unique_voters, rank_dist = get_advanced_stats()
-                
-                all_cands_data = []
-                total_points_session = 0
-                for c in cfg["candidats"]:
-                    p = votes.get(c, 0)
-                    total_points_session += p
-                    all_cands_data.append({"Candidat": c, "Points": p, "Nb Votes": vote_counts.get(c, 0)})
-                
-                df_totals = pd.DataFrame(all_cands_data).sort_values(by='Points', ascending=False)
-                
-                st.subheader("🏆 Classement Général")
-                c_chart, c_data = st.columns([1, 1]) 
-                with c_chart:
-                    chart = alt.Chart(df_totals).mark_bar(color="#E2001A").encode(
-                        x=alt.X('Points'), y=alt.Y('Candidat', sort='-x'), tooltip=['Candidat', 'Points', 'Nb Votes']
-                    ).properties(height=350) 
-                    st.altair_chart(chart, use_container_width=True)
-                with c_data: st.table(df_totals)
-                
-                st.markdown("##### 📥 Exporter le Rapport de Résultats")
-                c1, c2, c3 = st.columns(3)
-                if PDF_AVAILABLE:
-                    st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                    c1.download_button("📄 Rés. + Graphique (PDF)", data=create_pdf_results(cfg['titre_mur'], df_totals, nb_unique_voters, total_points_session), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.pdf", mime="application/pdf", use_container_width=True)
-                    st.markdown('</div>', unsafe_allow_html=True)
-                st.markdown('<div class="blue-anim-btn">', unsafe_allow_html=True)
-                c3.download_button("📊 Données Résultats (CSV)", data=df_totals.to_csv(index=False).encode('utf-8'), file_name=f"Resultats_{sanitize_filename(cfg['titre_mur'])}.csv", mime="text/csv", use_container_width=True)
-                st.markdown('</div>', unsafe_allow_html=True)
 
             elif menu == "👥 UTILISATEURS" and is_super_admin:
                 st.title("👥 GESTION DES UTILISATEURS")
