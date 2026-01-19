@@ -296,8 +296,12 @@ def get_advanced_stats():
     unique_voters = set()
     for record in details:
         unique_voters.add(record.get('Utilisateur'))
-        for idx, k in enumerate(["Choix 1 (5pts)", "Choix 2 (3pts)", "Choix 3 (1pt)"]):
+        for idx, k in enumerate(["Choix 1", "Choix 2", "Choix 3"]): # Clés simplifiées pour match
+            # Adaptation si les clés contiennent (5pts) etc.
             cand = record.get(k)
+            # Fallback si anciennes clés
+            if not cand: cand = record.get(f"{k} ({[5,3,1][idx]}pts)")
+            
             if cand:
                 vote_counts[cand] = vote_counts.get(cand, 0) + 1
                 if cand not in rank_dist: rank_dist[cand] = {1:0, 2:0, 3:0}
@@ -764,6 +768,88 @@ if est_admin:
                             for f in files: os.remove(f)
                             st.session_state.selected_images = []
                             st.success("Suppression OK"); time.sleep(1); st.rerun()
+
+            elif menu == "📊 DATA" and (is_super_admin or "data" in perms):
+                st.title("📊 DONNÉES & RÉSULTATS")
+                
+                # 1. Chargement et Calcul des données
+                scores_data = load_json(VOTES_FILE, {})
+                vote_counts, nb_voters, rank_dist = get_advanced_stats()
+                total_points_all = sum(scores_data.values()) if scores_data else 0
+                
+                # 2. Affichage des indicateurs clés (KPIs)
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("👥 Votants Uniques", nb_voters)
+                c2.metric("🏆 Total Points", total_points_all)
+                c3.metric("🗳️ Total Citations", sum(vote_counts.values()) if vote_counts else 0)
+                c4.metric("🎥 Candidats", len(cfg["candidats"]))
+                
+                st.divider()
+                
+                if scores_data:
+                    # 3. Préparation des données pour le tableau et le graphique
+                    df = pd.DataFrame(list(scores_data.items()), columns=["Candidat", "Points"])
+                    df['Nb Votes'] = df['Candidat'].map(vote_counts).fillna(0).astype(int)
+                    
+                    df = df.sort_values("Points", ascending=False).reset_index(drop=True)
+                    df.index += 1 
+                    
+                    # 4. Affichage Tableau & Graphique
+                    c_tab, c_graph = st.columns([1, 2])
+                    
+                    with c_tab:
+                        st.subheader("Classement")
+                        st.dataframe(df, use_container_width=True, height=400)
+                        
+                    with c_graph:
+                        st.subheader("Visualisation")
+                        chart = alt.Chart(df.reset_index()).mark_bar().encode(
+                            x=alt.X('Points', title='Points cumulés'),
+                            y=alt.Y('Candidat', sort='-x', title=''),
+                            color=alt.Color('Points', legend=None, scale=alt.Scale(scheme='reds')),
+                            tooltip=['Candidat', 'Points', 'Nb Votes']
+                        ).properties(height=400)
+                        st.altair_chart(chart, use_container_width=True)
+                    
+                    st.divider()
+                    
+                    # 5. Zone d'Export (PDF & CSV)
+                    st.subheader("📥 Téléchargements")
+                    col_pdf, col_csv = st.columns(2)
+                    
+                    with col_pdf:
+                        if PDF_AVAILABLE:
+                            try:
+                                pdf_bytes = create_pdf_results(cfg["titre_mur"], df, nb_voters, total_points_all)
+                                st.download_button(
+                                    label="📄 TÉLÉCHARGER LE RAPPORT PDF OFFICIEL",
+                                    data=pdf_bytes,
+                                    file_name=f"Rapport_Resultats_{datetime.now().strftime('%H%M')}.pdf",
+                                    mime="application/pdf",
+                                    type="primary",
+                                    use_container_width=True
+                                )
+                            except Exception as e:
+                                st.error(f"Erreur génération PDF: {e}")
+                        else:
+                            st.warning("⚠️ Librairie 'fpdf' manquante. Impossible de générer le PDF.")
+                            
+                    with col_csv:
+                        details = load_json(DETAILED_VOTES_FILE, [])
+                        if details:
+                            df_details = pd.DataFrame(details)
+                            csv_data = df_details.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="📊 TÉLÉCHARGER LES DONNÉES BRUTES (CSV)",
+                                data=csv_data,
+                                file_name="votes_detailles.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                        else:
+                            st.info("Pas encore de données détaillées.")
+                else:
+                    st.info("ℹ️ Aucun vote n'a encore été enregistré. La session est en attente.")
 
             elif menu == "👥 UTILISATEURS" and is_super_admin:
                 st.title("👥 GESTION DES UTILISATEURS")
