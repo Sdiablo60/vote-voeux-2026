@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - LOGIQUE MULTI-MURS)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - PROTECT CENTER)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -41,7 +41,7 @@ const SEQ_ACCUEIL = [
     "Je reste ici pour veiller sur vous. Excellente soirée à toutes et à tous !"
 ];
 
-// --- SÉQUENCE : VOTE OFF (Annonce fermeture) ---
+// --- SÉQUENCE : VOTE OFF ---
 const SEQ_VOTE_OFF = [
     "Mesdames et Messieurs, votre attention s'il vous plaît : les votes sont officiellement clos !",
     "Merci à tous pour votre participation massive. C'était intense !",
@@ -52,7 +52,7 @@ const SEQ_VOTE_OFF = [
     "En attendant, détendez-vous, les résultats arrivent !"
 ];
 
-// --- SÉQUENCE : PHOTOS LIVE (Consignes) ---
+// --- SÉQUENCE : PHOTOS LIVE ---
 const SEQ_PHOTOS = [
     "Et maintenant, place au fun ! Le Mur Photos Live est officiellement ouvert !",
     "C'est le moment de briller ! Sortez vos smartphones et scannez le QR Code au centre.",
@@ -62,27 +62,26 @@ const SEQ_PHOTOS = [
     "Alors, qui sera le premier à envoyer sa photo ? Je vous regarde !"
 ];
 
-// --- INITIALISATION DE LA FILE D'ATTENTE ---
 let startupQueue = [];
-let repeatInterval = 600; // Par défaut 10 min
-let maxRepeatTime = Infinity; // Par défaut illimité
+let repeatInterval = 600; 
+let maxRepeatTime = Infinity; 
 
 if (config.mode === 'attente') {
     startupQueue = [...SEQ_ACCUEIL];
-    repeatInterval = 600; // 10 minutes
+    repeatInterval = 600; 
 } 
-else if (config.mode === 'vote_off') { // "vote_off" correspond au mode votes fermés (mais pas encore podium)
+else if (config.mode === 'vote_off') { 
     startupQueue = [...SEQ_VOTE_OFF];
-    repeatInterval = 300; // Rappel toutes les 5 minutes que c'est fini
+    repeatInterval = 300; 
 }
 else if (config.mode === 'photos') {
     startupQueue = [...SEQ_PHOTOS];
-    repeatInterval = 300; // Rappel toutes les 5 minutes
-    maxRepeatTime = 1800; // Arrêt des répétitions après 30 minutes
+    repeatInterval = 300; 
+    maxRepeatTime = 1800; 
 }
 
 // =========================================================
-// 💬 BANQUES DE TEXTES (ALEATOIRE - Après l'intro)
+// 💬 BANQUES DE TEXTES (ALEATOIRE)
 // =========================================================
 
 const TEXTS_REGIE = [
@@ -335,6 +334,20 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         return TEXTS_THOUGHTS[Math.floor(Math.random() * TEXTS_THOUGHTS.length)];
     }
 
+    // --- FONCTION POSITION SECURISEE (HORS CENTRE PENDANT PRESENTATION) ---
+    function pickStrictSidePosition() {
+        // Choisi soit à Gauche (< -6), soit à Droite (> 6)
+        const side = Math.random() > 0.5 ? 1 : -1;
+        
+        const minX = 6.5; 
+        const maxX = 10.5;
+        
+        let x = (Math.random() * (maxX - minX) + minX) * side;
+        const y = (Math.random() * (1.5 - (-2.5)) + (-2.5)); // Y entre -2.5 et 1.5
+        
+        return new THREE.Vector3(x, y, Z_NORMAL);
+    }
+
     function pickRandomSafePosition() {
         let x = (Math.random() * (X_MAX - X_MIN)) + X_MIN;
         if (x > -3.0 && x < 3.0) x = (x > 0) ? 5.0 : -5.0; 
@@ -344,10 +357,9 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
 
     // --- CERVEAU INTELLIGENT ---
     function decideNextAction() {
-        const elapsedTime = clock.getElapsedTime(); // Temps en secondes depuis le chargement
+        const elapsedTime = clock.getElapsedTime(); 
 
-        // 1. GESTION DES PRÉSENTATIONS PRIORITAIRES (Multi-modes)
-        // Vérifie si on doit recharger la séquence (Intervalle respecté + Pas dépassé la limite globale)
+        // 1. GESTION DES PRÉSENTATIONS PRIORITAIRES
         if (startupQueue.length === 0 && 
             (elapsedTime - lastPresentationTime > repeatInterval) && 
             (elapsedTime < maxRepeatTime)) {
@@ -357,27 +369,44 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             else if (config.mode === 'photos') startupQueue = [...SEQ_PHOTOS];
         }
 
-        // Si la file d'attente contient des phrases, on est en mode PRESENTATION
+        // MODE PRESENTATION (EVITEMENT DU CENTRE)
         if (startupQueue.length > 0) {
             state = 'presenting'; 
             const msg = startupQueue.shift();
             showBubble(msg, 'speech');
             
-            targetPos = pickRandomSafePosition();
+            // Choix d'une position STRICTE sur les cotés
+            const newTarget = pickStrictSidePosition();
+            
+            // Vérification : Doit-on traverser le centre ?
+            // Si le signe de X change (ex: de -8 à +8), on traverse 0.
+            const isCrossing = (robotGroup.position.x < 0 && newTarget.x > 0) || (robotGroup.position.x > 0 && newTarget.x < 0);
+
+            if (isCrossing) {
+                // TÉLÉPORTATION POUR NE PAS TRAVERSER LE TEXTE
+                triggerTeleportEffect(robotGroup.position);
+                setTimeout(() => {
+                    robotGroup.position.copy(newTarget);
+                    targetPos.copy(newTarget);
+                    triggerTeleportEffect(newTarget);
+                }, 500);
+            } else {
+                // MÊME COTÉ : GLISSADE AUTORISÉE
+                targetPos.copy(newTarget);
+            }
+
             isWaving = true; 
             setTimeout(() => { isWaving = false; }, 3000);
 
             if (startupQueue.length === 0) lastPresentationTime = elapsedTime;
 
-            // Temps de lecture long pour les infos importantes
             nextEventTime = elapsedTime + 8; 
-            return; // ARRÊT (VERROUILLAGE)
+            return; // ARRÊT
         }
 
         // 2. MODE LIBRE
         const r = Math.random();
         
-        // 5% : ZOOM
         if (r < 0.05) {
             state = 'closeup';
             const side = Math.random() > 0.5 ? 1 : -1;
@@ -385,14 +414,12 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             showBubble("Je vous vois de très près !", 'thought');
             setTimeout(() => { state = 'idle'; }, 5000);
         }
-        // 15% : PENSÉE
         else if (r < 0.20) {
             state = 'thinking';
             targetPos = pickRandomSafePosition();
             showBubble(getThoughtText(), 'thought');
             setTimeout(() => { state = 'idle'; }, 5000);
         }
-        // 3% : SURCHAUFFE
         else if (r < 0.23) {
             state = 'exploding';
             showBubble("Oups ! Surchauffe !", 'thought');
@@ -402,7 +429,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             triggerTeleportEffect(robotGroup.position);
             setTimeout(() => { state = 'reassembling'; }, 2000);
         }
-        // 7% : TÉLÉPORTATION
         else if (r < 0.30) {
             state = 'teleporting';
             triggerTeleportEffect(robotGroup.position);
@@ -417,7 +443,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 state = 'idle';
             }, 600);
         }
-        // 70% : GLISSADE + PAROLE
         else {
             state = 'idle';
             targetPos = pickRandomSafePosition();
@@ -428,7 +453,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(isWaving) setTimeout(() => { isWaving = false; }, 3000);
             }
         }
-        // Prochaine action aléatoire
         nextEventTime = elapsedTime + 4 + Math.random() * 4;
     }
 
@@ -469,7 +493,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 armRGroup.rotation.z = -Math.sin(time * 3) * 0.1;
             }
 
-            // Utilisation du temps réel pour décider
             if (elapsedTime > nextEventTime && state !== 'closeup') {
                 decideNextAction();
             }
