@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - TIMING CORRIGÉ)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - TEXTES COMPLETS)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -29,7 +29,7 @@ const CENTRAL_MESSAGES = [
 // 📜 SÉQUENCES PRIORITAIRES (INTRODUCTION)
 // =========================================================
 
-// --- SÉQUENCE : ACCUEIL ---
+// --- SÉQUENCE : ACCUEIL (TEXTES RESTAURÉS) ---
 const SEQ_ACCUEIL = [
     "Bonsoir à toutes et à tous ! Je suis Clap-E, votre animateur virtuel pour cette soirée de gala.",
     "Quel plaisir de voir autant de monde réuni. Vous êtes tous très élégants ce soir !",
@@ -46,7 +46,6 @@ const SEQ_ACCUEIL = [
     "Alors gardez vos téléphones à portée de main, mais n'oubliez pas de couper la sonnerie !",
     "Pour l'instant, je vous laisse profiter de l'ambiance et de la musique.",
     "Je reste ici pour veiller sur vous. Excellente soirée à toutes et à tous !"
-];
 ];
 
 // --- SÉQUENCE : VOTE OFF ---
