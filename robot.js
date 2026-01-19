@@ -1,11 +1,10 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (FINAL - MODE ANIMATEUR PRO)
+// 🟢 CONFIGURATION ROBOT 2026 (AJUSTÉ & CALME)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 7000; // Lecture un peu plus longue pour les phrases complètes
 const ECHELLE_BOT = 0.65; 
 
 // LIMITES ECRAN
@@ -27,10 +26,17 @@ const CENTRAL_MESSAGES = [
 ];
 
 // =========================================================
-// 💬 BANQUES DE TEXTES (ANIMATEUR PROFESSIONNEL)
+// 💬 BANQUES DE TEXTES
 // =========================================================
 
-// 1. RÉGIE (Rare - 5%) - Clin d'œil technique
+// VARIANTES POUR LE ZOOM (Nouveau)
+const TEXTS_CLOSEUP_VARS = [
+    "Je vous vois de très près !",
+    "Zoom optique activé... Vous êtes nets !",
+    "Pardon, je voulais voir vos détails."
+];
+
+// 1. RÉGIE (Rare - 5%)
 const TEXTS_REGIE = [
     "Un grand merci à notre équipe technique en régie qui assure ce soir !",
     "Régie, le son est cristallin, ne changez rien !",
@@ -39,18 +45,18 @@ const TEXTS_REGIE = [
     "Si je brille autant, c'est grâce aux ingénieurs lumière !"
 ];
 
-// 2. BLAGUES (Occasionnel - 10%) - Détente
+// 2. BLAGUES (Occasionnel - 10%)
 const TEXTS_BLAGUES = [
     "Vous savez pourquoi je suis un bon animateur ? J'ai un processeur Intel Core i-Humour.",
     "J'ai voulu mettre une cravate, mais elle glissait sur mon métal.",
     "Je ne transpire pas sous les projecteurs, c'est mon avantage !",
-    "Une petite blague ? Que fait un robot qui a froid ? Il met un pull-over (pull-over... over... ok je sors).",
-    "Je suis le seul ici à ne pas boire de champagne... Juste un peu d'huile 5W40."
+    "Une petite blague ? Que fait un robot qui a froid ? Il met un pull-over.",
+    "Je suis le seul ici à ne pas boire de champagne... Juste un peu d'huile."
 ];
 
-// 3. CONTEXTE : ACCUEIL / ATTENTE (Présentation & Bienvenue)
+// 3. CONTEXTE : ACCUEIL / ATTENTE
 const TEXTS_ATTENTE = [
-    "Bonsoir à toutes et à tous ! Je m'appelle Clap-E, votre animateur pour cette soirée.",
+    "Bonsoir à toutes et à tous ! Je m'appelle Clap-E, votre animateur.",
     "C'est un honneur pour moi de vous accueillir pour cet événement exceptionnel.",
     "Mesdames, Messieurs, installez-vous, la magie va bientôt opérer.",
     "Je scanne la salle... Vous êtes tous rayonnants ce soir !",
@@ -63,9 +69,9 @@ const TEXTS_ATTENTE = [
     "L'élégance est au rendez-vous ce soir. Félicitations à tous."
 ];
 
-// 4. CONTEXTE : VOTE OFF (Suspense & Soirée Dansante)
+// 4. CONTEXTE : VOTE OFF
 const TEXTS_VOTE_OFF = [
-    "Les votes sont officiellement clos ! Merci de votre participation massive.",
+    "Les votes sont officiellement clos ! Merci de votre participation.",
     "Qui seront les grands gagnants ? Le suspense est insoutenable...",
     "Nous allons bientôt connaître les résultats. Restez concentrés !",
     "Après les émotions, place à la fête ! Une superbe soirée dansante vous attend.",
@@ -78,7 +84,7 @@ const TEXTS_VOTE_OFF = [
     "Quel que soit le résultat, ce soir, nous faisons tous la fête ensemble."
 ];
 
-// 5. CONTEXTE : PHOTOS LIVE (Explications & Incitation)
+// 5. CONTEXTE : PHOTOS LIVE
 const TEXTS_PHOTOS = [
     "Le Mur Photos Live est ouvert à toutes et à tous ! À vos smartphones !",
     "C'est très simple : scannez le QR Code au centre et c'est à vous.",
@@ -93,7 +99,7 @@ const TEXTS_PHOTOS = [
     "Ce mur est le vôtre. Remplissez-le de souvenirs mémorables."
 ];
 
-// 6. PENSÉES (Nuages)
+// 6. PENSÉES
 const TEXTS_THOUGHTS = [
     "Hmm... J'espère que mon nœud papillon virtuel est droit.",
     "Je calcule le niveau de joie dans la salle... 100% !",
@@ -101,7 +107,7 @@ const TEXTS_THOUGHTS = [
     "Tiens, cette lumière me fait un teint d'acier magnifique.",
     "Je me demande si je peux goûter aux petits fours...",
     "Bip Bop... Rechargement de ma bonne humeur... Terminé.",
-    "Je n'oublierai jamais cette soirée (j'ai un disque dur de 10 To).",
+    "Je n'oublierai jamais cette soirée.",
     "Analyser tant de visages heureux, c'est ma passion.",
     "J'espère qu'ils aiment ma voix de synthèse."
 ];
@@ -112,7 +118,7 @@ if (config.mode === 'vote_off') contextBank = [...TEXTS_VOTE_OFF];
 else if (config.mode === 'photos') contextBank = [...TEXTS_PHOTOS];
 else contextBank = [...TEXTS_ATTENTE];
 
-// --- STYLE CSS (NUAGE AMÉLIORÉ) ---
+// --- STYLE CSS ---
 const style = document.createElement('style');
 style.innerHTML = `
     .robot-bubble-base {
@@ -122,7 +128,6 @@ style.innerHTML = `
         max-width: 380px; width: max-content; line-height: 1.3;
     }
     
-    /* BULLE PAROLE (Carrée arrondie + Pointe) */
     .bubble-speech { 
         background: white; border-radius: 30px; border: 4px solid #E2001A; 
         box-shadow: 0 10px 30px rgba(0,0,0,0.7); 
@@ -132,30 +137,18 @@ style.innerHTML = `
         border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid #E2001A; 
     }
     
-    /* BULLE PENSÉE (NUAGEUX ☁️) */
     .bubble-thought { 
-        background: #f0f8ff; /* Bleu très pâle */
-        color: #444;
-        border-radius: 60px; /* Très rond */
+        background: #f0f8ff; color: #444; border-radius: 60px; 
         box-shadow: 0 8px 25px rgba(255, 255, 255, 0.4); 
-        border: 4px solid #cceeff; /* Bordure douce */
-        font-style: italic; font-size: 20px;
+        border: 4px solid #cceeff; font-style: italic; font-size: 20px;
     }
-    
-    /* Petit rond moyen */
     .bubble-thought::before { 
-        content: ''; position: absolute; bottom: -20px; left: 40px; 
-        width: 25px; height: 25px; 
-        background: #f0f8ff; border: 4px solid #cceeff; border-radius: 50%;
-        z-index: 10;
+        content: ''; position: absolute; bottom: -20px; left: 40px; width: 25px; height: 25px; 
+        background: #f0f8ff; border: 4px solid #cceeff; border-radius: 50%; z-index: 10;
     }
-    
-    /* Tout petit rond (vers le robot) */
     .bubble-thought::after {
-        content: ''; position: absolute; bottom: -40px; left: 30px; 
-        width: 15px; height: 15px; 
-        background: #f0f8ff; border: 4px solid #cceeff; border-radius: 50%;
-        z-index: 10;
+        content: ''; position: absolute; bottom: -40px; left: 30px; width: 15px; height: 15px; 
+        background: #f0f8ff; border: 4px solid #cceeff; border-radius: 50%; z-index: 10;
     }
 `;
 document.head.appendChild(style);
@@ -228,28 +221,24 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         particleGeo.attributes.position.needsUpdate = true;
     }
 
-    // CONSTRUCTION ROBOT & PARTS
+    // CONSTRUCTION ROBOT
     const robotGroup = new THREE.Group(); 
     robotGroup.position.set(-8, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
     const parts = []; 
-
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
     
-    // Tête
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 32), whiteMat); head.scale.set(1.4, 1.0, 0.75);
     const face = new THREE.Mesh(new THREE.SphereGeometry(0.78, 32, 32), blackMat); face.position.z = 0.55; face.scale.set(1.25, 0.85, 0.6); head.add(face);
     const eyeL = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.035, 8, 16, Math.PI), neonMat); eyeL.position.set(-0.35, 0.15, 1.05); head.add(eyeL);
     const eyeR = eyeL.clone(); eyeR.position.x = 0.35; head.add(eyeR);
     const mouth = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 8, 16, Math.PI), neonMat); mouth.position.set(0, -0.15, 1.05); mouth.rotation.z = Math.PI; head.add(mouth);
     
-    // Corps
     const body = new THREE.Mesh(new THREE.SphereGeometry(0.65, 32, 32), whiteMat); body.position.y = -1.1; body.scale.set(0.95, 1.1, 0.8);
     
-    // Bras
     const armLGroup = new THREE.Group(); armLGroup.position.set(-0.9, -0.8, 0); 
     const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 0.4, 8, 16), whiteMat); armL.position.y = -0.2; 
     const handL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handL.position.y = -0.5; 
@@ -261,18 +250,12 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     armRGroup.add(armR); armRGroup.add(handR);
 
     [head, body, armLGroup, armRGroup].forEach(p => { 
-        robotGroup.add(p); 
-        parts.push(p);
-        p.userData = { 
-            origPos: p.position.clone(), 
-            origRot: p.rotation.clone(),
-            velocity: new THREE.Vector3() 
-        };
+        robotGroup.add(p); parts.push(p);
+        p.userData = { origPos: p.position.clone(), origRot: p.rotation.clone(), velocity: new THREE.Vector3() };
     });
     
     armLGroup.userData.origRot = new THREE.Euler(0,0,0);
     armRGroup.userData.origRot = new THREE.Euler(0,0,0);
-
     sceneBot.add(robotGroup); 
 
     // LOGIQUE MOTEUR
@@ -284,12 +267,21 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     let textMsgIndex = 0;
     let lastTextChange = 0;
 
+    // --- FONCTION AFFICHAGE BULLE (Durée dynamique) ---
     function showBubble(text, type = 'speech') { 
         if(!text) return;
         bubbleEl.innerHTML = text; 
         bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
         bubbleEl.style.opacity = 1; bubbleEl.style.transform = "scale(1)";
-        setTimeout(() => { bubbleEl.style.opacity = 0; bubbleEl.style.transform = "scale(0.8)"; }, DUREE_LECTURE); 
+        
+        // CALCUL DYNAMIQUE DU TEMPS : 4s min, ou plus selon longueur
+        // Environ 80ms par caractère
+        const dureeCalculee = Math.max(4000, text.length * 80);
+
+        setTimeout(() => { 
+            bubbleEl.style.opacity = 0; 
+            bubbleEl.style.transform = "scale(0.8)"; 
+        }, dureeCalculee); 
     }
 
     function cycleCenterText() {
@@ -300,28 +292,15 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
     }
 
-    // --- CERVEAU AJUSTÉ (PRIORITÉ AUX MURS & ANIMATION PRO) ---
     function getNextMessage() {
-        // Recharge si vide
         if (contextBank.length === 0) {
             if (config.mode === 'vote_off') contextBank = [...TEXTS_VOTE_OFF];
             else if (config.mode === 'photos') contextBank = [...TEXTS_PHOTOS];
             else contextBank = [...TEXTS_ATTENTE];
         }
-
         const rand = Math.random();
-        
-        // 5% : RÉGIE (Très rare)
-        if (rand < 0.05) {
-            const idx = Math.floor(Math.random() * TEXTS_REGIE.length);
-            return TEXTS_REGIE[idx];
-        }
-        // 10% : BLAGUES (Rare)
-        else if (rand < 0.15) {
-             const idx = Math.floor(Math.random() * TEXTS_BLAGUES.length);
-            return TEXTS_BLAGUES[idx];
-        }
-        // 85% : CONTEXTE DU MUR (Priorité absolue - Mode Animateur)
+        if (rand < 0.05) return TEXTS_REGIE[Math.floor(Math.random() * TEXTS_REGIE.length)];
+        else if (rand < 0.15) return TEXTS_BLAGUES[Math.floor(Math.random() * TEXTS_BLAGUES.length)];
         else {
             const idx = Math.floor(Math.random() * contextBank.length);
             const msg = contextBank[idx];
@@ -336,33 +315,34 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
 
     function pickRandomSafePosition() {
         let x = (Math.random() * (X_MAX - X_MIN)) + X_MIN;
-        if (x > -3.0 && x < 3.0) {
-            x = (x > 0) ? 5.0 : -5.0; 
-        }
+        if (x > -3.0 && x < 3.0) x = (x > 0) ? 5.0 : -5.0; 
         const y = (Math.random() * (Y_MAX - Y_MIN)) + Y_MIN;
         return new THREE.Vector3(x, y, Z_NORMAL);
     }
 
+    // --- CERVEAU AJUSTÉ (MOINS D'EXPLOSION / MOINS DE ZOOM) ---
     function decideNextAction() {
         const r = Math.random();
         
-        // ZOOM (12%)
-        if (r < 0.12) {
+        // 5% : CLOSEUP (Zoom) - REDUIT
+        if (r < 0.05) {
             state = 'closeup';
             const side = Math.random() > 0.5 ? 1 : -1;
             targetPos.set(side * 5.5, -2.0, Z_CLOSEUP); 
-            showBubble("Je vous vois de près !", 'thought');
+            // Choix aléatoire d'une phrase de zoom
+            const txt = TEXTS_CLOSEUP_VARS[Math.floor(Math.random() * TEXTS_CLOSEUP_VARS.length)];
+            showBubble(txt, 'thought');
             setTimeout(() => { state = 'idle'; }, 5000);
         }
-        // PENSÉE (15%)
-        else if (r < 0.27) {
+        // 15% : PENSÉE
+        else if (r < 0.20) {
             state = 'thinking';
             targetPos = pickRandomSafePosition();
             showBubble(getThoughtText(), 'thought');
             setTimeout(() => { state = 'idle'; }, 5000);
         }
-        // EXPLOSION (8%)
-        else if (r < 0.35) {
+        // 3% : EXPLOSION (Surchauffe) - TRES REDUIT
+        else if (r < 0.23) {
             state = 'exploding';
             showBubble("Oups ! Surchauffe !", 'thought');
             parts.forEach(p => {
@@ -371,8 +351,8 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             triggerTeleportEffect(robotGroup.position);
             setTimeout(() => { state = 'reassembling'; }, 2000);
         }
-        // TÉLÉPORTATION (10%)
-        else if (r < 0.45) {
+        // 7% : TÉLÉPORTATION
+        else if (r < 0.30) {
             state = 'teleporting';
             triggerTeleportEffect(robotGroup.position);
             setTimeout(() => {
@@ -386,7 +366,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 state = 'idle';
             }, 600);
         }
-        // GLISSADE + PAROLE (55%)
+        // 70% : GLISSADE + PAROLE
         else {
             state = 'idle';
             targetPos = pickRandomSafePosition();
@@ -397,7 +377,8 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 if(isWaving) setTimeout(() => { isWaving = false; }, 3000);
             }
         }
-        nextEventTime = time + 3 + Math.random() * 3;
+        // On laisse plus de temps entre chaque action (4 à 8 sec)
+        nextEventTime = time + 4 + Math.random() * 4;
     }
 
     function animate() {
@@ -421,9 +402,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
 
         if (state === 'idle' || state === 'closeup' || state === 'thinking') {
-            // GLISSADE FLUIDE (0.005)
-            robotGroup.position.lerp(targetPos, 0.005);
-            
+            robotGroup.position.lerp(targetPos, 0.005); // Glissade lente
             robotGroup.position.y += Math.sin(time * 2.0) * 0.005;
             robotGroup.rotation.z = Math.cos(time * 1.2) * 0.05; 
             robotGroup.rotation.y = Math.sin(time * 0.6) * 0.12; 
@@ -442,7 +421,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 decideNextAction();
             }
         }
-        
         else if (state === 'exploding') {
             parts.forEach(p => {
                 p.position.add(p.userData.velocity);
@@ -450,7 +428,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 p.userData.velocity.multiplyScalar(0.94);
             });
         }
-        
         else if (state === 'reassembling') {
             let done = true;
             parts.forEach(p => {
@@ -467,11 +444,9 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             }
         }
 
-        // POSITION BULLE TEXTE
         if(bubbleEl && bubbleEl.style.opacity == 1) {
             const headPos = robotGroup.position.clone();
-            headPos.y += 1.6; 
-            headPos.project(cameraBot);
+            headPos.y += 1.6; headPos.project(cameraBot);
             const x = (headPos.x * .5 + .5) * width;
             const y = (headPos.y * -.5 + .5) * height;
             bubbleEl.style.left = (x - bubbleEl.offsetWidth/2) + 'px';
