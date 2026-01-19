@@ -809,10 +809,26 @@ elif est_utilisateur:
     .stApp {background-color:black !important; color:white !important;} 
     [data-testid='stHeader'] {display:none;} .block-container {padding: 1rem !important;} 
     h1, h2, h3, p, div, span, label { color: white !important; }
-    /* FIX EXTREME POUR LE TEXTE NOIR DANS LES DROPDOWNS */
-    li[role="option"] span, li[role="option"] div, div[data-baseweb="select"] span, div[data-baseweb="menu"] li, div[data-baseweb="popover"] div { color: black !important; }
-    div[data-baseweb="popover"] { background-color: white !important; }
-    ul[role="listbox"] { background-color: white !important; }
+    
+    /* FIX CONTRASTE DROPDOWN MOBILE */
+    /* Container principal blanc */
+    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
+        background-color: #ffffff !important;
+    }
+    /* Texte des options en noir pour lisibilité sur fond blanc */
+    li[role="option"] span, li[role="option"] div {
+        color: #000000 !important;
+    }
+    /* Texte de la boite de sélection au repos (fermé) en blanc (car page noire) */
+    div[data-baseweb="select"] span {
+        color: #ffffff !important; 
+    }
+    /* Tags sélectionnés */
+    span[data-baseweb="tag"] {
+         background-color: #333 !important;
+         color: white !important;
+    }
+
     /* BOUTON ROUGE */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { background-color: #E2001A !important; color: white !important; border: 1px solid #E2001A !important; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
@@ -869,7 +885,20 @@ elif est_utilisateur:
                  st.stop()
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             if not st.session_state.rules_accepted:
-                st.info("⚠️ **RÈGLES DU VOTE**"); st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
+                st.info("⚠️ **RÈGLES DU VOTE**")
+                st.markdown("""
+                **VOTE PAR PRÉFÉRENCE (3 CHOIX)**
+                
+                <span style='color:#ff4b4b; font-weight:bold;'>🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</span>
+                
+                1. Sélectionnez **3 vidéos**.
+                2. 🥇 1er = **5 pts**
+                3. 🥈 2ème = **3 pts**
+                4. 🥉 3ème = **1 pt**
+                
+                **Vote unique et définitif.**
+                """, unsafe_allow_html=True)
+                
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
                 st.warning("⚠️ RAPPEL : Vote UNIQUE.")
