@@ -84,6 +84,27 @@ st.markdown("""
     button[kind="primary"] { color: white !important; background-color: #E2001A !important; border: none; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
     
+    /* STYLE BOUTON LIEN (POUR MUR SOCIAL) */
+    a.custom-link-btn {
+        display: inline-block;
+        text-decoration: none;
+        background-color: #E2001A;
+        color: white !important;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        width: 100%;
+        font-weight: 500;
+        margin-bottom: 10px;
+        border: 1px solid rgba(250, 250, 250, 0.2);
+        box-sizing: border-box; 
+    }
+    a.custom-link-btn:hover {
+        background-color: #C20015;
+        color: white !important;
+        border-color: #C20015;
+    }
+    
     /* 4. Styles Admin Spécifiques (Cartes, Login, Sidebar) */
     .session-card { background-color: #f8f9fa; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; border: 1px solid #ddd; margin-bottom: 20px; }
     .session-title { color: #E2001A; font-size: 24px; font-weight: 900; text-transform: uppercase; margin-bottom: 10px; }
@@ -460,9 +481,10 @@ if est_admin:
                         st.session_state.admin_menu = "👥 UTILISATEURS"; st.rerun()
 
                 st.divider()
-                # BOUTON MUR SOCIAL (FORCE MODE WALL)
+                # BOUTON MUR SOCIAL (FORCE MODE WALL) AVEC STYLE BOUTON CORRIGÉ
                 host_url = st.context.headers.get("host", "")
-                st.markdown(f'<a href="https://{host_url}/?mode=wall" target="_blank" class="custom-link-btn btn-red">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
+                st.markdown(f'<a href="https://{host_url}/?mode=wall" target="_blank" class="custom-link-btn">📺 OUVRIR MUR SOCIAL</a>', unsafe_allow_html=True)
+                
                 if st.button("🔓 DÉCONNEXION"): 
                     st.session_state["auth"] = False
                     st.session_state["session_active"] = False
@@ -617,16 +639,36 @@ if est_admin:
 
                     st.divider()
                     
-                    # GRILLE D'IMAGES AVEC CHECKBOX
-                    cols = st.columns(5)
-                    for i, f in enumerate(files):
-                        with cols[i % 5]:
-                            st.image(f, use_container_width=True)
-                            is_sel = f in st.session_state.selected_images
-                            if st.checkbox("Select", key=f"sel_{f}", value=is_sel, label_visibility="collapsed"):
-                                if f not in st.session_state.selected_images: st.session_state.selected_images.append(f)
-                            else:
-                                if f in st.session_state.selected_images: st.session_state.selected_images.remove(f)
+                    # TOGGLE VUE (GRILLE / LISTE)
+                    view_mode = st.radio("Affichage :", ["🖼️ Grille", "📄 Liste"], horizontal=True, label_visibility="collapsed")
+                    
+                    if view_mode == "🖼️ Grille":
+                        # GRILLE D'IMAGES AVEC CHECKBOX
+                        cols = st.columns(5)
+                        for i, f in enumerate(files):
+                            with cols[i % 5]:
+                                st.image(f, use_container_width=True)
+                                is_sel = f in st.session_state.selected_images
+                                if st.checkbox("Select", key=f"sel_{f}", value=is_sel, label_visibility="collapsed"):
+                                    if f not in st.session_state.selected_images: st.session_state.selected_images.append(f)
+                                else:
+                                    if f in st.session_state.selected_images: st.session_state.selected_images.remove(f)
+                    else:
+                        # VUE LISTE
+                        for f in files:
+                            c1, c2, c3 = st.columns([1, 4, 1])
+                            with c1:
+                                st.image(f, width=60)
+                            with c2:
+                                st.write(f"**{os.path.basename(f)}**")
+                                st.caption(f"Date: {datetime.fromtimestamp(os.path.getmtime(f)).strftime('%H:%M:%S')}")
+                            with c3:
+                                is_sel = f in st.session_state.selected_images
+                                if st.checkbox("Sélectionner", key=f"list_sel_{f}", value=is_sel):
+                                    if f not in st.session_state.selected_images: st.session_state.selected_images.append(f)
+                                else:
+                                    if f in st.session_state.selected_images: st.session_state.selected_images.remove(f)
+                            st.divider()
 
                 st.markdown("<br><br><br>", unsafe_allow_html=True)
                 if is_super_admin:
