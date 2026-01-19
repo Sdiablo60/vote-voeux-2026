@@ -1,4 +1,4 @@
-import streamlit as st
+simport streamlit as st
 import os
 import glob
 import base64
@@ -477,7 +477,7 @@ if est_admin:
                 if cfg["mode_affichage"] == "attente": etat = "ACCUEIL"
                 elif cfg["mode_affichage"] == "votes":
                     if cfg["reveal_resultats"]: etat = "PODIUM"
-                   elif cfg["session_ouverte"]:
+      elif cfg["session_ouverte"]:
             # === VOTES OUVERTS (LAYOUT IDENTIQUE CAPTURE : 3 COLONNES + INSTRUCTIONS) ===
             host = st.context.headers.get('host', 'localhost')
             qr_buf = BytesIO(); qrcode.make(f"https://{host}/?mode=vote").save(qr_buf, format="PNG")
