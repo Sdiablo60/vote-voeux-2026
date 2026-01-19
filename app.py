@@ -865,6 +865,17 @@ if est_admin:
                             )
                         else:
                             st.info("Aucun inscrit.")
+                    
+                    st.markdown("---")
+                    st.subheader("🕵️‍♂️ Inspection Détaillée des Votes (LOGS)")
+                    details = load_json(DETAILED_VOTES_FILE, [])
+                    if details:
+                        df_details = pd.DataFrame(details)
+                        # Inverser pour voir les derniers votes en premier
+                        st.dataframe(df_details.iloc[::-1], use_container_width=True, height=300)
+                    else:
+                        st.caption("Le journal est vide.")
+
                 else:
                     st.info("ℹ️ Aucun vote n'a encore été enregistré. La session est en attente.")
 
