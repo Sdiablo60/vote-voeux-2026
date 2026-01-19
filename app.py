@@ -861,42 +861,10 @@ elif est_utilisateur:
     .stApp {background-color:black !important; color:white !important;} 
     [data-testid='stHeader'] {display:none;} .block-container {padding: 1rem !important;} 
     h1, h2, h3, p, div, span, label { color: white !important; }
-    
     /* FIX EXTREME POUR LE TEXTE NOIR DANS LES DROPDOWNS */
-    
-    /* 1. Force le fond BLANC pour le conteneur du menu */
-    div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
-        background-color: white !important;
-    }
-
-    /* 2. Force le texte NOIR pour toutes les options */
-    li[role="option"] {
-        background-color: white !important;
-        color: black !important;
-    }
-    
-    /* 3. Force la couleur noire sur les enfants (span, div) de l'option */
-    li[role="option"] * {
-        color: black !important;
-    }
-
-    /* 4. Gestion du survol (Hover) : Gris clair */
-    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
-        background-color: #f0f0f0 !important;
-    }
-
-    /* 5. Le champ de sélection (input) reste sur fond noir avec texte blanc */
-    div[data-baseweb="select"] > div {
-        background-color: #333 !important;
-        color: white !important;
-    }
-    
-    /* 6. Tags sélectionnés (Pills) */
-    span[data-baseweb="tag"] {
-         background-color: #444 !important;
-         color: white !important;
-    }
-
+    li[role="option"] span, li[role="option"] div, div[data-baseweb="select"] span, div[data-baseweb="menu"] li, div[data-baseweb="popover"] div { color: black !important; }
+    div[data-baseweb="popover"] { background-color: white !important; }
+    ul[role="listbox"] { background-color: white !important; }
     /* BOUTON ROUGE */
     button[kind="primary"], div[data-testid="stBaseButton-primary"] button { background-color: #E2001A !important; color: white !important; border: 1px solid #E2001A !important; }
     button[kind="primary"]:hover { background-color: #C20015 !important; }
@@ -953,20 +921,7 @@ elif est_utilisateur:
                  st.stop()
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
             if not st.session_state.rules_accepted:
-                st.info("⚠️ **RÈGLES DU VOTE**")
-                st.markdown("""
-                **VOTE PAR PRÉFÉRENCE (3 CHOIX)**
-                
-                <span style='color:#ff4b4b; font-weight:bold;'>🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</span>
-                
-                1. Sélectionnez **3 vidéos**.
-                2. 🥇 1er = **5 pts**
-                3. 🥈 2ème = **3 pts**
-                4. 🥉 3ème = **1 pt**
-                
-                **Vote unique et définitif.**
-                """, unsafe_allow_html=True)
-                
+                st.info("⚠️ **RÈGLES DU VOTE**"); st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
                 if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
             else:
                 st.warning("⚠️ RAPPEL : Vote UNIQUE.")
@@ -986,6 +941,7 @@ elif est_utilisateur:
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
+
 # =========================================================
 # 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
 # =========================================================
@@ -1548,3 +1504,4 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
+
