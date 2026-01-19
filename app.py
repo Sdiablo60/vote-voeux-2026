@@ -737,7 +737,6 @@ elif est_utilisateur:
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
                  st.success("Test OK"); time.sleep(1); st.rerun()
         else: st.info("⏳ En attente...")
-
 # =========================================================
 # 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
 # =========================================================
@@ -1300,7 +1299,3 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-
-
-
-
