@@ -1,19 +1,18 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (NAVIGATION TEMPORELLE STABLE)
+// 🟢 CONFIGURATION ROBOT 2026 (VERSION RÉPARÉE & SÉCURISÉE)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
 const DUREE_LECTURE = 6000; 
 const ECHELLE_BOT = 0.65; 
 
-// LIMITES ECRAN (Cage virtuelle)
+// LIMITES ECRAN
 const X_LIMIT = 9.5;   
-const Y_TOP = 1.7;     
-const Y_BOTTOM = -2.5; 
+const Y_TOP = 1.6; // Sécurité Titre    
+const Y_BOTTOM = -2.8; 
 
-// CONFIGURATION DU ZOOM (CLOSE-UP)
 const Z_NORMAL = 0;
 const Z_CLOSEUP = 5.5; 
 const X_CLOSEUP_OFFSET = 4.0; 
@@ -248,7 +247,9 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     robotGroup.position.set(-8, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
+    // !!! CORRECTION : DÉFINITION EXPLICITE AVANT UTILISATION !!!
     const parts = []; 
+
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -268,19 +269,22 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
 
+    // !!! REMPLISSAGE DU TABLEAU PARTS !!!
     [head, body, armLGroup, armRGroup].forEach(p => { 
         robotGroup.add(p); parts.push(p);
         p.userData = { origPos: p.position.clone(), origRot: p.rotation.clone(), velocity: new THREE.Vector3() };
     });
+    
     armLGroup.userData.origRot = new THREE.Euler(0,0,0);
     armRGroup.userData.origRot = new THREE.Euler(0,0,0);
+
     sceneBot.add(robotGroup); 
 
     // VARIABLES ETAT
     let time = 0;
     let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL);
     let state = 'move'; 
-    let nextEventTime = 0; // Initialisé à 0 pour démarrer direct
+    let nextEventTime = 0; // DEMARRAGE IMMEDIAT
     let isWaving = false, isJumping = false, isPhoning = false;
     let textMsgIndex = 0, lastTextChange = 0, scenarioIndex = 0;
 
@@ -289,7 +293,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         bubbleEl.innerHTML = text; 
         bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
         bubbleEl.style.opacity = 1; bubbleEl.style.transform = "scale(1)";
-        // La bulle reste affichée le temps de l'action
         setTimeout(() => { bubbleEl.style.opacity = 0; bubbleEl.style.transform = "scale(0.9)"; }, DUREE_LECTURE); 
     }
 
@@ -318,24 +321,23 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     function getJokeText() { return TEXTS_JOKES[Math.floor(Math.random() * TEXTS_JOKES.length)]; }
     function getRegieText() { return TEXTS_REGIE[Math.floor(Math.random() * TEXTS_REGIE.length)]; }
 
+    // --- CERVEAU DU ROBOT ---
     function pickNextSafePosition() {
         const currentX = robotGroup.position.x;
         const goingRight = (currentX < 0);
         let min, max;
-        // PING PONG GAUCHE <-> DROITE
         if (goingRight) { min = 5.0; max = X_LIMIT; } 
         else { min = -X_LIMIT; max = -5.0; }
-        
         const x = Math.random() * (max - min) + min;
         const y = Math.random() * (Y_MAX - Y_MIN) + Y_MIN;
         return new THREE.Vector3(x, y, Z_NORMAL);
     }
 
     function decideNextAction() {
-        // RESET ETAT PAR DEFAUT
+        // RESET ETAT
         isWaving = false; isJumping = false; isPhoning = false;
 
-        // --- 1. MODE SCENARIO ---
+        // SCENARIO
         if (config.mode === 'attente' && scenarioIndex < SCENARIO_ACCUEIL.length) {
             const step = SCENARIO_ACCUEIL[scenarioIndex];
             showBubble(step.text, step.type);
@@ -344,15 +346,9 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 state = 'closeup';
                 const side = (robotGroup.position.x > 0) ? 1 : -1; 
                 targetPos.set(side * X_CLOSEUP_OFFSET, -1.0, Z_CLOSEUP); 
-                // Force le retour après l'action
-                setTimeout(() => { 
-                    if(state === 'closeup') {
-                         state = 'move'; 
-                         targetPos = pickNextSafePosition();
-                    }
-                }, step.time * 1000);
+                // Force le retour
+                setTimeout(() => { if(state === 'closeup') { state = 'move'; targetPos = pickNextSafePosition(); } }, step.time * 1000);
             } else {
-                // Actions standards ou spéciales sans blocage
                 if (step.action === 'wave') { state = 'move'; isWaving = true; }
                 else if (step.action === 'jump') { state = 'move'; isJumping = true; }
                 else if (step.action === 'phone') { state = 'move'; isPhoning = true; }
@@ -361,19 +357,22 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                     parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6); });
                     triggerTeleportEffect(robotGroup.position);
                     setTimeout(() => { state = 'reassembling'; }, 2000);
+                } else if (step.action === 'move_left') {
+                     state = 'move'; targetPos.set(-(Math.random()*4+5), 0, Z_NORMAL);
+                } else if (step.action === 'move_right') {
+                     state = 'move'; targetPos.set((Math.random()*4+5), 0, Z_NORMAL);
                 } else {
-                    state = 'move';
-                    targetPos = pickNextSafePosition();
+                     state = 'move'; targetPos = pickNextSafePosition();
                 }
             }
             scenarioIndex++;
-            nextEventTime = time + step.time + 1; // +1s pour transition fluide
+            nextEventTime = time + step.time; // Timing strict
             return;
         }
 
-        // --- 2. MODE ALEATOIRE ---
+        // ALEATOIRE
         const r = Math.random();
-        let actionDuration = 7; // Durée par défaut
+        let actionDuration = 7; 
 
         if (r < 0.15) { // CLOSEUP
             state = 'closeup';
@@ -381,38 +380,27 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             targetPos.set(side * X_CLOSEUP_OFFSET, -1.0, Z_CLOSEUP); 
             showBubble("Je vous vois de près !", 'thought');
             actionDuration = 6;
-            // Force reset après
-            setTimeout(() => { 
-                 if(state === 'closeup') {
-                     state = 'move'; 
-                     targetPos = pickNextSafePosition();
-                 }
-            }, 6000);
+            setTimeout(() => { if(state === 'closeup') { state = 'move'; targetPos = pickNextSafePosition(); } }, 6000);
         }
         else if (r < 0.25) { // REGIE
-            state = 'move';
-            targetPos = pickNextSafePosition();
-            isPhoning = true;
-            showBubble(getRegieText(), 'speech');
+            state = 'move'; targetPos = pickNextSafePosition();
+            isPhoning = true; showBubble(getRegieText(), 'speech');
             actionDuration = 6;
         }
         else if (r < 0.40) { // THINKING
-            state = 'thinking';
-            targetPos = pickNextSafePosition(); 
+            state = 'thinking'; targetPos = pickNextSafePosition(); 
             showBubble(getThoughtText(), 'thought');
             actionDuration = 6;
         }
         else if (r < 0.50) { // EXPLOSION
-            state = 'exploding';
-            showBubble("Oups ! Surchauffe !", 'thought');
+            state = 'exploding'; showBubble("Oups ! Surchauffe !", 'thought');
             parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6); });
             triggerTeleportEffect(robotGroup.position);
             setTimeout(() => { state = 'reassembling'; }, 2000);
-            actionDuration = 5; // Temps total explo + reassembly
+            actionDuration = 5; 
         }
         else if (r < 0.60) { // TELEPORT
-            state = 'teleporting';
-            triggerTeleportEffect(robotGroup.position);
+            state = 'teleporting'; triggerTeleportEffect(robotGroup.position);
             setTimeout(() => {
                 const newX = (robotGroup.position.x < 0) ? 7.5 : -7.5; 
                 const newY = (Math.random() * (Y_MAX - Y_MIN)) + Y_MIN;
@@ -425,8 +413,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             actionDuration = 4;
         }
         else { // STANDARD
-            state = 'move';
-            targetPos = pickNextSafePosition();
+            state = 'move'; targetPos = pickNextSafePosition();
             if (Math.random() > 0.3) {
                 const msg = (Math.random() > 0.8) ? getJokeText() : getNextMessage();
                 showBubble(msg, 'speech');
@@ -435,9 +422,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             }
             actionDuration = 8;
         }
-        
-        // C'est ICI le coeur du système : on définit QUAND sera la prochaine action
-        // Indépendamment de la distance parcourue.
         nextEventTime = time + actionDuration; 
     }
 
@@ -455,15 +439,11 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             cycleCenterText(); lastTextChange = time; 
         }
 
-        // --- MOTEUR DE DEPLACEMENT ---
         if (state === 'move' || state === 'closeup' || state === 'thinking') {
-            // LERP DOUX
-            robotGroup.position.lerp(targetPos, 0.008);
+            // LERP Vitesse moyenne (ni trop lent ni trop rapide)
+            robotGroup.position.lerp(targetPos, 0.012);
             
-            // OSCILLATION
-            robotGroup.position.y += Math.sin(time * 2.0) * 0.005; 
-
-            // Rotation douce
+            robotGroup.position.y += Math.sin(time * 2.0) * 0.006; 
             const diffX = targetPos.x - robotGroup.position.x;
             robotGroup.rotation.y = THREE.MathUtils.lerp(robotGroup.rotation.y, (diffX * 0.05), 0.05);
             robotGroup.rotation.z = Math.cos(time * 1.5) * 0.05; 
@@ -481,9 +461,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 armRGroup.rotation.x = 0;
             }
 
-            // --- DECLENCHEUR TEMPOREL ---
-            // On ne vérifie PLUS la distance. Seul le temps compte.
-            // Sauf si on est en closeup (on attend le timeout spécifique)
+            // GESTION TEMPORELLE PURE
             if (time > nextEventTime && state !== 'closeup') {
                 decideNextAction();
             }
@@ -509,8 +487,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             if (done) {
                 parts.forEach(p => { p.position.copy(p.userData.origPos); p.rotation.copy(p.userData.origRot); });
                 state = 'move';
-                // Le prochain event est défini ici pour relancer la machine
-                nextEventTime = time + 2; 
+                nextEventTime = time + 2;
             }
         }
 
@@ -528,7 +505,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         rendererBot.render(sceneBot, cameraBot); 
     }
     
-    // Premier appel pour lancer la boucle
-    decideNextAction(); 
+    // Démarre
+    decideNextAction();
     animate();
 }
