@@ -777,11 +777,14 @@ if est_admin:
                 vote_counts, nb_voters, rank_dist = get_advanced_stats()
                 total_points_all = sum(scores_data.values()) if scores_data else 0
                 
+                # Chargement des participants
+                participants_list = load_json(PARTICIPANTS_FILE, [])
+                
                 # 2. Affichage des indicateurs clés (KPIs)
                 c1, c2, c3, c4 = st.columns(4)
-                c1.metric("👥 Votants Uniques", nb_voters)
-                c2.metric("🏆 Total Points", total_points_all)
-                c3.metric("🗳️ Total Citations", sum(vote_counts.values()) if vote_counts else 0)
+                c1.metric("👥 Votants (Ayant voté)", nb_voters)
+                c2.metric("📝 Inscrits (Total)", len(participants_list))
+                c3.metric("🏆 Total Points", total_points_all)
                 c4.metric("🎥 Candidats", len(cfg["candidats"]))
                 
                 st.divider()
@@ -815,14 +818,14 @@ if est_admin:
                     
                     # 5. Zone d'Export (PDF & CSV)
                     st.subheader("📥 Téléchargements")
-                    col_pdf, col_csv = st.columns(2)
+                    col_pdf, col_csv, col_part = st.columns(3) # 3 COLONNES
                     
                     with col_pdf:
                         if PDF_AVAILABLE:
                             try:
                                 pdf_bytes = create_pdf_results(cfg["titre_mur"], df, nb_voters, total_points_all)
                                 st.download_button(
-                                    label="📄 TÉLÉCHARGER LE RAPPORT PDF OFFICIEL",
+                                    label="📄 RÉSULTATS (PDF)",
                                     data=pdf_bytes,
                                     file_name=f"Rapport_Resultats_{datetime.now().strftime('%H%M')}.pdf",
                                     mime="application/pdf",
@@ -830,9 +833,9 @@ if est_admin:
                                     use_container_width=True
                                 )
                             except Exception as e:
-                                st.error(f"Erreur génération PDF: {e}")
+                                st.error(f"Erreur PDF: {e}")
                         else:
-                            st.warning("⚠️ Librairie 'fpdf' manquante. Impossible de générer le PDF.")
+                            st.warning("⚠️ Module 'fpdf' manquant.")
                             
                     with col_csv:
                         details = load_json(DETAILED_VOTES_FILE, [])
@@ -840,14 +843,28 @@ if est_admin:
                             df_details = pd.DataFrame(details)
                             csv_data = df_details.to_csv(index=False).encode('utf-8')
                             st.download_button(
-                                label="📊 TÉLÉCHARGER LES DONNÉES BRUTES (CSV)",
+                                label="📊 DÉTAIL VOTES (CSV)",
                                 data=csv_data,
                                 file_name="votes_detailles.csv",
                                 mime="text/csv",
                                 use_container_width=True
                             )
                         else:
-                            st.info("Pas encore de données détaillées.")
+                            st.info("Pas de votes.")
+
+                    with col_part:
+                        if participants_list:
+                            df_part = pd.DataFrame(participants_list, columns=["Pseudo"])
+                            csv_part = df_part.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="👥 LISTE INSCRITS (CSV)",
+                                data=csv_part,
+                                file_name="participants.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                        else:
+                            st.info("Aucun inscrit.")
                 else:
                     st.info("ℹ️ Aucun vote n'a encore été enregistré. La session est en attente.")
 
