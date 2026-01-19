@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (SCÉNARIO FINAL + AI AVANCÉE)
+// 🟢 CONFIGURATION ROBOT 2026 (SCÉNARIO NARRATIF + AI)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 5500; 
+const DUREE_LECTURE = 5000; 
 const ECHELLE_BOT = 0.65; 
 
 // LIMITES ECRAN (Cage virtuelle)
@@ -14,7 +14,7 @@ const X_MAX = 11.5;
 const Y_MIN = -3.5;
 const Y_MAX = 2.2; 
 const Z_NORMAL = 0;
-const Z_CLOSEUP = 6.0; // Zoom proche caméra
+const Z_CLOSEUP = 6.5; 
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -25,27 +25,29 @@ const CENTRAL_MESSAGES = [
     "N'oubliez pas vos sourires !"
 ];
 
-// --- 1. SCÉNARIO NARRATIF (ACCUEIL UNIQUEMENT - INTRO) ---
+// --- 1. SCÉNARIO NARRATIF (ACCUEIL UNIQUEMENT) ---
+// Le robot joue cette séquence dans l'ordre avant de passer en aléatoire
 const SCENARIO_ACCUEIL = [
     { type: 'thought', text: "Wouah... Quelle grande salle !", action: 'wander', time: 4 },
     { type: 'thought', text: "Eh oh... Il y a quelqu'un ?", action: 'wander', time: 4 },
     { type: 'thought', text: "Bon... Apparemment je suis seul.", action: 'wander', time: 4 },
-    { type: 'speech', text: "Oh ! Mais... Il y a un public en fait !", action: 'closeup', time: 5 }, 
+    { type: 'speech', text: "Oh ! Mais... Il y a un public en fait !", action: 'closeup', time: 5 }, // S'approche
     { type: 'thought', text: "Pourquoi toutes ces personnes sont réunies ?", action: 'idle', time: 4 },
     { type: 'speech', text: "Bonjour ! Je m'appelle Clap-E !", action: 'wave', time: 3 },
     { type: 'speech', text: "Il y a une soirée ? Je peux me joindre à vous ?", action: 'idle', time: 4 },
     { type: 'speech', text: "Chut ! Je reçois un appel de l'organisateur...", action: 'phone', time: 4 },
-    { type: 'speech', text: "C'est vrai ?! C'est confirmé ?!", action: 'jump', time: 3 }, 
+    { type: 'speech', text: "C'est vrai ?! C'est confirmé ?!", action: 'jump', time: 3 }, // Saute de joie
     { type: 'speech', text: "Incroyable ! Je suis votre animateur préféré ce soir !", action: 'idle', time: 4 },
-    { type: 'thought', text: "Ouhlà... Je stresse...", action: 'explode', time: 3 },
+    { type: 'thought', text: "Ouhlà... Je stresse...", action: 'explode', time: 3 }, // Explose
     { type: 'speech', text: "Ça va mieux ! Vous allez bien ce soir ?", action: 'idle', time: 4 },
     { type: 'speech', text: "Je vous informe qu'un vote va être organisé !", action: 'idle', time: 4 },
     { type: 'speech', text: "Je compte sur vous pour respecter les règles !", action: 'idle', time: 4 },
     { type: 'speech', text: "Allô Régie ? Oui... D'accord.", action: 'phone', time: 3 },
     { type: 'speech', text: "La Régie me confirme : Le début est imminent !", action: 'idle', time: 4 },
+    // Fin du scénario -> Passage en mode aléatoire
 ];
 
-// --- 2. BANQUES DE TEXTES (MODE ALÉATOIRE ENRICHI) ---
+// --- 2. BANQUES DE TEXTES (MODE ALÉATOIRE) ---
 
 const TEXTS_ATTENTE = [
     "Installez-vous confortablement !",
@@ -57,98 +59,68 @@ const TEXTS_ATTENTE = [
     "N'oubliez pas de scanner le QR Code tout à l'heure.",
     "Je suis programmé pour mettre l'ambiance.",
     "Qui veut un autographe numérique ?",
-    "Patience, ça va être génial.",
-    "Je scanne la salle... 100% de bonne humeur détectée !",
-    "Est-ce que ma cravate virtuelle est droite ?",
-    "N'oubliez pas d'éteindre vos téléphones... Sauf pour voter !",
-    "Je capte une énergie incroyable ici.",
-    "Vous êtes prêts ? Moi mes circuits sont chauds !",
-    "Je crois que j'ai vu quelqu'un que je connais au fond.",
-    "Si je bugue, promis, c'est pas ma faute.",
-    "J'ai mis mon plus beau costume de pixels pour vous."
+    "Patience, ça va être génial."
 ];
 
 const TEXTS_VOTE_OFF = [
+    // Vote OFF Classique
     "Les jeux sont faits, rien ne va plus !",
     "Le bureau de vote est fermé. Clap-E a avalé la clé.",
     "Stop ! On ne touche plus à rien !",
     "Qui sera le grand gagnant ? Suspense...",
     "Merci pour votre participation massive !",
+    
+    // Contexte Régie / Technique
+    "Allô la Régie ? Le processeur fume pour calculer les résultats !",
+    "Les résultats arrivent par fibre optique spéciale.",
+    "La Régie me demande de vous faire patienter... Blague ?",
     "Je vois des chiffres défiler dans ma tête... C'est bon signe.",
     "Analyse des données : 99% terminé...",
     "Pas de panique, la technologie travaille pour vous.",
-    "Le grand ordinateur central chauffe pour calculer !",
-    "C'est serré... Plus serré qu'un boulon de 12 !",
-    "J'espère que votre favori a gagné.",
-    "Les résultats arrivent par fibre optique spéciale.",
-    "Je ne suis pas corruptible, inutile d'insister !",
-    "Le dépouillement est en cours...",
-    "Même moi je ne connais pas encore le résultat !",
-    "Quel suspense insoutenable !",
-    "Ça calcule, ça calcule..."
+    
+    // Humour / Blagues
+    "C'est l'histoire d'un robot qui a failli bugger... Mais non !",
+    "J'aurais bien voté, mais je n'ai pas de doigts.",
+    "Ça chauffe en coulisses !",
+    "Je parie sur... non je ne peux rien dire.",
+    "01001110... Pardon, je stresse en binaire."
 ];
 
 const TEXTS_PHOTOS = [
+    // Photo Live Classique
     "Waouh ! Quelle photo magnifique !",
     "Celle-ci, c'est ma préférée !",
     "Allez, faites-moi votre plus beau sourire !",
     "On veut voir toute la salle sur le mur !",
     "Flash ! Ah non, c'est mon œil.",
+    
+    // Encouragements
     "Ne soyez pas timides, montrez-vous !",
     "Rapprochez-vous pour un selfie de groupe !",
     "Qui fera la grimace la plus drôle ?",
     "J'enregistre tout dans ma mémoire (et c'est du solide).",
     "Vous êtes des stars, le tapis rouge est pour vous.",
     "Envoyez vos photos, je veux voir l'ambiance !",
+    
+    // Humour Photo
     "Attention, le petit oiseau va sortir... Bip Bop.",
     "Vous êtes bien plus photogéniques que mon ami le grille-pain.",
+    "Cadrage parfait, lumière parfaite... Bravo !",
     "Encore une ! Encore une !",
-    "Ça c'est de l'art moderne !",
-    "Quel style ! J'adore cette pose.",
-    "Vous êtes tous beaux ce soir !",
-    "La caméra vous aime, et moi aussi."
-];
-
-const TEXTS_JOKES = [
-    "C'est l'histoire d'un robot qui rentre dans un bar... Et paf le bug !",
-    "Que fait un robot quand il s'ennuie ? Il se range !",
-    "Pourquoi les plongeurs plongent-ils en arrière ? Sinon ils tombent dans le bateau.",
-    "Vous connaissez la blague du petit déjeuner ? Pas de bol.",
-    "Que fait une fraise sur un cheval ? Tagada Tagada !",
-    "C'est l'histoire d'un pingouin qui respire par les fesses. Il s'assoit et il meurt.",
-    "Quel est le comble pour un électricien ? De ne pas être au courant.",
-    "Que dit un chat quand il est content ? C'est miau-gnifique.",
-    "Pourquoi les poissons vivent dans l'eau salée ? Parce que le poivre les fait éternuer.",
-    "Quel est le sport préféré des insectes ? Le cricket.",
-    "01001110... Oups pardon, je parle en binaire pour rire.",
-    "J'ai une blague sur les ascenseurs... mais elle ne vole pas haut."
-];
-
-const TEXTS_REGIE = [
-    "Allô la Régie ? On en est où ?",
-    "La Régie me dit dans l'oreillette que c'est presque prêt.",
-    "Hey la Régie ! N'oubliez pas de m'envoyer les infos !",
-    "Régie, vous me recevez ? 5 sur 5.",
-    "Un instant, je fais un point technique avec la tour de contrôle.",
-    "La régie me confirme que tout est sous contrôle.",
-    "Allô ? Oui Régie, je transmets au public.",
-    "Petit message de la régie : Vous êtes au top !",
-    "La régie me demande de vérifier mes niveaux d'huile."
+    "Ça c'est de l'art moderne !"
 ];
 
 const TEXTS_THOUGHTS = [
-    "Hmm... J'ai faim de volts.",
-    "Est-ce que je suis réel ou virtuel ?",
-    "Calcul de la racine carrée de l'univers en cours...",
-    "Tiens, j'ai un pixel qui gratte.",
-    "Je me demande ce qu'il y a au menu ce soir.",
-    "J'espère que ma batterie va tenir.",
-    "Bip Bip ? Non, Bip Bop.",
-    "Analyse faciale... 450 sourires détectés.",
-    "Je crois que j'ai laissé le gaz allumé... Ah non, je suis un robot.",
-    "Pourquoi les humains ont-ils deux yeux ?",
-    "Chargement de ma personnalité... 99%.",
-    "J'aimerais bien avoir des jambes parfois."
+    "Hmm... J'ai une petite baisse de tension.",
+    "Est-ce que je rêve de moutons électriques ?",
+    "Je me demande si la Régie m'aime bien.",
+    "Tiens, ça chatouille mon antenne.",
+    "Calcul de la trajectoire idéale... Fait.",
+    "Bip Bop... Bip Bop...",
+    "J'espère qu'il y a des prises de courant au buffet.",
+    "Pourquoi les humains applaudissent avec leurs mains ?",
+    "Je suis le roi de la piste de danse virtuelle.",
+    "Analyse de l'atmosphère : Festive !"
 ];
 
 let currentTextBank = [];
@@ -166,11 +138,11 @@ style.innerHTML = `
         pointer-events: none; transition: opacity 0.3s, transform 0.3s; transform: scale(0.9); 
         max-width: 320px; width: max-content;
     }
-    /* Bulle Parole */
+    /* Bulle Parole (Carrée arrondie + Pointe) */
     .bubble-speech { background: white; border-radius: 30px; border: 4px solid #E2001A; box-shadow: 0 10px 25px rgba(0,0,0,0.6); }
     .bubble-speech::after { content: ''; position: absolute; bottom: -15px; left: 50%; transform: translateX(-50%); border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 15px solid #E2001A; }
     
-    /* Bulle Pensée */
+    /* Bulle Pensée (Nuage + Ronds) */
     .bubble-thought { 
         background: #f0f8ff; border-radius: 40px; border: 3px solid #00aaff; 
         box-shadow: 0 10px 25px rgba(0,0,0,0.5); font-style: italic; color: #333;
@@ -258,6 +230,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
 
     // CONSTRUCTION ROBOT & PARTS
     const robotGroup = new THREE.Group(); 
+    // Départ aléatoire sûr sur les cotés pour éviter le centre au boot
     robotGroup.position.set(-8, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
@@ -307,11 +280,10 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     // LOGIQUE MOTEUR
     let time = 0;
     let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL); // Cible initiale
-    let state = 'idle'; 
+    let state = 'idle'; // idle, thinking, closeup, exploding, reassembling, teleporting
     let nextEventTime = time + 2; 
     let isWaving = false;
     let isJumping = false;
-    let isPhoning = false;
     let textMsgIndex = 0;
     let lastTextChange = 0;
     let scenarioIndex = 0; // Pour le scénario linéaire
@@ -348,14 +320,6 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     function getThoughtText() {
         return TEXTS_THOUGHTS[Math.floor(Math.random() * TEXTS_THOUGHTS.length)];
     }
-    
-    function getJokeText() {
-        return TEXTS_JOKES[Math.floor(Math.random() * TEXTS_JOKES.length)];
-    }
-    
-    function getRegieText() {
-        return TEXTS_REGIE[Math.floor(Math.random() * TEXTS_REGIE.length)];
-    }
 
     // --- CERVEAU DU ROBOT ---
     function pickRandomSafePosition() {
@@ -376,7 +340,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             // Actions Spéciales Scénario
             if (step.action === 'closeup') {
                 state = 'closeup';
-                targetPos.set((Math.random()>0.5 ? 5.5 : -5.5), -1.5, Z_CLOSEUP); // Approche plus près du centre (5.5)
+                targetPos.set((Math.random()>0.5 ? 7 : -7), -1.5, Z_CLOSEUP); // Approche sur le coté
             } else if (step.action === 'wave') {
                 state = 'idle';
                 isWaving = true; setTimeout(() => isWaving = false, 2500);
@@ -384,68 +348,52 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 state = 'idle';
                 isJumping = true; setTimeout(() => isJumping = false, 2500);
             } else if (step.action === 'phone') {
-                state = 'idle'; 
-                isPhoning = true; setTimeout(() => isPhoning = false, 3500);
+                state = 'idle'; // Reste sur place
+                // Simule écoute (tête penchée) géré dans animate
             } else if (step.action === 'explode') {
                 state = 'exploding';
                 parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6); });
                 triggerTeleportEffect(robotGroup.position);
                 setTimeout(() => { state = 'reassembling'; }, 2000);
             } else {
+                // 'wander' / 'idle'
                 state = 'idle';
                 targetPos = pickRandomSafePosition();
             }
 
+            // Prochaine étape
             scenarioIndex++;
-            nextEventTime = time + step.time + 1; 
+            nextEventTime = time + step.time + 1; // +1s de marge
             return;
         }
 
         // --- 2. MODE ALEATOIRE (NORMAL) ---
         const r = Math.random();
         
-        // ZOOM PUBLIC (15%) - Se met plus près du centre (5.5)
+        // ZOOM PUBLIC (15%)
         if (r < 0.15) {
             state = 'closeup';
-            // Determine side based on current position to avoid crossing middle awkwardly
-            const side = (robotGroup.position.x > 0) ? 1 : -1; 
-            // Vient à ±5.5 (plus proche du centre)
-            targetPos.set(side * 5.5, -1.5, Z_CLOSEUP); 
+            const side = Math.random() > 0.5 ? 1 : -1;
+            targetPos.set(side * 7.5, -1.5, Z_CLOSEUP); 
             showBubble("Je vous vois de près !", 'thought');
-            
-            // Une fois le closeup fini, on force le déplacement de l'autre coté
-            setTimeout(() => { 
-                targetPos.set(side * -1 * 8.0, 0, Z_NORMAL); // Traverse vers l'opposé
-                state = 'idle'; 
-            }, 4500);
+            setTimeout(() => { targetPos.z = Z_NORMAL; state = 'idle'; }, 4500);
         }
-        
-        // APPEL REGIE (10%)
-        else if (r < 0.25) {
-            state = 'idle';
-            targetPos = pickRandomSafePosition();
-            isPhoning = true; setTimeout(() => isPhoning = false, 4000);
-            showBubble(getRegieText(), 'speech');
-        }
-        
-        // REFLEXION (15%)
-        else if (r < 0.40) {
+        // REFLEXION (20%)
+        else if (r < 0.35) {
             state = 'thinking';
             targetPos = pickRandomSafePosition(); 
             showBubble(getThoughtText(), 'thought');
             setTimeout(() => { state = 'idle'; }, 5000);
         }
-
         // EXPLOSION (10%)
-        else if (r < 0.50) {
+        else if (r < 0.45) {
             state = 'exploding';
             showBubble("Oups ! Surchauffe !", 'thought');
             parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6); });
             triggerTeleportEffect(robotGroup.position);
             setTimeout(() => { state = 'reassembling'; }, 2000);
         }
-
-        // TELEPORTATION (10%)
+        // TELEPORTATION (15%)
         else if (r < 0.60) {
             state = 'teleporting';
             triggerTeleportEffect(robotGroup.position);
@@ -459,22 +407,18 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 state = 'idle';
             }, 600);
         }
-
         // STANDARD (40%)
         else {
             state = 'idle';
             targetPos = pickRandomSafePosition();
             if (Math.random() > 0.3) {
-                // Choix : Blague ou Phrase Standard
-                const msg = (Math.random() > 0.8) ? getJokeText() : getNextMessage();
+                const msg = getNextMessage();
                 showBubble(msg, 'speech');
-                
-                // Gestes aléatoires
-                if (Math.random() > 0.7) { isWaving = true; setTimeout(() => isWaving = false, 3000); }
-                else if (Math.random() > 0.8) { isJumping = true; setTimeout(() => isJumping = false, 2000); }
+                isWaving = Math.random() > 0.7; 
+                if(isWaving) setTimeout(() => { isWaving = false; }, 3000);
             }
         }
-        nextEventTime = time + 5 + Math.random() * 4;
+        nextEventTime = time + 6 + Math.random() * 4;
     }
 
     function animate() {
@@ -513,22 +457,15 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             robotGroup.rotation.z = Math.cos(time * 1.5) * 0.08; 
             robotGroup.rotation.y = Math.sin(time * 0.8) * 0.15; 
 
-            // BRAS & TELEPHONE
-            if (isPhoning) {
-                // Bras droit levé vers l'oreille
-                armRGroup.rotation.z = 2.5; 
-                armRGroup.rotation.x = 0.5;
-                robotGroup.rotation.z = 0.2; // Penche la tête
-            } else if (state === 'thinking') {
+            // BRAS
+            if (state === 'thinking') {
                 armRGroup.rotation.z = Math.abs(Math.sin(time * 15)) * 2 + 1; 
             } else if (isWaving) {
                 armLGroup.rotation.z = Math.sin(time * 12) * 0.6;
                 armRGroup.rotation.z = -Math.sin(time * 12) * 0.6;
             } else {
-                // Bras ballants naturels
                 armLGroup.rotation.z = Math.sin(time * 3) * 0.1;
                 armRGroup.rotation.z = -Math.sin(time * 3) * 0.1;
-                armRGroup.rotation.x = 0; // Reset phone
             }
 
             if (time > nextEventTime && state !== 'closeup') {
