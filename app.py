@@ -810,22 +810,38 @@ elif est_utilisateur:
     [data-testid='stHeader'] {display:none;} .block-container {padding: 1rem !important;} 
     h1, h2, h3, p, div, span, label { color: white !important; }
     
-    /* FIX CONTRASTE DROPDOWN MOBILE */
-    /* Container principal blanc */
+    /* FIX EXTREME POUR LE TEXTE NOIR DANS LES DROPDOWNS */
+    
+    /* 1. Force le fond BLANC pour le conteneur du menu */
     div[data-baseweb="popover"], div[data-baseweb="menu"], ul[role="listbox"] {
-        background-color: #ffffff !important;
+        background-color: white !important;
     }
-    /* Texte des options en noir pour lisibilité sur fond blanc */
-    li[role="option"] span, li[role="option"] div {
-        color: #000000 !important;
+
+    /* 2. Force le texte NOIR pour toutes les options */
+    li[role="option"] {
+        background-color: white !important;
+        color: black !important;
     }
-    /* Texte de la boite de sélection au repos (fermé) en blanc (car page noire) */
-    div[data-baseweb="select"] span {
-        color: #ffffff !important; 
+    
+    /* 3. Force la couleur noire sur les enfants (span, div) de l'option */
+    li[role="option"] * {
+        color: black !important;
     }
-    /* Tags sélectionnés */
+
+    /* 4. Gestion du survol (Hover) : Gris clair */
+    li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+        background-color: #f0f0f0 !important;
+    }
+
+    /* 5. Le champ de sélection (input) reste sur fond noir avec texte blanc */
+    div[data-baseweb="select"] > div {
+        background-color: #333 !important;
+        color: white !important;
+    }
+    
+    /* 6. Tags sélectionnés (Pills) */
     span[data-baseweb="tag"] {
-         background-color: #333 !important;
+         background-color: #444 !important;
          color: white !important;
     }
 
