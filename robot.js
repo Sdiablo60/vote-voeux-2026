@@ -1,22 +1,20 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (CORRECTION ZOOM & FLUIDITÉ)
+// 🟢 CONFIGURATION ROBOT 2026 (STABLE & FLUIDE)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
-const DUREE_LECTURE = 7000; 
+const DUREE_LECTURE = 6000; 
 const ECHELLE_BOT = 0.65; 
 
-// ZONES DE DEPLACEMENT (CAGE VIRTUELLE)
+// LIMITES ECRAN
 const X_LIMIT = 9.5;   
-const Y_TOP = 1.8;     
-const Y_BOTTOM = -2.5; 
+const Y_TOP = 1.7; // Sécurité Titre    
+const Y_BOTTOM = -2.8; 
 
-// CONFIGURATION DU ZOOM (CLOSE-UP)
 const Z_NORMAL = 0;
 const Z_CLOSEUP = 5.5; 
-const X_CLOSEUP_OFFSET = 4.0; // Se met à +/- 4.0 du centre
 
 const CENTRAL_MESSAGES = [
     "Votre soirée va bientôt commencer...<br>Merci de vous installer",
@@ -29,22 +27,22 @@ const CENTRAL_MESSAGES = [
 
 // --- 1. SCÉNARIO NARRATIF (ACCUEIL) ---
 const SCENARIO_ACCUEIL = [
-    { type: 'thought', text: "Wouah... Quelle grande salle !", action: 'move', time: 5 },
-    { type: 'thought', text: "Eh oh... Il y a quelqu'un ?", action: 'move', time: 5 },
-    { type: 'thought', text: "Bon... Apparemment je suis seul.", action: 'move', time: 5 },
-    { type: 'speech', text: "Oh ! Mais... Il y a un public en fait !", action: 'closeup', time: 7 }, 
-    { type: 'thought', text: "Pourquoi toutes ces personnes sont réunies ?", action: 'move', time: 5 },
-    { type: 'speech', text: "Bonjour ! Je m'appelle Clap-E !", action: 'wave', time: 4 },
-    { type: 'speech', text: "Il y a une soirée ? Je peux me joindre à vous ?", action: 'move', time: 5 },
-    { type: 'speech', text: "Chut ! Je reçois un appel de l'organisateur...", action: 'phone', time: 5 },
-    { type: 'speech', text: "C'est vrai ?! C'est confirmé ?!", action: 'jump', time: 4 }, 
-    { type: 'speech', text: "Incroyable ! Je suis votre animateur préféré ce soir !", action: 'move', time: 5 },
-    { type: 'thought', text: "Ouhlà... Je stresse...", action: 'explode', time: 4 },
-    { type: 'speech', text: "Ça va mieux ! Vous allez bien ce soir ?", action: 'move', time: 5 },
-    { type: 'speech', text: "Je vous informe qu'un vote va être organisé !", action: 'move', time: 5 },
-    { type: 'speech', text: "Je compte sur vous pour respecter les règles !", action: 'move', time: 5 },
-    { type: 'speech', text: "Allô Régie ? Oui... D'accord.", action: 'phone', time: 4 },
-    { type: 'speech', text: "La Régie me confirme : Le début est imminent !", action: 'move', time: 5 },
+    { type: 'thought', text: "Wouah... Quelle grande salle !", action: 'move_left' },
+    { type: 'thought', text: "Eh oh... Il y a quelqu'un ?", action: 'move_right' },
+    { type: 'thought', text: "Bon... Apparemment je suis seul.", action: 'move_left' },
+    { type: 'speech', text: "Oh ! Mais... Il y a un public en fait !", action: 'closeup' }, 
+    { type: 'thought', text: "Pourquoi toutes ces personnes sont réunies ?", action: 'move_right' },
+    { type: 'speech', text: "Bonjour ! Je m'appelle Clap-E !", action: 'wave' },
+    { type: 'speech', text: "Il y a une soirée ? Je peux me joindre à vous ?", action: 'move_left' },
+    { type: 'speech', text: "Chut ! Je reçois un appel de l'organisateur...", action: 'phone' },
+    { type: 'speech', text: "C'est vrai ?! C'est confirmé ?!", action: 'jump' }, 
+    { type: 'speech', text: "Incroyable ! Je suis votre animateur préféré ce soir !", action: 'move_right' },
+    { type: 'thought', text: "Ouhlà... Je stresse...", action: 'explode' },
+    { type: 'speech', text: "Ça va mieux ! Vous allez bien ce soir ?", action: 'move_left' },
+    { type: 'speech', text: "Je vous informe qu'un vote va être organisé !", action: 'move_right' },
+    { type: 'speech', text: "Je compte sur vous pour respecter les règles !", action: 'move_left' },
+    { type: 'speech', text: "Allô Régie ? Oui... D'accord.", action: 'phone' },
+    { type: 'speech', text: "La Régie me confirme : Le début est imminent !", action: 'move_right' },
 ];
 
 // --- 2. BANQUES DE TEXTES ---
@@ -248,7 +246,9 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     robotGroup.position.set(-8, 0, 0); 
     robotGroup.scale.set(ECHELLE_BOT, ECHELLE_BOT, ECHELLE_BOT);
     
+    // !!! CORRECTION : DÉFINITION EXPLICITE AVANT UTILISATION !!!
     const parts = []; 
+
     const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2, metalness: 0.1 });
     const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.1 });
     const neonMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
@@ -268,6 +268,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     const handR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), whiteMat); handR.position.y = -0.5;
     armRGroup.add(armR); armRGroup.add(handR);
 
+    // !!! AJOUT PARTS DANS LE TABLEAU POUR EVITER CRASH EXPLOSION !!!
     [head, body, armLGroup, armRGroup].forEach(p => { 
         robotGroup.add(p); parts.push(p);
         p.userData = { origPos: p.position.clone(), origRot: p.rotation.clone(), velocity: new THREE.Vector3() };
@@ -279,8 +280,8 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     // VARIABLES ETAT
     let time = 0;
     let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL);
-    let state = 'move'; 
-    let nextEventTime = time + 3; 
+    let state = 'move'; // move, closeup, thinking, exploding, reassembling, teleporting
+    let nextEventTime = time + 2; 
     let isWaving = false, isJumping = false, isPhoning = false;
     let textMsgIndex = 0, lastTextChange = 0, scenarioIndex = 0;
 
@@ -317,6 +318,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     function getJokeText() { return TEXTS_JOKES[Math.floor(Math.random() * TEXTS_JOKES.length)]; }
     function getRegieText() { return TEXTS_REGIE[Math.floor(Math.random() * TEXTS_REGIE.length)]; }
 
+    // --- CERVEAU DU ROBOT ---
     function pickNextSafePosition() {
         const currentX = robotGroup.position.x;
         const goingRight = (currentX < 0);
@@ -339,19 +341,16 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             if (step.action === 'closeup') {
                 state = 'closeup';
                 const side = (robotGroup.position.x > 0) ? 1 : -1; 
-                targetPos.set(side * X_CLOSEUP_OFFSET, -1.0, Z_CLOSEUP); 
-                
-                // --- CORRECTION CLÉ : Forcer le départ après 5 secondes ---
-                setTimeout(() => {
-                    if (state === 'closeup') {
-                        state = 'move';
-                        // Force le robot à partir à l'opposé pour ne pas rester bloqué
+                targetPos.set(side * 5.0, -1.0, Z_CLOSEUP); 
+                setTimeout(() => { 
+                    if(state === 'closeup') {
+                        state = 'move'; 
+                        // Force départ opposé
                         const oppSide = (side > 0) ? -1 : 1;
-                        targetPos.set(oppSide * (Math.random() * 4 + 5), 0, Z_NORMAL);
-                        nextEventTime = time + 6; // On lui laisse 6s pour voyager avant de re-réfléchir
+                        targetPos.set(oppSide * (Math.random() * 4 + 5), 0, Z_NORMAL); 
+                        nextEventTime = time + 6;
                     }
-                }, 5000);
-
+                }, 7000);
             } else if (step.action === 'wave') {
                 state = 'move'; isWaving = true; setTimeout(() => isWaving = false, 2500);
             } else if (step.action === 'jump') {
@@ -363,13 +362,15 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 parts.forEach(p => { p.userData.velocity.set((Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6, (Math.random()-0.5)*0.6); });
                 triggerTeleportEffect(robotGroup.position);
                 setTimeout(() => { state = 'reassembling'; }, 2000);
+            } else if (step.action === 'move_left') {
+                state = 'move'; targetPos.set(-(Math.random()*4+5), Math.random()*2-1, Z_NORMAL);
+            } else if (step.action === 'move_right') {
+                state = 'move'; targetPos.set((Math.random()*4+5), Math.random()*2-1, Z_NORMAL);
             } else {
-                state = 'move';
-                targetPos = pickNextSafePosition();
+                state = 'move'; targetPos = pickNextSafePosition();
             }
             scenarioIndex++;
-            // On s'assure que le temps de l'event est suffisant
-            nextEventTime = time + step.time + 2; 
+            nextEventTime = time + 5; 
             return;
         }
 
@@ -379,16 +380,14 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         if (r < 0.15) { // CLOSEUP
             state = 'closeup';
             const side = (robotGroup.position.x > 0) ? 1 : -1;
-            targetPos.set(side * X_CLOSEUP_OFFSET, -1.0, Z_CLOSEUP); 
+            targetPos.set(side * 5.0, -1.0, Z_CLOSEUP); 
             showBubble("Je vous vois de près !", 'thought');
-            
-            // --- CORRECTION CLÉ : Forcer le départ ---
             setTimeout(() => { 
                 if(state === 'closeup') {
                     state = 'move'; 
                     const oppSide = (side > 0) ? -1 : 1;
                     targetPos.set(oppSide * (Math.random() * 4 + 5), 0, Z_NORMAL); 
-                    nextEventTime = time + 6; // Bloque les décisions pendant 6s de vol
+                    nextEventTime = time + 6;
                 }
             }, 6000);
         }
@@ -434,7 +433,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 else if (Math.random() > 0.8) { isJumping = true; setTimeout(() => isJumping = false, 2000); }
             }
         }
-        nextEventTime = time + 7 + Math.random() * 3; 
+        nextEventTime = time + 7 + Math.random() * 4; 
     }
 
     function animate() {
@@ -452,11 +451,11 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
 
         if (state === 'move' || state === 'closeup' || state === 'thinking') {
-            // LERP DOUX (0.008)
-            robotGroup.position.lerp(targetPos, 0.008);
+            // LERP DOUX (0.01)
+            robotGroup.position.lerp(targetPos, 0.01);
             
             // OSCILLATION
-            robotGroup.position.y += Math.sin(time * 2.0) * 0.005; 
+            robotGroup.position.y += Math.sin(time * 2.0) * 0.008; 
 
             // Rotation douce
             const diffX = targetPos.x - robotGroup.position.x;
@@ -476,10 +475,10 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
                 armRGroup.rotation.x = 0;
             }
 
-            // Gestion décision automatique
+            // CHECK ARRIVÉE
             const dist = robotGroup.position.distanceTo(targetPos);
-            // S'il a atteint sa cible OU si le temps est écoulé (et qu'il n'est pas en closeup bloqué)
-            if ((time > nextEventTime || (dist < 0.5 && state === 'move')) && state !== 'closeup') {
+            // On force le changement si arrivé OU si le temps est écoulé (sauf si zoom en cours)
+            if ((dist < 0.5 || time > nextEventTime) && state !== 'closeup') {
                 decideNextAction();
             }
         }
