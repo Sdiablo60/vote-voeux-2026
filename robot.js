@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (PRESENTATION 10 MIN)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - DUO ROBOT/HUMAIN)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -26,13 +26,28 @@ const CENTRAL_MESSAGES = [
 ];
 
 // =========================================================
-// 📜 SÉQUENCE D'INTRODUCTION (PRIORITAIRE & VERROUILLÉE)
+// 📜 SÉQUENCE D'INTRODUCTION (PRIORITAIRE & ÉTENDUE)
 // =========================================================
 const STARTUP_SEQUENCE = [
-    "Bonsoir à toutes et à tous ! Je suis Clap-E, votre animateur virtuel.",
-    "C'est un honneur d'animer cette soirée d'exception. Je serai votre guide !",
-    "Au programme ce soir : Accueil, Votes, Analyse des scores, Podium... et Photos Live !",
-    "Tout va se passer ici. Mais pour l'instant, installez-vous et profitez de l'ambiance."
+    "Bonsoir à toutes et à tous ! Je suis Clap-E, votre assistant virtuel pour cette soirée de gala.",
+    "Quel plaisir de voir autant de monde réuni. Vous êtes tous très élégants ce soir !",
+    "C'est un honneur d'apparaître sur cet écran. Mon processeur est ravi !",
+    "Cependant, rassurez-vous, je ne serai pas seul aux commandes.",
+    "Un animateur sera présent parmi vous tout au long de la soirée pour vous guider.",
+    "Il prendra la parole très bientôt pour vous expliquer en détail le déroulement des festivités.",
+    "Nous formerons un duo de choc : lui sur scène pour l'humain, et moi ici pour le digital !",
+    "Ensemble, nous allons vous faire passer un moment inoubliable, rythmé par la technologie et la convivialité.",
+    "Laissez-moi tout de même vous donner un aperçu du programme... Écoutez bien !",
+    "Tout d'abord, profitez de ce moment d'accueil pour échanger, boire un verre et vous détendre.",
+    "Dans quelques instants, nous ouvrirons officiellement la session de **VOTE**.",
+    "Vous découvrirez les candidats et vous pourrez élire vos favoris directement depuis vos smartphones.",
+    "Une fois les votes clos, mon algorithme analysera les résultats en temps réel. Précision garantie !",
+    "Ensuite viendra le moment tant attendu : la révélation du **PODIUM** et le sacre des gagnants.",
+    "Mais ce n'est pas tout ! Nous ouvrirons également le **Mur Photos Live**.",
+    "Vous pourrez scanner un QR Code et projeter vos selfies instantanément sur cet écran géant.",
+    "Alors gardez vos téléphones à portée de main, mais n'oubliez pas de couper la sonnerie !",
+    "Pour l'instant, je laisse la place à votre animateur et je vous laisse profiter de l'ambiance.",
+    "Je reste ici pour veiller sur vous. Excellente soirée à toutes et à tous !"
 ];
 
 let startupQueue = []; 
@@ -44,7 +59,7 @@ if (config.mode === 'attente') {
 }
 
 // =========================================================
-// 💬 BANQUES DE TEXTES (ALEATOIRE)
+// 💬 BANQUES DE TEXTES (ALEATOIRE - Après l'intro)
 // =========================================================
 
 const TEXTS_REGIE = [
@@ -126,7 +141,7 @@ style.innerHTML = `
         position: fixed; padding: 20px 30px; color: black; font-family: 'Arial', sans-serif;
         font-weight: bold; font-size: 22px; text-align: center; z-index: 6; 
         pointer-events: none; transition: opacity 0.5s, transform 0.5s; transform: scale(0.8); 
-        max-width: 420px; width: max-content; line-height: 1.3;
+        max-width: 450px; width: max-content; line-height: 1.3;
     }
     .bubble-speech { 
         background: white; border-radius: 30px; border: 4px solid #E2001A; 
@@ -251,7 +266,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
     // LOGIQUE MOTEUR
     let time = 0;
     let targetPos = new THREE.Vector3(-8, 0, Z_NORMAL);
-    let state = 'idle'; // Peut être 'presenting'
+    let state = 'idle'; 
     let nextEventTime = time + 2; 
     let isWaving = false;
     let textMsgIndex = 0;
@@ -326,7 +341,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
 
                 if (startupQueue.length === 0) lastPresentationTime = time;
 
-                nextEventTime = time + 8; 
+                nextEventTime = time + 8; // On laisse bien le temps de lire
                 return; // ARRÊT (VERROUILLAGE)
             }
         }
