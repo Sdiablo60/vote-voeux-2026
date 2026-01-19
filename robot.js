@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 // =========================================================
-// 🟢 CONFIGURATION ROBOT 2026 (AJUSTÉ & CALME)
+// 🟢 CONFIGURATION ROBOT 2026 (FINAL - INTRO SCÉNARISÉE)
 // =========================================================
 const config = window.robotConfig || { mode: 'attente', titre: 'Événement', logo: '' };
 
@@ -26,15 +26,25 @@ const CENTRAL_MESSAGES = [
 ];
 
 // =========================================================
-// 💬 BANQUES DE TEXTES
+// 📜 SÉQUENCE D'INTRODUCTION (PRIORITAIRE SUR ACCUEIL)
 // =========================================================
-
-// VARIANTES POUR LE ZOOM (Nouveau)
-const TEXTS_CLOSEUP_VARS = [
-    "Je vous vois de très près !",
-    "Zoom optique activé... Vous êtes nets !",
-    "Pardon, je voulais voir vos détails."
+// Ces phrases seront dites DANS L'ORDRE au tout début.
+const STARTUP_SEQUENCE = [
+    "Bonsoir à toutes et à tous ! Je suis Clap-E, votre animateur virtuel.",
+    "C'est un honneur d'animer cette soirée d'exception. Je serai votre guide !",
+    "Au programme ce soir : Accueil, Votes, Analyse des scores, Podium... et Photos Live !",
+    "Tout va se passer ici. Mais pour l'instant, installez-vous et profitez de l'ambiance."
 ];
+
+let startupQueue = []; 
+// On ne remplit la file d'attente que si on est en mode "attente"
+if (config.mode === 'attente') {
+    startupQueue = [...STARTUP_SEQUENCE];
+}
+
+// =========================================================
+// 💬 BANQUES DE TEXTES (ALEATOIRE)
+// =========================================================
 
 // 1. RÉGIE (Rare - 5%)
 const TEXTS_REGIE = [
@@ -54,19 +64,16 @@ const TEXTS_BLAGUES = [
     "Je suis le seul ici à ne pas boire de champagne... Juste un peu d'huile."
 ];
 
-// 3. CONTEXTE : ACCUEIL / ATTENTE
+// 3. CONTEXTE : ACCUEIL / ATTENTE (Une fois l'intro finie)
 const TEXTS_ATTENTE = [
-    "Bonsoir à toutes et à tous ! Je m'appelle Clap-E, votre animateur.",
-    "C'est un honneur pour moi de vous accueillir pour cet événement exceptionnel.",
-    "Mesdames, Messieurs, installez-vous, la magie va bientôt opérer.",
+    "Mesdames, Messieurs, la magie va bientôt opérer.",
     "Je scanne la salle... Vous êtes tous rayonnants ce soir !",
-    "Je suis Clap-E, programmé pour vous faire passer un moment inoubliable.",
     "Une soirée mémorable nous attend. Préparez-vous !",
     "Ravi de vous voir si nombreux. L'ambiance monte déjà !",
     "Je règle mes capteurs sur 'Fête'... Voilà, c'est parti !",
-    "Bienvenue ! Profitez de chaque instant de cette belle soirée.",
-    "Je suis votre hôte virtuel, Clap-E. N'hésitez pas à me faire un signe !",
-    "L'élégance est au rendez-vous ce soir. Félicitations à tous."
+    "N'oubliez pas : tout à l'heure, ce sera à vous de voter !",
+    "L'élégance est au rendez-vous ce soir. Félicitations à tous.",
+    "Je reste ici pour veiller au bon déroulement de la soirée."
 ];
 
 // 4. CONTEXTE : VOTE OFF
@@ -125,7 +132,7 @@ style.innerHTML = `
         position: fixed; padding: 20px 30px; color: black; font-family: 'Arial', sans-serif;
         font-weight: bold; font-size: 22px; text-align: center; z-index: 6; 
         pointer-events: none; transition: opacity 0.5s, transform 0.5s; transform: scale(0.8); 
-        max-width: 380px; width: max-content; line-height: 1.3;
+        max-width: 400px; width: max-content; line-height: 1.3;
     }
     
     .bubble-speech { 
@@ -274,8 +281,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         bubbleEl.className = 'robot-bubble-base ' + (type === 'thought' ? 'bubble-thought' : 'bubble-speech');
         bubbleEl.style.opacity = 1; bubbleEl.style.transform = "scale(1)";
         
-        // CALCUL DYNAMIQUE DU TEMPS : 4s min, ou plus selon longueur
-        // Environ 80ms par caractère
+        // TEMPS LECTURE : 4s min, ou plus selon longueur
         const dureeCalculee = Math.max(4000, text.length * 80);
 
         setTimeout(() => { 
@@ -292,12 +298,20 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         }
     }
 
+    // --- CERVEAU DU MESSAGE ---
     function getNextMessage() {
+        // 1. PRIORITÉ : SÉQUENCE D'INTRO (Si Accueil et file non vide)
+        if (config.mode === 'attente' && startupQueue.length > 0) {
+            return startupQueue.shift(); // Prend le premier et le retire
+        }
+
+        // 2. SINON : LOGIQUE ALÉATOIRE
         if (contextBank.length === 0) {
             if (config.mode === 'vote_off') contextBank = [...TEXTS_VOTE_OFF];
             else if (config.mode === 'photos') contextBank = [...TEXTS_PHOTOS];
             else contextBank = [...TEXTS_ATTENTE];
         }
+        
         const rand = Math.random();
         if (rand < 0.05) return TEXTS_REGIE[Math.floor(Math.random() * TEXTS_REGIE.length)];
         else if (rand < 0.15) return TEXTS_BLAGUES[Math.floor(Math.random() * TEXTS_BLAGUES.length)];
@@ -329,9 +343,7 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
             state = 'closeup';
             const side = Math.random() > 0.5 ? 1 : -1;
             targetPos.set(side * 5.5, -2.0, Z_CLOSEUP); 
-            // Choix aléatoire d'une phrase de zoom
-            const txt = TEXTS_CLOSEUP_VARS[Math.floor(Math.random() * TEXTS_CLOSEUP_VARS.length)];
-            showBubble(txt, 'thought');
+            showBubble("Je vous vois de très près !", 'thought');
             setTimeout(() => { state = 'idle'; }, 5000);
         }
         // 15% : PENSÉE
@@ -370,14 +382,15 @@ function initThreeJS(canvasFloor, canvasBot, bubbleEl) {
         else {
             state = 'idle';
             targetPos = pickRandomSafePosition();
-            if (Math.random() > 0.4) {
+            // On parle presque tout le temps pour écouler l'intro
+            if (Math.random() > 0.2) { 
                 const msg = getNextMessage();
                 showBubble(msg, 'speech');
                 isWaving = Math.random() > 0.6; 
                 if(isWaving) setTimeout(() => { isWaving = false; }, 3000);
             }
         }
-        // On laisse plus de temps entre chaque action (4 à 8 sec)
+        // Temps entre actions (4 à 8 sec)
         nextEventTime = time + 4 + Math.random() * 4;
     }
 
