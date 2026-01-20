@@ -124,6 +124,7 @@ st.markdown("""
     ::-webkit-scrollbar { display: none; }
 </style>
 """, unsafe_allow_html=True)
+
 # =========================================================
 # 3. DONNEES & CONFIGURATIONS PAR DEFAUT
 # =========================================================
@@ -1016,7 +1017,377 @@ if est_admin:
                                 st.success(f"Utilisateur {new_u} créé !"); time.sleep(1); st.rerun()
                         else: st.error("Remplissez l'identifiant et le mot de passe.")
 
-# --- MODE 2 : VOTES ---
+# =========================================================
+# 2. APPLICATION MOBILE (Vote)
+# =========================================================
+elif est_utilisateur:
+    cfg = load_json(CONFIG_FILE, default_config)
+    
+    # --- CSS SPÉCIFIQUE MOBILE (BOUTONS ROUGES & FOND SAISIE BLANC) ---
+    st.markdown("""
+    <style>
+        /* 1. Fond général NOIR */
+        .stApp {
+            background-color: black !important; 
+            color: white !important;
+        }
+        
+        /* Cache le header/footer */
+        [data-testid='stHeader'], footer { display: none !important; }
+        .block-container { padding: 1rem !important; }
+        
+        /* Textes généraux en BLANC */
+        h1, h2, h3, p, label, span, div.stMarkdown { color: white !important; }
+
+        /* 2. CHAMP DE SAISIE (PSEUDO) : FOND BLANC / TEXTE NOIR */
+        div[data-testid="stTextInput"] input {
+            background-color: white !important;
+            color: black !important;
+            border-radius: 5px;
+            border: 2px solid #ccc;
+        }
+        div[data-testid="stTextInput"] label {
+            color: white !important; /* Label en blanc */
+            font-size: 18px !important;
+            font-weight: bold !important;
+            margin-bottom: 5px;
+        }
+
+        /* 3. BOUTONS (VALIDATION) : FOND ROUGE / TEXTE BLANC */
+        button[kind="primary"], button[kind="secondary"], div.stButton > button {
+            background-color: #E2001A !important;
+            color: white !important;
+            border: 1px solid #E2001A !important;
+            font-weight: bold !important;
+            font-size: 18px !important;
+            padding: 0.5rem 1rem !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease;
+        }
+        /* Survol et Focus */
+        button:hover, button:focus, button:active {
+            background-color: #C20015 !important;
+            color: white !important;
+            border-color: white !important;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        /* Force la couleur du texte à l'intérieur du bouton */
+        button p, button div { color: white !important; }
+
+        /* 4. MENUS DÉROULANTS (MULTISELECT) : LISTE BLANCHE / TEXTE NOIR */
+        div[data-baseweb="select"] > div {
+            background-color: white !important;
+            color: black !important;
+            border-radius: 5px;
+        }
+        span[data-baseweb="tag"] {
+             background-color: #333 !important; 
+             color: white !important;
+        }
+        div[data-baseweb="popover"], ul[role="listbox"], div[data-baseweb="menu"] {
+            background-color: white !important;
+        }
+        li[role="option"] {
+            background-color: white !important;
+            color: black !important;
+            border-bottom: 1px solid #eee;
+        }
+        li[role="option"] div, li[role="option"] span {
+            color: black !important;
+        }
+        li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+            background-color: #f0f0f0 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    curr_sess = cfg.get("session_id", "init")
+    if "vote_success" not in st.session_state: st.session_state.vote_success = False
+    if "rules_accepted" not in st.session_state: st.session_state.rules_accepted = False
+    if "cam_reset_id" not in st.session_state: st.session_state.cam_reset_id = 0
+    
+    if cfg["mode_affichage"] == "photos_live":
+        if "user_pseudo" not in st.session_state: st.session_state.user_pseudo = "Anonyme"
+    elif cfg["mode_affichage"] == "votes":
+        if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": 
+            del st.session_state["user_pseudo"]
+            st.rerun()
+
+    if cfg["mode_affichage"] != "photos_live":
+        if not is_test_admin:
+            components.html(f"""<script>
+                var sS = "{curr_sess}";
+                var lS = localStorage.getItem('VOTE_SID_2026');
+                if(lS !== sS) {{ localStorage.removeItem('HAS_VOTED_2026'); localStorage.setItem('VOTE_SID_2026', sS); if(window.parent.location.href.includes('blocked=true')) {{ window.parent.location.href = window.parent.location.href.replace('&blocked=true',''); }} }}
+                if(localStorage.getItem('HAS_VOTED_2026') === 'true') {{ window.parent.document.body.innerHTML = '<div style="background:black;color:white;text-align:center;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;"><h1 style="color:#E2001A;font-size:50px;">MERCI !</h1><h2>Vote déjà enregistré sur cet appareil.</h2></div>'; }}
+            </script>""", height=0)
+        else:
+            st.info("⚠️ MODE TEST ADMIN : Votes illimités autorisés.")
+        
+    if "user_pseudo" not in st.session_state:
+        st.subheader("Identification")
+        if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
+        
+        pseudo = st.text_input("Veuillez entrer votre Prénom :", placeholder="Ex: Thomas")
+        
+        if st.button("ENTRER", type="primary", use_container_width=True):
+            if pseudo:
+                st.session_state.user_pseudo = pseudo.strip()
+                parts = load_json(PARTICIPANTS_FILE, [])
+                if pseudo.strip() not in parts: 
+                    parts.append(pseudo.strip())
+                    save_json(PARTICIPANTS_FILE, parts)
+                st.rerun()
+            else:
+                st.warning("Merci d'écrire votre prénom.")
+    else:
+        if cfg["mode_affichage"] == "photos_live":
+            st.info("📸 ENVOYER UNE PHOTO")
+            up_key = f"uploader_{st.session_state.cam_reset_id}"; cam_key = f"camera_{st.session_state.cam_reset_id}"
+            
+            uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
+            cam_file = st.camera_input("Prendre une photo", key=cam_key)
+            
+            final_file = uploaded_file if uploaded_file else cam_file
+            
+            if final_file:
+                fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
+                try:
+                    with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
+                    st.success("Photo envoyée sur le mur ! 🚀")
+                    st.session_state.cam_reset_id += 1 
+                    time.sleep(1.5)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erreur envoi: {e}")
+
+        elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
+            if st.session_state.vote_success:
+                 st.balloons()
+                 st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
+                 if not is_test_admin: 
+                     components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                 else: 
+                     st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
+                 st.stop()
+            
+            st.write(f"Bonjour **{st.session_state.user_pseudo}**")
+            
+            if not st.session_state.rules_accepted:
+                st.info("⚠️ **RÈGLES DU VOTE**")
+                st.markdown("""
+                **VOTE PAR PRÉFÉRENCE (3 CHOIX)**
+                
+                <span style='color:#ff4b4b; font-weight:bold;'>🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</span>
+                
+                1. Sélectionnez **3 vidéos**.
+                2. 🥇 1er = **5 pts**
+                3. 🥈 2ème = **3 pts**
+                4. 🥉 3ème = **1 pt**
+                
+                **Vote unique et définitif.**
+                """, unsafe_allow_html=True)
+                
+                if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): 
+                    st.session_state.rules_accepted = True
+                    st.rerun()
+            else:
+                st.warning("⚠️ RAPPEL : Vote UNIQUE.")
+                choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+                
+                if len(choix) == 3:
+                    st.write("---")
+                    st.write(f"🥇 **{choix[0]}** (5 pts)")
+                    st.write(f"🥈 **{choix[1]}** (3 pts)")
+                    st.write(f"🥉 **{choix[2]}** (1 pt)")
+                    st.write("---")
+                    
+                    if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
+                        vts = load_json(VOTES_FILE, {})
+                        pts = cfg.get("points_ponderation", [5, 3, 1])
+                        for v, p in zip(choix, pts): 
+                            vts[v] = vts.get(v, 0) + p
+                        save_json(VOTES_FILE, vts)
+                        details = load_json(DETAILED_VOTES_FILE, [])
+                        details.append({
+                            "Utilisateur": st.session_state.user_pseudo, 
+                            "Choix 1": choix[0], 
+                            "Choix 2": choix[1], 
+                            "Choix 3": choix[2], 
+                            "Date": datetime.now().strftime("%H:%M:%S")
+                        })
+                        save_json(DETAILED_VOTES_FILE, details)
+                        st.session_state.vote_success = True
+                        st.rerun()
+        
+        elif is_test_admin and cfg["mode_affichage"] == "votes":
+             st.subheader("🛠️ MODE TEST ADMIN")
+             choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+             if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
+                 st.success("Test OK")
+                 time.sleep(1)
+                 st.rerun()
+        else:
+            st.info("⏳ En attente...")
+
+# =========================================================
+# 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
+# =========================================================
+else:
+    from streamlit_autorefresh import st_autorefresh
+    cfg = load_json(CONFIG_FILE, default_config)
+    
+    # Refresh auto
+    refresh_rate = 5000 if (cfg.get("mode_affichage") == "votes" and cfg.get("reveal_resultats")) else 4000
+    st_autorefresh(interval=refresh_rate, key="wall_refresh")
+    
+    # === CSS PRINCIPAL ===
+    st.markdown("""
+    <style>
+        .stApp, .main, .block-container, [data-testid="stAppViewContainer"] {
+            background-color: black !important;
+            padding: 0 !important; margin: 0 !important;
+            width: 100vw !important; max-width: 100vw !important;
+            overflow: hidden !important;
+        }
+        /* HEADER ROUGE FIXE */
+        .social-header { 
+            position: fixed !important; top: 0 !important; left: 0 !important; 
+            width: 100vw !important; height: 8vh !important;
+            background-color: #E2001A !important; 
+            display: flex !important; align-items: center !important; justify-content: center !important; 
+            z-index: 999999 !important; 
+            border-bottom: 3px solid white; 
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+        }
+        .social-title { 
+            color: white !important; font-family: Arial, sans-serif !important;
+            font-size: 3.5vh !important; font-weight: 900 !important; 
+            margin: 0 !important; text-transform: uppercase; letter-spacing: 2px;
+        }
+        iframe {
+            position: fixed !important; top: 0 !important; left: 0 !important;
+            width: 100vw !important; height: 100vh !important;
+            border: none !important; z-index: 0 !important; display: block !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # AFFICHE LE TITRE TOUT LE TEMPS
+    st.markdown(f'<div class="social-header"><h1 class="social-title">{cfg["titre_mur"]}</h1></div>', unsafe_allow_html=True)
+    
+    mode = cfg.get("mode_affichage")
+    effects = cfg.get("screen_effects", {})
+    effect_name = effects.get("attente" if mode=="attente" else "podium", "Aucun")
+    inject_visual_effect(effect_name, 25, 15)
+    
+    try:
+        with open("style.css", "r", encoding="utf-8") as f: css_content = f.read()
+        with open("robot.js", "r", encoding="utf-8") as f: js_content = f.read()
+    except: css_content = ""; js_content = "console.error('Fichiers manquants');"
+
+    robot_mode = "attente" 
+    if mode == "votes" and not cfg["session_ouverte"] and not cfg["reveal_resultats"]:
+        robot_mode = "vote_off"
+    elif mode == "photos_live":
+        robot_mode = "photos"
+    
+    safe_title = cfg['titre_mur'].replace("'", "\\'")
+    logo_data = cfg.get("logo_b64", "")
+    
+    js_config = f"""<script>window.robotConfig = {{ mode: '{robot_mode}', titre: '{safe_title}', logo: '{logo_data}' }};</script>"""
+    import_map = """<script type="importmap">{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }</script>"""
+    
+    # === CSS INTERNE (ROBOT & EFFETS) ===
+    internal_css_base = f"""
+    <style>
+        body {{ margin: 0; padding: 0; background-color: black; overflow: hidden; width: 100vw; height: 100vh; }}
+        #safe-zone {{ position: absolute; top: 8vh; left: 0; width: 100vw; height: 92vh; box-sizing: border-box; z-index: 100; pointer-events: none; }}
+        {css_content}
+        .neon-title {{
+            font-family: Arial, sans-serif; font-size: 70px; font-weight: 900; letter-spacing: 5px; margin: 0; padding: 0; color: #fff;
+            text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A;
+            animation: neon-flicker 1.5s infinite alternate;
+        }}
+        @keyframes neon-flicker {{
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {{ text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 20px #E2001A, 0 0 35px #E2001A, 0 0 50px #E2001A; }}
+            20%, 24%, 55% {{ text-shadow: none; opacity: 0.5; }}
+        }}
+        #robot-canvas-final {{ z-index: -1 !important; }}
+    </style>
+    """
+
+    # --- MODE 1 : ATTENTE (ACCUEIL) ---
+    if mode == "attente":
+        internal_css = internal_css_base + """
+        <style>
+            #welcome-container { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); text-align: center; width: 80%; z-index: 10; pointer-events: none; }
+            #welcome-logo { width: 380px; margin-bottom: 60px; }
+            #sub-text { 
+                margin-top: 50px; color: #eeeeee; font-family: 'Arial', sans-serif; font-size: 40px; font-weight: normal; 
+                opacity: 0; transform: translateY(30px); /* Position basse départ */
+                transition: opacity 0.8s ease-out, transform 0.8s ease-out; 
+                text-shadow: 0 0 10px black; 
+            }
+            .text-visible { opacity: 1 !important; transform: translateY(0px) !important; }
+            .text-hidden { opacity: 0 !important; transform: translateY(-30px) !important; /* Part vers le haut */ }
+        </style>
+        """
+        
+        # SCRIPT GESTION TEXTE (AVEC DELAI ROBOT 45s)
+        text_script = """<script>
+        const messages = [
+            "Votre soirée va bientôt commencer...<br>Merci de vous installer",
+            "Une soirée exceptionnelle vous attend",
+            "Veuillez couper la sonnerie<br>de vos téléphones 🔕",
+            "Profitez de l'instant et du spectacle",
+            "Préparez-vous à jouer !",
+            "N'oubliez pas vos sourires !"
+        ];
+        let msgIdx = 0;
+        const textEl = document.getElementById('sub-text');
+        
+        function updateText() {
+            textEl.className = 'text-hidden';
+            setTimeout(() => {
+                textEl.innerHTML = messages[msgIdx % messages.length];
+                textEl.style.transition = 'none';
+                textEl.style.transform = 'translateY(30px)';
+                setTimeout(() => {
+                    textEl.style.transition = 'opacity 0.8s ease-out, transform 0.8s ease-out';
+                    textEl.className = 'text-visible';
+                    msgIdx++;
+                }, 100);
+            }, 800);
+        }
+        
+        function startLoop() {
+            textEl.innerHTML = messages[0];
+            textEl.className = 'text-visible';
+            msgIdx++;
+            setInterval(updateText, 6000);
+        }
+
+        setTimeout(startLoop, 45000);
+        </script>"""
+
+        logo_img_tag = f'<img id="welcome-logo" src="data:image/png;base64,{logo_data}">' if logo_data else ""
+        
+        html_code = f"""<!DOCTYPE html><html><head>{internal_css}</head><body>{js_config}
+            <div id="safe-zone"></div>
+            <div id="welcome-container">
+                {logo_img_tag}
+                <div id="welcome-title" class="neon-title">BIENVENUE</div>
+                <div id="sub-text"></div>
+            </div>
+            <div id="robot-bubble" class="bubble" style="z-index: 20;">...</div>
+            <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
+            {import_map}<script type="module">{js_content}</script>
+            {text_script}
+            </body></html>"""
+        components.html(html_code, height=1000, scrolling=False) 
+
+    # --- MODE 2 : VOTES ---
     elif mode == "votes":
         if cfg.get("reveal_resultats"):
             # === PODIUM & SÉQUENCE CINÉMATIQUE (GRID 2x2 FORCEE) ===
