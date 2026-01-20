@@ -124,7 +124,6 @@ st.markdown("""
     ::-webkit-scrollbar { display: none; }
 </style>
 """, unsafe_allow_html=True)
-
 # =========================================================
 # 3. DONNEES & CONFIGURATIONS PAR DEFAUT
 # =========================================================
@@ -496,7 +495,7 @@ if est_admin:
                         
                         if is_super_admin:
                              if sub_c2.button("🗑️", key=f"del_{arc}", help="Supprimer"):
-                                 delete_archived_session(arc); st.rerun()
+                                  delete_archived_session(arc); st.rerun()
                         
         else:
             # --- INTERFACE ADMIN COMPLETE ---
@@ -703,17 +702,7 @@ if est_admin:
                             new_name = st.text_input(f"Participant {i+1}", value=cand, key=f"edit_{i}", label_visibility="collapsed")
                             if new_name != cand and new_name:
                                 cfg['candidats'][i] = new_name
-                                if cand in cfg.get("candidats_images", {}): 
-                                    cfg["candidats_images"][new_name] = cfg["candidats_images"].pop(cand)
-                                
-                                # --- DEBUT CORRECTION : SYNC VOTES.JSON ---
-                                # Mise à jour du fichier de votes pour répercuter le changement de nom
-                                v_curr = load_json(VOTES_FILE, {})
-                                if cand in v_curr:
-                                    v_curr[new_name] = v_curr.pop(cand)
-                                    save_json(VOTES_FILE, v_curr)
-                                # --- FIN CORRECTION ---
-
+                                if cand in cfg.get("candidats_images", {}): cfg["candidats_images"][new_name] = cfg["candidats_images"].pop(cand)
                                 save_config(); st.rerun()
                         with c3:
                             col_up, col_del = st.columns([3, 1])
@@ -1717,8 +1706,8 @@ else:
                 </div>
 
                 <div class="main-container">
-                    <div class="col-side" style="align-items: center;">
-                        <div style="display:flex; flex-direction:column; gap:15px; width:100%; align-items:center;">
+                    <div class="col-side" style="align-items: flex-end;">
+                        <div style="display:flex; flex-direction:column; gap:15px; width:100%; align-items:flex-end;">
                             {left_html}
                         </div>
                     </div>
@@ -1789,6 +1778,6 @@ else:
         <div id="robot-container" style="z-index: 5; pointer-events: none;"></div>
         {import_map}<script type="module">{js_content}</script>{bubbles_script}</body></html>"""
         components.html(html_code, height=1000, scrolling=False)
-
+    
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
