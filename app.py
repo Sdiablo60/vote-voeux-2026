@@ -205,10 +205,12 @@ def reset_app_data(init_mode="blank", preserve_config=False):
     st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
-# --- NOUVELLES FONCTIONS DE RESET GRANULAIRES ---
+# --- FONCTION CORRIGÉE : RESET VOTES + CHANGEMENT ID SESSION ---
 def reset_only_votes():
     for f in [VOTES_FILE, DETAILED_VOTES_FILE]:
         if os.path.exists(f): os.remove(f)
+    # IMPORTANT : On change l'ID de session pour débloquer les téléphones
+    st.session_state.config["session_id"] = str(uuid.uuid4())
     save_config()
 
 def reset_only_participants():
@@ -296,8 +298,12 @@ def get_advanced_stats():
     unique_voters = set()
     for record in details:
         unique_voters.add(record.get('Utilisateur'))
-        for idx, k in enumerate(["Choix 1 (5pts)", "Choix 2 (3pts)", "Choix 3 (1pt)"]):
+        for idx, k in enumerate(["Choix 1", "Choix 2", "Choix 3"]): # Clés simplifiées pour match
+            # Adaptation si les clés contiennent (5pts) etc.
             cand = record.get(k)
+            # Fallback si anciennes clés
+            if not cand: cand = record.get(f"{k} ({[5,3,1][idx]}pts)")
+            
             if cand:
                 vote_counts[cand] = vote_counts.get(cand, 0) + 1
                 if cand not in rank_dist: rank_dist[cand] = {1:0, 2:0, 3:0}
@@ -376,6 +382,35 @@ if PDF_AVAILABLE:
             pdf.set_xy(x_start + max_bar_width + 4, y_start)
             pdf.cell(20, bar_height, f"{points} pts", 0, 1, 'L')
             pdf.ln(bar_height + spacing)
+        return pdf.output(dest='S').encode('latin-1')
+
+    def create_pdf_details(title, data):
+        pdf = PDFReport(); pdf.add_page()
+        pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, "JOURNAL DES VOTES", 0, 1, 'L'); pdf.ln(2)
+        pdf.set_font("Arial", 'B', 9); pdf.set_fill_color(230, 230, 230)
+        cols = [45, 35, 35, 35, 25]; headers = ["Utilisateur", "Choix 1", "Choix 2", "Choix 3", "Heure"]
+        for i, h in enumerate(headers): pdf.cell(cols[i], 8, h, 1, 0, 'C', True)
+        pdf.ln()
+        pdf.set_font("Arial", '', 8)
+        for row in data:
+            u = str(row.get('Utilisateur','')).encode('latin-1','replace').decode('latin-1')
+            c1 = str(row.get('Choix 1','')).encode('latin-1','replace').decode('latin-1')
+            c2 = str(row.get('Choix 2','')).encode('latin-1','replace').decode('latin-1')
+            c3 = str(row.get('Choix 3','')).encode('latin-1','replace').decode('latin-1')
+            t = str(row.get('Date',''))
+            pdf.cell(cols[0], 7, u, 1); pdf.cell(cols[1], 7, c1, 1); pdf.cell(cols[2], 7, c2, 1); pdf.cell(cols[3], 7, c3, 1); pdf.cell(cols[4], 7, t, 1); pdf.ln()
+        return pdf.output(dest='S').encode('latin-1')
+
+    def create_pdf_participants(title, data):
+        pdf = PDFReport(); pdf.add_page()
+        pdf.set_font("Arial", 'B', 12); pdf.cell(0, 10, f"LISTE D'ÉMARGEMENT ({len(data)})", 0, 1, 'L'); pdf.ln(5)
+        pdf.set_font("Arial", '', 10)
+        col_width = 60; start_y = pdf.get_y(); x = pdf.l_margin
+        for i, p in enumerate(data):
+            safe_p = str(p).encode('latin-1','replace').decode('latin-1')
+            pdf.cell(col_width, 8, f"[ ] {safe_p}", 0, 1)
+            if pdf.get_y() > 270: 
+                pdf.add_page(); x = pdf.l_margin; pdf.set_y(15)
         return pdf.output(dest='S').encode('latin-1')
 
 # --- INIT SESSION ---
@@ -765,6 +800,125 @@ if est_admin:
                             st.session_state.selected_images = []
                             st.success("Suppression OK"); time.sleep(1); st.rerun()
 
+            elif menu == "📊 DATA" and (is_super_admin or "data" in perms):
+                st.title("📊 DONNÉES & RÉSULTATS")
+                
+                # 1. Chargement et Calcul des données
+                scores_data = load_json(VOTES_FILE, {})
+                vote_counts, nb_voters, rank_dist = get_advanced_stats()
+                total_points_all = sum(scores_data.values()) if scores_data else 0
+                participants_list = load_json(PARTICIPANTS_FILE, [])
+                
+                # 2. Affichage des indicateurs clés (KPIs)
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("👥 Votants (Ayant voté)", nb_voters)
+                c2.metric("📝 Inscrits (Total)", len(participants_list))
+                c3.metric("🏆 Total Points", total_points_all)
+                c4.metric("🎥 Candidats", len(cfg["candidats"]))
+                
+                st.divider()
+                
+                if scores_data:
+                    # 3. Préparation des données pour le tableau et le graphique
+                    df = pd.DataFrame(list(scores_data.items()), columns=["Candidat", "Points"])
+                    df['Nb Votes'] = df['Candidat'].map(vote_counts).fillna(0).astype(int)
+                    
+                    df = df.sort_values("Points", ascending=False).reset_index(drop=True)
+                    df.index += 1 
+                    
+                    # 4. Affichage Tableau & Graphique
+                    c_tab, c_graph = st.columns([1, 2])
+                    
+                    with c_tab:
+                        st.subheader("Classement")
+                        st.dataframe(df, use_container_width=True, height=400)
+                        
+                    with c_graph:
+                        st.subheader("Visualisation")
+                        chart = alt.Chart(df.reset_index()).mark_bar().encode(
+                            x=alt.X('Points', title='Points cumulés'),
+                            y=alt.Y('Candidat', sort='-x', title=''),
+                            color=alt.Color('Points', legend=None, scale=alt.Scale(scheme='reds')),
+                            tooltip=['Candidat', 'Points', 'Nb Votes']
+                        ).properties(height=400)
+                        st.altair_chart(chart, use_container_width=True)
+                    
+                    st.divider()
+                    
+                    # 5. Zone d'Export (PDF & CSV)
+                    st.subheader("📥 Téléchargements")
+                    col_pdf, col_csv, col_part = st.columns(3) # 3 COLONNES MAINTENANT
+                    
+                    with col_pdf:
+                        if PDF_AVAILABLE:
+                            try:
+                                pdf_bytes = create_pdf_results(cfg["titre_mur"], df, nb_voters, total_points_all)
+                                st.download_button(
+                                    label="📄 RÉSULTATS (PDF)",
+                                    data=pdf_bytes,
+                                    file_name=f"Rapport_Resultats_{datetime.now().strftime('%H%M')}.pdf",
+                                    mime="application/pdf",
+                                    type="primary",
+                                    use_container_width=True
+                                )
+                            except Exception as e:
+                                st.error(f"Erreur PDF: {e}")
+                        else:
+                            st.warning("⚠️ Module 'fpdf' manquant.")
+                            
+                    with col_csv:
+                        details = load_json(DETAILED_VOTES_FILE, [])
+                        if details:
+                            if PDF_AVAILABLE:
+                                try:
+                                    pdf_det = create_pdf_details("Journal", details)
+                                    st.download_button("📄 PDF Détails", pdf_det, "Journal_Votes.pdf", "application/pdf", use_container_width=True)
+                                except: pass
+                            
+                            df_details = pd.DataFrame(details)
+                            csv_data = df_details.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="📊 DÉTAIL VOTES (CSV)",
+                                data=csv_data,
+                                file_name="votes_detailles.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                        else:
+                            st.info("Pas de votes.")
+
+                    with col_part:
+                        if participants_list:
+                            if PDF_AVAILABLE:
+                                try:
+                                    pdf_par = create_pdf_participants("Participants", participants_list)
+                                    st.download_button("📄 PDF Participants", pdf_par, "Participants.pdf", "application/pdf", use_container_width=True)
+                                except: pass
+                            
+                            df_part = pd.DataFrame(participants_list, columns=["Pseudo"])
+                            csv_part = df_part.to_csv(index=False).encode('utf-8')
+                            st.download_button(
+                                label="👥 LISTE INSCRITS (CSV)",
+                                data=csv_part,
+                                file_name="participants.csv",
+                                mime="text/csv",
+                                use_container_width=True
+                            )
+                        else:
+                            st.info("Aucun inscrit.")
+                    
+                    st.markdown("---")
+                    st.subheader("🕵️‍♂️ Journal en Direct")
+                    details = load_json(DETAILED_VOTES_FILE, [])
+                    if details:
+                        df_details = pd.DataFrame(details)
+                        st.dataframe(df_details.iloc[::-1], use_container_width=True, height=300)
+                    else:
+                        st.caption("Le journal est vide.")
+
+                else:
+                    st.info("ℹ️ Aucun vote n'a encore été enregistré. La session est en attente.")
+
             elif menu == "👥 UTILISATEURS" and is_super_admin:
                 st.title("👥 GESTION DES UTILISATEURS")
                 
@@ -857,18 +1011,84 @@ if est_admin:
 # =========================================================
 elif est_utilisateur:
     cfg = load_json(CONFIG_FILE, default_config)
-    st.markdown("""<style>
-    .stApp {background-color:black !important; color:white !important;} 
-    [data-testid='stHeader'] {display:none;} .block-container {padding: 1rem !important;} 
-    h1, h2, h3, p, div, span, label { color: white !important; }
-    /* FIX EXTREME POUR LE TEXTE NOIR DANS LES DROPDOWNS */
-    li[role="option"] span, li[role="option"] div, div[data-baseweb="select"] span, div[data-baseweb="menu"] li, div[data-baseweb="popover"] div { color: black !important; }
-    div[data-baseweb="popover"] { background-color: white !important; }
-    ul[role="listbox"] { background-color: white !important; }
-    /* BOUTON ROUGE */
-    button[kind="primary"], div[data-testid="stBaseButton-primary"] button { background-color: #E2001A !important; color: white !important; border: 1px solid #E2001A !important; }
-    button[kind="primary"]:hover { background-color: #C20015 !important; }
-    </style>""", unsafe_allow_html=True)
+    
+    # --- CSS SPÉCIFIQUE MOBILE (BOUTONS ROUGES & FOND SAISIE BLANC) ---
+    st.markdown("""
+    <style>
+        /* 1. Fond général NOIR */
+        .stApp {
+            background-color: black !important; 
+            color: white !important;
+        }
+        
+        /* Cache le header/footer */
+        [data-testid='stHeader'], footer { display: none !important; }
+        .block-container { padding: 1rem !important; }
+        
+        /* Textes généraux en BLANC */
+        h1, h2, h3, p, label, span, div.stMarkdown { color: white !important; }
+
+        /* 2. CHAMP DE SAISIE (PSEUDO) : FOND BLANC / TEXTE NOIR */
+        div[data-testid="stTextInput"] input {
+            background-color: white !important;
+            color: black !important;
+            border-radius: 5px;
+            border: 2px solid #ccc;
+        }
+        div[data-testid="stTextInput"] label {
+            color: white !important; /* Label en blanc */
+            font-size: 18px !important;
+            font-weight: bold !important;
+            margin-bottom: 5px;
+        }
+
+        /* 3. BOUTONS (VALIDATION) : FOND ROUGE / TEXTE BLANC */
+        button[kind="primary"], button[kind="secondary"], div.stButton > button {
+            background-color: #E2001A !important;
+            color: white !important;
+            border: 1px solid #E2001A !important;
+            font-weight: bold !important;
+            font-size: 18px !important;
+            padding: 0.5rem 1rem !important;
+            border-radius: 8px !important;
+            transition: all 0.3s ease;
+        }
+        /* Survol et Focus */
+        button:hover, button:focus, button:active {
+            background-color: #C20015 !important;
+            color: white !important;
+            border-color: white !important;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        /* Force la couleur du texte à l'intérieur du bouton */
+        button p, button div { color: white !important; }
+
+        /* 4. MENUS DÉROULANTS (MULTISELECT) : LISTE BLANCHE / TEXTE NOIR */
+        div[data-baseweb="select"] > div {
+            background-color: white !important;
+            color: black !important;
+            border-radius: 5px;
+        }
+        span[data-baseweb="tag"] {
+             background-color: #333 !important; 
+             color: white !important;
+        }
+        div[data-baseweb="popover"], ul[role="listbox"], div[data-baseweb="menu"] {
+            background-color: white !important;
+        }
+        li[role="option"] {
+            background-color: white !important;
+            color: black !important;
+            border-bottom: 1px solid #eee;
+        }
+        li[role="option"] div, li[role="option"] span {
+            color: black !important;
+        }
+        li[role="option"]:hover, li[role="option"][aria-selected="true"] {
+            background-color: #f0f0f0 !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
     
     curr_sess = cfg.get("session_id", "init")
     if "vote_success" not in st.session_state: st.session_state.vote_success = False
@@ -878,7 +1098,9 @@ elif est_utilisateur:
     if cfg["mode_affichage"] == "photos_live":
         if "user_pseudo" not in st.session_state: st.session_state.user_pseudo = "Anonyme"
     elif cfg["mode_affichage"] == "votes":
-        if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": del st.session_state["user_pseudo"]; st.rerun()
+        if "user_pseudo" in st.session_state and st.session_state.user_pseudo == "Anonyme": 
+            del st.session_state["user_pseudo"]
+            st.rerun()
 
     if cfg["mode_affichage"] != "photos_live":
         if not is_test_admin:
@@ -894,53 +1116,108 @@ elif est_utilisateur:
     if "user_pseudo" not in st.session_state:
         st.subheader("Identification")
         if cfg.get("logo_b64"): st.image(BytesIO(base64.b64decode(cfg["logo_b64"])), width=100)
-        pseudo = st.text_input("Veuillez entrer votre prénom ou Pseudo :")
-        if st.button("ENTRER", type="primary", use_container_width=True) and pseudo:
-            st.session_state.user_pseudo = pseudo.strip()
-            parts = load_json(PARTICIPANTS_FILE, [])
-            parts.append(pseudo.strip())
-            save_json(PARTICIPANTS_FILE, parts)
-            st.rerun()
+        
+        pseudo = st.text_input("Veuillez entrer votre Prénom :", placeholder="Ex: Thomas")
+        
+        if st.button("ENTRER", type="primary", use_container_width=True):
+            if pseudo:
+                st.session_state.user_pseudo = pseudo.strip()
+                parts = load_json(PARTICIPANTS_FILE, [])
+                if pseudo.strip() not in parts: 
+                    parts.append(pseudo.strip())
+                    save_json(PARTICIPANTS_FILE, parts)
+                st.rerun()
+            else:
+                st.warning("Merci d'écrire votre prénom.")
     else:
         if cfg["mode_affichage"] == "photos_live":
-            st.info("📸 ENVOYER UNE PHOTO"); up_key = f"uploader_{st.session_state.cam_reset_id}"; cam_key = f"camera_{st.session_state.cam_reset_id}"
+            st.info("📸 ENVOYER UNE PHOTO")
+            up_key = f"uploader_{st.session_state.cam_reset_id}"; cam_key = f"camera_{st.session_state.cam_reset_id}"
+            
             uploaded_file = st.file_uploader("Choisir dans la galerie", type=['png', 'jpg', 'jpeg'], key=up_key)
             cam_file = st.camera_input("Prendre une photo", key=cam_key)
+            
             final_file = uploaded_file if uploaded_file else cam_file
+            
             if final_file:
                 fname = f"live_{uuid.uuid4().hex}_{int(time.time())}.jpg"
-                with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
-                st.success("Envoyé !"); st.session_state.cam_reset_id += 1; time.sleep(1); st.rerun()
+                try:
+                    with open(os.path.join(LIVE_DIR, fname), "wb") as f: f.write(final_file.getbuffer())
+                    st.success("Photo envoyée sur le mur ! 🚀")
+                    st.session_state.cam_reset_id += 1 
+                    time.sleep(1.5)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Erreur envoi: {e}")
 
         elif (cfg["mode_affichage"] == "votes" and (cfg["session_ouverte"] or is_test_admin)):
             if st.session_state.vote_success:
                  st.balloons()
                  st.markdown("""<div style='text-align:center; margin-top:50px; padding:20px;'><h1 style='color:#E2001A;'>MERCI !</h1><h2 style='color:white;'>Vote enregistré.</h2><br><div style='font-size:80px;'>✅</div></div>""", unsafe_allow_html=True)
-                 if not is_test_admin: components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
-                 else: st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
+                 if not is_test_admin: 
+                     components.html("""<script>localStorage.setItem('HAS_VOTED_2026', 'true');</script>""", height=0)
+                 else: 
+                     st.button("🔄 Voter à nouveau (RAZ)", on_click=reset_vote_callback, type="primary")
                  st.stop()
+            
             st.write(f"Bonjour **{st.session_state.user_pseudo}**")
+            
             if not st.session_state.rules_accepted:
-                st.info("⚠️ **RÈGLES DU VOTE**"); st.markdown("1. Sélectionnez **3 vidéos**.\n2. 🥇 1er = **5 pts**\n3. 🥈 2ème = **3 pts**\n4. 🥉 3ème = **1 pt**\n\n**Vote unique et définitif.**")
-                if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): st.session_state.rules_accepted = True; st.rerun()
+                st.info("⚠️ **RÈGLES DU VOTE**")
+                st.markdown("""
+                **VOTE PAR PRÉFÉRENCE (3 CHOIX)**
+                
+                <span style='color:#ff4b4b; font-weight:bold;'>🚫 INTERDIT DE VOTER POUR SON ÉQUIPE</span>
+                
+                1. Sélectionnez **3 vidéos**.
+                2. 🥇 1er = **5 pts**
+                3. 🥈 2ème = **3 pts**
+                4. 🥉 3ème = **1 pt**
+                
+                **Vote unique et définitif.**
+                """, unsafe_allow_html=True)
+                
+                if st.button("J'AI COMPRIS, JE VOTE !", type="primary", use_container_width=True): 
+                    st.session_state.rules_accepted = True
+                    st.rerun()
             else:
                 st.warning("⚠️ RAPPEL : Vote UNIQUE.")
                 choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
+                
                 if len(choix) == 3:
-                    if st.button("VALIDER (DÉFINITIF)", type="primary"):
-                        vts = load_json(VOTES_FILE, {}); pts = cfg.get("points_ponderation", [5, 3, 1])
-                        for v, p in zip(choix, pts): vts[v] = vts.get(v, 0) + p
+                    st.write("---")
+                    st.write(f"🥇 **{choix[0]}** (5 pts)")
+                    st.write(f"🥈 **{choix[1]}** (3 pts)")
+                    st.write(f"🥉 **{choix[2]}** (1 pt)")
+                    st.write("---")
+                    
+                    if st.button("VALIDER (DÉFINITIF)", type="primary", use_container_width=True):
+                        vts = load_json(VOTES_FILE, {})
+                        pts = cfg.get("points_ponderation", [5, 3, 1])
+                        for v, p in zip(choix, pts): 
+                            vts[v] = vts.get(v, 0) + p
                         save_json(VOTES_FILE, vts)
                         details = load_json(DETAILED_VOTES_FILE, [])
-                        details.append({"Utilisateur": st.session_state.user_pseudo, "Choix 1": choix[0], "Choix 2": choix[1], "Choix 3": choix[2], "Date": datetime.now().strftime("%H:%M:%S")})
+                        details.append({
+                            "Utilisateur": st.session_state.user_pseudo, 
+                            "Choix 1": choix[0], 
+                            "Choix 2": choix[1], 
+                            "Choix 3": choix[2], 
+                            "Date": datetime.now().strftime("%H:%M:%S")
+                        })
                         save_json(DETAILED_VOTES_FILE, details)
-                        st.session_state.vote_success = True; st.rerun()
+                        st.session_state.vote_success = True
+                        st.rerun()
         
         elif is_test_admin and cfg["mode_affichage"] == "votes":
+             st.subheader("🛠️ MODE TEST ADMIN")
              choix = st.multiselect("Vos 3 vidéos préférées :", cfg["candidats"], max_selections=3)
              if len(choix) == 3 and st.button("VALIDER (MODE TEST)", type="primary"):
-                 st.success("Test OK"); time.sleep(1); st.rerun()
-        else: st.info("⏳ En attente...")
+                 st.success("Test OK")
+                 time.sleep(1)
+                 st.rerun()
+        else:
+            st.info("⏳ En attente...")
 
 # =========================================================
 # 3. MUR SOCIAL (VERSION FINALE - PODIUM GRID FORCE)
@@ -1504,4 +1781,3 @@ else:
     
     else:
         st.markdown(f"<div class='full-screen-center'><h1 style='color:white;'>EN ATTENTE...</h1></div>", unsafe_allow_html=True)
-
